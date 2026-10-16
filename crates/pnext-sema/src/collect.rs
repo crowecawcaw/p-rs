@@ -45,23 +45,23 @@ impl<'a> Analyzer<'a> {
                         s.var_list.push(v);
                     }
                 }
-                ast::TopDecl::Event { name, .. } => {
-                    self.check_conflict(g, &name.name, name.span, &[Namespace::Events, Namespace::EnumElems])?;
-                    self.prog.events.push(EventDecl { name: name.name.clone(), payload: PType::Null, span: name.span });
+                ast::TopDecl::Event { name, span, .. } => {
+                    self.check_conflict(g, &name.name, *span, &[Namespace::Events, Namespace::EnumElems])?;
+                    self.prog.events.push(EventDecl { name: name.name.clone(), payload: PType::Null, span: *span });
                     let id = EventId(self.prog.events.len() as u32 - 1);
                     self.scopes.get_mut(g).events.insert(name.name.clone(), id);
                 }
-                ast::TopDecl::EventSet { name, .. } => {
-                    self.check_conflict(g, &name.name, name.span, &[Namespace::EventSets, Namespace::Interfaces])?;
-                    self.prog.event_sets.push(EventSetDecl { name: name.name.clone(), events: Vec::new(), span: name.span });
+                ast::TopDecl::EventSet { name, span, .. } => {
+                    self.check_conflict(g, &name.name, *span, &[Namespace::EventSets, Namespace::Interfaces])?;
+                    self.prog.event_sets.push(EventSetDecl { name: name.name.clone(), events: Vec::new(), span: *span });
                     let id = EventSetId(self.prog.event_sets.len() as u32 - 1);
                     self.scopes.get_mut(g).event_sets.insert(name.name.clone(), id);
                 }
-                ast::TopDecl::Interface { name, .. } => {
+                ast::TopDecl::Interface { name, span, .. } => {
                     self.check_conflict(
                         g,
                         &name.name,
-                        name.span,
+                        *span,
                         &[Namespace::Interfaces, Namespace::Enums, Namespace::Typedefs, Namespace::Machines],
                     )?;
                     self.prog.interfaces.push(InterfaceDecl {
@@ -69,32 +69,32 @@ impl<'a> Analyzer<'a> {
                         payload: PType::Null,
                         receives: None,
                         implicit_for: None,
-                        span: name.span,
+                        span: *span,
                     });
                     let id = InterfaceId(self.prog.interfaces.len() as u32 - 1);
                     self.scopes.get_mut(g).interfaces.insert(name.name.clone(), id);
                 }
-                ast::TopDecl::TypeDef { name, ty, .. } => {
+                ast::TopDecl::TypeDef { name, ty, span } => {
                     self.check_conflict(
                         g,
                         &name.name,
-                        name.span,
+                        *span,
                         &[Namespace::Typedefs, Namespace::Enums, Namespace::Interfaces, Namespace::Machines],
                     )?;
-                    self.prog.typedefs.push(TypeDefDecl { name: name.name.clone(), ty: PType::Error, span: name.span });
+                    self.prog.typedefs.push(TypeDefDecl { name: name.name.clone(), ty: PType::Error, span: *span });
                     let id = TypeDefId(self.prog.typedefs.len() as u32 - 1);
                     self.typedef_src.push(ty.as_ref());
                     self.typedef_resolved.push(false);
                     self.scopes.get_mut(g).typedefs.insert(name.name.clone(), id);
                 }
-                ast::TopDecl::Enum { name, elems, .. } => {
+                ast::TopDecl::Enum { name, elems, span } => {
                     self.check_conflict(
                         g,
                         &name.name,
-                        name.span,
+                        *span,
                         &[Namespace::Enums, Namespace::Interfaces, Namespace::Typedefs, Namespace::Machines],
                     )?;
-                    self.prog.enums.push(EnumDecl { name: name.name.clone(), elems: Vec::new(), span: name.span });
+                    self.prog.enums.push(EnumDecl { name: name.name.clone(), elems: Vec::new(), span: *span });
                     let id = EnumId(self.prog.enums.len() as u32 - 1);
                     self.scopes.get_mut(g).enums.insert(name.name.clone(), id);
                     for (i, el) in elems.iter().enumerate() {
@@ -111,7 +111,7 @@ impl<'a> Analyzer<'a> {
                     self.check_conflict(
                         g,
                         &m.name.name,
-                        m.name.span,
+                        m.span,
                         &[Namespace::Machines, Namespace::Interfaces, Namespace::Enums, Namespace::Typedefs],
                     )?;
                     let kind = match m.kind {
@@ -168,7 +168,7 @@ impl<'a> Analyzer<'a> {
                         self.stub_fun(ms, f, Some(mid))?;
                     }
                     for st in &m.states {
-                        self.check_conflict(ms, &st.name.name, st.name.span, &[Namespace::States])?;
+                        self.check_conflict(ms, &st.name.name, st.span, &[Namespace::States])?;
                         self.prog.states.push(StateDecl {
                             name: st.name.name.clone(),
                             machine: mid,
@@ -212,7 +212,7 @@ impl<'a> Analyzer<'a> {
                 }
                 ast::TopDecl::Axiom { .. } | ast::TopDecl::AssumeOnStart { .. } | ast::TopDecl::ProofBlock { .. } => {}
                 ast::TopDecl::Module { name, expr, span } => {
-                    self.check_conflict(g, &name.name, name.span, &[Namespace::NamedModules])?;
+                    self.check_conflict(g, &name.name, *span, &[Namespace::NamedModules])?;
                     let idx = self.module_src.len() as u32;
                     self.module_src.push((name.name.clone(), expr, *span));
                     self.scopes.get_mut(g).named_modules.insert(name.name.clone(), idx);
@@ -221,7 +221,7 @@ impl<'a> Analyzer<'a> {
                     self.check_conflict(
                         g,
                         &t.name.name,
-                        t.name.span,
+                        t.span,
                         &[Namespace::Implementations, Namespace::SafetyTests, Namespace::RefinementTests],
                     )?;
                     let main = MachineId(0); // resolved by the module system
@@ -240,7 +240,7 @@ impl<'a> Analyzer<'a> {
                     self.check_conflict(
                         g,
                         &name.name,
-                        name.span,
+                        *span,
                         &[Namespace::Implementations, Namespace::SafetyTests, Namespace::RefinementTests],
                     )?;
                     let idx = self.refinement_src.len() as u32;
@@ -251,7 +251,7 @@ impl<'a> Analyzer<'a> {
                     self.check_conflict(
                         g,
                         &name.name,
-                        name.span,
+                        *span,
                         &[Namespace::Implementations, Namespace::SafetyTests, Namespace::RefinementTests],
                     )?;
                     self.prog.impls.push(ImplDecl {
@@ -270,7 +270,7 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stub_fun(&mut self, scope: ScopeId, f: &'a ast::FunDecl, owner: Option<MachineId>) -> Result<FunId, Fatal> {
-        self.check_conflict(scope, &f.name.name, f.name.span, &[Namespace::Functions, Namespace::States])?;
+        self.check_conflict(scope, &f.name.name, f.span, &[Namespace::Functions, Namespace::States])?;
         let fs = self.scopes.child(scope);
         let id = self.new_fun(&f.name.name, owner, fs, FunSrc::Named(f), f.span);
         self.scopes.get_mut(scope).functions.insert(f.name.name.clone(), id);
