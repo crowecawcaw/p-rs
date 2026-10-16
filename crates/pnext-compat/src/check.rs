@@ -209,6 +209,7 @@ pub struct CheckConfig {
     pub verbose: bool,
     /// `--xml-trace`: also write the buggy schedule's `.trace.xml`.
     pub xml_trace: bool,
+    pub timeline: pnext_checker::timeline::TimelineConfig,
     pub schedule_file: String,
     pub latency_file: String,
     pub latency_profile: Option<String>,
@@ -240,6 +241,7 @@ impl CheckConfig {
             timeout: 0,
             verbose: false,
             xml_trace: false,
+            timeline: Default::default(),
             schedule_file: String::new(),
             latency_file: String::new(),
             latency_profile: None,
@@ -293,8 +295,10 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             "outdir" => cfg.output_path = string(),
             "verbose" => cfg.verbose = true,
             "xml-trace" => cfg.xml_trace = true,
-            "debug" | "memout" | "graph" | "graph-bug" | "jvm-args" | "checker-args" | "psym-args"
-            | "timeline-repr" | "timeline-kgram" | "timeline-payload" => {}
+            "debug" | "memout" | "graph" | "graph-bug" | "jvm-args" | "checker-args" | "psym-args" => {}
+            "timeline-repr" => cfg.timeline.repr = pnext_checker::timeline::TimelineRepr::parse(&string()),
+            "timeline-kgram" => cfg.timeline.kgram = uint() as usize,
+            "timeline-payload" => cfg.timeline.payload = true,
             "timeout" => {
                 cfg.timeout = uint();
                 if cfg.iterations == 1 {
@@ -645,6 +649,7 @@ fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
         verbose: cfg.verbose,
         json_trace: true,
         xml_trace: cfg.xml_trace,
+        timeline: cfg.timeline,
         activity_coverage: true,
         latency: cfg.latency.clone(),
         latency_profile: cfg.latency_profile.clone(),

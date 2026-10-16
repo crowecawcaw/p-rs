@@ -473,7 +473,7 @@ impl<'p> Runtime<'p> {
             Some(p) => p,
             None => default_value(&self.prog.event(id).payload, self.prog),
         };
-        Event { id, payload, stamp: None }
+        Event { id, payload, stamp: None, vt: None }
     }
 
     /// `Runtime.Assert(false, s)`: the message goes through `String.Format` with no
@@ -1087,7 +1087,7 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("Announce", d, true);
                 }
-                let e = Event { id: ev_id, payload, stamp: None };
+                let e = Event { id: ev_id, payload, stamp: None, vt: None };
                 self.announce_internal(m, &e)?;
             }
             Op::Goto { state, has_payload } => {

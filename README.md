@@ -78,9 +78,11 @@ system; the module is about 1 MB (about 320 KB gzipped).
 
 ## Known differences from upstream
 
-* Not implemented: the rl strategy, PEx and PVerifier modes, the kgram/causal/hybrid
-  timeline representations, the activity coverage report, DGML graphs and XML traces. Options for them are accepted;
-  choosing an unimplemented strategy reports an error.
+* Not implemented: the rl strategy and the PEx and PVerifier modes. Options for them are
+  accepted; choosing an unimplemented strategy reports an error. `--graph` and `--graph-bug` are accepted and, as upstream,
+  write nothing.
+* .NET stack frames (in exception reports and in `ExceptionThrown` / `ExceptionHandled`
+  trace elements) cannot be reproduced and are omitted.
 * Foreign code in C# or Java cannot run; provide foreign functions in Rust.
 * An action that runs forever without reaching a scheduling point is reported as a bug
   (upstream hangs).

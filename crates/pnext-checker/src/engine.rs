@@ -58,6 +58,8 @@ pub struct CheckerOptions {
     pub json_trace: bool,
     /// Produce the XML trace of the first buggy schedule (`--xml-trace`), also by replaying it.
     pub xml_trace: bool,
+    /// `--timeline-repr`, `--timeline-kgram`, `--timeline-payload`.
+    pub timeline: crate::timeline::TimelineConfig,
     /// Name of the compiled project, the source upstream reports for exceptions raised by
     /// the model's own code.
     pub assembly_name: String,
@@ -91,6 +93,7 @@ impl Default for CheckerOptions {
             activity_coverage: false,
             json_trace: false,
             xml_trace: false,
+            timeline: Default::default(),
             assembly_name: "PImplementation".into(),
             latency: None,
             latency_profile: None,
@@ -542,6 +545,7 @@ impl<'p> Checker<'p> {
             // buggy schedules are replayed with logging on afterwards
             logging: is_replay || opts.verbose || opts.log_every_schedule,
             assembly_name: opts.assembly_name.clone(),
+            timeline: opts.timeline,
         };
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };

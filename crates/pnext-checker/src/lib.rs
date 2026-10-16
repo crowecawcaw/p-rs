@@ -21,4 +21,5 @@ pub mod foreign;
 pub mod feedback;
 pub mod coverage;
 pub mod time;
+pub mod timeline;
 pub mod xmllog;

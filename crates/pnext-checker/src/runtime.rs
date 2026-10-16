@@ -18,6 +18,7 @@ use crate::bytecode::{CodeBlock, ReceiveCase, Root};
 use crate::compile::Code;
 use crate::jsonlog::{payload_key, to_dict, Details, JsonLog};
 use crate::strategy::{OpInfo, ScheduleStep, ScheduleTrace, Strategy};
+use crate::timeline::{Timeline, TimelineConfig, VectorTime};
 use crate::value::{default_value, event_cs_full_name, event_cs_name, MachineRef, Value};
 
 /// An event instance: its declaration plus payload (`Value::Null` when it has none).
@@ -27,6 +28,8 @@ pub struct Event {
     pub payload: Value,
     /// When the event reaches its receiver; only set while time is tracked.
     pub stamp: Option<Rc<crate::time::Stamp>>,
+    /// The sender's vector clock at the send; only set for the causal timelines.
+    pub vt: Option<Rc<VectorTime>>,
 }
 
 /// Marker returned when the current schedule must stop (bug found or execution canceled).
@@ -208,6 +211,8 @@ pub struct Machine {
     pub this: Rc<MachineRef>,
     /// Local clock (only advanced while time is tracked).
     pub clock: crate::time::Time,
+    /// Vector clock (only advanced for the causal timeline representations).
+    pub vt: VectorTime,
 }
 
 #[derive(Debug)]
@@ -218,64 +223,6 @@ pub struct Monitor {
     pub temperature: usize,
     pub pending_transition: Transition,
     pub goto_payload: Option<Value>,
-}
-
-/// The pairwise timeline abstraction of a schedule (`PairwiseLocalRepresentation`):
-/// for every receiver, every ordered pair of event labels it dequeued.
-#[derive(Debug, Default, Clone)]
-pub struct Timeline {
-    receivers: Vec<Rc<str>>,
-    labels: Vec<Rc<str>>,
-    /// Labels seen so far, per receiver index.
-    seen: Vec<Vec<u32>>,
-    /// `(receiver, previous label, label)` triples.
-    tokens: std::collections::HashSet<(u32, u32, u32)>,
-}
-
-impl Timeline {
-    fn intern(table: &mut Vec<Rc<str>>, s: &str) -> u32 {
-        match table.iter().position(|x| &**x == s) {
-            Some(i) => i as u32,
-            None => {
-                table.push(Rc::from(s));
-                (table.len() - 1) as u32
-            }
-        }
-    }
-
-    /// `OnDequeueEvent` of the pairwise representation.
-    pub fn record(&mut self, receiver: &str, label: &str) {
-        let r = Self::intern(&mut self.receivers, receiver);
-        let l = Self::intern(&mut self.labels, label);
-        if self.seen.len() <= r as usize {
-            self.seen.resize(r as usize + 1, Vec::new());
-        }
-        for prev in &self.seen[r as usize] {
-            self.tokens.insert((r, *prev, l));
-        }
-        if !self.seen[r as usize].contains(&l) {
-            self.seen[r as usize].push(l);
-        }
-    }
-
-    /// The timeline tokens (`receiver\u{1f}prev\u{1f}label\u{1f}`), sorted ordinally.
-    pub fn tokens(&self) -> Vec<String> {
-        const S: char = '\u{1f}';
-        let mut v: Vec<String> = self
-            .tokens
-            .iter()
-            .map(|(r, p, l)| {
-                format!("{}{}{}{}{}{}", self.receivers[*r as usize], S, self.labels[*p as usize], S, self.labels[*l as usize], S)
-            })
-            .collect();
-        v.sort();
-        v
-    }
-
-    /// `GetAbstractTimeline`: the sorted tokens joined with `;`.
-    pub fn abstract_timeline(&self) -> String {
-        self.tokens().join(";")
-    }
 }
 
 /// Configuration of one checking run (`CheckerConfiguration`).
@@ -300,6 +247,8 @@ pub struct Config {
     /// Name of the compiled project's assembly, reported as the source of exceptions
     /// raised by the model's own code.
     pub assembly_name: String,
+    /// How schedules are abstracted into timelines.
+    pub timeline: TimelineConfig,
 }
 
 impl Default for Config {
@@ -315,6 +264,7 @@ impl Default for Config {
             strategy_description: None,
             logging: true,
             assembly_name: "PImplementation".into(),
+            timeline: TimelineConfig::default(),
         }
     }
 }
@@ -455,7 +405,7 @@ impl<'p> Runtime<'p> {
             strategy,
             trace: ScheduleTrace::default(),
             log: Vec::new(),
-            timeline: Timeline::default(),
+            timeline: Timeline::new(config.timeline),
             bug: None,
             stopped: false,
             fully_explored: false,
@@ -960,6 +910,7 @@ impl<'p> Runtime<'p> {
             received: None,
             this,
             clock,
+            vt: VectorTime::new(id),
         });
         let op = self.new_op(display.to_string(), Some(idx));
         debug_assert_eq!(op, id);
@@ -1049,6 +1000,12 @@ impl<'p> Runtime<'p> {
                 None,
             );
         }
+        let mut event = event;
+        if self.timeline.config.repr.causal() {
+            let id = self.machines[sender].id;
+            self.machines[sender].vt.increment(id);
+            event.vt = Some(Rc::new(self.machines[sender].vt.clone()));
+        }
         if halted {
             if self.logging { self.log_line(format!(
                 "<SendLog> '{}' in state '{}' sent event '{}' to '{}' which has halted.",
@@ -1061,7 +1018,6 @@ impl<'p> Runtime<'p> {
             sender_name, sender_state, ev, target.name
         )); } else { self.step_work += LOG_LINE_WORK; }
         let t = tidx.unwrap();
-        let mut event = event;
         if self.time.is_some() {
             event.stamp = Some(Rc::new(self.send_stamp(sender, t, event.id)));
         }
@@ -1221,7 +1177,7 @@ impl<'p> Runtime<'p> {
             }
             match stage {
                 Stage::Start(payload) => {
-                    let e = Event { id: self.prog.null_event, payload, stamp: None };
+                    let e = Event { id: self.prog.null_event, payload, stamp: None, vt: None };
                     self.machines[m].stage = Stage::AfterStartEntry;
                     self.enter_state(m, e)?;
                 }
@@ -1275,7 +1231,7 @@ impl<'p> Runtime<'p> {
                     } else if has_default {
                         let name = self.machines[m].name.clone();
                         let state = self.log_state_name(m);
-                        let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None };
+                        let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None, vt: None };
                         self.machines[m].stage = Stage::Handle(e);
                         self.cov_default(m);
                         if self.logging { self.log_line(format!(
@@ -1322,8 +1278,19 @@ impl<'p> Runtime<'p> {
                         let ev = self.xml_event(e.id);
                         self.xlog("DequeueEvent", &[("id", &name), ("state", &state), ("event", &ev)], None);
                     }
-                    let label = event_cs_name(self.prog, e.id);
-                    self.timeline.record(&name, label);
+                    let mut label = event_cs_name(self.prog, e.id).to_string();
+                    if self.timeline.config.payload && e.payload != Value::Null {
+                        label = format!("{}#{}", label, crate::feedback::stable_hash(&e.payload.to_display(self.prog)));
+                    }
+                    let time = if self.timeline.config.repr.causal() {
+                        if let Some(vt) = &e.vt {
+                            self.machines[m].vt.merge(vt);
+                        }
+                        Some(Rc::new(self.machines[m].vt.clone()))
+                    } else {
+                        None
+                    };
+                    self.timeline.record(&name, &label, time);
                     self.time_receive(m, &e);
                     self.machines[m].stage = Stage::Handle(e);
                 }
@@ -1688,7 +1655,7 @@ impl<'p> Runtime<'p> {
                     self.xlog("Raise", &[("id", &id), ("state", &state), ("event", &ev)], None);
                 }
                 // Modeled as a raised goto event, handled on the next dequeue.
-                self.machines[m].inbox.raised = Some(Event { id: GOTO_EVENT, payload: Value::Null, stamp: None });
+                self.machines[m].inbox.raised = Some(Event { id: GOTO_EVENT, payload: Value::Null, stamp: None, vt: None });
                 self.machines[m].goto_target = Some(target);
             }
             Transition::Halt => {
@@ -1743,7 +1710,7 @@ impl<'p> Runtime<'p> {
                 let ty = self.monitor_full_name(idx);
                 self.xlog("CreateMonitor", &[("type", &ty)], None);
             }
-            let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None };
+            let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None, vt: None };
             self.monitor_enter_state(idx, &e)?;
         }
         Ok(())
@@ -1930,7 +1897,7 @@ impl<'p> Runtime<'p> {
                     self.jlog("MonitorRaiseEvent", d, true);
                 }
                 self.xml_monitor_raise(mon, GOTO_EVENT);
-                let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None };
+                let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None, vt: None };
                 self.monitor_goto(mon, target, None, &e)
             }
         }

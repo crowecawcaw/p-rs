@@ -640,7 +640,7 @@ pub fn timeline_minhash<'a>(tokens: impl Iterator<Item = &'a str>) -> Vec<i32> {
 }
 
 /// FNV-1a over UTF-8 (`TimelineObserver.StableHash`).
-fn stable_hash(token: &str) -> i32 {
+pub fn stable_hash(token: &str) -> i32 {
     let mut h: u32 = 2166136261;
     for b in token.bytes() {
         h = (h ^ b as u32).wrapping_mul(16777619);
