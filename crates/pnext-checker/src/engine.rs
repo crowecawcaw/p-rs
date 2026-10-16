@@ -120,10 +120,10 @@ pub struct ScenarioCoverage {
     pub total_states: usize,
 }
 
-/// Name ordering of `OrderBy(k => k)` (culture-aware: case-insensitive first, lower case
-/// before upper case on ties).
+/// String ordering of .NET's default comparer (`OrderBy(k => k)`, `List<string>.Sort()`) as
+/// the P tool runs it: with `InvariantGlobalization`, comparisons are ordinal.
 pub fn culture_order(a: &str, b: &str) -> std::cmp::Ordering {
-    a.to_lowercase().cmp(&b.to_lowercase()).then_with(|| b.cmp(a))
+    a.cmp(b)
 }
 
 impl TestReport {
