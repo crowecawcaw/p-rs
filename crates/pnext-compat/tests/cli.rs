@@ -123,3 +123,24 @@ fn output_directory_history_rotates() {
     assert!(h.is_dir(Path::new("PCheckerOutput/BugFinding1")));
     assert!(!h.is_dir(Path::new("PCheckerOutput/BugFinding2")));
 }
+
+#[test]
+fn scenario_coverage_is_reported_written_and_merged() {
+    let mut h = MemHost::new("/w");
+    h.add_file(
+        "s.p",
+        &upstream("RegressionTests/Feature1SMLevelDecls/Correct/ScenarioCoverageBasic/ScenarioCoverageBasic.p"),
+    );
+    assert_eq!(run(&mut h, &["compile", "-pf", "s.p", "-pn", "S"]), 0);
+    assert_eq!(run(&mut h, &["check", "-s", "5"]), 0, "{}", h.stdout);
+    assert!(h.stdout.contains(
+        "..... Scenario coverage: 1/2 scenarios covered (1 gap)\n\
+         .....   [covered] ReadAfterWrite: triggered in 5 schedules, 1 unique satisfying timeline\n\
+         .....   [  GAP  ] NeverCovered: not covered (best partial progress: 1/2 states)\n"
+    ), "{}", h.stdout);
+    assert!(h.stdout.contains("..... Writing PCheckerOutput/BugFinding/S_scenario_coverage.json"));
+    assert_eq!(run(&mut h, &["merge-scenario-coverage", "PCheckerOutput"]), 0);
+    assert!(h.stdout.starts_with(
+        "Unified scenario coverage across 1 test case:\n  1/2 scenarios covered in >=1 test case; 1 coverage gap.\n"
+    ), "{}", h.stdout);
+}

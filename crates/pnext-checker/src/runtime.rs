@@ -338,6 +338,11 @@ pub struct Runtime<'p> {
     pub bug_strategy_description: Option<String>,
     /// Implementations of foreign functions.
     pub foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
+    /// The monitors of the test and the interfaces each observes: the module's monitor map
+    /// plus every scenario monitor, which upstream attaches to all tests.
+    pub monitor_map: Vec<(MachineId, Vec<InterfaceId>)>,
+    /// Progress of each attached scenario monitor in this schedule.
+    pub scenarios: Vec<ScenarioProgress>,
     next_op_id: u64,
     anon_names: Vec<String>,
 }
@@ -397,6 +402,8 @@ impl<'p> Runtime<'p> {
             json: None,
             bug_strategy_description: None,
             foreign: None,
+            monitor_map: monitor_map_with_scenarios(prog, module),
+            scenarios: Vec::new(),
             next_op_id: 0,
             anon_names,
         }
@@ -992,7 +999,7 @@ impl<'p> Runtime<'p> {
     pub fn announce_internal(&mut self, sender: usize, e: &Event) -> Result<(), Stop> {
         let iface = self.machines[sender].iface;
         let mut targets = Vec::new();
-        for (mon, ifaces) in &self.module.monitor_map {
+        for (mon, ifaces) in &self.monitor_map {
             if ifaces.contains(&iface) {
                 if let Some(i) = self.monitors.iter().position(|m| m.decl == *mon) {
                     targets.push(i);
@@ -1445,10 +1452,20 @@ impl<'p> Runtime<'p> {
     // ---- monitors ----------------------------------------------------------------------
 
     fn create_monitors(&mut self) -> Result<(), Stop> {
-        let decls: Vec<MachineId> = self.module.monitor_map.iter().map(|(m, _)| *m).collect();
+        let decls: Vec<MachineId> = self.monitor_map.iter().map(|(m, _)| *m).collect();
         for decl in decls {
             if self.monitors.iter().any(|m| m.decl == decl) {
                 continue;
+            }
+            if self.prog.machine(decl).is_scenario() {
+                self.scenarios.push(ScenarioProgress {
+                    decl,
+                    name: self.prog.machine(decl).name.clone(),
+                    total_states: self.prog.machine(decl).states.len(),
+                    reached: std::collections::BTreeSet::new(),
+                    saw_start_entry: false,
+                    satisfied: false,
+                });
             }
             let fields = self
                 .prog
@@ -1493,6 +1510,18 @@ impl<'p> Runtime<'p> {
             self.state_name(s)
         );
         self.log_line(text);
+        let decl = self.monitors[mon].decl;
+        if enters {
+            if let (Some(st), Some(sc)) = (s, self.scenarios.iter_mut().find(|p| p.decl == decl)) {
+                // ScenarioComplianceObserver.OnMonitorStateTransition
+                sc.reached.insert(st);
+                let is_start_entry = !sc.saw_start_entry;
+                sc.saw_start_entry = true;
+                if self.prog.state(st).temperature == Temperature::Cold && !is_start_entry {
+                    sc.satisfied = true;
+                }
+            }
+        }
         if self.json_enabled() {
             let short = self.prog.machine(self.monitors[mon].decl).name.clone();
             let st = self.short_state(s);
@@ -1736,4 +1765,33 @@ pub fn is_field(prog: &Program, v: pnext_sema::VarId) -> bool {
 
 pub fn is_spec(prog: &Program, m: MachineId) -> bool {
     prog.machine(m).kind != MachineKind::Impl
+}
+
+/// Progress of a scenario (coverage) monitor within one schedule.
+#[derive(Debug, Clone)]
+pub struct ScenarioProgress {
+    pub decl: MachineId,
+    pub name: String,
+    pub total_states: usize,
+    /// Distinct states entered.
+    pub reached: std::collections::BTreeSet<StateId>,
+    pub saw_start_entry: bool,
+    /// Entered a cold (accepting) state other than its start state.
+    pub satisfied: bool,
+}
+
+/// `MonitorMapWithScenarios`: the module's monitors plus every scenario monitor observing
+/// all interfaces of the module (only when the module defines interfaces).
+pub fn monitor_map_with_scenarios(prog: &Program, module: &ModuleInfo) -> Vec<(MachineId, Vec<InterfaceId>)> {
+    let mut map = module.monitor_map.clone();
+    if !module.interface_def.is_empty() {
+        let all: Vec<InterfaceId> = module.interface_def.iter().map(|(i, _)| *i).collect();
+        for (i, m) in prog.machines.iter().enumerate() {
+            let id = MachineId(i as u32);
+            if m.is_scenario() && !map.iter().any(|(k, _)| *k == id) {
+                map.push((id, all.clone()));
+            }
+        }
+    }
+    map
 }

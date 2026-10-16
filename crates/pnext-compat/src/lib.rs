@@ -13,6 +13,7 @@ pub mod check;
 pub mod compile;
 pub mod host;
 pub mod pproj;
+pub mod scenario;
 
 use host::{Color, Host, HostExt, Stream};
 
@@ -47,6 +48,7 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
         Some(cmd) => match cmd.as_str() {
             "compile" => compile::run(&args[1..], host),
             "check" => check::run(&args[1..], host),
+            "merge-scenario-coverage" => scenario::run_merge(&args[1..], host),
             "version" | "-v" | "-version" | "--version" => {
                 host.out_line(&format!("P version {}", VERSION));
                 0

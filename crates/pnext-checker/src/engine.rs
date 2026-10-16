@@ -95,6 +95,44 @@ pub struct TestReport {
     pub max_unfair_steps_hit_in_fair: usize,
     pub max_unfair_steps_hit_in_unfair: usize,
     pub timelines: BTreeSet<String>,
+    /// Scenario coverage, per scenario (in attachment order).
+    pub scenarios: Vec<ScenarioCoverage>,
+}
+
+/// Coverage of one scenario monitor across a run (`TestReport.Scenario*`).
+#[derive(Debug, Clone, Default)]
+pub struct ScenarioCoverage {
+    pub name: String,
+    /// Schedules that satisfied the scenario.
+    pub trigger_count: usize,
+    /// Distinct abstract timelines of the satisfying schedules.
+    pub satisfying_timelines: BTreeSet<String>,
+    /// Most distinct states reached in one schedule.
+    pub max_states_reached: usize,
+    pub total_states: usize,
+}
+
+/// Name ordering of `OrderBy(k => k)` (culture-aware: case-insensitive first, lower case
+/// before upper case on ties).
+pub fn culture_order(a: &str, b: &str) -> std::cmp::Ordering {
+    a.to_lowercase().cmp(&b.to_lowercase()).then_with(|| b.cmp(a))
+}
+
+impl TestReport {
+    fn scenario(&mut self, name: &str) -> &mut ScenarioCoverage {
+        if let Some(i) = self.scenarios.iter().position(|s| s.name == name) {
+            return &mut self.scenarios[i];
+        }
+        self.scenarios.push(ScenarioCoverage { name: name.to_string(), ..Default::default() });
+        self.scenarios.last_mut().unwrap()
+    }
+
+    /// Scenarios sorted the way upstream lists them.
+    pub fn sorted_scenarios(&self) -> Vec<&ScenarioCoverage> {
+        let mut v: Vec<&ScenarioCoverage> = self.scenarios.iter().collect();
+        v.sort_by(|a, b| culture_order(&a.name, &b.name));
+        v
+    }
 }
 
 impl TestReport {
@@ -109,6 +147,41 @@ impl TestReport {
         out.push_str(&format!("\n{} Explored {} schedule{}", sub, total, plural(total)));
         let tl = self.timelines.len();
         out.push_str(&format!("\n{} Explored {} timeline{}", sub, tl, plural(tl)));
+        if !self.scenarios.is_empty() {
+            let names = self.sorted_scenarios();
+            let covered: Vec<&&ScenarioCoverage> = names.iter().filter(|s| s.trigger_count > 0).collect();
+            let gaps: Vec<&&ScenarioCoverage> = names.iter().filter(|s| s.trigger_count == 0).collect();
+            let gap_text = if gaps.is_empty() {
+                String::new()
+            } else {
+                format!(" ({} gap{})", gaps.len(), plural(gaps.len()))
+            };
+            out.push_str(&format!(
+                "\n{} Scenario coverage: {}/{} scenarios covered{}",
+                sub,
+                covered.len(),
+                names.len(),
+                gap_text
+            ));
+            for s in covered {
+                let u = s.satisfying_timelines.len();
+                out.push_str(&format!(
+                    "\n{}   [covered] {}: triggered in {} schedule{}, {} unique satisfying timeline{}",
+                    sub,
+                    s.name,
+                    s.trigger_count,
+                    plural(s.trigger_count),
+                    u,
+                    plural(u)
+                ));
+            }
+            for s in gaps {
+                out.push_str(&format!("\n{}   [  GAP  ] {}: not covered", sub, s.name));
+                if s.total_states > 0 {
+                    out.push_str(&format!(" (best partial progress: {}/{} states)", s.max_states_reached, s.total_states));
+                }
+            }
+        }
         if total > 0 && self.num_bugs > 0 {
             out.push_str(&format!("\n{} Found {} buggy schedules.", sub, percent(self.num_bugs as f64 * 100.0 / total as f64)));
         }
@@ -345,7 +418,11 @@ impl<'p> Checker<'p> {
                 if rt.strategy.wants_feedback() {
                     let timeline = rt.timeline.abstract_timeline();
                     let minhash = crate::feedback::timeline_minhash(rt.timeline.tokens());
-                    rt.strategy.observe_timeline(&timeline, &minhash);
+                    let reached: Vec<(String, usize)> =
+                        rt.scenarios.iter().map(|s| (s.name.clone(), s.reached.len())).collect();
+                    let satisfied: Vec<String> =
+                        rt.scenarios.iter().filter(|s| s.satisfied).map(|s| s.name.clone()).collect();
+                    rt.strategy.observe_timeline(&timeline, &minhash, &reached, &satisfied);
                 }
                 if rt.bug.is_none() {
                     rt.check_hot_monitors_at_termination();
@@ -385,7 +462,20 @@ impl<'p> Checker<'p> {
                         r.max_unfair_steps_hit_in_unfair += 1;
                     }
                 }
-                r.timelines.insert(rt.timeline.abstract_timeline());
+                let abstract_timeline = rt.timeline.abstract_timeline();
+                // scenario coverage (all attached scenarios are tracked, even if never reached)
+                for sc in &rt.scenarios {
+                    let cov = r.scenario(&sc.name);
+                    cov.max_states_reached = cov.max_states_reached.max(sc.reached.len());
+                    if sc.total_states > 0 {
+                        cov.total_states = sc.total_states;
+                    }
+                    if sc.satisfied {
+                        cov.trigger_count += 1;
+                        cov.satisfying_timelines.insert(abstract_timeline.clone());
+                    }
+                }
+                r.timelines.insert(abstract_timeline);
                 if let Some(e) = rt.strategy.replay_error() {
                     result.replay_error = Some(e);
                 }

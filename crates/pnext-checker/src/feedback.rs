@@ -444,6 +444,8 @@ pub struct FeedbackGuidedStrategy {
     current_parent: Option<Rc<GeneratorRecord>>,
     rnd: DotNetRandom,
     next_record_id: usize,
+    suite_best_reached: std::collections::HashMap<String, usize>,
+    suite_satisfied: HashSet<String>,
 }
 
 impl FeedbackGuidedStrategy {
@@ -462,6 +464,8 @@ impl FeedbackGuidedStrategy {
             current_parent: None,
             rnd: DotNetRandom::new(seed as i32),
             next_record_id: 0,
+            suite_best_reached: std::collections::HashMap::new(),
+            suite_satisfied: HashSet::new(),
         }
     }
 
@@ -579,13 +583,29 @@ impl Strategy for FeedbackGuidedStrategy {
     fn wants_feedback(&self) -> bool {
         true
     }
-    fn observe_timeline(&mut self, timeline: &str, minhash: &[i32]) {
+    fn observe_timeline(&mut self, timeline: &str, minhash: &[i32], reached: &[(String, usize)], satisfied: &[String]) {
         let diversity = self.compute_diversity(timeline, minhash);
         if diversity <= 0.0 {
             return;
         }
-        // no scenario monitors steer the search here: compliance is 0
-        let priority = diversity;
+        // ScenarioSteering.NoveltyCompliance: new scenario progress boosts the priority
+        let mut compliance = 0.0;
+        for s in satisfied {
+            if self.suite_satisfied.insert(s.clone()) {
+                compliance = 1.0;
+            }
+        }
+        for (s, n) in reached {
+            if self.suite_satisfied.contains(s) {
+                continue;
+            }
+            let best = self.suite_best_reached.get(s).copied().unwrap_or(0);
+            if *n > best {
+                self.suite_best_reached.insert(s.clone(), *n);
+                compliance = 1.0;
+            }
+        }
+        let priority = diversity * (1.0 + compliance);
         let budget = ((diversity * DEFAULT_MUTATION_BUDGET as f64).round_ties_even() as i32).max(1);
         let record = Rc::new(GeneratorRecord {
             id: self.next_record_id,

@@ -40,8 +40,9 @@ pub trait Strategy {
         None
     }
     /// Feedback from a finished schedule (`IFeedbackGuidedStrategy.ObserveRunningResults`):
-    /// its abstract timeline and timeline MinHash.
-    fn observe_timeline(&mut self, _timeline: &str, _minhash: &[i32]) {}
+    /// its abstract timeline and timeline MinHash, the states each scenario reached and the
+    /// scenarios it satisfied.
+    fn observe_timeline(&mut self, _timeline: &str, _minhash: &[i32], _reached: &[(String, usize)], _satisfied: &[String]) {}
     /// Whether [`Strategy::observe_timeline`] is used (avoids computing MinHashes otherwise).
     fn wants_feedback(&self) -> bool {
         false

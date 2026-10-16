@@ -682,6 +682,13 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
         format_0_00(host.max_memory_gb())
     );
     let _ = host.write_file(&full_path(&host.cwd(), Path::new(&summary_path)), &summary);
+    if !res.report.scenarios.is_empty() {
+        let suffix = if cfg.test_case_name.is_empty() { String::new() } else { format!("_{}", cfg.test_case_name) };
+        let path = format!("{}{}{}{}", cfg.output_directory, file, suffix, crate::scenario::FILE_SUFFIX);
+        host.out_line(&format!("..... Writing {}", path));
+        let art = crate::scenario::from_report(&res.report, &cfg.test_case_name);
+        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), &art.to_json());
+    }
     host.out_line(&format!("... Elapsed {} sec.", process_elapsed));
     Ok(if res.report.num_bugs > 0 { 1 } else { 0 })
 }
