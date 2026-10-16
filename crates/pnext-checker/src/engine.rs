@@ -56,6 +56,12 @@ pub struct CheckerOptions {
     /// Produce the JSON trace of the first buggy schedule (by replaying it with JSON
     /// logging on, so exploration itself pays nothing).
     pub json_trace: bool,
+    /// Latency profiles (`--latency`); see `design/time/PROPOSAL.md`.
+    pub latency: Option<Rc<crate::time::ProfileSet>>,
+    /// `--latency-profile`: the profile to use instead of the `[tests]` entry.
+    pub latency_profile: Option<String>,
+    /// `--timed`: time-aware scheduling.
+    pub timed: bool,
 }
 
 impl Default for CheckerOptions {
@@ -79,6 +85,9 @@ impl Default for CheckerOptions {
             log_every_schedule: false,
             activity_coverage: false,
             json_trace: false,
+            latency: None,
+            latency_profile: None,
+            timed: false,
         }
     }
 }
@@ -375,6 +384,30 @@ impl<'p> Checker<'p> {
         self
     }
 
+    /// Time tracking for `tc`: active when the program declares one of the time
+    /// functions or a latency file or `--timed` is given. Checks the profile's names.
+    fn time_options(&self, tc: &TestCase, opts: &CheckerOptions) -> Result<Option<crate::time::TimeOptions>, String> {
+        let prog = self.prog;
+        let declares = prog
+            .funs
+            .iter()
+            .any(|f| f.owner.is_none() && f.is_foreign() && crate::time::TIME_FUNCTIONS.contains(&f.name.as_str()));
+        if !declares && opts.latency.is_none() && !opts.timed {
+            return Ok(None);
+        }
+        let profile = match &opts.latency {
+            Some(set) => set.for_test(&tc.name, opts.latency_profile.as_deref())?.cloned(),
+            None if opts.latency_profile.is_some() => return Err("--latency-profile needs --latency".into()),
+            None => None,
+        };
+        if let Some(p) = &profile {
+            let machines: Vec<&str> = prog.machines.iter().map(|m| m.name.as_str()).collect();
+            let events: Vec<&str> = prog.events.iter().map(|e| e.name.as_str()).collect();
+            p.check_names(&machines, &events)?;
+        }
+        Ok(Some(crate::time::TimeOptions { profile, timed: opts.timed }))
+    }
+
     /// Replays a buggy schedule with text (and optionally JSON) logging enabled; returns
     /// the text log and the JSON trace.
     #[allow(clippy::too_many_arguments)]
@@ -387,6 +420,7 @@ impl<'p> Checker<'p> {
         config: &Config,
         bug: &BugSchedule,
         json: bool,
+        time: Option<&crate::time::TimeOptions>,
     ) -> (Vec<String>, Option<String>) {
         let mut strategy = ReplayStrategy::new(bug.trace.clone());
         strategy.stop_at = bug.bound_hit_at;
@@ -395,6 +429,7 @@ impl<'p> Checker<'p> {
         config.logging = true;
         let mut rt = Runtime::new(self.prog, &self.code, module, &config, &mut strategy, assignment);
         rt.foreign = self.foreign.clone();
+        rt.time = time.map(|o| Box::new(crate::time::TimeState::new(o.clone())));
         if json {
             rt.json = Some(crate::jsonlog::JsonLog::new());
         }
@@ -417,6 +452,19 @@ impl<'p> Checker<'p> {
         let rng: SharedRandom = Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed)));
         let mut strategy = build_strategy(opts, &rng)?;
         let is_replay = opts.strategy == "replay";
+        let time = self.time_options(tc, opts)?;
+        if is_replay {
+            let recorded = opts.replay.as_ref().and_then(|t| t.time.clone());
+            let current = time.as_ref().map(|t| t.schedule_header());
+            if recorded != current {
+                let show = |h: &Option<String>| h.clone().unwrap_or_else(|| "no time tracking".into());
+                return Err(format!(
+                    "the schedule was recorded with time settings '{}' but is replayed with '{}'",
+                    show(&recorded),
+                    show(&current)
+                ));
+            }
+        }
         let seed_opt = match opts.strategy.as_str() {
             "random" | "pct" | "pos" | "feedbackpct" | "feedbackpos" | "fairpct" | "probabilistic" | "rl" => {
                 format!(" (seed:{})", opts.seed)
@@ -456,6 +504,7 @@ impl<'p> Checker<'p> {
             {
                 let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, assignment);
                 rt.foreign = self.foreign.clone();
+                rt.time = time.as_ref().map(|o| Box::new(crate::time::TimeState::new(o.clone())));
                 if let Some(t) = &coverage_tables {
                     rt.coverage_tables = Some(t.clone());
                     rt.coverage = Some(result.coverage.take().unwrap_or_default());
@@ -534,6 +583,7 @@ impl<'p> Checker<'p> {
                     trace.is_fair = fair;
                     trace.liveness_temperature_threshold = Some(config.liveness_temperature_threshold);
                     trace.test_name = if opts.record_test_name { Some(tc.name.clone()) } else { None };
+                    trace.time = time.as_ref().map(|t| t.schedule_header());
                     result.schedule_trace = Some(trace.to_text());
                     first_bug = Some(BugSchedule {
                         trace,
@@ -561,7 +611,7 @@ impl<'p> Checker<'p> {
             i += 1;
         }
         if let Some(bug) = first_bug {
-            let (log, json) = self.logged_replay(tc, main, module, assignment, &config, &bug, opts.json_trace);
+            let (log, json) = self.logged_replay(tc, main, module, assignment, &config, &bug, opts.json_trace, time.as_ref());
             if !opts.verbose {
                 // `ReadableTrace`: the runtime log followed by the report so far
                 let mut text = log.join("\n");

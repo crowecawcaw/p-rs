@@ -371,6 +371,11 @@ impl<'p> Runtime<'p> {
             Actor::Machine(m) => Some(m),
             Actor::Monitor(_) => None,
         };
+        if decl.owner.is_none() {
+            if let Some(r) = self.call_time_function(actor, &name, args) {
+                return r.map_err(Into::into);
+            }
+        }
         let Some(f) = self.foreign.clone() else {
             return Err(foreign_missing(&name).into());
         };
@@ -451,7 +456,7 @@ impl<'p> Runtime<'p> {
             Some(p) => p,
             None => default_value(&self.prog.event(id).payload, self.prog),
         };
-        Event { id, payload }
+        Event { id, payload, stamp: None }
     }
 
     fn choose_error(&self, actor: Actor, detail: &str) -> String {
@@ -1055,7 +1060,7 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("Announce", d, true);
                 }
-                let e = Event { id: ev_id, payload };
+                let e = Event { id: ev_id, payload, stamp: None };
                 self.announce_internal(m, &e)?;
             }
             Op::Goto { state, has_payload } => {

@@ -377,6 +377,8 @@ pub struct ScheduleTrace {
     pub is_fair: bool,
     pub liveness_temperature_threshold: Option<usize>,
     pub test_name: Option<String>,
+    /// `--pnext-time:<header>`: time tracking mode and profile (see `TimeOptions`).
+    pub time: Option<String>,
     pub steps: Vec<ScheduleStep>,
 }
 
@@ -392,6 +394,9 @@ impl ScheduleTrace {
         }
         if let Some(n) = &self.test_name {
             s.push_str(&format!("--test-method:{}\n", n));
+        }
+        if let Some(h) = &self.time {
+            s.push_str(&format!("--pnext-time:{}\n", h));
         }
         // steps are newline-separated, with no newline after the last (upstream format)
         for (i, st) in self.steps.iter().enumerate() {
@@ -420,6 +425,8 @@ impl ScheduleTrace {
                 t.liveness_temperature_threshold = Some(v.parse().map_err(|_| format!("bad threshold {v}"))?);
             } else if let Some(v) = line.strip_prefix("--test-method:") {
                 t.test_name = Some(v.to_string());
+            } else if let Some(v) = line.strip_prefix("--pnext-time:") {
+                t.time = Some(v.to_string());
             } else if line.starts_with("--") {
                 continue;
             } else if let Some(v) = line.strip_prefix('(').and_then(|l| l.strip_suffix(')')) {

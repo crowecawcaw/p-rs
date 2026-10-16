@@ -148,6 +148,69 @@ impl std::fmt::Display for Time {
     }
 }
 
+// ---- runtime state -----------------------------------------------------------------
+
+/// The stamp a sent event carries: when it is available to its receiver.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stamp {
+    pub at: Time,
+    /// Operation id of the sending machine.
+    pub sender: u64,
+}
+
+/// What a test run needs to track time (`CheckerOptions::time`).
+#[derive(Debug, Clone, Default)]
+pub struct TimeOptions {
+    /// Delivery latencies and costs for this test, if any.
+    pub profile: Option<Profile>,
+    /// `--timed`: only schedule operations that are not certainly later than another.
+    pub timed: bool,
+}
+
+impl TimeOptions {
+    /// The `.schedule` header line identifying the mode and profile.
+    pub fn schedule_header(&self) -> String {
+        match &self.profile {
+            Some(p) => format!("timed={};profile={};hash={:016x}", self.timed as u8, p.name, p.hash()),
+            None => format!("timed={};profile=-;hash={:016x}", self.timed as u8, 0),
+        }
+    }
+}
+
+/// Per-execution time state of the runtime.
+#[derive(Debug, Default)]
+pub struct TimeState {
+    pub opts: TimeOptions,
+    pub syms: Symbols,
+    /// `Mark()` handles.
+    pub marks: Vec<Time>,
+    /// The machine whose send or announce a monitor is currently observing.
+    pub observer: Option<usize>,
+}
+
+impl TimeState {
+    pub fn new(opts: TimeOptions) -> TimeState {
+        TimeState { opts, ..Default::default() }
+    }
+
+    /// `max(a, b)`, collapsed.
+    pub fn join(&mut self, a: &Time, b: &Time) -> Time {
+        let mut t = a.max(b, &mut self.syms);
+        t.collapse(&mut self.syms);
+        t
+    }
+
+    /// `a + draw(r)`, collapsed.
+    pub fn advance(&mut self, a: &Time, r: Range) -> Time {
+        let mut t = a.add(&Time::range(r, &mut self.syms));
+        t.collapse(&mut self.syms);
+        t
+    }
+}
+
+/// Names of the foreign functions the checker implements natively.
+pub const TIME_FUNCTIONS: [&str; 7] = ["Now", "NowBest", "Elapse", "ElapseCost", "Mark", "Elapsed", "ElapsedBest"];
+
 // ---- profiles ------------------------------------------------------------------------
 
 /// A latency or cost range in microseconds, `lo <= hi`.
@@ -186,6 +249,26 @@ impl Profile {
 
     pub fn cost(&self, name: &str) -> Option<Range> {
         self.costs.get(name).copied()
+    }
+
+    /// Rejects entries naming machines or events the program does not declare.
+    pub fn check_names(&self, machines: &[&str], events: &[&str]) -> Result<(), String> {
+        let bad = |kind: &str, n: &str| format!("latency profile '{}': unknown {} '{}'", self.name, kind, n);
+        let machine = |n: &String| if machines.contains(&n.as_str()) { Ok(()) } else { Err(bad("machine", n)) };
+        let event = |n: &String| if events.contains(&n.as_str()) { Ok(()) } else { Err(bad("event", n)) };
+        for e in self.events.keys() {
+            event(e)?;
+        }
+        for (a, b) in self.links.keys() {
+            machine(a)?;
+            machine(b)?;
+        }
+        for (a, b, e) in self.link_events.keys() {
+            machine(a)?;
+            machine(b)?;
+            event(e)?;
+        }
+        Ok(())
     }
 
     /// Stable hash of the resolved entries (FNV-1a), recorded in schedule files.

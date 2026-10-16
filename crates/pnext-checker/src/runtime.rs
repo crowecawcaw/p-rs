@@ -25,6 +25,8 @@ use crate::value::{default_value, event_cs_full_name, event_cs_name, MachineRef,
 pub struct Event {
     pub id: EventId,
     pub payload: Value,
+    /// When the event reaches its receiver; only set while time is tracked.
+    pub stamp: Option<Rc<crate::time::Stamp>>,
 }
 
 /// Marker returned when the current schedule must stop (bug found or execution canceled).
@@ -204,6 +206,8 @@ pub struct Machine {
     /// Event delivered to a blocked `receive`.
     pub received: Option<Event>,
     pub this: Rc<MachineRef>,
+    /// Local clock (only advanced while time is tracked).
+    pub clock: crate::time::Time,
 }
 
 #[derive(Debug)]
@@ -376,6 +380,8 @@ pub struct Runtime<'p> {
     pub coverage: Option<crate::coverage::CoverageInfo>,
     pub coverage_run: Option<crate::coverage::CoverageRun>,
     pub coverage_tables: Option<Rc<crate::coverage::CoverageTables>>,
+    /// Time tracking (see `design/time/PROPOSAL.md`); `None` when the test does not use it.
+    pub time: Option<Box<crate::time::TimeState>>,
     next_op_id: u64,
     anon_names: Vec<String>,
 }
@@ -442,6 +448,7 @@ impl<'p> Runtime<'p> {
             coverage: None,
             coverage_run: None,
             coverage_tables: None,
+            time: None,
             next_op_id: 0,
             anon_names,
         }
@@ -687,6 +694,10 @@ impl<'p> Runtime<'p> {
             .iter()
             .map(|o| OpInfo { id: o.id, enabled: o.status == OpStatus::Enabled, kind: o.kind, receiver: o.receiver })
             .collect();
+        let mut infos = infos;
+        if self.time.as_ref().is_some_and(|t| t.opts.timed) {
+            self.filter_timed(&mut infos);
+        }
         let current = self.current;
         match self.strategy.next_operation(current, &infos) {
             Some(next) => {
@@ -766,7 +777,7 @@ impl<'p> Runtime<'p> {
             self.schedule_next(SchedKind::Create)?;
             let iface = self.prog.machine(main).interface.unwrap_or(InterfaceId(0));
             let name = self.prog.machine(main).name.clone();
-            let (midx, _) = self.instantiate_machine(main, iface, &name, Value::Null);
+            let (midx, _) = self.instantiate_machine(main, iface, &name, Value::Null, crate::time::Time::default());
             let creator = format!("task '{}'", 1);
             let mname = self.machines[midx].name.clone();
             if self.logging { self.log_line(format!("<CreateLog> {} was created by {}.", mname, creator)); } else { self.step_work += LOG_LINE_WORK; }
@@ -837,7 +848,7 @@ impl<'p> Runtime<'p> {
 
     // ---- machine creation -------------------------------------------------------------
 
-    fn instantiate_machine(&mut self, decl: MachineId, iface: InterfaceId, name: &str, payload: Value) -> (usize, u64) {
+    fn instantiate_machine(&mut self, decl: MachineId, iface: InterfaceId, name: &str, payload: Value, clock: crate::time::Time) -> (usize, u64) {
         self.cov_declare(decl, false);
         let idx = self.machines.len();
         let id = self.next_op_id;
@@ -869,6 +880,7 @@ impl<'p> Runtime<'p> {
             exec: None,
             received: None,
             this,
+            clock,
         });
         let op = self.new_op(display.to_string(), Some(idx));
         debug_assert_eq!(op, id);
@@ -884,7 +896,8 @@ impl<'p> Runtime<'p> {
     /// Completes a `new I(...)` once the `Create` scheduling point has passed.
     pub fn finish_create(&mut self, creator: usize, machine: MachineId, iface: InterfaceId, payload: Value) -> Value {
         let name = self.prog.interface(iface).name.clone();
-        let (idx, _) = self.instantiate_machine(machine, iface, &name, payload);
+        let clock = self.machines[creator].clock.clone();
+        let (idx, _) = self.instantiate_machine(machine, iface, &name, payload, clock);
         let created = self.machines[idx].name.clone();
         let creator_name = self.machines[creator].name.clone();
         if self.logging { self.log_line(format!("<CreateLog> {} was created by {}.", created, creator_name)); } else { self.step_work += LOG_LINE_WORK; }
@@ -955,6 +968,10 @@ impl<'p> Runtime<'p> {
             sender_name, sender_state, ev, target.name
         )); } else { self.step_work += LOG_LINE_WORK; }
         let t = tidx.unwrap();
+        let mut event = event;
+        if self.time.is_some() {
+            event.stamp = Some(Rc::new(self.send_stamp(sender, t, event.id)));
+        }
         if let EnqueueStatus::HandlerNotRunning = self.enqueue(t, event) {
             self.start_handler(t);
         }
@@ -991,13 +1008,15 @@ impl<'p> Runtime<'p> {
                     self.jlog("ReceiveEvent", d, true);
                 }
                 self.cov_receive(t, e.id);
+                self.time_receive(t, &e);
                 self.machines[t].received = Some(e);
                 let id = self.machines[t].id;
                 self.op_mut(id).status = OpStatus::Enabled;
                 return EnqueueStatus::HandlerRunning;
             }
         }
-        self.machines[t].inbox.queue.push_back(e);
+        let pos = self.enqueue_position(t, &e);
+        self.machines[t].inbox.queue.insert(pos, e);
         if !self.machines[t].inbox.handler_running {
             if self.try_dequeue(t, true).is_none() {
                 return EnqueueStatus::NextEventUnavailable;
@@ -1089,7 +1108,7 @@ impl<'p> Runtime<'p> {
             let stage = std::mem::replace(&mut self.machines[m].stage, Stage::Idle);
             match stage {
                 Stage::Start(payload) => {
-                    let e = Event { id: self.prog.null_event, payload };
+                    let e = Event { id: self.prog.null_event, payload, stamp: None };
                     self.machines[m].stage = Stage::AfterStartEntry;
                     self.enter_state(m, e)?;
                 }
@@ -1133,7 +1152,7 @@ impl<'p> Runtime<'p> {
                     } else if has_default {
                         let name = self.machines[m].name.clone();
                         let state = self.log_state_name(m);
-                        let e = Event { id: self.prog.null_event, payload: Value::Null };
+                        let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None };
                         self.machines[m].stage = Stage::Handle(e);
                         self.cov_default(m);
                         if self.logging { self.log_line(format!(
@@ -1177,6 +1196,7 @@ impl<'p> Runtime<'p> {
                     }
                     let label = event_cs_name(self.prog, e.id);
                     self.timeline.record(&name, label);
+                    self.time_receive(m, &e);
                     self.machines[m].stage = Stage::Handle(e);
                 }
                 Stage::Handle(e) => {
@@ -1502,7 +1522,7 @@ impl<'p> Runtime<'p> {
             Transition::Goto(target) => {
                 self.cov_raise(m, GOTO_EVENT);
                 // Modeled as a raised goto event, handled on the next dequeue.
-                self.machines[m].inbox.raised = Some(Event { id: GOTO_EVENT, payload: Value::Null });
+                self.machines[m].inbox.raised = Some(Event { id: GOTO_EVENT, payload: Value::Null, stamp: None });
                 self.machines[m].goto_target = Some(target);
             }
             Transition::Halt => {
@@ -1553,7 +1573,7 @@ impl<'p> Runtime<'p> {
                 let d = Details { log: Some(format!("{} was created.", short)), monitor: Some(short), ..Default::default() };
                 self.jlog("CreateMonitor", d, true);
             }
-            let e = Event { id: self.prog.null_event, payload: Value::Null };
+            let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None };
             self.monitor_enter_state(idx, &e)?;
         }
         Ok(())
@@ -1729,7 +1749,7 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("MonitorRaiseEvent", d, true);
                 }
-                let e = Event { id: self.prog.null_event, payload: Value::Null };
+                let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None };
                 self.monitor_goto(mon, target, None, &e)
             }
         }
@@ -1779,7 +1799,176 @@ impl<'p> Runtime<'p> {
             };
             self.jlog("MonitorProcessEvent", d, true);
         }
-        self.monitor_handle_event(mon, e)
+        let prev = self.time.as_mut().map(|t| std::mem::replace(&mut t.observer, sender_idx));
+        let r = self.monitor_handle_event(mon, e);
+        if let (Some(t), Some(p)) = (self.time.as_mut(), prev) {
+            t.observer = p;
+        }
+        r
+    }
+
+    // ---- time ------------------------------------------------------------------------
+
+    /// Stamp of an event `sender` sends to machine `target` now.
+    fn send_stamp(&mut self, sender: usize, target: usize, event: EventId) -> crate::time::Stamp {
+        let clock = self.machines[sender].clock.clone();
+        let sender_id = self.machines[sender].id;
+        let ts = self.time.as_mut().expect("time tracking");
+        let range = ts.opts.profile.as_ref().and_then(|p| {
+            p.latency(
+                &self.prog.machine(self.machines[sender].decl).name,
+                &self.prog.machine(self.machines[target].decl).name,
+                &self.prog.event(event).name,
+                sender == target,
+            )
+        });
+        let at = match range {
+            Some(r) => ts.advance(&clock, r),
+            None => clock,
+        };
+        crate::time::Stamp { at, sender: sender_id }
+    }
+
+    /// Machine `m` takes event `e`: its clock catches up with the event's stamp.
+    fn time_receive(&mut self, m: usize, e: &Event) {
+        let (Some(ts), Some(stamp)) = (self.time.as_mut(), e.stamp.as_ref()) else { return };
+        let clock = ts.join(&self.machines[m].clock, &stamp.at);
+        self.machines[m].clock = clock;
+        if self.logging {
+            let line = format!("<TimeLog> '{}' clock is {} us.", self.machines[m].name, self.machines[m].clock);
+            self.log_line(line);
+        }
+    }
+
+    /// Where `e` enters machine `t`'s queue: at the end, except that under `--timed` it
+    /// overtakes queued events from other senders that certainly arrive later.
+    fn enqueue_position(&self, t: usize, e: &Event) -> usize {
+        let q = &self.machines[t].inbox.queue;
+        let timed = self.time.as_ref().is_some_and(|ts| ts.opts.timed);
+        let Some(stamp) = e.stamp.as_ref().filter(|_| timed) else { return q.len() };
+        let worst = stamp.at.worst();
+        let mut i = q.len();
+        while i > 0 {
+            match q[i - 1].stamp.as_ref() {
+                Some(s) if s.sender != stamp.sender && s.at.best() > worst => i -= 1,
+                _ => break,
+            }
+        }
+        i
+    }
+
+    /// When operation `op` would act if scheduled now (`--timed`).
+    fn ready_time(&mut self, op: usize) -> crate::time::Time {
+        let Some(m) = self.ops[op].machine else { return crate::time::Time::default() };
+        let clock = self.machines[m].clock.clone();
+        let next = match &self.machines[m].stage {
+            Stage::Idle | Stage::Loop | Stage::DequeueTry { .. } if self.machines[m].inbox.raised.is_none() => {
+                self.try_dequeue(m, true)
+            }
+            Stage::Dequeued(e) => Some(e.clone()),
+            _ => None,
+        };
+        match next.and_then(|e| e.stamp) {
+            Some(s) => self.time.as_mut().unwrap().join(&clock, &s.at),
+            None => clock,
+        }
+    }
+
+    /// `--timed`: disables every enabled operation that certainly acts later than
+    /// another enabled one. The earliest one always stays enabled.
+    fn filter_timed(&mut self, infos: &mut [OpInfo]) {
+        let mut ready: Vec<Option<(i64, i64)>> = Vec::with_capacity(infos.len());
+        for (i, info) in infos.iter().enumerate() {
+            ready.push(info.enabled.then(|| {
+                let t = self.ready_time(i);
+                (t.best(), t.worst())
+            }));
+        }
+        // The two smallest worst cases, so each operation can be compared with the others.
+        let (mut w1, mut w2) = ((i64::MAX, usize::MAX), i64::MAX);
+        for (i, r) in ready.iter().enumerate() {
+            if let Some((_, w)) = *r {
+                if w < w1.0 {
+                    w2 = w1.0;
+                    w1 = (w, i);
+                } else if w < w2 {
+                    w2 = w;
+                }
+            }
+        }
+        for (i, r) in ready.iter().enumerate() {
+            if let Some((b, _)) = *r {
+                let other_worst = if i == w1.1 { w2 } else { w1.0 };
+                if other_worst < b {
+                    infos[i].enabled = false;
+                }
+            }
+        }
+    }
+
+    /// The clock an actor reads: its own, or for a monitor the observed machine's.
+    pub fn actor_clock(&self, actor: Actor) -> crate::time::Time {
+        let m = match actor {
+            Actor::Machine(m) => Some(m),
+            Actor::Monitor(_) => self.time.as_ref().and_then(|t| t.observer),
+        };
+        m.map(|m| self.machines[m].clock.clone()).unwrap_or_default()
+    }
+
+    /// The natively implemented time functions; `None` if `name` is not one of them.
+    pub fn call_time_function(&mut self, actor: Actor, name: &str, args: &[Value]) -> Option<Result<Value, Exception>> {
+        self.time.as_ref()?;
+        if !crate::time::TIME_FUNCTIONS.contains(&name) {
+            return None;
+        }
+        let int = |i: usize| match args.get(i) {
+            Some(Value::Int(v)) => Ok(*v),
+            _ => Err(Exception::new("System.ArgumentException", format!("{} expects int arguments", name))),
+        };
+        let clock = self.actor_clock(actor);
+        let elapse = |rt: &mut Self, r: crate::time::Range| -> Result<Value, Exception> {
+            let Actor::Machine(m) = actor else {
+                return Err(Exception::new("System.InvalidOperationException", format!("{} cannot be called from a monitor", name)));
+            };
+            let c = rt.time.as_mut().unwrap().advance(&rt.machines[m].clock, r);
+            rt.machines[m].clock = c;
+            Ok(Value::Null)
+        };
+        let mark = |rt: &Self, h: i64| -> Result<crate::time::Time, Exception> {
+            let ts = rt.time.as_ref().unwrap();
+            usize::try_from(h).ok().and_then(|h| ts.marks.get(h)).cloned().ok_or_else(|| {
+                Exception::new("System.ArgumentException", format!("{}: {} is not a handle returned by Mark()", name, h))
+            })
+        };
+        Some((|| match name {
+            "Now" => Ok(Value::Int(clock.worst())),
+            "NowBest" => Ok(Value::Int(clock.best())),
+            "Elapse" => {
+                let (lo, hi) = (int(0)?, int(1)?);
+                if lo < 0 || lo > hi {
+                    return Err(Exception::new(
+                        "System.ArgumentException",
+                        format!("Elapse({}, {}): expected 0 <= lo <= hi", lo, hi),
+                    ));
+                }
+                elapse(self, crate::time::Range { lo, hi })
+            }
+            "ElapseCost" => {
+                let Some(Value::Str(n)) = args.first() else {
+                    return Err(Exception::new("System.ArgumentException", "ElapseCost expects a string"));
+                };
+                let r = self.time.as_ref().unwrap().opts.profile.as_ref().and_then(|p| p.cost(n));
+                elapse(self, r.unwrap_or(crate::time::Range { lo: 0, hi: 0 }))
+            }
+            "Mark" => {
+                let ts = self.time.as_mut().unwrap();
+                ts.marks.push(clock);
+                Ok(Value::Int(ts.marks.len() as i64 - 1))
+            }
+            "Elapsed" => Ok(Value::Int(clock.sub(&mark(self, int(0)?)?).worst())),
+            "ElapsedBest" => Ok(Value::Int(clock.sub(&mark(self, int(0)?)?).best())),
+            _ => unreachable!(),
+        })())
     }
 
     fn monitor_handle_event(&mut self, mon: usize, e: Event) -> Result<(), Stop> {
