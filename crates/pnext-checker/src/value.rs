@@ -613,50 +613,136 @@ pub fn format_double(f: f64) -> String {
     out
 }
 
-/// .NET composite formatting (`String.Format`) restricted to `{n}` holes, `{{`/`}}`
-/// escapes and an optional alignment/format suffix which is ignored.
-pub fn format_composite(base: &str, args: &[String]) -> String {
+/// .NET composite formatting (`String.Format(InvariantCulture, base, args)`), with its
+/// exact `FormatException` messages. P values are not `IFormattable`, so format strings
+/// (`{0:x}`) are parsed but ignored; alignments (`{0,5}`, `{0,-5}`) pad.
+pub fn format_composite(base: &str, args: &[String]) -> Result<String, String> {
+    const INDEX_LIMIT: usize = 1_000_000;
+    const WIDTH_LIMIT: usize = 1_000_000;
+    let s: Vec<char> = base.chars().collect();
+    let len = s.len();
+    let bad = |pos: usize, reason: &str| {
+        Err(format!("Input string was not in a correct format. Failure to parse near offset {}. {}", pos, reason))
+    };
+    const PREMATURE: &str = "Format item ends prematurely.";
+    const DIGIT: &str = "Expected an ASCII digit.";
     let mut out = String::new();
-    let chars: Vec<char> = base.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-        if c == '{' {
-            if i + 1 < chars.len() && chars[i + 1] == '{' {
-                out.push('{');
-                i += 2;
-                continue;
+    let mut pos = 0;
+    while pos < len {
+        let c = s[pos];
+        if c != '{' && c != '}' {
+            out.push(c);
+            pos += 1;
+            continue;
+        }
+        pos += 1;
+        if pos >= len {
+            return bad(pos, PREMATURE);
+        }
+        if s[pos] == c {
+            out.push(c);
+            pos += 1;
+            continue;
+        }
+        if c == '}' {
+            return bad(pos, "Unexpected closing brace without a corresponding opening brace.");
+        }
+        // format item: index
+        let mut ch = s[pos];
+        if !ch.is_ascii_digit() {
+            return bad(pos, DIGIT);
+        }
+        let mut index = 0usize;
+        while ch.is_ascii_digit() && index < INDEX_LIMIT {
+            index = index * 10 + ch.to_digit(10).unwrap() as usize;
+            pos += 1;
+            if pos >= len {
+                return bad(pos, PREMATURE);
             }
-            let mut j = i + 1;
-            let mut num = 0usize;
-            let mut has = false;
-            while j < chars.len() && chars[j].is_ascii_digit() {
-                num = num * 10 + chars[j].to_digit(10).unwrap() as usize;
-                has = true;
-                j += 1;
+            ch = s[pos];
+        }
+        macro_rules! skip_spaces {
+            () => {
+                while ch == ' ' {
+                    pos += 1;
+                    if pos >= len {
+                        return bad(pos, PREMATURE);
+                    }
+                    ch = s[pos];
+                }
+            };
+        }
+        skip_spaces!();
+        // alignment
+        let mut width = 0usize;
+        let mut left = false;
+        if ch == ',' {
+            pos += 1;
+            if pos >= len {
+                return bad(pos, PREMATURE);
             }
-            while j < chars.len() && chars[j] != '}' {
-                j += 1;
+            ch = s[pos];
+            skip_spaces!();
+            if ch == '-' {
+                left = true;
+                pos += 1;
+                if pos >= len {
+                    return bad(pos, PREMATURE);
+                }
+                ch = s[pos];
             }
-            if has {
-                if let Some(a) = args.get(num) {
-                    out.push_str(a);
+            if !ch.is_ascii_digit() {
+                return bad(pos, DIGIT);
+            }
+            while ch.is_ascii_digit() && width < WIDTH_LIMIT {
+                width = width * 10 + ch.to_digit(10).unwrap() as usize;
+                pos += 1;
+                if pos >= len {
+                    return bad(pos, PREMATURE);
+                }
+                ch = s[pos];
+            }
+            skip_spaces!();
+        }
+        // format string (ignored)
+        if ch == ':' {
+            loop {
+                pos += 1;
+                if pos >= len {
+                    return bad(pos, PREMATURE);
+                }
+                ch = s[pos];
+                if ch == '}' {
+                    break;
+                }
+                if ch == '{' {
+                    return bad(pos, PREMATURE);
                 }
             }
-            i = j + 1;
-        } else if c == '}' {
-            if i + 1 < chars.len() && chars[i + 1] == '}' {
-                i += 2;
-            } else {
-                i += 1;
-            }
-            out.push('}');
-        } else {
-            out.push(c);
-            i += 1;
+        } else if ch != '}' {
+            return bad(pos, PREMATURE);
+        }
+        pos += 1;
+        let Some(arg) = args.get(index) else {
+            return Err("Index (zero based) must be greater than or equal to zero and less than the size of the argument list."
+                .to_string());
+        };
+        let n = arg.chars().count();
+        let pad = width.saturating_sub(n);
+        if !left {
+            out.extend(std::iter::repeat(' ').take(pad));
+        }
+        out.push_str(arg);
+        if left {
+            out.extend(std::iter::repeat(' ').take(pad));
         }
     }
-    out
+    Ok(out)
+}
+
+/// The `System.FormatException` a failed [`format_composite`] throws.
+pub fn format_exception(message: String) -> crate::runtime::Exception {
+    crate::runtime::Exception::new("System.FormatException", message).from_source(crate::runtime::CORE_LIB)
 }
 
 #[cfg(test)]
@@ -679,8 +765,46 @@ mod tests {
 
     #[test]
     fn composite() {
-        assert_eq!(format_composite("a {0} b {1}", &["x".into(), "y".into()]), "a x b y");
-        assert_eq!(format_composite("{{0}} {0}", &["x".into()]), "{0} x");
+        let ok = |b: &str, a: &[&str]| format_composite(b, &a.iter().map(|s| s.to_string()).collect::<Vec<_>>());
+        assert_eq!(ok("a {0} b {1}", &["x", "y"]).unwrap(), "a x b y");
+        assert_eq!(ok("{{0}} {0}", &["x"]).unwrap(), "{0} x");
+        assert_eq!(ok("x}}y{{", &[]).unwrap(), "x}y{");
+        assert_eq!(ok("[{0,3}|{0,-3}|{0:x}]", &["a"]).unwrap(), "[  a|a  |a]");
+    }
+
+    #[test]
+    fn composite_errors() {
+        // messages and offsets observed from .NET 8 `String.Format` with no arguments
+        let index = "Index (zero based) must be greater than or equal to zero and less than the size of the argument list.";
+        let cases: &[(&str, &str)] = &[
+            ("a{b", "2. Expected an ASCII digit."),
+            ("a}b", "2. Unexpected closing brace without a corresponding opening brace."),
+            ("{", "1. Format item ends prematurely."),
+            ("}", "1. Format item ends prematurely."),
+            ("x {maxValue} y", "3. Expected an ASCII digit."),
+            ("{0,", "3. Format item ends prematurely."),
+            ("{0", "2. Format item ends prematurely."),
+            ("{ 0}", "1. Expected an ASCII digit."),
+            ("ab{{c}", "6. Format item ends prematurely."),
+            ("{0,x}", "3. Expected an ASCII digit."),
+            ("{0:{{}", "3. Format item ends prematurely."),
+            ("{0 x}", "3. Format item ends prematurely."),
+            ("{0,5x}", "4. Format item ends prematurely."),
+            ("{0:ab", "5. Format item ends prematurely."),
+            ("{0:a{b}", "4. Format item ends prematurely."),
+            ("{0,-}", "4. Expected an ASCII digit."),
+            ("{0, ", "4. Format item ends prematurely."),
+            ("{0x}", "2. Format item ends prematurely."),
+            ("{12345678}", "8. Format item ends prematurely."),
+            ("{0,99999999}", "10. Format item ends prematurely."),
+        ];
+        for (b, e) in cases {
+            let msg = format_composite(b, &[]).unwrap_err();
+            assert_eq!(msg, format!("Input string was not in a correct format. Failure to parse near offset {}", e), "{}", b);
+        }
+        for b in ["{0}", "{0 }", "{1000000}", "{0,-5}", "{0:x}}", "{0, 5}", "{0:a}b}", "{00}", "{0:}", "{0,5:x}", "{0,1000000}"] {
+            assert_eq!(format_composite(b, &[]).unwrap_err(), index, "{}", b);
+        }
     }
 
     #[test]

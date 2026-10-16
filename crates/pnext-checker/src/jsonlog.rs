@@ -160,7 +160,9 @@ pub struct Details {
 }
 
 impl Details {
-    fn to_json(&self) -> Json {
+    /// `replace_nulls` is the bug-trace post-processing that turns nulls into `"null"`
+    /// strings and always writes a payload; the verbose log skips it.
+    fn to_json(&self, replace_nulls: bool) -> Json {
         let mut f: Vec<(String, Json)> = Vec::new();
         let mut s = |k: &str, v: &Option<String>| {
             if let Some(v) = v {
@@ -176,8 +178,12 @@ impl Details {
         s("state", &self.state);
         s("startState", &self.start_state);
         s("endState", &self.end_state);
-        // payload is always present after null replacement
-        f.push(("payload".into(), self.payload.clone().unwrap_or(Json::Null).replace_nulls()));
+        if replace_nulls {
+            // payload is always present after null replacement
+            f.push(("payload".into(), self.payload.clone().unwrap_or(Json::Null).replace_nulls()));
+        } else if let Some(p) = &self.payload {
+            f.push(("payload".into(), p.clone()));
+        }
         let mut s = |k: &str, v: &Option<String>| {
             if let Some(v) = v {
                 f.push((k.into(), Json::str(v.clone())));
@@ -331,15 +337,21 @@ impl JsonLog {
         self.entries.is_empty()
     }
 
-    /// The `.trace.json` file contents.
-    pub fn to_json_text(&self) -> String {
+    /// The log as a JSON array of `{type, details}` entries (see [`Details::to_json`]).
+    pub fn to_json(&self, replace_nulls: bool) -> Json {
         Json::Arr(
             self.entries
                 .iter()
-                .map(|(t, d)| Json::Obj(vec![("type".into(), Json::str(t.clone())), ("details".into(), d.to_json())]))
+                .map(|(t, d)| {
+                    Json::Obj(vec![("type".into(), Json::str(t.clone())), ("details".into(), d.to_json(replace_nulls))])
+                })
                 .collect(),
         )
-        .to_pretty()
+    }
+
+    /// The `.trace.json` file contents.
+    pub fn to_json_text(&self) -> String {
+        self.to_json(true).to_pretty()
     }
 }
 

@@ -378,16 +378,25 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
 /// `FindLocalPCompiledFile`.
 fn find_local_compiled_file(host: &mut dyn Host, cfg: &mut CheckConfig) -> Result<(), Exit> {
     host.out_line(&format!(".. Searching for a P compiled file locally in folder {}", cfg.pcompiled_path));
-    let pattern = format!("*.{}", artifact::EXTENSION);
+    // PEx mode looks for the jar the Java backend builds; pnext never produces one.
+    let pex = cfg.mode == Mode::PEx;
+    const PEX_SUFFIX: &str = "-jar-with-dependencies.jar";
+    let pattern = if pex { format!("*{}", PEX_SUFFIX) } else { format!("*.{}", artifact::EXTENSION) };
     let root = full_path(&host.cwd(), Path::new(&cfg.pcompiled_path));
     let mut files = Vec::new();
     pproj::list_files(host, &root, Some(3), &mut files);
     for f in files {
-        if is_hidden(&f) || f.extension().map(|e| e != artifact::EXTENSION).unwrap_or(true) {
+        if is_hidden(&f) {
             continue;
         }
         let rel = f.strip_prefix(&root).unwrap_or(&f);
-        if !rel.parent().map(|p| p.components().any(|c| c.as_os_str() == "PChecker")).unwrap_or(false) {
+        if pex {
+            if !f.to_string_lossy().ends_with(PEX_SUFFIX) {
+                continue;
+            }
+        } else if f.extension().map(|e| e != artifact::EXTENSION).unwrap_or(true)
+            || !rel.parent().map(|p| p.components().any(|c| c.as_os_str() == "PChecker")).unwrap_or(false)
+        {
             continue;
         }
         let mut display = cfg.pcompiled_path.clone();
@@ -674,6 +683,7 @@ fn run_engine(
     }
     let checker = Checker::new(&loaded.analysis.program);
     let mut out = ConsoleOut { host, deadline };
+    let opts = &CheckerOptions { assembly_name: loaded.artifact.project_name.clone(), ..opts.clone() };
     match checker.check(tc, opts, &mut out) {
         Ok(r) => Ok(r),
         Err(e) => Err(report_and_exit(host, &e)),
@@ -697,6 +707,12 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
         host.out_line("... Checker timed out.");
     }
     let file = Path::new(&cfg.assembly).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    if let Some(j) = &res.verbose_json_trace {
+        host.out_line("... Emitting verbose logs:");
+        let path = format!("{}{}_0_verbose.trace.json", cfg.output_directory, file);
+        host.out_line(&format!("..... Writing {}", path));
+        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), j);
+    }
     if !cfg.full_exploration && res.report.num_bugs > 0 {
         host.out_line("Checker found a bug.");
         host.out_line("... Emitting traces:");
