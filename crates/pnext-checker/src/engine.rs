@@ -39,6 +39,8 @@ pub struct CheckerOptions {
     pub incremental_seed: bool,
     /// The schedule to replay when `strategy == "replay"`.
     pub replay: Option<ScheduleTrace>,
+    /// See [`Config::max_work_per_step`](crate::runtime::Config::max_work_per_step).
+    pub max_work_per_step: u64,
 }
 
 impl Default for CheckerOptions {
@@ -56,6 +58,7 @@ impl Default for CheckerOptions {
             full_exploration: false,
             incremental_seed: false,
             replay: None,
+            max_work_per_step: crate::runtime::DEFAULT_MAX_WORK_PER_STEP,
         }
     }
 }
@@ -247,6 +250,7 @@ impl<'p> Checker<'p> {
             liveness_temperature_threshold: opts.effective_liveness_threshold(),
             fail_on_max_steps: opts.fail_on_max_steps,
             strategy_name: opts.strategy.clone(),
+            max_work_per_step: opts.max_work_per_step,
         };
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };

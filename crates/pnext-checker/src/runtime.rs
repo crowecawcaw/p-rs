@@ -249,6 +249,10 @@ pub struct Config {
     pub liveness_temperature_threshold: usize,
     pub fail_on_max_steps: bool,
     pub strategy_name: String,
+    /// Upper bound on the work (interpreted instructions, log lines weighted) an actor may do
+    /// without reaching a scheduling point; 0 = unbounded. Upstream has no such bound and
+    /// simply hangs on e.g. an endless raise/goto cycle.
+    pub max_work_per_step: u64,
 }
 
 impl Default for Config {
@@ -260,9 +264,16 @@ impl Default for Config {
             liveness_temperature_threshold: 0,
             fail_on_max_steps: false,
             strategy_name: "random".into(),
+            max_work_per_step: DEFAULT_MAX_WORK_PER_STEP,
         }
     }
 }
+
+/// Default for [`Config::max_work_per_step`].
+pub const DEFAULT_MAX_WORK_PER_STEP: u64 = 20_000_000;
+
+/// Weight of one log line in the per-step work budget.
+pub const LOG_LINE_WORK: u64 = 20;
 
 /// Which actor the interpreter is executing for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -302,6 +313,8 @@ pub struct Runtime<'p> {
     pub stopped: bool,
     pub fully_explored: bool,
     pub scheduled_steps: usize,
+    /// Work done since the last scheduling point (see [`Config::max_work_per_step`]).
+    pub step_work: u64,
     next_op_id: u64,
     anon_names: Vec<String>,
 }
@@ -357,6 +370,7 @@ impl<'p> Runtime<'p> {
             stopped: false,
             fully_explored: false,
             scheduled_steps: 0,
+            step_work: 0,
             next_op_id: 0,
             anon_names,
         }
@@ -367,6 +381,7 @@ impl<'p> Runtime<'p> {
     }
 
     pub fn log_line(&mut self, s: String) {
+        self.step_work += LOG_LINE_WORK;
         self.log.push(s);
     }
 
@@ -512,6 +527,7 @@ impl<'p> Runtime<'p> {
         let current = self.current;
         match self.strategy.next_operation(current, &infos) {
             Some(next) => {
+                self.step_work = 0;
                 self.scheduled_steps = self.strategy.scheduled_steps();
                 self.trace.steps.push(ScheduleStep::Operation(next));
                 self.current = next;

@@ -117,6 +117,9 @@ pub fn analyze(sm: &SourceMap, programs: &[ast::Program], opts: &Options) -> Res
     if thrown.is_some() || a.diags.has_errors() {
         return Err(AnalysisError { thrown, collected: a.diags.errors, warnings: a.diags.warnings });
     }
+    for (i, n) in a.fun_next_slot.iter().enumerate() {
+        a.prog.funs[i].frame_size = *n;
+    }
     Ok(Analysis { program: a.prog, warnings: a.diags.warnings })
 }
 

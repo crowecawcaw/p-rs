@@ -343,6 +343,17 @@ impl<'p> Runtime<'p> {
             if exec.frames.is_empty() {
                 return Ok(Flow::Finished(Value::Null));
             }
+            self.step_work += 1;
+            let limit = self.config.max_work_per_step;
+            if limit > 0 && self.step_work > limit {
+                let msg = format!(
+                    "{} in state {} exceeded the work bound of {} without reaching a scheduling point (possible infinite loop).",
+                    self.actor_name(actor),
+                    self.actor_state_name(actor),
+                    limit
+                );
+                return Err(self.report_bug(msg).into());
+            }
             match self.step(actor, exec)? {
                 Flow::Continue => {}
                 other => return Ok(other),

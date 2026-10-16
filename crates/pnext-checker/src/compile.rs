@@ -114,9 +114,21 @@ impl<'a> Compiler<'a> {
                 }
             }
             StmtKind::Assert { cond, message } | StmtKind::Assume { cond, message } => {
-                self.expr(cond);
-                self.expr(message);
-                self.emit(Op::Assert);
+                // Upstream lowers `assert c, m` to `if (!c) { m-deps; assert c, m }` unless `c`
+                // is a literal, so the message is only evaluated when the assertion fails.
+                if matches!(cond.kind, ExprKind::BoolLit(_)) {
+                    self.expr(cond);
+                    self.expr(message);
+                    self.emit(Op::Assert);
+                } else {
+                    self.expr(cond);
+                    let skip = self.emit(Op::JumpIfTrue(0));
+                    self.emit(Op::PushBool(false));
+                    self.expr(message);
+                    self.emit(Op::Assert);
+                    let end = self.here();
+                    self.patch(skip, end);
+                }
             }
             StmtKind::Print(e) => {
                 self.expr(e);
