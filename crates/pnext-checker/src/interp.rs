@@ -934,7 +934,7 @@ impl<'p> Runtime<'p> {
                 if !prog.machine(decl).creates.contains(&created) {
                     let msg = format!(
                         "Machine {} cannot create interface I_{}, not in its creates set",
-                        prog.machine(decl).name,
+                        prog.machine(decl).cs_name,
                         prog.interface(created).name
                     );
                     return Err(self.report_bug(msg).into());
@@ -984,7 +984,7 @@ impl<'p> Runtime<'p> {
                         let msg = format!(
                             "Event {} is not in the sends set of the Machine {}",
                             ev_name,
-                            prog.machine(decl).name
+                            prog.machine(decl).cs_name
                         );
                         return Err(self.report_bug(msg).into());
                     }

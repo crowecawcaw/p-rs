@@ -514,7 +514,7 @@ impl<'p> Runtime<'p> {
     }
 
     pub fn monitor_full_name(&self, mon: usize) -> String {
-        format!("PImplementation.{}", self.prog.machine(self.monitors[mon].decl).name)
+        format!("PImplementation.{}", self.prog.machine(self.monitors[mon].decl).cs_name)
     }
 
     pub fn event_name(&self, e: EventId) -> &str {
@@ -937,7 +937,7 @@ impl<'p> Runtime<'p> {
                 log: Some(format!("{} was created by {}.", created, creator_name)),
                 id: Some(created.to_string()),
                 creator_name: Some(creator_name.to_string()),
-                creator_type: Some(self.prog.machine(self.machines[creator].decl).name.clone()),
+                creator_type: Some(self.prog.machine(self.machines[creator].decl).cs_name.clone()),
                 ..Default::default()
             };
             self.jlog("CreateStateMachine", d, true);
@@ -1524,7 +1524,7 @@ impl<'p> Runtime<'p> {
         self.cov_goto(m, target);
         let name = self.machines[m].name.clone();
         let cur = self.log_state_name(m);
-        let mname = self.prog.machine(self.machines[m].decl).name.clone();
+        let mname = self.prog.machine(self.machines[m].decl).cs_name.clone();
         let tname = self.prog.state(target).name.clone();
         if self.logging { self.log_line(format!(
             "<GotoLog> {} is transitioning from state '{}' to state 'PImplementation.{}.{}'.",
@@ -1597,7 +1597,7 @@ impl<'p> Runtime<'p> {
             if self.prog.machine(decl).is_scenario() {
                 self.scenarios.push(ScenarioProgress {
                     decl,
-                    name: self.prog.machine(decl).name.clone(),
+                    name: self.prog.machine(decl).cs_name.clone(),
                     total_states: self.prog.machine(decl).states.len(),
                     reached: std::collections::BTreeSet::new(),
                     saw_start_entry: false,
@@ -1622,7 +1622,7 @@ impl<'p> Runtime<'p> {
             });
             if self.logging { self.log_line(format!("<CreateLog> {} was created.", self.monitor_full_name(idx))); } else { self.step_work += LOG_LINE_WORK; }
             if self.json_enabled() {
-                let short = self.prog.machine(decl).name.clone();
+                let short = self.prog.machine(decl).cs_name.clone();
                 let d = Details { log: Some(format!("{} was created.", short)), monitor: Some(short), ..Default::default() };
                 self.jlog("CreateMonitor", d, true);
             }
@@ -1667,7 +1667,7 @@ impl<'p> Runtime<'p> {
             }
         }
         if self.json_enabled() {
-            let short = self.prog.machine(self.monitors[mon].decl).name.clone();
+            let short = self.prog.machine(self.monitors[mon].decl).cs_name.clone();
             let st = self.short_state(s);
             let hot = match s.map(|s| self.prog.state(s).temperature) {
                 Some(Temperature::Hot) => Some(true),
@@ -1753,7 +1753,7 @@ impl<'p> Runtime<'p> {
                 if self.logging {
             let text = format!(
                     "<MonitorLog> Monitor '{}' raised event '{}' in state '{}'.",
-                    self.prog.machine(self.monitors[mon].decl).name,
+                    self.prog.machine(self.monitors[mon].decl).cs_name,
                     self.event_with_payload(&e),
                     self.state_name(self.monitors[mon].state)
                 );
@@ -1763,7 +1763,7 @@ impl<'p> Runtime<'p> {
         }
                 if self.json_enabled() {
                     let (payload, key) = self.jpayload(&e);
-                    let short = self.prog.machine(self.monitors[mon].decl).name.clone();
+                    let short = self.prog.machine(self.monitors[mon].decl).cs_name.clone();
                     let st = self.short_state(self.monitors[mon].state);
                     let d = Details {
                         log: Some(format!("Monitor '{}' raised event '{}' in state '{}'.", short, self.event_with_payload(&e), st)),
@@ -1783,7 +1783,7 @@ impl<'p> Runtime<'p> {
                 if self.logging {
             let text = format!(
                     "<MonitorLog> Monitor '{}' raised event 'GotoStateEvent' in state '{}'.",
-                    self.prog.machine(self.monitors[mon].decl).name,
+                    self.prog.machine(self.monitors[mon].decl).cs_name,
                     self.state_name(self.monitors[mon].state)
                 );
             self.log_line(text);
@@ -1791,7 +1791,7 @@ impl<'p> Runtime<'p> {
             self.step_work += LOG_LINE_WORK;
         }
                 if self.json_enabled() {
-                    let short = self.prog.machine(self.monitors[mon].decl).name.clone();
+                    let short = self.prog.machine(self.monitors[mon].decl).cs_name.clone();
                     let st = self.short_state(self.monitors[mon].state);
                     let d = Details {
                         log: Some(format!("Monitor '{}' raised event 'GotoStateEvent' in state '{}'.", short, st)),
@@ -1824,7 +1824,7 @@ impl<'p> Runtime<'p> {
         if self.logging {
             let text = format!(
             "<MonitorLog> {} is processing event '{}' in state '{}'.",
-            self.prog.machine(self.monitors[mon].decl).name,
+            self.prog.machine(self.monitors[mon].decl).cs_name,
             self.event_with_payload(&e),
             self.state_name(self.monitors[mon].state)
         );
@@ -1834,7 +1834,7 @@ impl<'p> Runtime<'p> {
         }
         if self.json_enabled() {
             let (payload, key) = self.jpayload(&e);
-            let short = self.prog.machine(self.monitors[mon].decl).name.clone();
+            let short = self.prog.machine(self.monitors[mon].decl).cs_name.clone();
             let d = Details {
                 log: Some(format!(
                     "{} is processing event '{}' in state '{}'.",

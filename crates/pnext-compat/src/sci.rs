@@ -45,7 +45,7 @@ fn dict(tag: &str, entries: &[(String, Vec<String>)]) -> String {
 
 /// The `CoverageInfo` document.
 pub fn coverage_xml(prog: &Program, tables: &CoverageTables, info: &CoverageInfo) -> String {
-    let full = |d: pnext_sema::MachineId| format!("PImplementation.{}", prog.machine(d).name);
+    let full = |d: pnext_sema::MachineId| format!("PImplementation.{}", prog.machine(d).cs_name);
     let machines: Vec<String> = info.declared.iter().map(|(d, _)| full(*d)).collect();
     let mut states = Vec::new();
     let mut registered = Vec::new();

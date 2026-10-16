@@ -8,6 +8,7 @@
 pub mod analyzer;
 pub mod check;
 pub mod collect;
+pub mod csharp;
 pub mod diag;
 pub mod errors;
 pub mod modules;
@@ -121,6 +122,9 @@ pub fn analyze(sm: &SourceMap, programs: &[ast::Program], opts: &Options) -> Res
     }
     for (i, n) in a.fun_next_slot.iter().enumerate() {
         a.prog.funs[i].frame_size = *n;
+    }
+    for (m, name) in csharp::machine_names(&a.prog).into_iter().enumerate() {
+        a.prog.machines[m].cs_name = name;
     }
     Ok(Analysis { program: a.prog, warnings: a.diags.warnings })
 }

@@ -46,7 +46,7 @@ impl CoverageTables {
         for m in &prog.machines {
             for s in &m.states {
                 let st = prog.state(*s);
-                let base = format!("PImplementation.{}.{}", m.name, st.name);
+                let base = format!("PImplementation.{}.{}", m.cs_name, st.name);
                 plain[s.idx()] = intern(base.clone());
                 let suffix = match st.temperature {
                     Temperature::Hot => "[hot]",
@@ -55,7 +55,7 @@ impl CoverageTables {
                 };
                 tempered[s.idx()] = intern(format!("{}{}", base, suffix));
             }
-            receive_target.push(intern(format!("PImplementation.{}.StateMachine", m.name)));
+            receive_target.push(intern(format!("PImplementation.{}.StateMachine", m.cs_name)));
         }
         CoverageTables { nodes, plain, tempered, receive_target }
     }
@@ -456,7 +456,7 @@ pub fn coverage_report(prog: &Program, tables: &CoverageTables, info: &CoverageI
     };
     header(&mut out, format!("Total event coverage: {}%", percent(total - total_uncovered, total)));
     let mut machines: Vec<(String, MachineId, bool)> =
-        info.declared.iter().map(|(d, mon)| (format!("PImplementation.{}", prog.machine(*d).name), *d, *mon)).collect();
+        info.declared.iter().map(|(d, mon)| (format!("PImplementation.{}", prog.machine(*d).cs_name), *d, *mon)).collect();
     machines.sort_by(|a, b| culture_order(&a.0, &b.0));
     for (full, decl, monitor) in machines {
         header(&mut out, format!("{}: {}", if monitor { "Monitor" } else { "StateMachine" }, after_dot(&full)));

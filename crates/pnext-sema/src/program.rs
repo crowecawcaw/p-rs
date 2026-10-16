@@ -138,6 +138,9 @@ pub struct MachineDecl {
     pub creates: Vec<InterfaceId>,
     /// The implicit interface with the machine's name (impl machines only).
     pub interface: Option<InterfaceId>,
+    /// The generated class name upstream gives the machine (`PImplementation.<cs_name>`);
+    /// differs from `name` when an earlier declaration claimed it (see `csharp_names`).
+    pub cs_name: String,
 }
 
 impl MachineDecl {

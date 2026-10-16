@@ -133,6 +133,7 @@ impl<'a> Analyzer<'a> {
                         payload: PType::Null,
                         creates: Vec::new(),
                         interface: None,
+                        cs_name: m.name.name.clone(),
                     });
                     let mid = MachineId(self.prog.machines.len() as u32 - 1);
                     self.scopes.get_mut(g).machines.insert(m.name.name.clone(), mid);
