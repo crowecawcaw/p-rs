@@ -411,7 +411,7 @@ pub struct Runtime<'p> {
     /// Time tracking (see `design/time/PROPOSAL.md`); `None` when the test does not use it.
     pub time: Option<Box<crate::time::TimeState>>,
     next_op_id: u64,
-    anon_names: Vec<String>,
+    action_names: Vec<String>,
 }
 
 impl<'p> Runtime<'p> {
@@ -436,17 +436,8 @@ impl<'p> Runtime<'p> {
                 }
             }
         }
-        // Anonymous functions are named Anon, Anon_1, ... by the upstream name manager.
-        let mut anon_names = Vec::with_capacity(prog.funs.len());
-        let mut n = 0;
-        for f in &prog.funs {
-            if f.is_anon() {
-                anon_names.push(if n == 0 { "Anon".to_string() } else { format!("Anon_{}", n) });
-                n += 1;
-            } else {
-                anon_names.push(f.name.clone());
-            }
-        }
+        // Actions are reported by their generated method name (`Anon_3`, `_Foo`).
+        let action_names = prog.funs.iter().map(|f| f.action_name()).collect();
         Runtime {
             prog,
             code,
@@ -478,12 +469,12 @@ impl<'p> Runtime<'p> {
             coverage_tables: None,
             time: None,
             next_op_id: 0,
-            anon_names,
+            action_names,
         }
     }
 
     pub fn fun_name(&self, f: FunId) -> &str {
-        &self.anon_names[f.idx()]
+        &self.action_names[f.idx()]
     }
 
     pub fn log_line(&mut self, s: String) {

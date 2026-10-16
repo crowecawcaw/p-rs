@@ -28,3 +28,21 @@ fn global_function_params_come_first() {
     );
     assert_eq!(got[0].1, "Main_1");
 }
+
+#[test]
+fn action_names_share_the_pool() {
+    // Matches the methods upstream generates for this program: a field named `Anon` takes
+    // the plain name, so anonymous handlers start at `Anon_1`.
+    let mut sm = pnext_syntax::SourceMap::new();
+    sm.add(
+        "t.p".to_string(),
+        "machine Other { var Anon: int; start state Init { entry { } } }
+         machine Main { start state Init { entry Foo; on e1 do { } } state S2 { entry { } } fun Foo() { } }
+         event e1;"
+            .to_string(),
+    );
+    let a = pnext_sema::compile(&sm, &pnext_sema::Options::default()).expect("compiles");
+    let mut names: Vec<String> = a.program.funs.iter().map(|f| f.action_name()).collect();
+    names.sort();
+    assert_eq!(names, ["Anon_1", "Anon_2", "Anon_3", "_Foo"]);
+}

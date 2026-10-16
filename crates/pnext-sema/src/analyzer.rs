@@ -96,6 +96,7 @@ impl<'a> Analyzer<'a> {
             name: name.to_string(),
             owner,
             parent: None,
+            cs_name: String::new(),
             params: Vec::new(),
             ret: PType::Null,
             locals: Vec::new(),

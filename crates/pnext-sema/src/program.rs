@@ -143,6 +143,18 @@ pub struct MachineDecl {
     pub cs_name: String,
 }
 
+impl FunDecl {
+    /// The name upstream logs when the function runs as a state action: anonymous
+    /// handlers run directly, named methods through their `_<name>` wrapper.
+    pub fn action_name(&self) -> String {
+        if self.name.is_empty() {
+            self.cs_name.clone()
+        } else {
+            format!("_{}", self.cs_name)
+        }
+    }
+}
+
 impl MachineDecl {
     pub fn is_spec(&self) -> bool {
         matches!(self.kind, MachineKind::Spec | MachineKind::Scenario)
@@ -212,6 +224,9 @@ pub struct FunDecl {
     pub owner: Option<MachineId>,
     /// Enclosing function for receive-case handlers.
     pub parent: Option<FunId>,
+    /// The generated method name upstream gives the function (`Anon_3`, `Foo_1`, ...); empty
+    /// for receive-case handlers and foreign functions, which get no method of their own.
+    pub cs_name: String,
     pub params: Vec<VarId>,
     pub ret: PType,
     /// Local variables declared directly in this function (not nested receive handlers).

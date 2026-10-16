@@ -123,8 +123,12 @@ pub fn analyze(sm: &SourceMap, programs: &[ast::Program], opts: &Options) -> Res
     for (i, n) in a.fun_next_slot.iter().enumerate() {
         a.prog.funs[i].frame_size = *n;
     }
-    for (m, name) in csharp::machine_names(&a.prog).into_iter().enumerate() {
+    let names = csharp::names(&a.prog);
+    for (m, name) in names.machines.into_iter().enumerate() {
         a.prog.machines[m].cs_name = name;
+    }
+    for (f, name) in names.funs.into_iter().enumerate() {
+        a.prog.funs[f].cs_name = name;
     }
     Ok(Analysis { program: a.prog, warnings: a.diags.warnings })
 }
