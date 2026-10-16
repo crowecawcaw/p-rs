@@ -172,7 +172,7 @@ impl<'a> Analyzer<'a> {
     // ------------------------------------------------------------------
 
     pub fn check_expr(&mut self, ctx: Ctx, e: &ast::Expr) -> Result<Expr, Fatal> {
-        let span = e.span;
+        let span = e.inner;
         match &e.kind {
             ast::ExprKind::Name(n) => self.check_name(ctx, n, span),
             ast::ExprKind::FloatLit(text) => match text.parse::<f64>() {
@@ -1144,6 +1144,33 @@ impl<'a> Analyzer<'a> {
         if is_spec {
             let d = self.e.illegal_monitor_operation(span, &self.mname(ctx));
             self.report(d)?;
+            // Like upstream: still surface undeclared events and handler-body
+            // errors, with one handler per case.
+            for case in cases {
+                for ev in &case.events {
+                    if self.scopes.lookup_event(ctx.scope, &ev.name).is_none() {
+                        let d = self.e.missing_declaration(ev.span, "event", &ev.name);
+                        self.report(d)?;
+                    }
+                }
+                let hs = self.scopes.child(ctx.scope);
+                let hid = self.new_fun("", ctx.machine, hs, FunSrc::Receive, case.handler.span);
+                self.fun_root[hid.idx()] = self.fun_root[ctx.fun.idx()];
+                self.prog.funs[hid.idx()].parent = Some(ctx.fun);
+                self.prog.funs[hid.idx()].role.receive = true;
+                if let Some(p) = &case.handler.param {
+                    self.check_conflict_var(hs, &p.name.name, p.name.span)?;
+                    let slot = self.alloc_slot(hid);
+                    let t = self.resolve_type(&p.ty, hs)?;
+                    let v = self.new_var(&p.name.name, VarRole::Param, t, slot, p.name.span);
+                    let s = self.scopes.get_mut(hs);
+                    s.variables.insert(p.name.name.clone(), v);
+                    s.var_list.push(v);
+                    self.prog.funs[hid.idx()].params.push(v);
+                }
+                self.populate_body(hid, &case.handler.body)?;
+            }
+            return Ok(Self::stmt(StmtKind::Nop, span));
         }
         let mut out: Vec<(EventId, FunId)> = Vec::new();
         for case in cases {
@@ -1165,9 +1192,6 @@ impl<'a> Analyzer<'a> {
                     self.prog.funs[hid.idx()].params.push(v);
                 }
                 self.populate_body(hid, &case.handler.body)?;
-                if is_spec {
-                    continue;
-                }
                 let Some(eid) = self.scopes.lookup_event(ctx.scope, &ev.name) else {
                     let d = self.e.missing_declaration(ev.span, "event", &ev.name);
                     self.report(d)?;
@@ -1207,9 +1231,6 @@ impl<'a> Analyzer<'a> {
                 }
                 out.push((eid, hid));
             }
-        }
-        if is_spec {
-            return Ok(Self::stmt(StmtKind::Nop, span));
         }
         self.prog.funs[ctx.fun.idx()].can_receive = true;
         Ok(Self::stmt(StmtKind::Receive { cases: out }, span))

@@ -22,6 +22,32 @@ pub fn parse(file: FileId, text: &str) -> PResult<Program> {
     p.program()
 }
 
+/// Tokens that can start a statement (`statement` in `PParser.g4`).
+const STMT_STARTS: &[TokenKind] = &[
+    T::LBrace, T::Assert, T::Assume, T::Print, T::Return, T::Break, T::Continue, T::Iden, T::While,
+    T::Foreach, T::If, T::New, T::Raise, T::Send, T::Announce, T::Goto, T::Receive, T::Semi,
+];
+
+/// Appends the comments in `gap` (text between two tokens), which ANTLR keeps
+/// on its hidden channel and includes in "no viable alternative" input text.
+fn push_comments(out: &mut String, gap: &str) {
+    let mut rest = gap;
+    while let Some(i) = rest.find('/') {
+        let tail = &rest[i..];
+        if tail.starts_with("//") {
+            let end = tail.find(['\r', '\n']).unwrap_or(tail.len());
+            out.push_str(&tail[..end]);
+            rest = &tail[end..];
+        } else if tail.starts_with("/*") {
+            let end = tail[2..].find("*/").map(|j| j + 4).unwrap_or(tail.len());
+            out.push_str(&tail[..end]);
+            rest = &tail[end..];
+        } else {
+            rest = &tail[1..];
+        }
+    }
+}
+
 struct Parser<'a> {
     text: &'a str,
     tokens: Vec<Token>,
@@ -85,28 +111,120 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Formats a token set the way ANTLR's `IntervalSet.ToString(vocabulary)`
+    /// does: ordered by token type, braces only around several elements.
+    fn format_set(kinds: &[TokenKind]) -> String {
+        let mut ks: Vec<TokenKind> = kinds.to_vec();
+        ks.sort_by_key(|k| *k as u32);
+        ks.dedup();
+        let names: Vec<&str> = ks.iter().map(|k| if *k == T::Eof { "<EOF>" } else { k.display() }).collect();
+        if names.len() == 1 {
+            names[0].to_string()
+        } else {
+            format!("{{{}}}", names.join(", "))
+        }
+    }
+
+    /// Reports a token that does not match `expected`, following the order of
+    /// ANTLR's `RecoverInline`: when the next token is expected the current one
+    /// is "extraneous"; when the current one can follow the expected token
+    /// (`follow`), the expected token is "missing"; otherwise a plain mismatch.
+    fn mismatch<R>(&self, expected: &[TokenKind], follow: &[TokenKind]) -> PResult<R> {
+        let t = self.peek();
+        let set = Self::format_set(expected);
+        if t.kind != T::Eof && expected.contains(&self.peek_at(1)) {
+            return self.err_at(t, format!("extraneous input '{}' expecting {}", self.offending(t), set));
+        }
+        if follow.contains(&t.kind) {
+            return self.err_at(t, format!("missing {} at '{}'", set, self.offending(t)));
+        }
+        self.err_at(t, format!("mismatched input '{}' expecting {}", self.offending(t), set))
+    }
+
     fn expect(&mut self, k: TokenKind) -> PResult<Token> {
         if self.at(k) {
             Ok(self.bump())
         } else {
-            let t = self.peek();
-            self.err_at(t, format!("mismatched input '{}' expecting {}", self.offending(t), k.display()))
+            self.mismatch(&[k], &[])
         }
+    }
+
+    /// `expect(k)` where the tokens in `follow` may come right after `k`.
+    fn expect_followed_by(&mut self, k: TokenKind, follow: &[TokenKind]) -> PResult<Token> {
+        if self.at(k) {
+            Ok(self.bump())
+        } else {
+            self.mismatch(&[k], follow)
+        }
+    }
+
+    /// The `;` ending a statement; a statement or the end of the block follows.
+    fn expect_stmt_semi(&mut self) -> PResult<Token> {
+        let mut follow = STMT_STARTS.to_vec();
+        follow.push(T::RBrace);
+        follow.push(T::Else);
+        self.expect_followed_by(T::Semi, &follow)
     }
 
     fn expect_one_of(&mut self, kinds: &[TokenKind]) -> PResult<Token> {
         if kinds.contains(&self.peek_kind()) {
             Ok(self.bump())
         } else {
-            let t = self.peek();
-            let expected: Vec<&str> = kinds.iter().map(|k| k.display()).collect();
-            self.err_at(t, format!("mismatched input '{}' expecting {{{}}}", self.offending(t), expected.join(", ")))
+            self.mismatch(kinds, &[])
+        }
+    }
+
+    /// The error-recovery `Sync` ANTLR runs before each iteration of an
+    /// `item* terminator` loop. Tokens that can neither start an item nor end
+    /// the loop are reported against the set of both; on the loop's first
+    /// iteration the report is a mismatch unless the token after it is
+    /// acceptable, afterwards always an "extraneous input".
+    fn sync_loop(&self, starts: &[TokenKind], terminator: TokenKind, first: bool) -> PResult<()> {
+        let k = self.peek_kind();
+        if k == terminator || starts.contains(&k) {
+            return Ok(());
+        }
+        let mut set = starts.to_vec();
+        set.push(terminator);
+        let t = self.peek();
+        let msg = Self::format_set(&set);
+        if !first || set.contains(&self.peek_at(1)) {
+            self.err_at(t, format!("extraneous input '{}' expecting {}", self.offending(t), msg))
+        } else {
+            self.err_at(t, format!("mismatched input '{}' expecting {}", self.offending(t), msg))
         }
     }
 
     fn no_viable<R>(&self) -> PResult<R> {
         let t = self.peek();
         self.err_at(t, format!("no viable alternative at input '{}'", self.offending(t)))
+    }
+
+    /// Turns an error raised while a multi-token decision starting at token
+    /// `start` was still open into ANTLR's "no viable alternative" report,
+    /// whose input text runs from the decision start through the offending
+    /// token (comments included, whitespace dropped).
+    fn no_viable_from(&self, start: usize, err: ParseError) -> ParseError {
+        let Some(end) = self.tokens.iter().position(|t| t.span.start == err.span.start && t.span.end == err.span.end)
+        else {
+            return err;
+        };
+        if self.tokens[start].kind == T::Eof {
+            return ParseError { span: err.span, message: "no viable alternative at input '<EOF>'".into() };
+        }
+        let mut text = String::new();
+        for i in start..=end {
+            let t = self.tokens[i];
+            if t.kind == T::Eof {
+                break;
+            }
+            if i > start {
+                push_comments(&mut text, &self.text[self.tokens[i - 1].span.end as usize..t.span.start as usize]);
+            }
+            text.push_str(self.tok_text(t));
+        }
+        let text = text.replace('\n', "\\n").replace('\r', "\\r").replace('\t', "\\t");
+        ParseError { span: err.span, message: format!("no viable alternative at input '{}'", text) }
     }
 
     fn ident(&mut self) -> PResult<Ident> {
@@ -519,6 +637,7 @@ impl<'a> Parser<'a> {
         let mut observes = Vec::new();
         match kind {
             MachineKind::Impl => {
+                self.sync_loop(&[T::Receives, T::Sends], T::LBrace, true)?;
                 while self.at(T::Receives) || self.at(T::Sends) {
                     let s = self.peek().span;
                     let is_recv = self.bump().kind == T::Receives;
@@ -529,6 +648,7 @@ impl<'a> Parser<'a> {
                     } else {
                         sends.push((events, s.to(e)));
                     }
+                    self.sync_loop(&[T::Receives, T::Sends], T::LBrace, false)?;
                 }
             }
             MachineKind::Spec | MachineKind::Scenario => {
@@ -540,7 +660,11 @@ impl<'a> Parser<'a> {
         let mut vars = Vec::new();
         let mut funs = Vec::new();
         let mut states = Vec::new();
+        const ENTRY_STARTS: &[TokenKind] = &[T::Var, T::Fun, T::Start, T::Hot, T::Cold, T::State];
+        let mut first = true;
         loop {
+            self.sync_loop(ENTRY_STARTS, T::RBrace, first)?;
+            first = false;
             match self.peek_kind() {
                 T::Var => vars.push(self.var_decl()?),
                 T::Fun => funs.push(self.fun_decl()?),
@@ -646,15 +770,16 @@ impl<'a> Parser<'a> {
     fn fun_body(&mut self) -> PResult<FunBody> {
         let start = self.expect(T::LBrace)?.span;
         let mut vars = Vec::new();
+        let var_starts: Vec<TokenKind> = std::iter::once(T::Var).chain(STMT_STARTS.iter().copied()).collect();
+        self.sync_loop(&var_starts, T::RBrace, true)?;
         while self.at(T::Var) {
             vars.push(self.var_decl()?);
+            self.sync_loop(&var_starts, T::RBrace, false)?;
         }
         let mut stmts = Vec::new();
         while !self.at(T::RBrace) {
-            if self.at(T::Eof) {
-                return self.expect(T::RBrace).map(|_| unreachable!());
-            }
             stmts.push(self.stmt()?);
+            self.sync_loop(STMT_STARTS, T::RBrace, false)?;
         }
         let end = self.expect(T::RBrace)?.span;
         Ok(FunBody { vars, stmts, span: start.to(end) })
@@ -688,8 +813,11 @@ impl<'a> Parser<'a> {
         let name = self.ident()?;
         self.expect(T::LBrace)?;
         let mut items = Vec::new();
+        const ITEM_STARTS: &[TokenKind] = &[T::Defer, T::Entry, T::Exit, T::Ignore, T::On];
+        self.sync_loop(ITEM_STARTS, T::RBrace, true)?;
         while !self.at(T::RBrace) {
             items.push(self.state_item()?);
+            self.sync_loop(ITEM_STARTS, T::RBrace, false)?;
         }
         let end = self.expect(T::RBrace)?.span;
         Ok(StateDecl { name, is_start, temperature, items, span: start.to(end) })
@@ -893,11 +1021,10 @@ impl<'a> Parser<'a> {
             T::LBrace => {
                 self.bump();
                 let mut stmts = Vec::new();
+                self.sync_loop(STMT_STARTS, T::RBrace, true)?;
                 while !self.at(T::RBrace) {
-                    if self.at(T::Eof) {
-                        self.expect(T::RBrace)?;
-                    }
                     stmts.push(self.stmt()?);
+                    self.sync_loop(STMT_STARTS, T::RBrace, false)?;
                 }
                 self.expect(T::RBrace)?;
                 StmtKind::Compound(stmts)
@@ -906,7 +1033,7 @@ impl<'a> Parser<'a> {
                 let is_assert = self.bump().kind == T::Assert;
                 let cond = self.expr()?;
                 let message = if self.eat(T::Comma) { Some(self.expr()?) } else { None };
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 if is_assert {
                     StmtKind::Assert { cond, message }
                 } else {
@@ -916,23 +1043,23 @@ impl<'a> Parser<'a> {
             T::Print => {
                 self.bump();
                 let e = self.expr()?;
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Print(e)
             }
             T::Return => {
                 self.bump();
                 let e = if self.at(T::Semi) { None } else { Some(self.expr()?) };
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Return(e)
             }
             T::Break => {
                 self.bump();
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Break
             }
             T::Continue => {
                 self.bump();
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Continue
             }
             T::While => {
@@ -953,7 +1080,7 @@ impl<'a> Parser<'a> {
                 let mut invariants = Vec::new();
                 while self.eat(T::Invariant) {
                     invariants.push(self.expr()?);
-                    self.expect(T::Semi)?;
+                    self.expect_stmt_semi()?;
                 }
                 let body = Box::new(self.stmt()?);
                 StmtKind::Foreach { item, collection, invariants, body }
@@ -973,14 +1100,14 @@ impl<'a> Parser<'a> {
                 self.expect(T::LParen)?;
                 let args = if self.at(T::RParen) { Vec::new() } else { self.rvalue_list()? };
                 self.expect(T::RParen)?;
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Ctor { interface, args }
             }
             T::Raise => {
                 self.bump();
                 let event = self.expr()?;
                 let args = if self.eat(T::Comma) { self.rvalue_list()? } else { Vec::new() };
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Raise { event, args }
             }
             T::Send => {
@@ -989,21 +1116,21 @@ impl<'a> Parser<'a> {
                 self.expect(T::Comma)?;
                 let event = self.expr()?;
                 let args = if self.eat(T::Comma) { self.rvalue_list()? } else { Vec::new() };
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Send { target, event, args }
             }
             T::Announce => {
                 self.bump();
                 let event = self.expr()?;
                 let args = if self.eat(T::Comma) { self.rvalue_list()? } else { Vec::new() };
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Announce { event, args }
             }
             T::Goto => {
                 self.bump();
                 let state = self.ident()?;
                 let args = if self.eat(T::Comma) { self.rvalue_list()? } else { Vec::new() };
-                self.expect(T::Semi)?;
+                self.expect_stmt_semi()?;
                 StmtKind::Goto { state, args }
             }
             T::Receive => {
@@ -1033,44 +1160,57 @@ impl<'a> Parser<'a> {
                     self.expect(T::LParen)?;
                     let args = if self.at(T::RParen) { Vec::new() } else { self.rvalue_list()? };
                     self.expect(T::RParen)?;
-                    self.expect(T::Semi)?;
+                    self.expect_stmt_semi()?;
                     StmtKind::FunCall { fun, args }
                 } else {
-                    let lhs = self.lvalue()?;
-                    match self.peek_kind() {
-                        T::Assign => {
-                            self.bump();
+                    // ANTLR predicts among the assignment-like statements with
+                    // unbounded lookahead, so an error before the alternative
+                    // is decided is a "no viable alternative" at the statement.
+                    let first_tok = self.pos;
+                    let prefix = (|| -> PResult<(Expr, TokenKind, Option<Expr>)> {
+                        let lhs = self.lvalue()?;
+                        let op = self.peek_kind();
+                        match op {
+                            T::Assign | T::Remove => {
+                                self.bump();
+                                Ok((lhs, op, None))
+                            }
+                            T::Insert => {
+                                self.bump();
+                                self.expect(T::LParen)?;
+                                let first = self.expr()?;
+                                if !self.at(T::Comma) && !self.at(T::RParen) {
+                                    return self.no_viable();
+                                }
+                                Ok((lhs, op, Some(first)))
+                            }
+                            _ => self.no_viable(),
+                        }
+                    })()
+                    .map_err(|e| self.no_viable_from(first_tok, e))?;
+                    match prefix {
+                        (lhs, T::Assign, _) => {
                             let rhs = self.expr()?;
-                            self.expect(T::Semi)?;
+                            self.expect_stmt_semi()?;
                             StmtKind::Assign { lhs, rhs }
                         }
-                        T::Insert => {
-                            self.bump();
-                            self.expect(T::LParen)?;
-                            let first = self.expr()?;
+                        (lhs, T::Remove, _) => {
+                            let value = self.expr()?;
+                            self.expect_stmt_semi()?;
+                            StmtKind::Remove { lhs, value }
+                        }
+                        (lhs, _, first) => {
+                            let first = first.expect("insert prefix has a first operand");
                             if self.eat(T::Comma) {
                                 let value = self.expr()?;
                                 self.expect(T::RParen)?;
-                                self.expect(T::Semi)?;
+                                self.expect_stmt_semi()?;
                                 StmtKind::Insert { lhs, index: first, value }
                             } else {
                                 self.expect(T::RParen)?;
-                                self.expect(T::Semi)?;
+                                self.expect_stmt_semi()?;
                                 StmtKind::Add { lhs, value: first }
                             }
-                        }
-                        T::Remove => {
-                            self.bump();
-                            let value = self.expr()?;
-                            self.expect(T::Semi)?;
-                            StmtKind::Remove { lhs, value }
-                        }
-                        _ => {
-                            let t = self.peek();
-                            return self.err_at(
-                                t,
-                                format!("mismatched input '{}' expecting {{'=', '+=', '-='}}", self.offending(t)),
-                            );
                         }
                     }
                 }
@@ -1083,7 +1223,7 @@ impl<'a> Parser<'a> {
     fn lvalue(&mut self) -> PResult<Expr> {
         let start = self.peek().span;
         let name = self.ident()?;
-        let mut e = Expr { kind: ExprKind::Name(name), span: start };
+        let mut e = Expr { kind: ExprKind::Name(name), span: start, inner: start };
         loop {
             match self.peek_kind() {
                 T::Dot => {
@@ -1097,18 +1237,19 @@ impl<'a> Parser<'a> {
                                 index_span: t.span,
                             },
                             span: start.to(t.span),
+                            inner: start.to(t.span),
                         };
                     } else {
                         let field = self.ident()?;
                         let sp = start.to(field.span);
-                        e = Expr { kind: ExprKind::NamedTupleAccess { base: Box::new(e), field }, span: sp };
+                        e = Expr { kind: ExprKind::NamedTupleAccess { base: Box::new(e), field }, span: sp, inner: sp };
                     }
                 }
                 T::LBrack => {
                     self.bump();
                     let index = self.expr()?;
                     let end = self.expect(T::RBrack)?.span;
-                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end) };
+                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end), inner: start.to(end) };
                 }
                 _ => break,
             }
@@ -1174,7 +1315,7 @@ impl<'a> Parser<'a> {
                 let kind = if self.bump().kind == T::As { CastKind::As } else { CastKind::To };
                 let ty = self.ty()?;
                 let sp = e.span.to(ty.span);
-                e = Expr { kind: ExprKind::Cast { kind, expr: Box::new(e), ty }, span: sp };
+                e = Expr { kind: ExprKind::Cast { kind, expr: Box::new(e), ty }, span: sp, inner: sp };
             }
             return Ok(e);
         }
@@ -1188,7 +1329,7 @@ impl<'a> Parser<'a> {
             self.bump();
             let rhs = self.binary(level + 1)?;
             let sp = lhs.span.to(rhs.span);
-            lhs = Expr { kind: ExprKind::Binary { op, op_span: t.span, lhs: Box::new(lhs), rhs: Box::new(rhs) }, span: sp };
+            lhs = Expr { kind: ExprKind::Binary { op, op_span: t.span, lhs: Box::new(lhs), rhs: Box::new(rhs) }, span: sp, inner: sp };
         }
         Ok(lhs)
     }
@@ -1201,19 +1342,19 @@ impl<'a> Parser<'a> {
                 let op = if t.kind == T::Sub { UnOp::Neg } else { UnOp::Not };
                 let operand = self.unary()?;
                 let sp = t.span.to(operand.span);
-                Ok(Expr { kind: ExprKind::Unary { op, operand: Box::new(operand) }, span: sp })
+                Ok(Expr { kind: ExprKind::Unary { op, operand: Box::new(operand) }, span: sp, inner: sp })
             }
             T::Inflight => {
                 self.bump();
                 let e = self.unary()?;
                 let sp = t.span.to(e.span);
-                Ok(Expr { kind: ExprKind::Flying(Box::new(e)), span: sp })
+                Ok(Expr { kind: ExprKind::Flying(Box::new(e)), span: sp, inner: sp })
             }
             T::Sent => {
                 self.bump();
                 let e = self.unary()?;
                 let sp = t.span.to(e.span);
-                Ok(Expr { kind: ExprKind::Sent(Box::new(e)), span: sp })
+                Ok(Expr { kind: ExprKind::Sent(Box::new(e)), span: sp, inner: sp })
             }
             _ => self.postfix(),
         }
@@ -1235,30 +1376,31 @@ impl<'a> Parser<'a> {
                                 index_span: t.span,
                             },
                             span: start.to(t.span),
+                            inner: start.to(t.span),
                         };
                     } else {
                         let field = self.ident()?;
                         let sp = start.to(field.span);
-                        e = Expr { kind: ExprKind::NamedTupleAccess { base: Box::new(e), field }, span: sp };
+                        e = Expr { kind: ExprKind::NamedTupleAccess { base: Box::new(e), field }, span: sp, inner: sp };
                     }
                 }
                 T::Is => {
                     self.bump();
                     let kind = self.ident()?;
                     let sp = start.to(kind.span);
-                    e = Expr { kind: ExprKind::Test { instance: Box::new(e), kind }, span: sp };
+                    e = Expr { kind: ExprKind::Test { instance: Box::new(e), kind }, span: sp, inner: sp };
                 }
                 T::Targets => {
                     self.bump();
                     let target = self.postfix()?;
                     let sp = start.to(target.span);
-                    e = Expr { kind: ExprKind::Targets { instance: Box::new(e), target: Box::new(target) }, span: sp };
+                    e = Expr { kind: ExprKind::Targets { instance: Box::new(e), target: Box::new(target) }, span: sp, inner: sp };
                 }
                 T::LBrack => {
                     self.bump();
                     let index = self.expr()?;
                     let end = self.expect(T::RBrack)?.span;
-                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end) };
+                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end), inner: start.to(end) };
                 }
                 _ => break,
             }
@@ -1316,7 +1458,7 @@ impl<'a> Parser<'a> {
                     } else {
                         self.expect(T::RParen)?;
                         // parenthesized expression: keep inner node, widen span
-                        return Ok(Expr { kind: first.kind, span: start.to(self.prev_span()) });
+                        return Ok(Expr { kind: first.kind, span: start.to(self.prev_span()), inner: first.inner });
                     }
                 }
             }
@@ -1436,7 +1578,8 @@ impl<'a> Parser<'a> {
             }
             _ => return self.no_viable(),
         };
-        Ok(Expr { kind, span: start.to(self.prev_span()) })
+        let span = start.to(self.prev_span());
+        Ok(Expr { kind, span, inner: span })
     }
 }
 

@@ -196,7 +196,7 @@ impl PType {
 
     /// `this.IsAssignableFrom(other)`.
     pub fn is_assignable_from(&self, other: &PType, prog: &Program) -> bool {
-        if self.is_error() || other.is_error() {
+        if self.is_error() {
             return true;
         }
         match self {
