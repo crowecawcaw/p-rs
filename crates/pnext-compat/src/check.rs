@@ -135,6 +135,12 @@ pub fn parser() -> ArgParser {
     p.group("replay", "Replay and debug options");
     p.add(Some("replay"), "replay", Some("r"), "Schedule file to replay", DataType::Str);
 
+    let t = Some("time");
+    p.group("time", "Time and latency options (pnext extension, see design/time/PROPOSAL.md)");
+    p.add(t, "latency", None, "Latency profile file (TOML) giving delivery latencies and costs", DataType::Str);
+    p.add(t, "latency-profile", None, "Profile of the latency file to use (overrides its [tests] table)", DataType::Str);
+    p.add(t, "timed", None, "Time-aware scheduling: never run a step that is certainly later than another", DataType::Bool);
+
     let a = Some("advanced");
     p.group("advanced", "Advanced options");
     p.add(a, "explore", None, "Keep testing until the bound (e.g. schedule or time) is reached", DataType::Bool);
@@ -202,6 +208,11 @@ pub struct CheckConfig {
     pub timeout: u32,
     pub verbose: bool,
     pub schedule_file: String,
+    pub latency_file: String,
+    pub latency_profile: Option<String>,
+    pub timed: bool,
+    /// The parsed `--latency` file.
+    pub latency: Option<std::rc::Rc<pnext_checker::time::ProfileSet>>,
 }
 
 impl CheckConfig {
@@ -227,6 +238,10 @@ impl CheckConfig {
             timeout: 0,
             verbose: false,
             schedule_file: String::new(),
+            latency_file: String::new(),
+            latency_profile: None,
+            timed: false,
+            latency: None,
         }
     }
 }
@@ -323,11 +338,28 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
                 cfg.max_fair_steps = j as usize;
             }
             "fail-on-maxsteps" => cfg.fail_on_max_steps = true,
+            "latency" => cfg.latency_file = string(),
+            "latency-profile" => cfg.latency_profile = Some(string()),
+            "timed" => cfg.timed = true,
             other => return Err(help_and_exit(&p, host, &format!("Unhandled parsed argument: '{}'", other))),
         }
     }
     if cfg.assembly.is_empty() {
         find_local_compiled_file(host, &mut cfg)?;
+    }
+    if cfg.latency_profile.is_some() && cfg.latency_file.is_empty() {
+        return Err(checker_report_and_exit(host, "The option '--latency-profile' needs '--latency <file>'."));
+    }
+    if !cfg.latency_file.is_empty() {
+        let path = full_path(&host.cwd(), Path::new(&cfg.latency_file));
+        let text = match host.read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) => return Err(report_and_exit(host, &format!("Cannot read latency file '{}': {}", cfg.latency_file, e))),
+        };
+        match pnext_checker::time::ProfileSet::parse(&text) {
+            Ok(set) => cfg.latency = Some(std::rc::Rc::new(set)),
+            Err(e) => return Err(report_and_exit(host, &format!("Latency file '{}': {}", cfg.latency_file, e))),
+        }
     }
     // SanitizeConfiguration
     if cfg.liveness_threshold == 0 && cfg.max_fair_steps > 0 {
@@ -609,6 +641,9 @@ fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
         verbose: cfg.verbose,
         json_trace: true,
         activity_coverage: true,
+        latency: cfg.latency.clone(),
+        latency_profile: cfg.latency_profile.clone(),
+        timed: cfg.timed,
         ..CheckerOptions::default()
     }
 }

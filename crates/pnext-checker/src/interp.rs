@@ -374,6 +374,11 @@ impl<'p> Runtime<'p> {
             Actor::Machine(m) => Some(m),
             Actor::Monitor(_) => None,
         };
+        if decl.owner.is_none() {
+            if let Some(r) = self.call_time_function(actor, &name, args) {
+                return r.map_err(Into::into);
+            }
+        }
         let Some(f) = self.foreign.clone() else {
             return Err(foreign_missing(&name).into());
         };
@@ -400,6 +405,7 @@ impl<'p> Runtime<'p> {
                 self.finish_send(m, &target, event);
                 Ok(Flow::Continue)
             }
+            Pending::ReceiveWait { cases, exit } if self.timed() => self.do_receive(m, exec, cases, exit, true),
             Pending::ReceiveWait { cases, exit } => {
                 let Some(e) = self.machines[m].received.take() else {
                     // Spurious resume: keep waiting.
@@ -413,6 +419,7 @@ impl<'p> Runtime<'p> {
     }
 
     fn dispatch_receive(&mut self, m: usize, exec: &mut Exec, cases: &[ReceiveCase], e: Event) -> Flow {
+        self.time_receive(m, &e);
         if let Some(case) = cases.iter().find(|c| c.event == e.id) {
             if let Some(frame) = exec.frames.last_mut() {
                 if let Some(slot) = case.param_slot {
@@ -454,7 +461,7 @@ impl<'p> Runtime<'p> {
             Some(p) => p,
             None => default_value(&self.prog.event(id).payload, self.prog),
         };
-        Event { id, payload }
+        Event { id, payload, stamp: None }
     }
 
     /// `Runtime.Assert(false, s)`: the message goes through `String.Format` with no
@@ -1068,7 +1075,7 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("Announce", d, true);
                 }
-                let e = Event { id: ev_id, payload };
+                let e = Event { id: ev_id, payload, stamp: None };
                 self.announce_internal(m, &e)?;
             }
             Op::Goto { state, has_payload } => {
@@ -1093,7 +1100,7 @@ impl<'p> Runtime<'p> {
                 let Actor::Machine(m) = actor else {
                     return Err(Exception::new("System.InvalidOperationException", "monitors cannot receive events").from_source(crate::runtime::P_CHECKER_CORE).into());
                 };
-                return self.do_receive(m, exec, cases, exit);
+                return self.do_receive(m, exec, cases, exit, false);
             }
             Op::ForeachInit { iter_slot, kind: _, root } => {
                 let coll = pop(&mut stack!());
@@ -1134,24 +1141,33 @@ impl<'p> Runtime<'p> {
     }
 
     /// `receive { ... }`: takes a matching event from the queue or blocks.
-    fn do_receive(&mut self, m: usize, exec: &mut Exec, cases: Rc<[ReceiveCase]>, exit: u32) -> Result<Flow, Fault> {
+    /// `ReceiveEventAsync`. `at_point`: resumed at a scheduling point (`--timed`, where
+    /// the event is picked only there, after earlier senders have run).
+    fn do_receive(
+        &mut self,
+        m: usize,
+        exec: &mut Exec,
+        cases: Rc<[ReceiveCase]>,
+        exit: u32,
+        at_point: bool,
+    ) -> Result<Flow, Fault> {
         if self.machines[m].status != MachineStatus::Active {
             let msg = format!("{} invoked ReceiveEventAsync while halting.", self.machines[m].name);
             return Err(self.report_bug(msg).into());
         }
-        let halt = self.prog.halt_event;
-        let mut wait: Vec<EventId> = Vec::new();
-        for c in cases.iter() {
-            if !wait.contains(&c.event) {
-                wait.push(c.event);
-            }
-        }
-        if !wait.contains(&halt) {
-            wait.push(halt);
-        }
+        let wait = crate::runtime::receive_wait_set(self.prog, &cases);
         let name = self.machines[m].name.clone();
         let state = self.log_state_name(m);
-        let found = self.machines[m].inbox.queue.iter().position(|e| wait.contains(&e.id));
+        let timed = self.timed();
+        let found = if timed {
+            self.timed_pick(m, Some(&wait))
+        } else {
+            self.machines[m].inbox.queue.iter().position(|e| wait.contains(&e.id))
+        };
+        if found.is_some() && timed && !at_point {
+            exec.pending = Some(Pending::ReceiveWait { cases, exit });
+            return Ok(Flow::Yield(SchedKind::Receive));
+        }
         if let Some(i) = found {
             let e = self.machines[m].inbox.queue.remove(i).unwrap();
             let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
@@ -1171,6 +1187,9 @@ impl<'p> Runtime<'p> {
                 self.jlog("ReceiveEvent", d, true);
             }
             self.cov_receive(m, e.id);
+            if timed {
+                return Ok(self.dispatch_receive(m, exec, &cases, e));
+            }
             exec.pending = Some(Pending::ReceiveFound { cases, exit, event: e });
             return Ok(Flow::Yield(SchedKind::Receive));
         }
