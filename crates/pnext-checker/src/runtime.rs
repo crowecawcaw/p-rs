@@ -834,7 +834,7 @@ impl<'p> Runtime<'p> {
         let idx = self.machines.len();
         let id = self.next_op_id;
         let display: Rc<str> = Rc::from(format!("{}({})", name, id));
-        let permissions: Rc<[EventId]> = Rc::from(self.prog.interface_receives(iface));
+        let permissions: Rc<[EventId]> = self.code.permissions[iface.idx()].clone();
         let this = Rc::new(MachineRef { id, name: display.clone(), permissions });
         let fields = self
             .prog

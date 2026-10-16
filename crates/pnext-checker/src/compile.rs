@@ -12,6 +12,8 @@ use crate::bytecode::{CodeBlock, CollKind, Op, PathElem, ReceiveCase, Root};
 #[derive(Debug, Clone, Default)]
 pub struct Code {
     pub funs: Vec<Option<Rc<CodeBlock>>>,
+    /// Receive set (permissions) of every interface, indexed by `InterfaceId`.
+    pub permissions: Vec<Rc<[pnext_sema::EventId]>>,
 }
 
 impl Code {
@@ -30,7 +32,10 @@ pub fn compile_program(prog: &Program) -> Code {
             funs.push(None);
         }
     }
-    Code { funs }
+    let permissions = (0..prog.interfaces.len())
+        .map(|i| Rc::from(prog.interface_receives(pnext_sema::InterfaceId(i as u32))))
+        .collect();
+    Code { funs, permissions }
 }
 
 struct LoopCtx {

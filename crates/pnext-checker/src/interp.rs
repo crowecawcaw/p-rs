@@ -705,7 +705,7 @@ impl<'p> Runtime<'p> {
                 let v = pop(&mut stack!());
                 let v = match v {
                     Value::Machine(r) => {
-                        let perms = prog.interface_receives(iface);
+                        let perms = self.code.permissions[iface.idx()].clone();
                         if !perms.iter().all(|e| r.permissions.contains(e)) {
                             return Err(Exception::new(
                                 "PChecker.Runtime.Exceptions.PIllegalCoercionException",
@@ -716,7 +716,7 @@ impl<'p> Runtime<'p> {
                         Value::Machine(Rc::new(crate::value::MachineRef {
                             id: r.id,
                             name: r.name.clone(),
-                            permissions: Rc::from(perms),
+                            permissions: perms,
                         }))
                     }
                     other => other,
