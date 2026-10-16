@@ -1,0 +1,16 @@
+# Delivery latencies, read only by p-next (`p check --latency PTst/latency.toml`).
+# Upstream P never sees this file. Ranges are "lo..hi" in us/ms/s.
+
+[profile.same-az]
+default = "0..0"            # anything unlisted, e.g. Timer -> holder
+eReq    = "1ms..2ms"
+eResp   = "1ms..2ms"
+
+[profile.cross-region]
+extends = "same-az"
+eReq    = "60ms..90ms"
+eResp   = "60ms..90ms"
+
+# Which profile each test case uses unless --latency-profile overrides it.
+[tests]
+tcRetry = "same-az"
