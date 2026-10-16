@@ -293,6 +293,9 @@ pub struct Config {
     /// Produce the text log (`false` while exploring: buggy schedules are replayed with
     /// logging on).
     pub logging: bool,
+    /// Name of the compiled project's assembly, reported as the source of exceptions
+    /// raised by the model's own code.
+    pub assembly_name: String,
 }
 
 impl Default for Config {
@@ -307,6 +310,7 @@ impl Default for Config {
             max_work_per_step: DEFAULT_MAX_WORK_PER_STEP,
             strategy_description: None,
             logging: true,
+            assembly_name: "PImplementation".into(),
         }
     }
 }
@@ -329,11 +333,35 @@ pub enum Actor {
 pub struct Exception {
     pub ty: std::borrow::Cow<'static, str>,
     pub message: String,
+    /// The .NET assembly upstream reports the exception from (`Exception.Source`); `None`
+    /// for the compiled project itself (see [`Config::assembly_name`]).
+    pub source: Option<&'static str>,
 }
 
+/// `Exception.Source` of exceptions thrown by the .NET base library.
+pub const CORE_LIB: &str = "System.Private.CoreLib";
+/// `Exception.Source` of exceptions thrown by the P runtime library.
+pub const P_CHECKER_CORE: &str = "PCheckerCore";
+
 impl Exception {
+    /// An exception with the source upstream reports for its type: collection errors come
+    /// from the base library, division by zero from the P runtime, the rest (null
+    /// dereferences and casts in generated code, foreign code) from the project.
     pub fn new(ty: impl Into<std::borrow::Cow<'static, str>>, message: impl Into<String>) -> Exception {
-        Exception { ty: ty.into(), message: message.into() }
+        let ty = ty.into();
+        let source = match ty.as_ref() {
+            "System.Collections.Generic.KeyNotFoundException"
+            | "System.ArgumentOutOfRangeException"
+            | "System.ArgumentException" => Some(CORE_LIB),
+            "System.DivideByZeroException" => Some(P_CHECKER_CORE),
+            _ => None,
+        };
+        Exception { ty, message: message.into(), source }
+    }
+
+    pub fn from_source(mut self, source: &'static str) -> Exception {
+        self.source = Some(source);
+        self
     }
 }
 
@@ -597,8 +625,11 @@ impl<'p> Runtime<'p> {
             }
         };
         let text = format!(
-            "Exception '{}' was thrown in {}: {}\nfrom location 'PImplementation':\nThe stack trace is:\n",
-            exc.ty, ctx, exc.message
+            "Exception '{}' was thrown in {}: {}\nfrom location '{}':\nThe stack trace is:\n",
+            exc.ty,
+            ctx,
+            exc.message,
+            exc.source.unwrap_or(&self.config.assembly_name)
         );
         self.report_bug(text)
     }

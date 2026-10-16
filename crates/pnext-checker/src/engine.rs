@@ -56,6 +56,9 @@ pub struct CheckerOptions {
     /// Produce the JSON trace of the first buggy schedule (by replaying it with JSON
     /// logging on, so exploration itself pays nothing).
     pub json_trace: bool,
+    /// Name of the compiled project, the source upstream reports for exceptions raised by
+    /// the model's own code.
+    pub assembly_name: String,
 }
 
 impl Default for CheckerOptions {
@@ -79,6 +82,7 @@ impl Default for CheckerOptions {
             log_every_schedule: false,
             activity_coverage: false,
             json_trace: false,
+            assembly_name: "PImplementation".into(),
         }
     }
 }
@@ -292,6 +296,9 @@ pub struct CheckResult {
     pub cancelled: bool,
     /// The `.trace.json` contents of the first buggy schedule (see `json_trace`).
     pub json_trace: Option<String>,
+    /// With `verbose` and `json_trace`: the JSON logs of every schedule explored, as one
+    /// array of arrays (upstream's `_verbose.trace.json`).
+    pub verbose_json_trace: Option<String>,
     /// Activity coverage over all schedules (see `activity_coverage`).
     pub coverage: Option<crate::coverage::CoverageInfo>,
 }
@@ -436,6 +443,7 @@ impl<'p> Checker<'p> {
             strategy_description: None,
             // buggy schedules are replayed with logging on afterwards
             logging: is_replay || opts.verbose || opts.log_every_schedule,
+            assembly_name: opts.assembly_name.clone(),
         };
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };
@@ -444,6 +452,7 @@ impl<'p> Checker<'p> {
         let mut i = 0usize;
         let mut first_bug: Option<BugSchedule> = None;
         let coverage_tables = opts.activity_coverage.then(|| self.coverage_tables());
+        let mut verbose_json = (opts.verbose && opts.json_trace && !is_replay).then(Vec::new);
         while max_iterations == 0 || i < max_iterations {
             if out.cancelled() {
                 result.cancelled = true;
@@ -461,6 +470,9 @@ impl<'p> Checker<'p> {
                     rt.coverage = Some(result.coverage.take().unwrap_or_default());
                     rt.coverage_run = Some(Default::default());
                 }
+                if verbose_json.is_some() {
+                    rt.json = Some(crate::jsonlog::JsonLog::new());
+                }
                 rt.run_test(main, &tc.name);
                 if rt.strategy.wants_feedback() {
                     let tokens = rt.timeline.tokens();
@@ -476,6 +488,9 @@ impl<'p> Checker<'p> {
                     rt.check_hot_monitors_at_termination();
                 }
                 bug_found = rt.bug.is_some();
+                if let (Some(all), Some(j)) = (verbose_json.as_mut(), rt.json.take()) {
+                    all.push(j.to_json(false));
+                }
                 if opts.verbose {
                     for l in &rt.log {
                         out.line(l);
@@ -560,6 +575,7 @@ impl<'p> Checker<'p> {
             }
             i += 1;
         }
+        result.verbose_json_trace = verbose_json.map(|v| crate::jsonlog::Json::Arr(v).to_pretty());
         if let Some(bug) = first_bug {
             let (log, json) = self.logged_replay(tc, main, module, assignment, &config, &bug, opts.json_trace);
             if !opts.verbose {

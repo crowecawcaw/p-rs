@@ -142,9 +142,25 @@ fn run<'a>(a: &mut Analyzer<'a>, programs: &'a [ast::Program]) -> Result<(), Dia
         a.diags.tolerant(r)?;
     }
 
-    // Step 3: function bodies (tolerant, per function). Receive handlers created while
-    // checking a body are populated in place and skipped here.
-    let mut f = 0usize;
+    // Step 3: function bodies (tolerant, per function), in `Scope.GetAllMethods` order:
+    // global functions, then each machine's methods in source order (named functions and
+    // anonymous handlers interleaved). Receive handlers created while checking a body are
+    // populated in place and skipped here.
+    let declared = a.prog.funs.len();
+    let mut order: Vec<FunId> = (0..declared as u32).map(FunId).filter(|f| a.prog.funs[f.idx()].owner.is_none()).collect();
+    for m in 0..a.prog.machines.len() {
+        let mut methods: Vec<FunId> = (0..declared as u32)
+            .map(FunId)
+            .filter(|f| a.prog.funs[f.idx()].owner == Some(MachineId(m as u32)))
+            .collect();
+        methods.sort_by_key(|f| a.prog.funs[f.idx()].span.start);
+        order.extend(methods);
+    }
+    for id in order {
+        let r = a.populate_fun(id).and_then(|_| a.check_all_paths_return(id));
+        a.diags.tolerant(r)?;
+    }
+    let mut f = declared;
     while f < a.prog.funs.len() {
         let id = FunId(f as u32);
         let r = a.populate_fun(id).and_then(|_| a.check_all_paths_return(id));

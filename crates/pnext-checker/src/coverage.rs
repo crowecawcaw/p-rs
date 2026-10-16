@@ -25,6 +25,9 @@ pub struct CoverageTables {
     plain: Vec<u32>,
     /// Node of each state named with its temperature (`CurrentStateNameWithTemperature`).
     tempered: Vec<u32>,
+    /// Per machine, the `<Machine>.StateMachine` node that upstream's `OnReceiveEvent`
+    /// links to (it passes the node category where the state name belongs).
+    receive_target: Vec<u32>,
 }
 
 impl CoverageTables {
@@ -39,8 +42,8 @@ impl CoverageTables {
         };
         let mut plain = vec![0; prog.states.len()];
         let mut tempered = vec![0; prog.states.len()];
-        for (mi, m) in prog.machines.iter().enumerate() {
-            let _ = mi;
+        let mut receive_target = Vec::with_capacity(prog.machines.len());
+        for m in &prog.machines {
             for s in &m.states {
                 let st = prog.state(*s);
                 let base = format!("PImplementation.{}.{}", m.name, st.name);
@@ -52,8 +55,9 @@ impl CoverageTables {
                 };
                 tempered[s.idx()] = intern(format!("{}{}", base, suffix));
             }
+            receive_target.push(intern(format!("PImplementation.{}.StateMachine", m.name)));
         }
-        CoverageTables { nodes, plain, tempered }
+        CoverageTables { nodes, plain, tempered, receive_target }
     }
 
     fn plain(&self, s: StateId) -> u32 {
@@ -299,7 +303,8 @@ impl Runtime<'_> {
             Some(inbox.remove(i))
         });
         if let Some(info) = found {
-            self.cov_link(info.state, state);
+            let target = self.coverage_tables.as_ref().map(|t| t.receive_target[decl.idx()]).unwrap_or(state);
+            self.cov_link(info.state, target);
         }
     }
 

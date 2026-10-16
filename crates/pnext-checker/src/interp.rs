@@ -14,7 +14,7 @@ use crate::runtime::{
     make_frame, ActiveIter, Actor, Event, Exception, Exec, ExecOutcome, MachineStatus, OpStatus, Pending, Runtime,
     SchedKind, Stop, Transition,
 };
-use crate::value::{default_value, event_cs_full_name, format_composite, NamedTuple, Value};
+use crate::value::{default_value, event_cs_full_name, format_composite, format_exception, NamedTuple, Value};
 
 enum Fault {
     Stop,
@@ -84,6 +84,7 @@ fn modified() -> Exception {
         "System.InvalidOperationException",
         "Collection was modified; enumeration operation may not execute.",
     )
+    .from_source(crate::runtime::CORE_LIB)
 }
 
 /// The C# class name of a value, for `InvalidCastException` messages.
@@ -125,7 +126,9 @@ fn check_cast(v: &Value, ty: &PType, prog: &Program) -> Result<(), Exception> {
     let canon = ty.canonicalize(prog);
     let ok = match (&canon, v) {
         (PType::Any | PType::Data | PType::Null | PType::Foreign(_) | PType::Error | PType::TypeDef(_), _) => true,
-        (PType::Bool | PType::Int | PType::Float | PType::Enum(_), Value::Null) => return Err(nre()),
+        (PType::Bool | PType::Int | PType::Float | PType::Enum(_), Value::Null) => {
+            return Err(nre().from_source(crate::runtime::CORE_LIB))
+        }
         (_, Value::Null) => true,
         (PType::Bool, Value::Bool(_)) => true,
         (PType::Int | PType::Enum(_), Value::Int(_)) => true,
@@ -454,6 +457,15 @@ impl<'p> Runtime<'p> {
         Event { id, payload }
     }
 
+    /// `Runtime.Assert(false, s)`: the message goes through `String.Format` with no
+    /// arguments, so braces in it make upstream throw a `FormatException` instead.
+    fn assertion_failure(&mut self, text: String) -> Fault {
+        match format_composite(&text, &[]) {
+            Ok(t) => self.report_bug(t).into(),
+            Err(m) => format_exception(m).into(),
+        }
+    }
+
     fn choose_error(&self, actor: Actor, detail: &str) -> String {
         format!(
             "Incorrect use of choose by Machine {} in state {}. {}",
@@ -466,14 +478,14 @@ impl<'p> Runtime<'p> {
     fn pick(&mut self, actor: Actor, count: usize, what: &str) -> Result<usize, Fault> {
         if count == 0 {
             let msg = self.choose_error(actor, &format!("Trying to choose from an empty {}!", what));
-            return Err(self.report_bug(msg).into());
+            return Err(self.assertion_failure(msg));
         }
         if count > 10000 {
             let msg = self.choose_error(
                 actor,
                 &format!("choose expects a parameter with at most 10000 choices, got {} choices instead.", count),
             );
-            return Err(self.report_bug(msg).into());
+            return Err(self.assertion_failure(msg));
         }
         let name = self.actor_name(actor);
         Ok(self.choose_int(count as i32, &name)? as usize)
@@ -642,7 +654,8 @@ impl<'p> Runtime<'p> {
             }
             Op::Format { base, nargs } => {
                 let args: Vec<String> = pop_n(&mut stack!(), nargs as usize).iter().map(|v| v.to_display(prog)).collect();
-                stack!().push(Value::Str(Rc::from(format_composite(&base, &args))));
+                let text = format_composite(&base, &args).map_err(format_exception)?;
+                stack!().push(Value::Str(Rc::from(text)));
             }
             Op::Bin(op) => {
                 let b = pop(&mut stack!());
@@ -739,7 +752,7 @@ impl<'p> Runtime<'p> {
                         actor,
                         "choose expects a parameter with at most 10000 choices, got {maxValue} choices instead.",
                     );
-                    return Err(self.report_bug(msg).into());
+                    return Err(self.assertion_failure(msg));
                 }
                 let name = self.actor_name(actor);
                 let i = self.choose_int(max.max(0) as i32, &name)?;
@@ -892,7 +905,7 @@ impl<'p> Runtime<'p> {
                 let cond = pop(&mut stack!());
                 if !cond.as_bool() {
                     let text = format!("Assertion Failed: {}", msg.to_display(prog));
-                    return Err(self.report_bug(text).into());
+                    return Err(self.assertion_failure(text));
                 }
             }
             Op::Print => {
@@ -906,7 +919,7 @@ impl<'p> Runtime<'p> {
             Op::Create { iface, has_payload } => {
                 let payload = if has_payload { pop(&mut stack!()) } else { Value::Null };
                 let Actor::Machine(m) = actor else {
-                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot create machines").into());
+                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot create machines").from_source(crate::runtime::P_CHECKER_CORE).into());
                 };
                 let creator_iface = self.machines[m].iface;
                 let created = self.module.link(creator_iface, iface).unwrap_or(iface);
@@ -931,7 +944,7 @@ impl<'p> Runtime<'p> {
                 let event = pop(&mut stack!());
                 let target = pop(&mut stack!());
                 let Actor::Machine(m) = actor else {
-                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot send events").into());
+                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot send events").from_source(crate::runtime::P_CHECKER_CORE).into());
                 };
                 let name = self.machines[m].name.clone();
                 let state = self.machine_state_name(m);
@@ -1013,7 +1026,7 @@ impl<'p> Runtime<'p> {
                 let payload = if has_payload { pop(&mut stack!()) } else { Value::Null };
                 let event = pop(&mut stack!());
                 let Actor::Machine(m) = actor else {
-                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot announce events").into());
+                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot announce events").from_source(crate::runtime::P_CHECKER_CORE).into());
                 };
                 let ev_id = match &event {
                     Value::Event(e) => *e,
@@ -1078,7 +1091,7 @@ impl<'p> Runtime<'p> {
             }
             Op::Receive { cases, exit } => {
                 let Actor::Machine(m) = actor else {
-                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot receive events").into());
+                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot receive events").from_source(crate::runtime::P_CHECKER_CORE).into());
                 };
                 return self.do_receive(m, exec, cases, exit);
             }
