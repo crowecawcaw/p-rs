@@ -250,7 +250,10 @@ pub struct RecvCase {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expr {
     pub kind: ExprKind,
+    /// Span including any enclosing parentheses (what a parent rule sees).
     pub span: Span,
+    /// Span of the expression itself, without enclosing parentheses.
+    pub inner: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

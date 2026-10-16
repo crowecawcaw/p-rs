@@ -1083,7 +1083,7 @@ impl<'a> Parser<'a> {
     fn lvalue(&mut self) -> PResult<Expr> {
         let start = self.peek().span;
         let name = self.ident()?;
-        let mut e = Expr { kind: ExprKind::Name(name), span: start };
+        let mut e = Expr { kind: ExprKind::Name(name), span: start, inner: start };
         loop {
             match self.peek_kind() {
                 T::Dot => {
@@ -1097,18 +1097,19 @@ impl<'a> Parser<'a> {
                                 index_span: t.span,
                             },
                             span: start.to(t.span),
+                            inner: start.to(t.span),
                         };
                     } else {
                         let field = self.ident()?;
                         let sp = start.to(field.span);
-                        e = Expr { kind: ExprKind::NamedTupleAccess { base: Box::new(e), field }, span: sp };
+                        e = Expr { kind: ExprKind::NamedTupleAccess { base: Box::new(e), field }, span: sp, inner: sp };
                     }
                 }
                 T::LBrack => {
                     self.bump();
                     let index = self.expr()?;
                     let end = self.expect(T::RBrack)?.span;
-                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end) };
+                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end), inner: start.to(end) };
                 }
                 _ => break,
             }
@@ -1174,7 +1175,7 @@ impl<'a> Parser<'a> {
                 let kind = if self.bump().kind == T::As { CastKind::As } else { CastKind::To };
                 let ty = self.ty()?;
                 let sp = e.span.to(ty.span);
-                e = Expr { kind: ExprKind::Cast { kind, expr: Box::new(e), ty }, span: sp };
+                e = Expr { kind: ExprKind::Cast { kind, expr: Box::new(e), ty }, span: sp, inner: sp };
             }
             return Ok(e);
         }
@@ -1188,7 +1189,7 @@ impl<'a> Parser<'a> {
             self.bump();
             let rhs = self.binary(level + 1)?;
             let sp = lhs.span.to(rhs.span);
-            lhs = Expr { kind: ExprKind::Binary { op, op_span: t.span, lhs: Box::new(lhs), rhs: Box::new(rhs) }, span: sp };
+            lhs = Expr { kind: ExprKind::Binary { op, op_span: t.span, lhs: Box::new(lhs), rhs: Box::new(rhs) }, span: sp, inner: sp };
         }
         Ok(lhs)
     }
@@ -1201,19 +1202,19 @@ impl<'a> Parser<'a> {
                 let op = if t.kind == T::Sub { UnOp::Neg } else { UnOp::Not };
                 let operand = self.unary()?;
                 let sp = t.span.to(operand.span);
-                Ok(Expr { kind: ExprKind::Unary { op, operand: Box::new(operand) }, span: sp })
+                Ok(Expr { kind: ExprKind::Unary { op, operand: Box::new(operand) }, span: sp, inner: sp })
             }
             T::Inflight => {
                 self.bump();
                 let e = self.unary()?;
                 let sp = t.span.to(e.span);
-                Ok(Expr { kind: ExprKind::Flying(Box::new(e)), span: sp })
+                Ok(Expr { kind: ExprKind::Flying(Box::new(e)), span: sp, inner: sp })
             }
             T::Sent => {
                 self.bump();
                 let e = self.unary()?;
                 let sp = t.span.to(e.span);
-                Ok(Expr { kind: ExprKind::Sent(Box::new(e)), span: sp })
+                Ok(Expr { kind: ExprKind::Sent(Box::new(e)), span: sp, inner: sp })
             }
             _ => self.postfix(),
         }
@@ -1235,30 +1236,31 @@ impl<'a> Parser<'a> {
                                 index_span: t.span,
                             },
                             span: start.to(t.span),
+                            inner: start.to(t.span),
                         };
                     } else {
                         let field = self.ident()?;
                         let sp = start.to(field.span);
-                        e = Expr { kind: ExprKind::NamedTupleAccess { base: Box::new(e), field }, span: sp };
+                        e = Expr { kind: ExprKind::NamedTupleAccess { base: Box::new(e), field }, span: sp, inner: sp };
                     }
                 }
                 T::Is => {
                     self.bump();
                     let kind = self.ident()?;
                     let sp = start.to(kind.span);
-                    e = Expr { kind: ExprKind::Test { instance: Box::new(e), kind }, span: sp };
+                    e = Expr { kind: ExprKind::Test { instance: Box::new(e), kind }, span: sp, inner: sp };
                 }
                 T::Targets => {
                     self.bump();
                     let target = self.postfix()?;
                     let sp = start.to(target.span);
-                    e = Expr { kind: ExprKind::Targets { instance: Box::new(e), target: Box::new(target) }, span: sp };
+                    e = Expr { kind: ExprKind::Targets { instance: Box::new(e), target: Box::new(target) }, span: sp, inner: sp };
                 }
                 T::LBrack => {
                     self.bump();
                     let index = self.expr()?;
                     let end = self.expect(T::RBrack)?.span;
-                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end) };
+                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end), inner: start.to(end) };
                 }
                 _ => break,
             }
@@ -1316,7 +1318,7 @@ impl<'a> Parser<'a> {
                     } else {
                         self.expect(T::RParen)?;
                         // parenthesized expression: keep inner node, widen span
-                        return Ok(Expr { kind: first.kind, span: start.to(self.prev_span()) });
+                        return Ok(Expr { kind: first.kind, span: start.to(self.prev_span()), inner: first.inner });
                     }
                 }
             }
@@ -1436,7 +1438,8 @@ impl<'a> Parser<'a> {
             }
             _ => return self.no_viable(),
         };
-        Ok(Expr { kind, span: start.to(self.prev_span()) })
+        let span = start.to(self.prev_span());
+        Ok(Expr { kind, span, inner: span })
     }
 }
 

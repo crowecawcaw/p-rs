@@ -444,9 +444,19 @@ impl<'a> Analyzer<'a> {
                 }
                 ast::TopDecl::TypeDef { name, .. } => {
                     let id = self.scopes.get(g).typedefs[&name.name];
-                    // force resolution now (lazy resolution may have happened earlier)
-                    self.resolve_named_type(name, g)?;
-                    let _ = id;
+                    // Like upstream's VisitPTypeDef: resolve the right-hand side directly,
+                    // without pushing this typedef on the cycle stack, so a cycle is
+                    // reported at the first typedef met twice along the way.
+                    match self.typedef_src[id.idx()] {
+                        Some(t) => {
+                            let ty = self.resolve_type(t, g)?;
+                            self.prog.typedefs[id.idx()].ty = ty;
+                            self.typedef_resolved[id.idx()] = true;
+                        }
+                        None => {
+                            self.resolve_named_type(name, g)?;
+                        }
+                    }
                 }
                 ast::TopDecl::Enum { name, elems, .. } => {
                     let id = self.scopes.get(g).enums[&name.name];

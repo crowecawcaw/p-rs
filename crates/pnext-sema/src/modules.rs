@@ -636,8 +636,11 @@ impl<'a> Analyzer<'a> {
             let mut values = Vec::new();
             let mut base: Option<PType> = None;
             let mut seen_ints: Vec<i64> = Vec::new();
+            // upstream reports at the seqLiteralBody rule, which starts at the first value
+            let mut body_span: Option<Span> = None;
             for p in &b.values {
                 let (v, s) = self.parse_seq_primitive(p)?;
+                let body_span = *body_span.get_or_insert(s);
                 let ty = match v {
                     ParamValue::Int(_) => PType::Int,
                     ParamValue::Bool(_) => PType::Bool,
@@ -656,7 +659,7 @@ impl<'a> Analyzer<'a> {
                             "Invalid parameter list: Duplicate integer value '{}' found. All test values must be unique (e.g., [2, 2] is not allowed).",
                             i
                         );
-                        return Err(self.e.internal_error(b.span, &msg));
+                        return Err(self.e.internal_error(body_span, &msg));
                     }
                     seen_ints.push(i);
                 }
