@@ -32,7 +32,7 @@ fn check(a: &pnext_sema::Analysis, test: &str, opts: &CheckerOptions) -> Result<
 }
 
 fn retry_budget(edit: impl Fn(String) -> String) -> (pnext_sema::Analysis, Rc<ProfileSet>) {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../design/time/upstream-friendly/RetryBudget");
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../design/time/RetryBudget");
     let mut files = Vec::new();
     for sub in ["PSrc", "PSpec", "PTst"] {
         let mut paths: Vec<_> = std::fs::read_dir(dir.join(sub)).unwrap().map(|e| e.unwrap().path()).collect();
@@ -279,5 +279,75 @@ fn timed_delivery_follows_arrival_not_send_order() {
         assert_eq!(r.report.num_bugs, 1, "{} untimed", test);
         let r = check(&a, test, &opts(true)).unwrap();
         assert_eq!(r.report.num_bugs, 0, "{} timed: {:?}", test, r.report.bug_reports);
+    }
+}
+
+#[test]
+fn timed_delivery_explores_overlapping_arrivals() {
+    // Far arrives in 0..100ms, Near (sent at 10ms) in 50..70ms: either may come first
+    let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("order.p".into(), ARRIVAL_ORDER.into())]);
+    let profiles = Rc::new(
+        ProfileSet::parse("[profile.p]\neA = \"40ms..60ms\"\n\"(Far, Handler)\" = \"0ms..100ms\"\n\"(Far, Receiver)\" = \"0ms..100ms\"").unwrap(),
+    );
+    for test in ["tcHandler", "tcReceiver"] {
+        let opts = CheckerOptions {
+            iterations: 200,
+            seed: 5,
+            latency: Some(profiles.clone()),
+            latency_profile: Some("p".into()),
+            timed: true,
+            ..Default::default()
+        };
+        let r = check(&a, test, &opts).unwrap();
+        assert_eq!(r.report.num_bugs, 1, "{} timed", test);
+        let text = r.schedule_trace.unwrap();
+        let replay =
+            CheckerOptions { strategy: "replay".into(), replay: Some(ScheduleTrace::parse(&text).unwrap()), ..Default::default() };
+        assert_eq!(check(&a, test, &replay).unwrap().report.num_bugs, 1, "{} replay", test);
+    }
+}
+
+const DEFAULT_RACE: &str = "
+event eA;
+
+// the default handler runs at 2ms; eA arrives at the latency of the profile
+machine Poller {
+  start state S {
+    entry { Elapse(2000, 2000); }
+    on null goto Timeout;
+    on eA goto Got;
+  }
+  state Timeout { entry { assert !TIMEOUT_FAILS, \"timed out first\"; } ignore eA; }
+  state Got { entry { assert TIMEOUT_FAILS, \"event first\"; } }
+}
+machine Sender { start state S { entry (p: machine) { send p, eA; } } }
+machine Main { start state S { entry { new Sender(new Poller()); } } }
+test tc [main=Main]: { Main, Poller, Sender };
+";
+
+#[test]
+fn timed_default_handler_races_only_overlapping_events() {
+    // (latency, timeout_fails, bug expected under --timed)
+    for (lat, timeout_fails, bug) in [
+        ("1ms..3ms", true, true),
+        ("1ms..3ms", false, true),
+        ("0ms..1ms", true, false),
+        ("5ms", false, false),
+        ("0ms..1ms", false, true),
+        ("5ms", true, true),
+    ] {
+        let src = DEFAULT_RACE.replace("TIMEOUT_FAILS", if timeout_fails { "true" } else { "false" });
+        let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("race.p".into(), src)]);
+        let profiles = Rc::new(ProfileSet::parse(&format!("[profile.p]\ndefault = \"{}\"", lat)).unwrap());
+        let opts = CheckerOptions {
+            iterations: 200,
+            seed: 3,
+            latency: Some(profiles),
+            latency_profile: Some("p".into()),
+            timed: true,
+            ..Default::default()
+        };
+        let r = check(&a, "tc", &opts).unwrap();
+        assert_eq!(r.report.num_bugs, bug as usize, "{} timeout_fails={}: {:?}", lat, timeout_fails, r.report.bug_reports);
     }
 }

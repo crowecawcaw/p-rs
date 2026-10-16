@@ -395,6 +395,9 @@ impl ProfileSet {
                     Section::Tests
                 } else if let Some(p) = h.strip_prefix("profile.") {
                     let p = unquote(p.trim());
+                    if p.is_empty() || p == "-" || p.contains([';', '=', '"']) {
+                        return Err(format!("line {}: bad profile name '{}'", ln, p));
+                    }
                     if raw.contains_key(&p) {
                         return Err(format!("line {}: profile '{}' is defined twice", ln, p));
                     }
@@ -682,5 +685,6 @@ mod tests {
         assert!(ProfileSet::parse("[profile.a]\nx = \"1ms\"\nx = \"2ms\"").is_err());
         assert!(ProfileSet::parse("[profile.a]\n[tests]\nt = \"a\"\nt = \"a\"").is_err());
         assert!(ProfileSet::parse("[profile.a]\nx = \"2000000s\"").unwrap_err().contains("longer than"));
+        assert!(ProfileSet::parse("[profile.\"a;b\"]").unwrap_err().contains("bad profile name"));
     }
 }

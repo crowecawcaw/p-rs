@@ -1159,8 +1159,10 @@ impl<'p> Runtime<'p> {
         let name = self.machines[m].name.clone();
         let state = self.log_state_name(m);
         let timed = self.timed();
-        let found = if timed {
-            self.timed_pick(m, Some(&wait))
+        let found = if timed && !at_point {
+            self.timed_candidates(m, Some(&wait)).first().copied()
+        } else if timed {
+            self.timed_pick(m, Some(&wait), false)?
         } else {
             self.machines[m].inbox.queue.iter().position(|e| wait.contains(&e.id))
         };

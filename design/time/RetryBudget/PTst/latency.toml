@@ -1,5 +1,5 @@
-# Delivery latencies, read only by p-next (`p check --latency PTst/latency.toml`).
-# Upstream P never sees this file. Ranges are "lo..hi" in us/ms/s.
+# Delivery latencies (`p check --latency PTst/latency.toml`).
+# Ranges are "lo..hi" in us/ms/s.
 
 [profile.same-az]
 default = "0..0"            # anything unlisted, e.g. Timer -> holder

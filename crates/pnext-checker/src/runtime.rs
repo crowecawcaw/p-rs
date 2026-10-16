@@ -1179,7 +1179,7 @@ impl<'p> Runtime<'p> {
                     self.machines[m].stage = Stage::DequeueTry { has_default };
                     if self.timed() {
                         // pick the event at a scheduling point, once earlier senders have run
-                        if !at_point && (has_default || self.timed_pick(m, None).is_some()) {
+                        if !at_point && (has_default || !self.timed_candidates(m, None).is_empty()) {
                             return Ok(if has_default { SchedKind::Default } else { SchedKind::Receive });
                         }
                     } else if has_default {
@@ -1187,7 +1187,7 @@ impl<'p> Runtime<'p> {
                     }
                 }
                 Stage::DequeueTry { has_default } => {
-                    let taken = if self.timed() { self.timed_take(m, has_default) } else { self.try_dequeue(m, false) };
+                    let taken = if self.timed() { self.timed_take(m, has_default)? } else { self.try_dequeue(m, false) };
                     if let Some(e) = taken.as_ref().filter(|_| self.timed()) {
                         self.machines[m].stage = Stage::Dequeued(e.clone());
                         continue;
@@ -1893,32 +1893,36 @@ impl<'p> Runtime<'p> {
         }
     }
 
-    /// When operation `op` would act if scheduled now (`--timed`).
-    fn ready_time(&mut self, op: usize) -> crate::time::Time {
-        let Some(m) = self.ops[op].machine else { return crate::time::Time::default() };
-        let clock = self.machines[m].clock.clone();
+    /// The window `[best, worst]` in which operation `op` would act if scheduled now
+    /// (`--timed`).
+    fn ready_time(&self, op: usize) -> (i64, i64) {
+        let Some(m) = self.ops[op].machine else { return (0, 0) };
         let mach = &self.machines[m];
-        let next = match &mach.stage {
+        let (cb, cw) = (mach.clock.best(), mach.clock.worst());
+        let wait = match &mach.stage {
             Stage::Idle | Stage::Loop | Stage::DequeueTry { .. } if mach.inbox.raised.is_none() && mach.exec.is_none() => {
                 // a default handler runs at the clock when nothing has certainly arrived
                 if self.has_default_handler(m) {
-                    None
-                } else {
-                    self.timed_pick(m, None).and_then(|i| self.machines[m].inbox.queue[i].stamp.clone())
+                    return (cb, cw);
                 }
+                None
             }
-            Stage::Dequeued(e) => e.stamp.clone(),
+            Stage::Dequeued(e) => {
+                let s = e.stamp.as_ref().map_or((i64::MIN, i64::MIN), |s| (s.at.best(), s.at.worst()));
+                return (cb.max(s.0), cw.max(s.1));
+            }
             _ => match mach.exec.as_ref().and_then(|x| x.pending.as_ref()) {
-                Some(Pending::ReceiveWait { cases, .. }) => {
-                    let wait = receive_wait_set(self.prog, cases);
-                    self.timed_pick(m, Some(&wait)).and_then(|i| self.machines[m].inbox.queue[i].stamp.clone())
-                }
-                _ => None,
+                Some(Pending::ReceiveWait { cases, .. }) => Some(receive_wait_set(self.prog, cases)),
+                _ => return (cb, cw),
             },
         };
-        match next {
-            Some(s) => self.time.as_mut().unwrap().join(&clock, &s.at),
-            None => clock,
+        let c = self.timed_candidates(m, wait.as_deref());
+        let q = &self.machines[m].inbox.queue;
+        let lo = c.iter().map(|&i| q[i].stamp.as_ref().map_or(i64::MIN, |s| s.at.best())).min();
+        let hi = c.iter().map(|&i| q[i].stamp.as_ref().map_or(i64::MIN, |s| s.at.worst())).min();
+        match (lo, hi) {
+            (Some(lo), Some(hi)) => (cb.max(lo), cw.max(hi)),
+            _ => (cb, cw),
         }
     }
 
@@ -1926,13 +1930,13 @@ impl<'p> Runtime<'p> {
         self.time.as_ref().is_some_and(|t| t.opts.timed)
     }
 
-    /// `--timed`: the queued event machine `m` takes next, among the events `wait`
+    /// `--timed`: the queued events machine `m` may take next, among the events `wait`
     /// lists (a `receive`) or that the current state neither ignores nor defers. The
-    /// first such event of each sender is a candidate (per-sender FIFO); the one with
-    /// the earliest worst-case stamp wins, the earliest queued on ties.
-    pub fn timed_pick(&self, m: usize, wait: Option<&[EventId]>) -> Option<usize> {
+    /// first such event of each sender is a candidate (per-sender FIFO); a candidate
+    /// that certainly arrives after another one is dropped. Queue order.
+    pub fn timed_candidates(&self, m: usize, wait: Option<&[EventId]>) -> Vec<usize> {
         let mut senders: Vec<u64> = Vec::new();
-        let mut best: Option<(i64, usize)> = None;
+        let mut cands: Vec<(i64, i64, usize)> = Vec::new();
         for (i, e) in self.machines[m].inbox.queue.iter().enumerate() {
             let eligible = match wait {
                 Some(w) => w.contains(&e.id),
@@ -1947,25 +1951,45 @@ impl<'p> Runtime<'p> {
                 }
                 senders.push(st.sender);
             }
-            let w = e.stamp.as_ref().map_or(i64::MIN, |st| st.at.worst());
-            if best.is_none_or(|(bw, _)| w < bw) {
-                best = Some((w, i));
-            }
+            let (b, w) = e.stamp.as_ref().map_or((i64::MIN, i64::MIN), |st| (st.at.best(), st.at.worst()));
+            cands.push((b, w, i));
         }
-        best.map(|(_, i)| i)
+        let min_worst = cands.iter().map(|c| c.1).min().unwrap_or(i64::MAX);
+        cands.into_iter().filter(|c| c.0 <= min_worst).map(|c| c.2).collect()
+    }
+
+    /// `--timed`: picks the event machine `m` takes next (`None`: none, or the default
+    /// handler runs). When several events, or an event and the default handler, could
+    /// come first, the choice is a scheduling decision recorded in the schedule.
+    pub fn timed_pick(&mut self, m: usize, wait: Option<&[EventId]>, has_default: bool) -> Result<Option<usize>, Stop> {
+        let mut c = self.timed_candidates(m, wait);
+        let mut default = false;
+        if has_default {
+            let (cb, cw) = (self.machines[m].clock.best(), self.machines[m].clock.worst());
+            let q = &self.machines[m].inbox.queue;
+            let stamp = |i: usize| q[i].stamp.as_ref().map_or((i64::MIN, i64::MIN), |s| (s.at.best(), s.at.worst()));
+            // the default handler runs at the clock: it may come first unless an event
+            // certainly arrived before; an event certainly after the clock is not there yet
+            default = c.iter().all(|&i| stamp(i).1 >= cb);
+            c.retain(|&i| stamp(i).0 <= cw);
+        }
+        let n = c.len() + default as usize;
+        if n == 0 {
+            return Ok(None);
+        }
+        let k = if n == 1 {
+            0
+        } else {
+            let caller = format!("'{}' (timed delivery)", self.machines[m].name);
+            self.choose_int(n as i32, &caller)? as usize
+        };
+        Ok(c.get(k).copied())
     }
 
     /// `--timed` dequeue: removes the picked event, dropping ignored events queued
-    /// ahead of it as `try_dequeue` does. With a default handler, an event that
-    /// certainly arrives after the machine's clock counts as not there yet.
-    fn timed_take(&mut self, m: usize, has_default: bool) -> Option<Event> {
-        let mut i = self.timed_pick(m, None)?;
-        if has_default {
-            let e = &self.machines[m].inbox.queue[i];
-            if e.stamp.as_ref().is_some_and(|st| st.at.best() > self.machines[m].clock.worst()) {
-                return None;
-            }
-        }
+    /// ahead of it as `try_dequeue` does.
+    fn timed_take(&mut self, m: usize, has_default: bool) -> Result<Option<Event>, Stop> {
+        let Some(mut i) = self.timed_pick(m, None, has_default)? else { return Ok(None) };
         let mut j = 0;
         while j < i {
             let id = self.machines[m].inbox.queue[j].id;
@@ -1976,7 +2000,7 @@ impl<'p> Runtime<'p> {
                 j += 1;
             }
         }
-        self.machines[m].inbox.queue.remove(i)
+        Ok(self.machines[m].inbox.queue.remove(i))
     }
 
     /// `--timed`: disables every enabled operation that certainly acts later than
@@ -1985,8 +2009,7 @@ impl<'p> Runtime<'p> {
         let mut ready: Vec<Option<(i64, i64)>> = Vec::with_capacity(infos.len());
         for (i, info) in infos.iter().enumerate() {
             ready.push(info.enabled.then(|| {
-                let t = self.ready_time(i);
-                (t.best(), t.worst())
+                self.ready_time(i)
             }));
         }
         // The two smallest worst cases, so each operation can be compared with the others.
