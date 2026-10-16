@@ -251,7 +251,12 @@ pub fn report_compile_result(
 ) -> bool {
     use pnext_sema::CompileError;
     match r {
-        Err(CompileError::Parse { file, message }) => {
+        Err(CompileError::Parse { file, message, lexer }) => {
+            if !*lexer {
+                // Upstream first parses with SLL prediction and a bail-out strategy;
+                // any syntax error makes it announce the LL(*) retry.
+                host.out_colored_line("Reverting to LL(*) parsing strategy.", Color::Yellow);
+            }
             write_error(host, &format!("[Parser Error:] [{}] parse error: {}", sm.file(*file).base_name, message));
             false
         }

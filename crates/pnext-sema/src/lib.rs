@@ -74,7 +74,9 @@ pub struct Analysis {
 #[derive(Debug, Clone)]
 pub enum CompileError {
     /// A lexer or parser error; `message` is `line L:C msg` as upstream formats it.
-    Parse { file: FileId, message: String },
+    /// `lexer` is true for token recognition errors, which upstream reports
+    /// without first retrying the parse in LL mode.
+    Parse { file: FileId, message: String, lexer: bool },
     /// PVerifier-only syntax used with the checker backend (`NotSupportedException` upstream).
     NotSupported { file: FileId, line: usize, col: usize, keyword: String },
     Analysis(AnalysisError),
@@ -87,7 +89,7 @@ pub fn compile(sm: &SourceMap, opts: &Options) -> Result<Analysis, CompileError>
         let id = FileId(i as u32);
         let tokens = pnext_syntax::lexer::lex(id, &f.text).map_err(|e| {
             let lc = f.line_col(e.span.start);
-            CompileError::Parse { file: id, message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message) }
+            CompileError::Parse { file: id, message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message), lexer: true }
         })?;
         if !opts.verifier {
             if let Some(t) = tokens.iter().find(|t| t.kind.is_verifier_only()) {
@@ -102,7 +104,7 @@ pub fn compile(sm: &SourceMap, opts: &Options) -> Result<Analysis, CompileError>
         }
         let p = pnext_syntax::parse(id, &f.text).map_err(|e| {
             let lc = f.line_col(e.span.start);
-            CompileError::Parse { file: id, message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message) }
+            CompileError::Parse { file: id, message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message), lexer: false }
         })?;
         programs.push(p);
     }

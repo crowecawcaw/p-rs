@@ -68,7 +68,7 @@ fn find_tests(dir: &Path, stats: &mut Stats, verbose: bool) {
     let failed = r.is_err();
     let msgs: Vec<String> = match &r {
         Ok(_) => Vec::new(),
-        Err(pnext_sema::CompileError::Parse { file, message }) => {
+        Err(pnext_sema::CompileError::Parse { file, message, .. }) => {
             vec![format!("[Parser Error:] [{}] parse error: {}", sm.file(*file).base_name, message)]
         }
         Err(pnext_sema::CompileError::NotSupported { file, line, col, keyword }) => {
