@@ -47,6 +47,10 @@ pub struct CheckerOptions {
     /// Stream every schedule's runtime log to the output instead of keeping it in memory
     /// (`--verbose`); no readable trace is produced then.
     pub verbose: bool,
+    /// Keep the runtime log of every schedule (`CheckResult::last_log` is then the last
+    /// schedule's log). Off by default: exploring without logging is much faster, and the
+    /// first buggy schedule is replayed to produce its log.
+    pub log_every_schedule: bool,
     /// Produce the JSON trace of the first buggy schedule (by replaying it with JSON
     /// logging on, so exploration itself pays nothing).
     pub json_trace: bool,
@@ -70,6 +74,7 @@ impl Default for CheckerOptions {
             max_work_per_step: crate::runtime::DEFAULT_MAX_WORK_PER_STEP,
             record_test_name: true,
             verbose: false,
+            log_every_schedule: false,
             json_trace: false,
         }
     }
@@ -257,6 +262,15 @@ impl Output for Vec<String> {
     }
 }
 
+/// The first buggy schedule, kept for the logged replay.
+struct BugSchedule {
+    trace: ScheduleTrace,
+    bound_hit_at: Option<usize>,
+    strategy_description: Option<String>,
+    bug: Option<String>,
+    report_text: String,
+}
+
 /// What a checking run produced.
 #[derive(Debug, Clone, Default)]
 pub struct CheckResult {
@@ -265,7 +279,8 @@ pub struct CheckResult {
     pub readable_trace: Option<String>,
     /// The reproducible schedule of the first buggy schedule (`.schedule` file).
     pub schedule_trace: Option<String>,
-    /// The runtime log of the last schedule (useful when no bug was found).
+    /// The runtime log of the first buggy schedule; with `log_every_schedule` (or
+    /// `verbose`), the log of the last schedule explored.
     pub last_log: Vec<String>,
     pub strategy_description: String,
     /// Set when a replay could not follow its trace.
@@ -342,29 +357,35 @@ impl<'p> Checker<'p> {
         self
     }
 
-    /// Replays a schedule with JSON logging enabled and returns the JSON trace.
+    /// Replays a buggy schedule with text (and optionally JSON) logging enabled; returns
+    /// the text log and the JSON trace.
     #[allow(clippy::too_many_arguments)]
-    fn json_replay(
+    fn logged_replay(
         &self,
         tc: &TestCase,
         main: pnext_sema::MachineId,
         module: &pnext_sema::ModuleInfo,
         assignment: Option<&pnext_sema::ParamAssignment>,
         config: &Config,
-        trace: ScheduleTrace,
-        desc: Option<String>,
-    ) -> String {
-        let mut strategy = ReplayStrategy::new(trace);
+        bug: &BugSchedule,
+        json: bool,
+    ) -> (Vec<String>, Option<String>) {
+        let mut strategy = ReplayStrategy::new(bug.trace.clone());
+        strategy.stop_at = bug.bound_hit_at;
         let mut config = config.clone();
-        config.strategy_description = desc;
+        config.strategy_description = bug.strategy_description.clone();
+        config.logging = true;
         let mut rt = Runtime::new(self.prog, &self.code, module, &config, &mut strategy, assignment);
         rt.foreign = self.foreign.clone();
-        rt.json = Some(crate::jsonlog::JsonLog::new());
+        if json {
+            rt.json = Some(crate::jsonlog::JsonLog::new());
+        }
         rt.run_test(main, &tc.name);
         if rt.bug.is_none() {
             rt.check_hot_monitors_at_termination();
         }
-        rt.json.take().map(|j| j.to_json_text()).unwrap_or_default()
+        debug_assert_eq!(rt.bug, bug.bug, "replaying a buggy schedule must reproduce its bug");
+        (std::mem::take(&mut rt.log), rt.json.take().map(|j| j.to_json_text()))
     }
 
     /// Runs one test case (`TestingEngine.Run`).
@@ -395,13 +416,15 @@ impl<'p> Checker<'p> {
             strategy_name: opts.strategy.clone(),
             max_work_per_step: opts.max_work_per_step,
             strategy_description: None,
+            // buggy schedules are replayed with logging on afterwards
+            logging: is_replay || opts.verbose || opts.log_every_schedule,
         };
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };
         let mut guard = PrintGuard(1);
         let max_iterations = if is_replay { 1 } else { opts.iterations };
         let mut i = 0usize;
-        let mut replay_for_json: Option<(ScheduleTrace, Option<String>)> = None;
+        let mut first_bug: Option<BugSchedule> = None;
         while max_iterations == 0 || i < max_iterations {
             if out.cancelled() {
                 result.cancelled = true;
@@ -416,8 +439,9 @@ impl<'p> Checker<'p> {
                 rt.foreign = self.foreign.clone();
                 rt.run_test(main, &tc.name);
                 if rt.strategy.wants_feedback() {
-                    let timeline = rt.timeline.abstract_timeline();
-                    let minhash = crate::feedback::timeline_minhash(rt.timeline.tokens());
+                    let tokens = rt.timeline.tokens();
+                    let timeline = tokens.join(";");
+                    let minhash = crate::feedback::timeline_minhash(tokens.iter().map(String::as_str));
                     let reached: Vec<(String, usize)> =
                         rt.scenarios.iter().map(|s| (s.name.clone(), s.reached.len())).collect();
                     let satisfied: Vec<String> =
@@ -480,18 +504,18 @@ impl<'p> Checker<'p> {
                     result.replay_error = Some(e);
                 }
                 if bug_found && !is_replay && result.schedule_trace.is_none() {
-                    if !opts.verbose {
-                        let mut text = rt.log.join("\n");
-                        text.push('\n');
-                        text.push_str(&result.report.text(opts, "<StrategyLog>"));
-                        result.readable_trace = Some(text);
-                    }
                     let mut trace = rt.trace.clone();
                     trace.is_fair = fair;
                     trace.liveness_temperature_threshold = Some(config.liveness_temperature_threshold);
                     trace.test_name = if opts.record_test_name { Some(tc.name.clone()) } else { None };
                     result.schedule_trace = Some(trace.to_text());
-                    replay_for_json = Some((trace, rt.bug_strategy_description.clone()));
+                    first_bug = Some(BugSchedule {
+                        trace,
+                        bound_hit_at: rt.bound_hit_at,
+                        strategy_description: rt.bug_strategy_description.clone(),
+                        bug: rt.bug.clone(),
+                        report_text: result.report.text(opts, "<StrategyLog>"),
+                    });
                 }
                 if bug_found && !is_replay && opts.full_exploration {
                     out.line(&format!("..... Schedule #{} triggered bug #{} [task-0]", i + 1, result.report.num_bugs));
@@ -507,9 +531,18 @@ impl<'p> Checker<'p> {
             }
             i += 1;
         }
-        if opts.json_trace {
-            if let Some((trace, desc)) = replay_for_json {
-                result.json_trace = Some(self.json_replay(tc, main, module, assignment, &config, trace, desc));
+        if let Some(bug) = first_bug {
+            let (log, json) = self.logged_replay(tc, main, module, assignment, &config, &bug, opts.json_trace);
+            if !opts.verbose {
+                // `ReadableTrace`: the runtime log followed by the report so far
+                let mut text = log.join("\n");
+                text.push('\n');
+                text.push_str(&bug.report_text);
+                result.readable_trace = Some(text);
+            }
+            result.json_trace = json;
+            if !config.logging {
+                result.last_log = log;
             }
         }
         Ok(result)

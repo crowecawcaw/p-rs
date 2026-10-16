@@ -220,36 +220,57 @@ pub struct Monitor {
 /// for every receiver, every ordered pair of event labels it dequeued.
 #[derive(Debug, Default, Clone)]
 pub struct Timeline {
-    seen: Vec<(Rc<str>, Vec<String>)>,
-    tokens: std::collections::BTreeSet<String>,
+    receivers: Vec<Rc<str>>,
+    labels: Vec<Rc<str>>,
+    /// Labels seen so far, per receiver index.
+    seen: Vec<Vec<u32>>,
+    /// `(receiver, previous label, label)` triples.
+    tokens: std::collections::HashSet<(u32, u32, u32)>,
 }
 
 impl Timeline {
-    pub fn record(&mut self, receiver: &Rc<str>, label: &str) {
-        const S: char = '\u{1f}';
-        let entry = match self.seen.iter().position(|(r, _)| Rc::ptr_eq(r, receiver) || **r == **receiver) {
-            Some(i) => &mut self.seen[i],
+    fn intern(table: &mut Vec<Rc<str>>, s: &str) -> u32 {
+        match table.iter().position(|x| &**x == s) {
+            Some(i) => i as u32,
             None => {
-                self.seen.push((receiver.clone(), Vec::new()));
-                self.seen.last_mut().unwrap()
+                table.push(Rc::from(s));
+                (table.len() - 1) as u32
             }
-        };
-        for prev in &entry.1 {
-            self.tokens.insert(format!("{}{}{}{}{}{}", receiver, S, prev, S, label, S));
         }
-        if !entry.1.iter().any(|l| l == label) {
-            entry.1.push(label.to_string());
+    }
+
+    /// `OnDequeueEvent` of the pairwise representation.
+    pub fn record(&mut self, receiver: &str, label: &str) {
+        let r = Self::intern(&mut self.receivers, receiver);
+        let l = Self::intern(&mut self.labels, label);
+        if self.seen.len() <= r as usize {
+            self.seen.resize(r as usize + 1, Vec::new());
         }
+        for prev in &self.seen[r as usize] {
+            self.tokens.insert((r, *prev, l));
+        }
+        if !self.seen[r as usize].contains(&l) {
+            self.seen[r as usize].push(l);
+        }
+    }
+
+    /// The timeline tokens (`receiver\u{1f}prev\u{1f}label\u{1f}`), sorted ordinally.
+    pub fn tokens(&self) -> Vec<String> {
+        const S: char = '\u{1f}';
+        let mut v: Vec<String> = self
+            .tokens
+            .iter()
+            .map(|(r, p, l)| {
+                format!("{}{}{}{}{}{}", self.receivers[*r as usize], S, self.labels[*p as usize], S, self.labels[*l as usize], S)
+            })
+            .collect();
+        v.sort();
+        v
     }
 
     /// `GetAbstractTimeline`: the sorted tokens joined with `;`.
-    /// The timeline tokens.
-    pub fn tokens(&self) -> impl Iterator<Item = &str> {
-        self.tokens.iter().map(String::as_str)
-    }
-
     pub fn abstract_timeline(&self) -> String {
-        self.tokens.iter().cloned().collect::<Vec<_>>().join(";")
+        self.tokens().join(";")
     }
 }
 
@@ -269,6 +290,9 @@ pub struct Config {
     /// Strategy description recorded in the JSON trace (overrides the running strategy's,
     /// used when a buggy schedule is replayed to produce its JSON trace).
     pub strategy_description: Option<String>,
+    /// Produce the text log (`false` while exploring: buggy schedules are replayed with
+    /// logging on).
+    pub logging: bool,
 }
 
 impl Default for Config {
@@ -282,6 +306,7 @@ impl Default for Config {
             strategy_name: "random".into(),
             max_work_per_step: DEFAULT_MAX_WORK_PER_STEP,
             strategy_description: None,
+            logging: true,
         }
     }
 }
@@ -343,6 +368,10 @@ pub struct Runtime<'p> {
     pub monitor_map: Vec<(MachineId, Vec<InterfaceId>)>,
     /// Progress of each attached scenario monitor in this schedule.
     pub scenarios: Vec<ScenarioProgress>,
+    /// Whether the text log is produced (see [`Config::logging`]).
+    pub logging: bool,
+    /// Trace position at which the step bound was hit, if it was.
+    pub bound_hit_at: Option<usize>,
     next_op_id: u64,
     anon_names: Vec<String>,
 }
@@ -404,6 +433,8 @@ impl<'p> Runtime<'p> {
             foreign: None,
             monitor_map: monitor_map_with_scenarios(prog, module),
             scenarios: Vec::new(),
+            logging: config.logging,
+            bound_hit_at: None,
             next_op_id: 0,
             anon_names,
         }
@@ -429,6 +460,15 @@ impl<'p> Runtime<'p> {
 
     pub fn machine_state_name(&self, m: usize) -> String {
         self.state_name(self.machines[m].state)
+    }
+
+    /// The state name for log lines only (empty when neither log is produced).
+    pub fn log_state_name(&self, m: usize) -> String {
+        if self.logging || self.json_enabled() {
+            self.machine_state_name(m)
+        } else {
+            String::new()
+        }
     }
 
     pub fn monitor_full_name(&self, mon: usize) -> String {
@@ -484,8 +524,8 @@ impl<'p> Runtime<'p> {
     /// `OperationScheduler.NotifyAssertionFailure`.
     pub fn report_bug(&mut self, text: String) -> Stop {
         if self.bug.is_none() {
-            self.log_line(format!("<ErrorLog> {}", text));
-            self.log_line(format!("<StrategyLog> Found bug using '{}' strategy.", self.config.strategy_name));
+            if self.logging { self.log_line(format!("<ErrorLog> {}", text)); } else { self.step_work += LOG_LINE_WORK; }
+            if self.logging { self.log_line(format!("<StrategyLog> Found bug using '{}' strategy.", self.config.strategy_name)); } else { self.step_work += LOG_LINE_WORK; }
             let desc = self.config.strategy_description.clone().unwrap_or_else(|| self.strategy.description());
             self.bug_strategy_description = Some(desc.clone());
             if self.json_enabled() {
@@ -523,7 +563,7 @@ impl<'p> Runtime<'p> {
                 self.machine_state_name(m),
                 short
             );
-            self.log_line(format!("<ExceptionLog> {}", body));
+            if self.logging { self.log_line(format!("<ExceptionLog> {}", body)); } else { self.step_work += LOG_LINE_WORK; }
             if self.json_enabled() {
                 let d = Details {
                     log: Some(body),
@@ -586,6 +626,7 @@ impl<'p> Runtime<'p> {
 
     fn check_steps_bound(&mut self) -> Result<(), Stop> {
         if self.strategy.has_reached_max_steps() {
+            self.bound_hit_at = Some(self.trace.steps.len());
             let bound = if self.strategy.is_fair() { self.config.max_fair_steps } else { self.config.max_unfair_steps };
             let msg = format!("Scheduling steps bound of {} reached.", bound);
             if self.config.fail_on_max_steps {
@@ -686,11 +727,11 @@ impl<'p> Runtime<'p> {
         let b = self.strategy.next_bool(max);
         self.scheduled_steps = self.strategy.scheduled_steps();
         self.trace.steps.push(ScheduleStep::Bool(b));
-        self.log_line(format!(
+        if self.logging { self.log_line(format!(
             "<RandomLog> {} nondeterministically chose '{}'.",
             caller,
             if b { "True" } else { "False" }
-        ));
+        )); } else { self.step_work += LOG_LINE_WORK; }
         Ok(b)
     }
 
@@ -701,7 +742,7 @@ impl<'p> Runtime<'p> {
         let i = self.strategy.next_int(max);
         self.scheduled_steps = self.strategy.scheduled_steps();
         self.trace.steps.push(ScheduleStep::Int(i));
-        self.log_line(format!("<RandomLog> {} nondeterministically chose '{}'.", caller, i));
+        if self.logging { self.log_line(format!("<RandomLog> {} nondeterministically chose '{}'.", caller, i)); } else { self.step_work += LOG_LINE_WORK; }
         Ok(i)
     }
 
@@ -709,7 +750,7 @@ impl<'p> Runtime<'p> {
 
     /// Runs one schedule of the test whose main machine is `main`.
     pub fn run_test(&mut self, main: MachineId, test_name: &str) {
-        self.log_line(format!("<TestLog> Running test '{}'.", test_name));
+        if self.logging { self.log_line(format!("<TestLog> Running test '{}'.", test_name)); } else { self.step_work += LOG_LINE_WORK; }
         let task = self.new_op("Task(0)".into(), None);
         self.current = task;
         let r = (|| -> Result<(), Stop> {
@@ -721,7 +762,7 @@ impl<'p> Runtime<'p> {
             let (midx, _) = self.instantiate_machine(main, iface, &name, Value::Null);
             let creator = format!("task '{}'", 1);
             let mname = self.machines[midx].name.clone();
-            self.log_line(format!("<CreateLog> {} was created by {}.", mname, creator));
+            if self.logging { self.log_line(format!("<CreateLog> {} was created by {}.", mname, creator)); } else { self.step_work += LOG_LINE_WORK; }
             if self.json_enabled() {
                 let d = Details {
                     log: Some(format!("{} was created by {}.", mname, creator)),
@@ -838,7 +879,7 @@ impl<'p> Runtime<'p> {
         let (idx, _) = self.instantiate_machine(machine, iface, &name, payload);
         let created = self.machines[idx].name.clone();
         let creator_name = self.machines[creator].name.clone();
-        self.log_line(format!("<CreateLog> {} was created by {}.", created, creator_name));
+        if self.logging { self.log_line(format!("<CreateLog> {} was created by {}.", created, creator_name)); } else { self.step_work += LOG_LINE_WORK; }
         if self.json_enabled() {
             let d = Details {
                 log: Some(format!("{} was created by {}.", created, creator_name)),
@@ -862,8 +903,8 @@ impl<'p> Runtime<'p> {
     /// Completes a `send` once the `Send` scheduling point has passed.
     pub fn finish_send(&mut self, sender: usize, target: &MachineRef, event: Event) {
         let sender_name = self.machines[sender].name.clone();
-        let sender_state = self.machine_state_name(sender);
-        let ev = self.event_with_payload(&event);
+        let sender_state = self.log_state_name(sender);
+        let ev = if self.logging || self.json_enabled() { self.event_with_payload(&event) } else { String::new() };
         let tidx = self.find_machine(target.id);
         let halted = tidx.map(|t| self.machines[t].status == MachineStatus::Halted).unwrap_or(true);
         if self.json_enabled() {
@@ -889,16 +930,16 @@ impl<'p> Runtime<'p> {
             self.jlog("SendEvent", d, true);
         }
         if halted {
-            self.log_line(format!(
+            if self.logging { self.log_line(format!(
                 "<SendLog> '{}' in state '{}' sent event '{}' to '{}' which has halted.",
                 sender_name, sender_state, ev, target.name
-            ));
+            )); } else { self.step_work += LOG_LINE_WORK; }
             return;
         }
-        self.log_line(format!(
+        if self.logging { self.log_line(format!(
             "<SendLog> '{}' in state '{}' sent event '{}' to '{}'.",
             sender_name, sender_state, ev, target.name
-        ));
+        )); } else { self.step_work += LOG_LINE_WORK; }
         let t = tidx.unwrap();
         if let EnqueueStatus::HandlerNotRunning = self.enqueue(t, event) {
             self.start_handler(t);
@@ -915,12 +956,12 @@ impl<'p> Runtime<'p> {
             if w.contains(&e.id) {
                 self.machines[t].inbox.waiting = None;
                 let name = self.machines[t].name.clone();
-                let state = self.machine_state_name(t);
-                let ev = self.event_with_payload(&e);
-                self.log_line(format!(
+                let state = self.log_state_name(t);
+                let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
+                if self.logging { self.log_line(format!(
                     "<ReceiveLog> '{}' dequeued event '{}' and unblocked in state '{}'.",
                     name, ev, state
-                ));
+                )); } else { self.step_work += LOG_LINE_WORK; }
                 if self.json_enabled() {
                     let (payload, key) = self.jpayload(&e);
                     let d = Details {
@@ -1075,13 +1116,13 @@ impl<'p> Runtime<'p> {
                         }
                     } else if has_default {
                         let name = self.machines[m].name.clone();
-                        let state = self.machine_state_name(m);
+                        let state = self.log_state_name(m);
                         let e = Event { id: self.prog.null_event, payload: Value::Null };
                         self.machines[m].stage = Stage::Handle(e);
-                        self.log_line(format!(
+                        if self.logging { self.log_line(format!(
                             "<DefaultLog> {} is executing the default handler in state '{}'.",
                             name, state
-                        ));
+                        )); } else { self.step_work += LOG_LINE_WORK; }
                         if self.json_enabled() {
                             let d = Details {
                                 log: Some(format!("{} is executing the default handler in state '{}'.", name, state)),
@@ -1100,9 +1141,9 @@ impl<'p> Runtime<'p> {
                 }
                 Stage::Dequeued(e) => {
                     let name = self.machines[m].name.clone();
-                    let state = self.machine_state_name(m);
-                    let ev = self.event_with_payload(&e);
-                    self.log_line(format!("<DequeueLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state));
+                    let state = self.log_state_name(m);
+                    let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
+                    if self.logging { self.log_line(format!("<DequeueLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state)); } else { self.step_work += LOG_LINE_WORK; }
                     if self.json_enabled() {
                         let (payload, key) = self.jpayload(&e);
                         let d = Details {
@@ -1116,8 +1157,8 @@ impl<'p> Runtime<'p> {
                         };
                         self.jlog("DequeueEvent", d, true);
                     }
-                    let label = self.event_name(e.id).to_string();
-                    self.timeline.record(&name, &label);
+                    let label = event_cs_name(self.prog, e.id);
+                    self.timeline.record(&name, label);
                     self.machines[m].stage = Stage::Handle(e);
                 }
                 Stage::Handle(e) => {
@@ -1135,10 +1176,10 @@ impl<'p> Runtime<'p> {
                         let name = self.machines[m].name.clone();
                         let popped = self.machines[m].popped_from.take();
                         let from = self.state_name(popped);
-                        self.log_line(format!(
+                        if self.logging { self.log_line(format!(
                             "<ExceptionLog> {} running action '' in state '{}' threw exception 'UnhandledEventException'.",
                             name, from
-                        ));
+                        )); } else { self.step_work += LOG_LINE_WORK; }
                         if self.json_enabled() {
                             let d = Details {
                                 log: Some(format!(
@@ -1154,10 +1195,10 @@ impl<'p> Runtime<'p> {
                             self.jlog("ExceptionThrown", d, true);
                         }
                         if e.id == self.prog.halt_event {
-                            self.log_line(format!(
+                            if self.logging { self.log_line(format!(
                                 "<ExceptionLog> {} running action '' in state '{}' chose to handle exception 'UnhandledEventException'.",
                                 name, from
-                            ));
+                            )); } else { self.step_work += LOG_LINE_WORK; }
                             if self.json_enabled() {
                                 let d = Details {
                                     log: Some(format!(
@@ -1235,13 +1276,13 @@ impl<'p> Runtime<'p> {
                         ExitThen::Pop => {
                             if self.machines[m].status == MachineStatus::Active {
                                 let name = self.machines[m].name.clone();
-                                let state = self.machine_state_name(m);
-                                self.log_line(format!(
+                                let state = self.log_state_name(m);
+                                if self.logging { self.log_line(format!(
                                     "<PopLog> {} popped state {} due to unhandled event '{}'.",
                                     name,
                                     state,
                                     self.event_name(e.id)
-                                ));
+                                )); } else { self.step_work += LOG_LINE_WORK; }
                                 if self.json_enabled() {
                                     let d = Details {
                                         log: Some(format!(
@@ -1299,7 +1340,7 @@ impl<'p> Runtime<'p> {
                     self.machines[m].inbox.closed = true;
                     let n = self.machines[m].inbox.queue.len();
                     let name = self.machines[m].name.clone();
-                    self.log_line(format!("<HaltLog> {} halted with {} events in its inbox.", name, n));
+                    if self.logging { self.log_line(format!("<HaltLog> {} halted with {} events in its inbox.", name, n)); } else { self.step_work += LOG_LINE_WORK; }
                     if self.json_enabled() {
                         let d = Details {
                             log: Some(format!("{} halted with {} events in its inbox.", name, n)),
@@ -1347,8 +1388,8 @@ impl<'p> Runtime<'p> {
 
     fn enter_state(&mut self, m: usize, e: Event) -> Result<(), Stop> {
         let name = self.machines[m].name.clone();
-        let state = self.machine_state_name(m);
-        self.log_line(format!("<StateLog> {} enters state '{}'.", name, state));
+        let state = self.log_state_name(m);
+        if self.logging { self.log_line(format!("<StateLog> {} enters state '{}'.", name, state)); } else { self.step_work += LOG_LINE_WORK; }
         self.json_state_transition(m, true);
         if let Some(s) = self.machines[m].state {
             if let Some(entry) = self.prog.state(s).entry {
@@ -1376,8 +1417,8 @@ impl<'p> Runtime<'p> {
 
     fn exit_state(&mut self, m: usize, e: Event) -> Result<(), Stop> {
         let name = self.machines[m].name.clone();
-        let state = self.machine_state_name(m);
-        self.log_line(format!("<StateLog> {} exits state '{}'.", name, state));
+        let state = self.log_state_name(m);
+        if self.logging { self.log_line(format!("<StateLog> {} exits state '{}'.", name, state)); } else { self.step_work += LOG_LINE_WORK; }
         self.json_state_transition(m, false);
         if let Some(s) = self.machines[m].state {
             if let Some(exit) = self.prog.state(s).exit {
@@ -1389,13 +1430,13 @@ impl<'p> Runtime<'p> {
 
     fn begin_goto(&mut self, m: usize, target: StateId, with: Option<FunId>, e: Event) -> Result<(), Stop> {
         let name = self.machines[m].name.clone();
-        let cur = self.machine_state_name(m);
+        let cur = self.log_state_name(m);
         let mname = self.prog.machine(self.machines[m].decl).name.clone();
         let tname = self.prog.state(target).name.clone();
-        self.log_line(format!(
+        if self.logging { self.log_line(format!(
             "<GotoLog> {} is transitioning from state '{}' to state 'PImplementation.{}.{}'.",
             name, cur, mname, tname
-        ));
+        )); } else { self.step_work += LOG_LINE_WORK; }
         if self.json_enabled() {
             let short_cur = self.short_state(self.machines[m].state);
             let d = Details {
@@ -1418,9 +1459,9 @@ impl<'p> Runtime<'p> {
             Transition::None => {}
             Transition::Raise(e) => {
                 let name = self.machines[m].name.clone();
-                let state = self.machine_state_name(m);
-                let ev = self.event_with_payload(&e);
-                self.log_line(format!("<RaiseLog> '{}' raised event '{}' in state '{}'.", name, ev, state));
+                let state = self.log_state_name(m);
+                let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
+                if self.logging { self.log_line(format!("<RaiseLog> '{}' raised event '{}' in state '{}'.", name, ev, state)); } else { self.step_work += LOG_LINE_WORK; }
                 if self.json_enabled() {
                     let (payload, key) = self.jpayload(&e);
                     let st = self.short_state(self.machines[m].state);
@@ -1483,7 +1524,7 @@ impl<'p> Runtime<'p> {
                 pending_transition: Transition::None,
                 goto_payload: None,
             });
-            self.log_line(format!("<CreateLog> {} was created.", self.monitor_full_name(idx)));
+            if self.logging { self.log_line(format!("<CreateLog> {} was created.", self.monitor_full_name(idx))); } else { self.step_work += LOG_LINE_WORK; }
             if self.json_enabled() {
                 let short = self.prog.machine(decl).name.clone();
                 let d = Details { log: Some(format!("{} was created.", short)), monitor: Some(short), ..Default::default() };
@@ -1502,14 +1543,18 @@ impl<'p> Runtime<'p> {
             Some(Temperature::Cold) => "cold ",
             _ => "",
         };
-        let text = format!(
+        if self.logging {
+            let text = format!(
             "<MonitorLog> {} {} {}state '{}'.",
             self.monitor_full_name(mon),
             if enters { "enters" } else { "exits" },
             liveness,
             self.state_name(s)
         );
-        self.log_line(text);
+            self.log_line(text);
+        } else {
+            self.step_work += LOG_LINE_WORK;
+        }
         let decl = self.monitors[mon].decl;
         if enters {
             if let (Some(st), Some(sc)) = (s, self.scenarios.iter_mut().find(|p| p.decl == decl)) {
@@ -1605,13 +1650,17 @@ impl<'p> Runtime<'p> {
         match t {
             Transition::None | Transition::Halt => Ok(()),
             Transition::Raise(e) => {
-                let text = format!(
+                if self.logging {
+            let text = format!(
                     "<MonitorLog> Monitor '{}' raised event '{}' in state '{}'.",
                     self.prog.machine(self.monitors[mon].decl).name,
                     self.event_with_payload(&e),
                     self.state_name(self.monitors[mon].state)
                 );
-                self.log_line(text);
+            self.log_line(text);
+        } else {
+            self.step_work += LOG_LINE_WORK;
+        }
                 if self.json_enabled() {
                     let (payload, key) = self.jpayload(&e);
                     let short = self.prog.machine(self.monitors[mon].decl).name.clone();
@@ -1630,12 +1679,16 @@ impl<'p> Runtime<'p> {
                 self.monitor_handle_event(mon, e)
             }
             Transition::Goto(target) => {
-                let text = format!(
+                if self.logging {
+            let text = format!(
                     "<MonitorLog> Monitor '{}' raised event 'GotoStateEvent' in state '{}'.",
                     self.prog.machine(self.monitors[mon].decl).name,
                     self.state_name(self.monitors[mon].state)
                 );
-                self.log_line(text);
+            self.log_line(text);
+        } else {
+            self.step_work += LOG_LINE_WORK;
+        }
                 if self.json_enabled() {
                     let short = self.prog.machine(self.monitors[mon].decl).name.clone();
                     let st = self.short_state(self.monitors[mon].state);
@@ -1665,13 +1718,17 @@ impl<'p> Runtime<'p> {
 
     /// `Monitor.MonitorEvent`.
     pub fn monitor_event(&mut self, mon: usize, e: Event, sender: Option<Rc<str>>) -> Result<(), Stop> {
-        let text = format!(
+        if self.logging {
+            let text = format!(
             "<MonitorLog> {} is processing event '{}' in state '{}'.",
             self.prog.machine(self.monitors[mon].decl).name,
             self.event_with_payload(&e),
             self.state_name(self.monitors[mon].state)
         );
-        self.log_line(text);
+            self.log_line(text);
+        } else {
+            self.step_work += LOG_LINE_WORK;
+        }
         if self.json_enabled() {
             let (payload, key) = self.jpayload(&e);
             let short = self.prog.machine(self.monitors[mon].decl).name.clone();

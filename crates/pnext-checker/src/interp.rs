@@ -638,7 +638,7 @@ impl<'p> Runtime<'p> {
                 stack!().push(Value::Bool(b));
             }
             Op::Default(ty) => {
-                stack!().push(default_value(&ty, prog));
+                stack!().push(ty.clone());
             }
             Op::Format { base, nargs } => {
                 let args: Vec<String> = pop_n(&mut stack!(), nargs as usize).iter().map(|v| v.to_display(prog)).collect();
@@ -898,7 +898,7 @@ impl<'p> Runtime<'p> {
             Op::Print => {
                 let msg = pop(&mut stack!());
                 let text = msg.to_display(prog);
-                self.log_line(format!("<PrintLog> {}", text));
+                if self.logging { self.log_line(format!("<PrintLog> {}", text)); } else { self.step_work += crate::runtime::LOG_LINE_WORK; }
                 if self.json_enabled() {
                     self.jlog("Print", crate::jsonlog::Details { log: Some(text), ..Default::default() }, false);
                 }
@@ -1027,18 +1027,22 @@ impl<'p> Runtime<'p> {
                     }
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Events.Event", prog).into()),
                 };
-                let ptext = if payload.is_null() {
+                let ptext = if payload.is_null() || !(self.logging || self.json_enabled()) {
                     String::new()
                 } else {
                     format!(" with payload {}", payload.to_escaped(prog))
                 };
-                let text = format!(
+                if self.logging {
+            let text = format!(
                     "<AnnounceLog> '{}' announced event '{}'{}.",
                     self.machines[m].name,
                     self.event_name(ev_id),
                     ptext
                 );
-                self.log_line(text);
+            self.log_line(text);
+        } else {
+            self.step_work += crate::runtime::LOG_LINE_WORK;
+        }
                 if self.json_enabled() {
                     let name = self.machines[m].name.to_string();
                     let ename = self.event_name(ev_id).to_string();
@@ -1133,12 +1137,12 @@ impl<'p> Runtime<'p> {
             wait.push(halt);
         }
         let name = self.machines[m].name.clone();
-        let state = self.machine_state_name(m);
+        let state = self.log_state_name(m);
         let found = self.machines[m].inbox.queue.iter().position(|e| wait.contains(&e.id));
         if let Some(i) = found {
             let e = self.machines[m].inbox.queue.remove(i).unwrap();
-            let ev = self.event_with_payload(&e);
-            self.log_line(format!("<ReceiveLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state));
+            let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
+            if self.logging { self.log_line(format!("<ReceiveLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state)); } else { self.step_work += crate::runtime::LOG_LINE_WORK; }
             if self.json_enabled() {
                 let (payload, key) = self.jpayload(&e);
                 let d = crate::jsonlog::Details {
@@ -1163,10 +1167,10 @@ impl<'p> Runtime<'p> {
         } else {
             wait_event_names(&names)
         };
-        self.log_line(format!(
+        if self.logging { self.log_line(format!(
             "<ReceiveLog> {} is waiting to dequeue an event of type {} in state '{}'.",
             name, event_names, state
-        ));
+        )); } else { self.step_work += crate::runtime::LOG_LINE_WORK; }
         if self.json_enabled() {
             let d = crate::jsonlog::Details {
                 log: Some(format!("{} is waiting to dequeue an event of type {} in state '{}'.", name, event_names, state)),

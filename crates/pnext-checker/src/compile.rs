@@ -82,7 +82,7 @@ impl<'a> Compiler<'a> {
     fn init_locals(&mut self, f: &FunDecl) {
         for v in &f.locals {
             let d = self.prog.var(*v);
-            self.emit(Op::Default(d.ty.clone()));
+            self.emit(Op::Default(crate::value::default_value(&d.ty, self.prog)));
             self.emit(Op::StoreLocal(d.slot));
         }
     }
@@ -428,7 +428,7 @@ impl<'a> Compiler<'a> {
                 self.emit(Op::Sizeof);
             }
             ExprKind::Default => {
-                self.emit(Op::Default(e.ty.clone()));
+                self.emit(Op::Default(crate::value::default_value(&e.ty, self.prog)));
             }
             ExprKind::Ctor { interface, payload } => {
                 let has_payload = self.opt_expr(payload.as_deref());
@@ -495,7 +495,7 @@ impl<'a> Compiler<'a> {
             }
             ExprKind::Cast(inner) => {
                 self.expr(inner);
-                self.emit(Op::Cast(e.ty.clone()));
+                self.emit(Op::Cast(std::rc::Rc::new(e.ty.clone())));
             }
             ExprKind::Coerce(inner) => {
                 self.expr(inner);

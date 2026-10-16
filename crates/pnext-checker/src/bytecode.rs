@@ -67,7 +67,8 @@ pub enum Op {
     Values,
     Sizeof,
     Contains(CollKind),
-    Default(PType),
+    /// Pushes a precomputed default value (values are copy-on-write, so sharing is safe).
+    Default(crate::value::Value),
     Format { base: Rc<str>, nargs: u32 },
     Bin(BinOp),
     Neg,
@@ -75,7 +76,7 @@ pub enum Op {
     Jump(u32),
     JumpIfFalse(u32),
     JumpIfTrue(u32),
-    Cast(PType),
+    Cast(std::rc::Rc<PType>),
     CoerceFloat,
     CoerceInt,
     CoerceInterface(InterfaceId),

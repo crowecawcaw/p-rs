@@ -64,7 +64,7 @@ impl ForeignCx<'_, '_> {
 
     /// `machine.LogLine`: a `<PrintLog>` line in the runtime log.
     pub fn log_line(&mut self, text: &str) {
-        self.rt.log_line(format!("<PrintLog> {}", text));
+        if self.rt.logging { self.rt.log_line(format!("<PrintLog> {}", text)); } else { self.rt.step_work += crate::runtime::LOG_LINE_WORK; }
         if self.rt.json_enabled() {
             self.rt.jlog("Print", crate::jsonlog::Details { log: Some(text.to_string()), ..Default::default() }, false);
         }

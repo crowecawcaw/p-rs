@@ -438,12 +438,15 @@ pub struct ReplayStrategy {
     pub index: usize,
     pub is_fair: bool,
     pub error: Option<String>,
+    /// Report the step bound as reached once this many steps were replayed (used to
+    /// reproduce a schedule that ended at the bound; upstream replays never hit it).
+    pub stop_at: Option<usize>,
 }
 
 impl ReplayStrategy {
     pub fn new(trace: ScheduleTrace) -> Self {
         let is_fair = trace.is_fair;
-        ReplayStrategy { trace, index: 0, is_fair, error: None }
+        ReplayStrategy { trace, index: 0, is_fair, error: None, stop_at: None }
     }
 }
 
@@ -498,7 +501,7 @@ impl Strategy for ReplayStrategy {
         self.index
     }
     fn has_reached_max_steps(&self) -> bool {
-        false
+        self.stop_at.map(|k| self.index >= k).unwrap_or(false)
     }
     fn is_fair(&self) -> bool {
         self.is_fair

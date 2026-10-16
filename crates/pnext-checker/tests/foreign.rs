@@ -87,7 +87,7 @@ fn priority_queue_with_rust_foreign_functions() {
     let a = load();
     let tc = a.program.test_cases().into_iter().find(|t| t.name == "tcCheck_PriorityQueue").unwrap();
     let checker = Checker::new(&a.program).with_foreign(Rc::new(Functions));
-    let opts = CheckerOptions { iterations: 100, ..Default::default() };
+    let opts = CheckerOptions { iterations: 100, log_every_schedule: true, ..Default::default() };
     let r = checker.check(&tc, &opts, &mut Vec::<String>::new()).unwrap();
     assert_eq!(r.report.num_bugs, 0, "{:?}", r.report.bug_reports);
     let prints: Vec<&str> =
