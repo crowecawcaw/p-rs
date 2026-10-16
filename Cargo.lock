@@ -17,6 +17,9 @@ version = "0.1.0"
 [[package]]
 name = "pnext-sema"
 version = "0.1.0"
+dependencies = [
+ "pnext-syntax",
+]
 
 [[package]]
 name = "pnext-syntax"

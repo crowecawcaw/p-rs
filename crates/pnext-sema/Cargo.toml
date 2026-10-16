@@ -3,5 +3,7 @@ name = "pnext-sema"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Name resolution, type checking and module system for P programs"
 
 [dependencies]
+pnext-syntax = { workspace = true }
