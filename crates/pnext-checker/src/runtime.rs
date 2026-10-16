@@ -372,6 +372,10 @@ pub struct Runtime<'p> {
     pub logging: bool,
     /// Trace position at which the step bound was hit, if it was.
     pub bound_hit_at: Option<usize>,
+    /// Activity coverage being accumulated (enabled when set).
+    pub coverage: Option<crate::coverage::CoverageInfo>,
+    pub coverage_run: Option<crate::coverage::CoverageRun>,
+    pub coverage_tables: Option<Rc<crate::coverage::CoverageTables>>,
     next_op_id: u64,
     anon_names: Vec<String>,
 }
@@ -435,6 +439,9 @@ impl<'p> Runtime<'p> {
             scenarios: Vec::new(),
             logging: config.logging,
             bound_hit_at: None,
+            coverage: None,
+            coverage_run: None,
+            coverage_tables: None,
             next_op_id: 0,
             anon_names,
         }
@@ -831,6 +838,7 @@ impl<'p> Runtime<'p> {
     // ---- machine creation -------------------------------------------------------------
 
     fn instantiate_machine(&mut self, decl: MachineId, iface: InterfaceId, name: &str, payload: Value) -> (usize, u64) {
+        self.cov_declare(decl, false);
         let idx = self.machines.len();
         let id = self.next_op_id;
         let display: Rc<str> = Rc::from(format!("{}({})", name, id));
@@ -902,6 +910,12 @@ impl<'p> Runtime<'p> {
 
     /// Completes a `send` once the `Send` scheduling point has passed.
     pub fn finish_send(&mut self, sender: usize, target: &MachineRef, event: Event) {
+        if self.coverage.is_some() {
+            if let Some(t) = self.find_machine(target.id) {
+                let decl = self.machines[t].decl;
+                self.cov_send(sender, decl, event.id);
+            }
+        }
         let sender_name = self.machines[sender].name.clone();
         let sender_state = self.log_state_name(sender);
         let ev = if self.logging || self.json_enabled() { self.event_with_payload(&event) } else { String::new() };
@@ -976,6 +990,7 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("ReceiveEvent", d, true);
                 }
+                self.cov_receive(t, e.id);
                 self.machines[t].received = Some(e);
                 let id = self.machines[t].id;
                 self.op_mut(id).status = OpStatus::Enabled;
@@ -1049,7 +1064,7 @@ impl<'p> Runtime<'p> {
         }
         for i in targets {
             if self.prog.machine(self.monitors[i].decl).observes.contains(&e.id) {
-                self.monitor_event(i, e.clone(), Some(self.machines[sender].name.clone()))?;
+                self.monitor_event(i, e.clone(), Some(sender))?;
             }
         }
         Ok(())
@@ -1093,6 +1108,7 @@ impl<'p> Runtime<'p> {
                     }
                     if let Some(raised) = self.machines[m].inbox.raised.take() {
                         if raised.id == GOTO_EVENT || !self.is_ignored(m, raised.id) {
+                            self.cov_handle_raised(m, raised.id);
                             self.machines[m].stage = Stage::Handle(raised);
                             continue;
                         }
@@ -1119,6 +1135,7 @@ impl<'p> Runtime<'p> {
                         let state = self.log_state_name(m);
                         let e = Event { id: self.prog.null_event, payload: Value::Null };
                         self.machines[m].stage = Stage::Handle(e);
+                        self.cov_default(m);
                         if self.logging { self.log_line(format!(
                             "<DefaultLog> {} is executing the default handler in state '{}'.",
                             name, state
@@ -1140,6 +1157,7 @@ impl<'p> Runtime<'p> {
                     }
                 }
                 Stage::Dequeued(e) => {
+                    self.cov_dequeue(m, e.id);
                     let name = self.machines[m].name.clone();
                     let state = self.log_state_name(m);
                     let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
@@ -1373,6 +1391,7 @@ impl<'p> Runtime<'p> {
     }
 
     fn start_action(&mut self, m: usize, f: FunId, e: &Event) {
+        self.cov_execute_action(m);
         let arg = if self.prog.fun(f).params.is_empty() { Value::Null } else { self.take_payload(m, e) };
         let exec = self.new_exec(f, vec![arg]);
         self.machines[m].exec = Some(exec);
@@ -1429,6 +1448,7 @@ impl<'p> Runtime<'p> {
     }
 
     fn begin_goto(&mut self, m: usize, target: StateId, with: Option<FunId>, e: Event) -> Result<(), Stop> {
+        self.cov_goto(m, target);
         let name = self.machines[m].name.clone();
         let cur = self.log_state_name(m);
         let mname = self.prog.machine(self.machines[m].decl).name.clone();
@@ -1458,6 +1478,7 @@ impl<'p> Runtime<'p> {
         match t {
             Transition::None => {}
             Transition::Raise(e) => {
+                self.cov_raise(m, e.id);
                 let name = self.machines[m].name.clone();
                 let state = self.log_state_name(m);
                 let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
@@ -1479,6 +1500,7 @@ impl<'p> Runtime<'p> {
                 self.machines[m].inbox.raised = Some(e);
             }
             Transition::Goto(target) => {
+                self.cov_raise(m, GOTO_EVENT);
                 // Modeled as a raised goto event, handled on the next dequeue.
                 self.machines[m].inbox.raised = Some(Event { id: GOTO_EVENT, payload: Value::Null });
                 self.machines[m].goto_target = Some(target);
@@ -1498,6 +1520,7 @@ impl<'p> Runtime<'p> {
             if self.monitors.iter().any(|m| m.decl == decl) {
                 continue;
             }
+            self.cov_declare(decl, true);
             if self.prog.machine(decl).is_scenario() {
                 self.scenarios.push(ScenarioProgress {
                     decl,
@@ -1537,6 +1560,9 @@ impl<'p> Runtime<'p> {
     }
 
     fn monitor_state_log(&mut self, mon: usize, enters: bool) {
+        if enters {
+            self.cov_monitor_enter(mon);
+        }
         let s = self.monitors[mon].state;
         let liveness = match s.map(|s| self.prog.state(s).temperature) {
             Some(Temperature::Hot) => "hot ",
@@ -1650,6 +1676,7 @@ impl<'p> Runtime<'p> {
         match t {
             Transition::None | Transition::Halt => Ok(()),
             Transition::Raise(e) => {
+                self.cov_monitor_raise(mon, e.id);
                 if self.logging {
             let text = format!(
                     "<MonitorLog> Monitor '{}' raised event '{}' in state '{}'.",
@@ -1679,6 +1706,7 @@ impl<'p> Runtime<'p> {
                 self.monitor_handle_event(mon, e)
             }
             Transition::Goto(target) => {
+                self.cov_monitor_raise(mon, GOTO_EVENT);
                 if self.logging {
             let text = format!(
                     "<MonitorLog> Monitor '{}' raised event 'GotoStateEvent' in state '{}'.",
@@ -1717,7 +1745,9 @@ impl<'p> Runtime<'p> {
     }
 
     /// `Monitor.MonitorEvent`.
-    pub fn monitor_event(&mut self, mon: usize, e: Event, sender: Option<Rc<str>>) -> Result<(), Stop> {
+    pub fn monitor_event(&mut self, mon: usize, e: Event, sender_idx: Option<usize>) -> Result<(), Stop> {
+        let sender: Option<Rc<str>> = sender_idx.map(|i| self.machines[i].name.clone());
+        self.cov_monitor_process(mon, e.id, sender_idx);
         if self.logging {
             let text = format!(
             "<MonitorLog> {} is processing event '{}' in state '{}'.",
@@ -1771,6 +1801,7 @@ impl<'p> Runtime<'p> {
             let action = self.prog.state(s).handler_for(e.id).map(|h| h.action.clone());
             match action {
                 Some(HandlerAction::Do(f)) => {
+                    self.cov_monitor_do(mon);
                     self.monitor_run_action(mon, f, &e)?;
                     return self.monitor_apply_transition(mon);
                 }

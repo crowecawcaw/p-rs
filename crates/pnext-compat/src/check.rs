@@ -599,6 +599,7 @@ fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
         record_test_name: !cfg.test_case_name.is_empty(),
         verbose: cfg.verbose,
         json_trace: true,
+        activity_coverage: true,
         ..CheckerOptions::default()
     }
 }
@@ -668,6 +669,20 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
     }
     if cfg.verbose {
         host.out_line("... ### Process 0 is terminating");
+    }
+    if let Some(cov) = &res.coverage {
+        // ReportActivityCoverage (on by default upstream)
+        host.out_line("... Emitting coverage report:");
+        let base = format!("{}{}", cfg.output_directory, file);
+        let checker = Checker::new(&loaded.analysis.program);
+        let text = checker.coverage_report(cov);
+        let txt = format!("{}.coverage.txt", base);
+        host.out_line(&format!("..... Writing {}", txt));
+        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&txt)), &text);
+        let sci = format!("{}.sci", base);
+        host.out_line(&format!("..... Writing {}", sci));
+        let xml = crate::sci::coverage_xml(&loaded.analysis.program, &checker.coverage_tables(), cov);
+        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&sci)), &xml);
     }
     let process_elapsed = host.now() - process_start;
     host.out_line(&res.report.text(&opts, "..."));

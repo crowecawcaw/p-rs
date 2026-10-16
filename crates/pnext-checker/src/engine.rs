@@ -51,6 +51,8 @@ pub struct CheckerOptions {
     /// schedule's log). Off by default: exploring without logging is much faster, and the
     /// first buggy schedule is replayed to produce its log.
     pub log_every_schedule: bool,
+    /// Collect activity coverage (`CheckResult::coverage`), as upstream does by default.
+    pub activity_coverage: bool,
     /// Produce the JSON trace of the first buggy schedule (by replaying it with JSON
     /// logging on, so exploration itself pays nothing).
     pub json_trace: bool,
@@ -75,6 +77,7 @@ impl Default for CheckerOptions {
             record_test_name: true,
             verbose: false,
             log_every_schedule: false,
+            activity_coverage: false,
             json_trace: false,
         }
     }
@@ -289,6 +292,8 @@ pub struct CheckResult {
     pub cancelled: bool,
     /// The `.trace.json` contents of the first buggy schedule (see `json_trace`).
     pub json_trace: Option<String>,
+    /// Activity coverage over all schedules (see `activity_coverage`).
+    pub coverage: Option<crate::coverage::CoverageInfo>,
 }
 
 fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn Strategy>, String> {
@@ -344,11 +349,24 @@ pub struct Checker<'p> {
     pub code: Code,
     /// Implementations of the program's foreign functions.
     pub foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
+    coverage_tables: std::cell::OnceCell<Rc<crate::coverage::CoverageTables>>,
 }
 
 impl<'p> Checker<'p> {
     pub fn new(prog: &'p Program) -> Checker<'p> {
-        Checker { prog, code: compile_program(prog), foreign: None }
+        Checker { prog, code: compile_program(prog), foreign: None, coverage_tables: std::cell::OnceCell::new() }
+    }
+
+    /// Node/event tables for activity coverage (built on first use).
+    pub fn coverage_tables(&self) -> Rc<crate::coverage::CoverageTables> {
+        self.coverage_tables
+            .get_or_init(|| Rc::new(crate::coverage::CoverageTables::new(self.prog)))
+            .clone()
+    }
+
+    /// The `.coverage.txt` report of a run's activity coverage.
+    pub fn coverage_report(&self, info: &crate::coverage::CoverageInfo) -> String {
+        crate::coverage::coverage_report(self.prog, &self.coverage_tables(), info)
     }
 
     /// Registers implementations for the program's foreign functions.
@@ -425,6 +443,7 @@ impl<'p> Checker<'p> {
         let max_iterations = if is_replay { 1 } else { opts.iterations };
         let mut i = 0usize;
         let mut first_bug: Option<BugSchedule> = None;
+        let coverage_tables = opts.activity_coverage.then(|| self.coverage_tables());
         while max_iterations == 0 || i < max_iterations {
             if out.cancelled() {
                 result.cancelled = true;
@@ -437,6 +456,11 @@ impl<'p> Checker<'p> {
             {
                 let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, assignment);
                 rt.foreign = self.foreign.clone();
+                if let Some(t) = &coverage_tables {
+                    rt.coverage_tables = Some(t.clone());
+                    rt.coverage = Some(result.coverage.take().unwrap_or_default());
+                    rt.coverage_run = Some(Default::default());
+                }
                 rt.run_test(main, &tc.name);
                 if rt.strategy.wants_feedback() {
                     let tokens = rt.timeline.tokens();
@@ -523,6 +547,9 @@ impl<'p> Checker<'p> {
                     out.line(&format!("..... Schedule #{} triggered bug #{} [task-0]", i + 1, result.report.num_bugs));
                 }
                 result.last_log = std::mem::take(&mut rt.log);
+                if rt.coverage.is_some() {
+                    result.coverage = rt.coverage.take();
+                }
             }
             if is_replay || (!opts.full_exploration && result.report.num_bugs > 0) || !strategy.prepare_next_iteration() {
                 break;

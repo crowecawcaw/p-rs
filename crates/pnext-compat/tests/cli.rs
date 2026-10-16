@@ -49,6 +49,9 @@ fn log_generator_matches_upstream_golden_files() {
     let expected: serde_json::Value = serde_json::from_str(expected.trim_start_matches('\u{feff}')).unwrap();
     assert!(json_subset(&expected, &json), "json:\n{}", json);
     assert!(h.is_file(Path::new("res/BugFinding/bug2_0_0.schedule")));
+    // exact match, as upstream's test requires for the coverage report
+    let cov = h.read_to_string(Path::new("res/BugFinding/bug2.coverage.txt")).unwrap();
+    assert_eq!(cov, upstream("CorrectLogs/bugs2/bug2.coverage.txt"));
     assert!(h.is_file(Path::new("res/BugFinding/bug2_pchecker_summary.txt")));
 }
 

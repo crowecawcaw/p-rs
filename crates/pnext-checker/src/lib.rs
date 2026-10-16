@@ -19,3 +19,4 @@ pub mod engine;
 pub mod jsonlog;
 pub mod foreign;
 pub mod feedback;
+pub mod coverage;

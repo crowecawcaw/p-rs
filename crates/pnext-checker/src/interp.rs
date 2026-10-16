@@ -1157,6 +1157,7 @@ impl<'p> Runtime<'p> {
                 };
                 self.jlog("ReceiveEvent", d, true);
             }
+            self.cov_receive(m, e.id);
             exec.pending = Some(Pending::ReceiveFound { cases, exit, event: e });
             return Ok(Flow::Yield(SchedKind::Receive));
         }

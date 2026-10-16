@@ -32,7 +32,7 @@ status=0
 echo "== console"
 diff <(normalize <"$work_up/out.txt") <(normalize <"$work_pn/out.txt") || status=1
 for f in $(cd "$work_up" && find PCheckerOutput -type f \( -name '*.txt' -o -name '*.json' -o -name '*.schedule' \) 2>/dev/null | sort); do
-  case "$f" in *pchecker_summary.txt|*.coverage.txt) continue;; esac
+  case "$f" in *pchecker_summary.txt) continue;; esac
   echo "== $f"
   if [ -f "$work_pn/$f" ]; then
     diff <(sed '1s/^\xEF\xBB\xBF//' "$work_up/$f" | normalize) <(normalize <"$work_pn/$f") || status=1

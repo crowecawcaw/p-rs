@@ -14,6 +14,7 @@ pub mod compile;
 pub mod host;
 pub mod pproj;
 pub mod scenario;
+pub mod sci;
 
 use host::{Color, Host, HostExt, Stream};
 
