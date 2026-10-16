@@ -195,7 +195,9 @@ mod tests {
             seed: Some(7),
         });
         assert_eq!(r.exit_code, 1, "{}", r.stdout);
-        assert!(r.stdout.contains("Error: Assertion Failed: m.p:1:40 no"), "{}", r.stdout);
+        assert!(r.stdout.contains("Checker found a bug."), "{}", r.stdout);
+        let trace = r.files.iter().find(|(k, _)| k.ends_with("_0_0.txt")).map(|(_, v)| v.clone()).unwrap();
+        assert!(trace.contains("<ErrorLog> Assertion Failed: m.p:1:40 no"), "{}", trace);
         assert!(r.files.keys().any(|k| k.ends_with(".trace.json")));
     }
 }

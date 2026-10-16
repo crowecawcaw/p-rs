@@ -393,11 +393,15 @@ impl ScheduleTrace {
         if let Some(n) = &self.test_name {
             s.push_str(&format!("--test-method:{}\n", n));
         }
-        for st in &self.steps {
+        // steps are newline-separated, with no newline after the last (upstream format)
+        for (i, st) in self.steps.iter().enumerate() {
+            if i > 0 {
+                s.push('\n');
+            }
             match st {
-                ScheduleStep::Operation(id) => s.push_str(&format!("({})\n", id)),
-                ScheduleStep::Bool(b) => s.push_str(if *b { "True\n" } else { "False\n" }),
-                ScheduleStep::Int(i) => s.push_str(&format!("{}\n", i)),
+                ScheduleStep::Operation(id) => s.push_str(&format!("({})", id)),
+                ScheduleStep::Bool(b) => s.push_str(if *b { "True" } else { "False" }),
+                ScheduleStep::Int(i) => s.push_str(&i.to_string()),
             }
         }
         s

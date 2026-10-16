@@ -457,7 +457,9 @@ impl<'p> Checker<'p> {
                         out.line(l);
                     }
                 }
-                if let Some(b) = &rt.bug {
+                // upstream reports the bug through a console that is redirected to a null
+                // writer while a schedule runs, so it only shows in verbose mode
+                if let Some(b) = rt.bug.as_ref().filter(|_| opts.verbose) {
                     out.error(b);
                 }
                 // GatherTestingStatistics

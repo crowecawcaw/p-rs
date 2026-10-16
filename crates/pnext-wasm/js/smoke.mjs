@@ -16,5 +16,6 @@ let r = p.run(["compile", "-pf", "pingpong.p", "-pn", "PingPong"], { "/work/ping
 if (r.exitCode !== 0) throw new Error(r.stdout + r.stderr);
 r = p.run(["check", "-s", "10"], r.files, { seed: 1 });
 process.stdout.write(r.stdout);
-if (r.exitCode !== 1 || !r.stdout.includes("Assertion Failed")) throw new Error("expected a bug");
+const trace = Object.entries(r.files).find(([k]) => k.endsWith("_0_0.txt"))?.[1] ?? "";
+if (r.exitCode !== 1 || !trace.includes("<ErrorLog> Assertion Failed")) throw new Error("expected a bug");
 console.log("smoke test OK");

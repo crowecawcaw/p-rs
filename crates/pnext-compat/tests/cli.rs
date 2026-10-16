@@ -90,6 +90,11 @@ fn project_file_compile_and_test_case_listing() {
     assert_eq!(run(&mut h, &["check", "-tc", "tcPasses", "-s", "10"]), 0, "{}", h.stdout);
     assert!(h.stdout.contains("..... Explored 10 schedules"));
     assert_eq!(run(&mut h, &["check", "-tc", "tcFails"]), 1);
+    let trace = h.read_to_string(Path::new("PCheckerOutput/tcFails/BugFinding/Demo_0_0.txt")).unwrap();
+    assert!(trace.contains("<ErrorLog> Assertion Failed: PSrc/demo.p:1:37 boom"), "{}", trace);
+    // the bug line is only echoed to the console in verbose mode, as upstream
+    assert!(!h.stdout.contains("Error: Assertion"));
+    assert_eq!(run(&mut h, &["check", "-tc", "tcFails", "-v"]), 1);
     assert!(h.stdout.contains("Error: Assertion Failed: PSrc/demo.p:1:37 boom"), "{}", h.stdout);
 }
 
