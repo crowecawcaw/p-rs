@@ -26,7 +26,7 @@ $ p check -tc tcRetry -s 1000 --latency PTst/latency.toml
 $ p check -tc tcRetry -s 1000 --latency PTst/latency.toml --timed --latency-report
 <ErrorLog> Assertion Failed: ... after up to 1050000us ...       # same bug: drops are real
 latency report:
-  PSpec/Budget.p:6  max 1050000us (schedule 17)  ok-path max 792000us (schedule 3)
+  PSpec/Budget.p:6  max 1050000us (schedule 17)  ok-path max 790000us (schedule 3)
 ```
 
 Fix: `timeoutAfter = ms(250)` makes the give-up path 900ms and the check passes.
