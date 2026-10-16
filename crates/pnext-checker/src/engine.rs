@@ -214,6 +214,21 @@ fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn S
         "probabilistic" => {
             Box::new(ProbabilisticRandomStrategy::new(opts.max_fair_steps, opts.strategy_bound, rng.clone()))
         }
+        "pos" => Box::new(crate::feedback::ScheduleAndInputStrategy::new(
+            opts.max_unfair_steps,
+            rng.clone(),
+            Box::new(crate::feedback::PosScheduler::new(crate::feedback::Source::Shared(rng.clone()))),
+        )),
+        "feedback" | "feedbackpct" | "feedbackpos" => {
+            use crate::feedback::{ControlledRandom, PctScheduler, PosScheduler, RandomScheduler, Source};
+            let src = Source::Controlled(ControlledRandom::new(opts.seed));
+            let scheduler: Box<dyn crate::feedback::Scheduler> = match opts.strategy.as_str() {
+                "feedback" => Box::new(RandomScheduler::new(src)),
+                "feedbackpct" => Box::new(PctScheduler::new(opts.strategy_bound, 0, src)),
+                _ => Box::new(PosScheduler::new(src)),
+            };
+            Box::new(crate::feedback::FeedbackGuidedStrategy::new(opts.max_unfair_steps, opts.seed, scheduler))
+        }
         "replay" => match &opts.replay {
             Some(t) => Box::new(ReplayStrategy::new(t.clone())),
             None => return Err("replay strategy needs a schedule".into()),
@@ -291,7 +306,9 @@ impl<'p> Checker<'p> {
         let mut strategy = build_strategy(opts, &rng)?;
         let is_replay = opts.strategy == "replay";
         let seed_opt = match opts.strategy.as_str() {
-            "random" | "pct" | "fairpct" | "probabilistic" => format!(" (seed:{})", opts.seed),
+            "random" | "pct" | "pos" | "feedbackpct" | "feedbackpos" | "fairpct" | "probabilistic" | "rl" => {
+                format!(" (seed:{})", opts.seed)
+            }
             _ => String::new(),
         };
         out.line(&format!("... Checker is using '{}' strategy{}.", opts.strategy, seed_opt));
@@ -325,6 +342,11 @@ impl<'p> Checker<'p> {
                 let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, assignment);
                 rt.foreign = self.foreign.clone();
                 rt.run_test(main, &tc.name);
+                if rt.strategy.wants_feedback() {
+                    let timeline = rt.timeline.abstract_timeline();
+                    let minhash = crate::feedback::timeline_minhash(rt.timeline.tokens());
+                    rt.strategy.observe_timeline(&timeline, &minhash);
+                }
                 if rt.bug.is_none() {
                     rt.check_hot_monitors_at_termination();
                 }

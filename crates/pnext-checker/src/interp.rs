@@ -978,6 +978,8 @@ impl<'p> Runtime<'p> {
                 }
                 let e = self.make_event(ev_id, payload);
                 self.announce_internal(m, &e)?;
+                let cur = self.current;
+                self.op_mut(cur).receiver = Some(target.id);
                 exec.pending = Some(Pending::Send { target, event: e });
                 return Ok(Flow::Yield(SchedKind::Send));
             }

@@ -14,6 +14,10 @@ use crate::random::RandomValueGenerator;
 pub struct OpInfo {
     pub id: u64,
     pub enabled: bool,
+    /// Kind of the scheduling point the operation last stopped at (`AsyncOperation.Type`).
+    pub kind: crate::runtime::SchedKind,
+    /// Target of the operation's most recent send (`AsyncOperation.MessageReceiver`).
+    pub receiver: Option<u64>,
 }
 
 pub type SharedRandom = Rc<RefCell<RandomValueGenerator>>;
@@ -34,6 +38,13 @@ pub trait Strategy {
     /// Error of a replay strategy whose trace could not be followed.
     fn replay_error(&self) -> Option<String> {
         None
+    }
+    /// Feedback from a finished schedule (`IFeedbackGuidedStrategy.ObserveRunningResults`):
+    /// its abstract timeline and timeline MinHash.
+    fn observe_timeline(&mut self, _timeline: &str, _minhash: &[i32]) {}
+    /// Whether [`Strategy::observe_timeline`] is used (avoids computing MinHashes otherwise).
+    fn wants_feedback(&self) -> bool {
+        false
     }
 }
 

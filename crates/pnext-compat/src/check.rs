@@ -29,7 +29,8 @@ const STRATEGIES: &[&str] = &[
 ];
 
 /// Strategies pnext implements.
-const SUPPORTED_STRATEGIES: &[&str] = &["random", "pct", "fairpct", "probabilistic", "replay"];
+const SUPPORTED_STRATEGIES: &[&str] =
+    &["random", "pct", "fairpct", "probabilistic", "pos", "feedback", "feedbackpct", "feedbackpos", "replay"];
 
 /// `PCheckerOptions` parser definition.
 pub fn parser() -> ArgParser {

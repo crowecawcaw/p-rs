@@ -58,6 +58,10 @@ pub struct Operation {
     pub skip_next_receive: bool,
     /// Index into `Runtime::machines`, `None` for the test task.
     pub machine: Option<usize>,
+    /// Kind of the last scheduling point (`AsyncOperation.Type`).
+    pub kind: SchedKind,
+    /// Target of the last send (`AsyncOperation.MessageReceiver`).
+    pub receiver: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -239,6 +243,11 @@ impl Timeline {
     }
 
     /// `GetAbstractTimeline`: the sorted tokens joined with `;`.
+    /// The timeline tokens.
+    pub fn tokens(&self) -> impl Iterator<Item = &str> {
+        self.tokens.iter().map(String::as_str)
+    }
+
     pub fn abstract_timeline(&self) -> String {
         self.tokens.iter().cloned().collect::<Vec<_>>().join(";")
     }
@@ -554,7 +563,15 @@ impl<'p> Runtime<'p> {
     fn new_op(&mut self, name: String, machine: Option<usize>) -> u64 {
         let id = self.next_op_id;
         self.next_op_id += 1;
-        self.ops.push(Operation { id, name, status: OpStatus::Enabled, skip_next_receive: false, machine });
+        self.ops.push(Operation {
+            id,
+            name,
+            status: OpStatus::Enabled,
+            skip_next_receive: false,
+            machine,
+            kind: SchedKind::Start,
+            receiver: None,
+        });
         id
     }
 
@@ -605,11 +622,16 @@ impl<'p> Runtime<'p> {
     }
 
     /// `ScheduleNextEnabledOperation`: picks the operation to run next.
-    pub fn schedule_next(&mut self, _kind: SchedKind) -> Result<(), Stop> {
+    pub fn schedule_next(&mut self, kind: SchedKind) -> Result<(), Stop> {
+        let cur = self.current;
+        self.op_mut(cur).kind = kind;
         self.check_steps_bound()?;
         self.check_liveness_temperatures()?;
-        let infos: Vec<OpInfo> =
-            self.ops.iter().map(|o| OpInfo { id: o.id, enabled: o.status == OpStatus::Enabled }).collect();
+        let infos: Vec<OpInfo> = self
+            .ops
+            .iter()
+            .map(|o| OpInfo { id: o.id, enabled: o.status == OpStatus::Enabled, kind: o.kind, receiver: o.receiver })
+            .collect();
         let current = self.current;
         match self.strategy.next_operation(current, &infos) {
             Some(next) => {

@@ -28,11 +28,13 @@ struct Args {
     schedules: usize,
     filter: Option<String>,
     trace: bool,
+    strategy: String,
+    bound: usize,
 }
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
-    let mut args = Args { verbose: false, seed: 0, schedules: 1000, filter: None, trace: false };
+    let mut args = Args { verbose: false, seed: 0, schedules: 1000, filter: None, trace: false, strategy: "random".into(), bound: 0 };
     let mut roots = Vec::new();
     let mut i = 0;
     while i < raw.len() {
@@ -46,6 +48,14 @@ fn main() {
             "--schedules" => {
                 i += 1;
                 args.schedules = raw[i].parse().unwrap();
+            }
+            "--strategy" => {
+                i += 1;
+                args.strategy = raw[i].clone();
+            }
+            "--bound" => {
+                i += 1;
+                args.bound = raw[i].parse().unwrap();
             }
             "--filter" => {
                 i += 1;
@@ -146,6 +156,8 @@ fn find_tests(dir: &Path, stats: &mut Stats, args: &Args) {
         max_unfair_steps: 1000,
         max_fair_steps: 1000,
         user_set_max_fair_steps: true,
+        strategy: args.strategy.clone(),
+        strategy_bound: args.bound,
         ..Default::default()
     };
     let start = Instant::now();

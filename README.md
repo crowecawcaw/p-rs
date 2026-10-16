@@ -11,7 +11,7 @@ scheduler, with the same bug-finding semantics as the upstream checker.
 |---|---|
 | `pnext-syntax` | Lexer, parser and AST. |
 | `pnext-sema` | Name resolution, type checking, machine and module-system rules; produces a typed program. Diagnostics match upstream's. |
-| `pnext-checker` | Values, bytecode interpreter, scheduling strategies (random, pct, fairpct, probabilistic, replay), safety and liveness monitors, deadlock detection, text/JSON traces, foreign functions. |
+| `pnext-checker` | Values, bytecode interpreter, scheduling strategies (random, pct, fairpct, probabilistic, pos, feedback, feedbackpct, feedbackpos, replay), safety and liveness monitors, deadlock detection, text/JSON traces, foreign functions. |
 | `pnext-compat` | Drop-in compatibility with the upstream `p` tool: `p compile` / `p check` options, help, `.pproj` files, console output, output folders, trace files and exit codes. Runs against a pluggable host (native or in-memory). |
 | `pnext-cli` | The `p` binary. |
 | `pnext-wasm` | WebAssembly module plus a JavaScript wrapper to run `p` in a browser or Node.js. |
@@ -78,8 +78,9 @@ system; the module is about 1 MB (about 320 KB gzipped).
 
 ## Known differences from upstream
 
-* Not implemented: the pos, rl and feedback-guided strategies, PEx and PVerifier modes,
-  the coverage report, DGML graphs and XML traces. Options for them are accepted;
+* Not implemented: the rl strategy, PEx and PVerifier modes, scenario coverage steering
+  and reports, the kgram/causal/hybrid timeline representations, the coverage report,
+  DGML graphs and XML traces. Options for them are accepted;
   choosing an unimplemented strategy reports an error.
 * Foreign code in C# or Java cannot run; provide foreign functions in Rust.
 * An action that runs forever without reaching a scheduling point is reported as a bug
