@@ -1,18 +1,18 @@
-# Time, timeouts and latency budgets in p-next (design proposal, v4)
+# Time, timeouts and latency budgets in p-next (design proposal, v5)
 
 Status: Phase 1 implemented in `pnext-checker` (`src/time.rs`, runtime hooks)
 and `p check` (`--latency`, `--latency-profile`, `--timed`); tests in
 `crates/pnext-checker/tests/time.rs`.
 
 **No language change.** Models use plain P (foreign functions and ordinary
-machines), so they compile and run upstream, where time stands still.
-Everything new is in `pnext-checker` and the CLI. The native syntax explored in
+machines). Everything new is in `pnext-checker` and the CLI. The native syntax explored in
 v1/v2 (`examples/`) is kept as a possible later surface over the same semantics.
 
-v4 changes (review of v3): events are picked at the receiver's scheduling point
-under `--timed` (send reordering removed); the guarantee is restated (passes are
-sound, failures are possible); the max rule keeps correlation; replay files
-carry the resolved profile; signature, missing-profile and cost-name checks.
+v5 changes (review of v4): under `--timed`, overlapping candidates (and a
+default handler against an overlapping event) are a recorded nondeterministic
+choice instead of a fixed pick; passes are sound only under `--timed`; a replay
+without time lines ignores the time options; profile names are validated.
+Observing production traces is tracked separately (`p observe`, issues #1 and #2).
 
 ## Motivation and scope
 
@@ -47,16 +47,13 @@ fun ElapsedBest(m: int): int;  // best case
   `fun Now()` is an ordinary foreign function). If a declaration uses one of these
   names with a different signature, that is an error that names the expected
   declaration.
-* Declare only the functions you use. Upstream links C# stubs that return 0
-  and do nothing (`upstream-friendly/RetryBudget/PForeign/Time.cs`, not yet
-  compiled against upstream).
+* Declare only the functions you use.
 * `Elapse` needs `0 <= lo <= hi <= 2^40`; other arguments are a checker
   error (an exception in the model).
 * `Mark` handles count up from 0 within each schedule. They are deterministic
-  and appear in payload logs. Upstream they are all 0. An unknown handle is an
-  error.
+  and appear in payload logs. An unknown handle is an error.
 
-Timers are ordinary machines (`upstream-friendly/RetryBudget/PSrc/Timer.p`). Each
+Timers are ordinary machines (`RetryBudget/PSrc/Timer.p`). Each
 armed timer is a fresh machine that calls `Elapse(d, d)` and then sends the
 timeout. Because the timer is a separate machine, the scheduler already decides
 whether a reply or the timeout is handled first.
@@ -130,25 +127,31 @@ example a timer's 300 ms timeout handled before a reply stamped 20 ms. With
      until it runs.
    * When the machine resumes, the event comes from a candidate set that
      contains the first eligible event of each sender (per-sender FIFO). Eligible
-     means not deferred or ignored, or for a `receive`, listed in its cases. The
-     candidate with the earliest worst-case stamp wins; ties go to the one
-     queued first. Ignored events queued before it are dropped, as today.
+     means not deferred or ignored, or for a `receive`, listed in its cases.
+     Candidates that certainly arrive after another candidate
+     (`best(c) > min worst`) are dropped. If more than one remains, which one is
+     taken is a nondeterministic choice, recorded in the schedule like any
+     other. Ignored events queued before it are dropped, as today.
+   * Per-sender FIFO means an event's effective arrival is at least that of
+     the same sender's earlier events to this receiver, whatever its own stamp.
 2. **Ready times.** Before each scheduling decision, every enabled operation
    gets one:
 
    | Operation | Ready time |
    |---|---|
    | test task | 0 |
-   | machine about to take an event (handler loop or `receive`) | max(clock, stamp of the event it would pick) |
+   | machine about to take an event (handler loop or `receive`) | `[max(best clock, min best c), max(worst clock, min worst c)]` over the candidates `c` |
    | machine whose state has a default handler | clock |
    | anything else (start, create, send, paused mid-handler) | clock |
 
    Operation `x` is removed from the candidates when some other enabled `y` has
    `worst(ready y) < best(ready x)`. Ties and overlaps stay nondeterministic. The
    earliest operation is never removed, so no deadlocks are introduced.
-3. **Default handlers.** A machine with a default handler takes the picked
-   event unless that event certainly arrives after the machine's clock
-   (`best(stamp) > worst(clock)`). In that case it runs the default handler.
+3. **Default handlers.** The default handler runs at the machine's clock.
+   Candidates that certainly arrive after the clock (`best(c) > worst(clock)`)
+   are not there yet. If some candidate certainly arrived before the clock
+   (`worst(c) < best(clock)`), an event is taken. Otherwise the default handler
+   is one more option in the nondeterministic choice.
 
 Notes:
 
@@ -184,9 +187,12 @@ Clock values over-approximate:
 So for a **monotone** budget assertion, such as `assert Elapsed(m) <= budget`
 (or `Now() <= deadline`):
 
-* **A pass is sound.** If the assertion holds on every explored schedule, it
-  holds for those schedules under the stated latencies. This needs the model not
-  to branch on time values: `if (Now() > deadline)` always reads the worst case,
+* **A pass is sound only under `--timed`.** Untimed, queue order is send order,
+  so orders that are possible in time (a later send arriving first) are never
+  explored, and an untimed pass is informative only. Under `--timed`, if the
+  assertion holds on every explored schedule, it holds for those schedules
+  under the stated latencies. This needs the model not to branch on time
+  values: `if (Now() > deadline)` always reads the worst case,
   so the branch where the deadline has not yet passed is never explored.
 * **A failure is possible, not certain.** The schedule can exceed the budget
   when every draw is at its worst. It can also be spurious, in any of these
@@ -200,7 +206,8 @@ So for a **monotone** budget assertion, such as `assert Elapsed(m) <= budget`
   failure is exact.
 
 As always, schedules are sampled. Checks in the other direction (for example
-`ElapsedBest(m) > x`) can be masked.
+`ElapsedBest(m) > x`) can be masked. An inexact max also inflates `Now()`,
+which makes `Now()`-based deadline checks pessimistic.
 
 ## Profiles
 
@@ -232,7 +239,8 @@ tcRetry = "same-az"             # profile per test case
   `Server` instances still use `(Server, Server)`. A self-send is priced only by
   its event-name entry: `default` and link entries do not apply. That keeps
   internal `raise`-like sends free unless priced explicitly.
-* **Names.** Machine names are declaration names, not interface names. An
+* **Names.** Profile names must not be empty or `-` and must not contain `;`,
+  `=` or `"`. Machine names are declaration names, not interface names. An
   unknown machine or event name is an error, and so are unknown profiles,
   duplicate keys and duplicate `[tests]` entries. The keys `default` and
   `extends` are reserved, so an event with either name can only be priced
@@ -262,10 +270,11 @@ When time tracking is active, the `.schedule` file gets these lines:
 `p check --replay` takes the mode and profile from these lines and ignores
 `--latency`, `--latency-profile` and `--timed`, as it already ignores other
 options. A replay therefore needs no latency file and cannot silently run a
-different mode. The profile's names are still checked against the program.
-Schedule files without these lines are unchanged. Builds that do not know the
-lines skip them, as they skip any unknown `--` line, and diverge; upstream
-cannot replay time-tracked schedules meaningfully in any case.
+different mode. The profile's names and the time-function signatures are still
+checked against the program. A schedule without these lines was recorded
+without time options, so its replay ignores them too (untimed, no profile).
+Builds that do not know the lines skip them, as they skip any unknown `--`
+line, and diverge.
 
 ## Phases
 
@@ -273,11 +282,13 @@ cannot replay time-tracked schedules meaningfully in any case.
 * clocks and affine forms;
 * the seven foreign functions, with signature checks;
 * profiles via `--latency` and `--latency-profile`;
-* `--timed`, with pick-at-resume and ready-time filtering;
+* `--timed`, with pick-at-resume, a recorded choice among overlapping
+  candidates, and ready-time filtering;
 * `<TimeLog>` lines;
 * self-contained replay headers;
 * tests: the RetryBudget project, arrival order under `--timed` (handler and
-  `receive`), timeout-vs-reply filtering, stopwatches and cancellation, the max
+  `receive`, certain and overlapping), default handler against overlapping
+  events, timeout-vs-reply filtering, stopwatches and cancellation, the max
   rule, collapse, profile parsing and errors, and replay without a latency file.
 
 **Phase 2:**
@@ -286,7 +297,9 @@ cannot replay time-tracked schedules meaningfully in any case.
 * the critical path and `--latency-report`;
 * measuring the collapse policy;
 * porting the Raft and FailureDetector tutorials, then deciding whether to keep
-  going.
+  going;
+* time in `p observe` (issues #1 and #2): checking budgets against the
+  timestamps of production traces.
 
 **Later, only if Phase 2 pays off:** native syntax (`examples/`).
 

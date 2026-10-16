@@ -1,18 +1,18 @@
-# RetryBudget: the upstream-friendly shape of the time extension
+# RetryBudget: the time extension without new syntax
 
-Sample 5 of `../../examples/` rewritten with no new syntax. The extension is:
+Sample 5 of `../examples/` rewritten with no new syntax. The extension is:
 
-| Piece | Where | Upstream P sees it? |
-|---|---|---|
-| `Now()`, `NowBest()`, `Elapse(lo, hi)`, `Mark()`, `Elapsed(m)`, `ElapsedBest(m)` | foreign functions in `PSrc/Time.p` | yes, as foreign functions (C# stubs in `PForeign/`: time stands still) |
-| One-shot `Timer` | plain P in `PSrc/Timer.p` | yes, behaves like today's nondeterministic timer |
-| Delivery latencies | `PTst/latency.toml` | no |
-| Time-ordered scheduling | `p check --timed` | no |
+| Piece | Where |
+|---|---|
+| `Now()`, `NowBest()`, `Elapse(lo, hi)`, `Mark()`, `Elapsed(m)`, `ElapsedBest(m)` | foreign functions in `PSrc/Time.p` |
+| One-shot `Timer` | plain P in `PSrc/Timer.p` |
+| Delivery latencies | `PTst/latency.toml` |
+| Time-ordered scheduling | `p check --timed` |
 
-Runs with the current p-next build (`p compile` first):
+Runs with the current build (`p compile` first):
 
 ```
-$ p check -tc tcRetry -s 1000                        # p-next, no latency file
+$ p check -tc tcRetry -s 1000                        # no latency file
 <ErrorLog> Assertion Failed: PSpec/Budget.p:7:7 resolved (ok = False) after up to 1050000us; deadline is 1000000us
 ... Found 1 bug.
 
@@ -24,8 +24,7 @@ Time is tracked as soon as the model declares the time functions: the timer
 durations and backoffs are model time, so the all-drops path (3 x 300ms timeout
 + 50ms + 100ms backoff = 1050ms) exceeds the 1s budget even with zero
 latencies. The latency file adds network time (1..2ms per hop here; 60..90ms in
-`cross-region`). Upstream P links `PForeign/Time.cs`, where `Elapsed` is
-always 0, so it finds 0 bugs.
+`cross-region`).
 
 Fix: `timeoutAfter = ms(250)` makes the give-up path 900ms and the check passes
 in all three modes. The slowest successful path is the third attempt answered

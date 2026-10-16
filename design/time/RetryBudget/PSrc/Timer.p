@@ -4,9 +4,9 @@
  * It needs no time semantics of its own: the new machine starts at its
  * creator's clock, Elapse advances that clock by `after`, so the timeout it
  * sends is stamped creation + after.
- *   upstream / p-next untimed: the timeout may be delivered before replies
+ *   untimed:                   the timeout may be delivered before replies
  *                              stamped earlier, as with today's $-timers.
- *   p-next --timed:            events certainly arriving earlier are handled first.
+ *   --timed:                   events certainly arriving earlier are handled first.
  * Cancelling is done by the holder ignoring stale tags, which is simpler and
  * race-free compared to a cancel message.
  *****************************************************************************/

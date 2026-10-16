@@ -386,7 +386,8 @@ impl<'p> Checker<'p> {
 
     /// Time tracking for `tc`: active when the program declares one of the time
     /// functions or a latency file or `--timed` is given. Checks the profile's names.
-    fn time_options(&self, tc: &TestCase, opts: &CheckerOptions) -> Result<Option<crate::time::TimeOptions>, String> {
+    /// Whether the program declares time functions; errors on a wrong declaration.
+    fn declares_time(&self) -> Result<bool, String> {
         use pnext_sema::PType;
         let prog = self.prog;
         let mut declares = false;
@@ -411,6 +412,11 @@ impl<'p> Checker<'p> {
                 ));
             }
         }
+        Ok(declares)
+    }
+
+    fn time_options(&self, tc: &TestCase, opts: &CheckerOptions) -> Result<Option<crate::time::TimeOptions>, String> {
+        let declares = self.declares_time()?;
         if !declares && opts.latency.is_none() && !opts.timed {
             return Ok(None);
         }
@@ -487,8 +493,14 @@ impl<'p> Checker<'p> {
             Some((header, t)) => {
                 let o = crate::time::TimeOptions::from_schedule(header, &t.latency)
                     .map_err(|e| format!("the schedule's time settings: {}", e))?;
+                self.declares_time()?;
                 self.check_profile(o.profile.as_ref())?;
                 Some(o)
+            }
+            // a schedule without time settings was recorded untimed, without a profile
+            None if is_replay => {
+                let plain = CheckerOptions { latency: None, latency_profile: None, timed: false, ..opts.clone() };
+                self.time_options(tc, &plain)?
             }
             None => self.time_options(tc, opts)?,
         };
