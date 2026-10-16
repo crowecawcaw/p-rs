@@ -43,7 +43,7 @@ struct ParamSpec {
 }
 
 fn sorted_dedup_by_name<T: Copy + PartialEq>(mut v: Vec<T>, name: impl Fn(T) -> String) -> Vec<T> {
-    v.sort_by(|a, b| name(*a).cmp(&name(*b)));
+    v.sort_by_key(|a| name(*a));
     v.dedup();
     v
 }
@@ -855,8 +855,8 @@ impl<'a> Analyzer<'a> {
                 let ast::TopDecl::Implementation { expr, .. } = self.impl_src[i] else { unreachable!() };
                 impls.push(self.resolve_mod_expr(expr, 0)?);
             }
-        } else if self.test_src.is_empty() {
-            if self.prog.machines.iter().any(|m| m.name == "Main") {
+        } else if self.test_src.is_empty() && self.prog.machines.iter().any(|m| m.name == "Main") {
+            {
                 let g = self.scopes.global();
                 let mut bindings = Vec::new();
                 for (mi, m) in self.prog.machines.iter().enumerate() {
@@ -916,8 +916,9 @@ impl<'a> Analyzer<'a> {
             td.module = info;
             td.assignments = assignments;
         }
-        for (ri, (linfo, rinfo)) in ref_infos.into_iter().enumerate() {
-            let (_, _, _, span, main) = self.refinement_src[ri].clone();
+        // only the first refinement test is examined: upstream rejects it either way
+        if let Some((linfo, rinfo)) = ref_infos.into_iter().next() {
+            let (_, _, _, span, main) = self.refinement_src[0].clone();
             let rinfo = rinfo.expect("rhs info");
             if let Some(i) = Self::not_closed_interface(&linfo) {
                 let msg = format!("LHS test module is not closed with respect to created interfaces; interface {} is created but not implemented inside the module", self.iface_name(i));

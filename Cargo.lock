@@ -25,6 +25,9 @@ dependencies = [
 [[package]]
 name = "pnext-cli"
 version = "0.1.0"
+dependencies = [
+ "pnext-compat",
+]
 
 [[package]]
 name = "pnext-compat"

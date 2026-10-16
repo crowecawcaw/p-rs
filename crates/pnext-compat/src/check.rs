@@ -597,6 +597,7 @@ fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
         replay: None,
         record_test_name: !cfg.test_case_name.is_empty(),
         verbose: cfg.verbose,
+        json_trace: true,
         ..CheckerOptions::default()
     }
 }
@@ -734,6 +735,13 @@ fn emit_traces(host: &mut dyn Host, cfg: &CheckConfig, res: &CheckResult, file: 
             host.out_line(&format!("..... Writing {}", path));
             let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), t);
         }
+    }
+    if let Some(j) = &res.json_trace {
+        let path = format!("{}.trace.json", base);
+        host.out_line(&format!("..... Writing {}", path));
+        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), j);
+    }
+    if !cfg.full_exploration {
         if let Some(t) = res.schedule_trace.as_ref().filter(|t| !t.is_empty()) {
             let path = format!("{}.schedule", base);
             host.out_line(&format!("..... Writing {}", path));

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::argparse::{ArgParser, DataType, ParseError, Parsed};
 use crate::artifact::{self, Artifact, SourceFile};
-use crate::host::{full_path, is_hidden, Color, Host, HostExt, Stream};
+use crate::host::{full_path, is_hidden, relative_path, Color, Host, HostExt, Stream};
 use crate::pproj::{self, is_legal_project_name, legal_p_file};
 use crate::{report_and_exit, Exit};
 
@@ -235,7 +235,8 @@ pub fn load_sources(host: &dyn Host, files: &[String]) -> Result<Vec<SourceFile>
     for f in files {
         let full = full_path(&host.cwd(), Path::new(f));
         let text = host.read_to_string(&full).map_err(|e| e.to_string())?;
-        out.push(SourceFile { path: full.to_string_lossy().to_string(), text });
+        let name = relative_path(&host.cwd(), &full);
+        out.push(SourceFile { path: full.to_string_lossy().to_string(), name, text });
     }
     Ok(out)
 }
@@ -243,6 +244,7 @@ pub fn load_sources(host: &dyn Host, files: &[String]) -> Result<Vec<SourceFile>
 /// Prints front-end diagnostics the way `Compiler.Compile` does; returns true on success.
 pub fn report_compile_result(
     host: &mut dyn Host,
+    art: &Artifact,
     sm: &pnext_syntax::SourceMap,
     r: &Result<pnext_sema::Analysis, pnext_sema::CompileError>,
     after_parse: impl FnOnce(&mut dyn Host),
@@ -258,7 +260,7 @@ pub fn report_compile_result(
                 host,
                 &format!(
                     "[NotSupportedError:] {} (line {}:{}): \"{}\" keyword is only supported by PVerifier backend.",
-                    sm.file(*file).name,
+                    art.full_path(*file),
                     line,
                     col,
                     keyword
@@ -312,7 +314,7 @@ pub fn compile(cfg: &CompilerConfig, host: &mut dyn Host) -> i32 {
         verifier: cfg.backends.contains(&Backend::PVerifier),
     };
     let r = pnext_sema::compile(&sm, &opts);
-    let ok = report_compile_result(host, &sm, &r, |h| h.out_line("Type checking ..."));
+    let ok = report_compile_result(host, &art, &sm, &r, |h| h.out_line("Type checking ..."));
     if !ok {
         return 1;
     }

@@ -16,3 +16,4 @@ pub mod strategy;
 pub mod runtime;
 pub mod interp;
 pub mod engine;
+pub mod jsonlog;

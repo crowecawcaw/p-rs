@@ -16,3 +16,8 @@ The upstream harness interprets the directory layout as follows:
 Upstream only runs `Combined`, `Feature1SMLevelDecls`, `Feature2Stmts`,
 `Feature3Exprs`, `Feature4DataTypes` and `Integration`; `Feature5ModuleSystem` and
 `Liveness` are kept for completeness.
+
+`CorrectLogs/bugs2/` holds upstream's golden trace files for
+`Feature1SMLevelDecls/DynamicError/bug2` (`PCheckerLogGeneratorTests`): the generated
+`bug2_0_0.txt` must contain the expected text and the generated `.trace.json` must
+contain the expected JSON as a subset.

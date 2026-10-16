@@ -881,6 +881,9 @@ impl<'p> Runtime<'p> {
                 let msg = pop(&mut stack!());
                 let text = msg.to_display(prog);
                 self.log_line(format!("<PrintLog> {}", text));
+                if self.json_enabled() {
+                    self.jlog("Print", crate::jsonlog::Details { log: Some(text), ..Default::default() }, false);
+                }
             }
             Op::Create { iface, has_payload } => {
                 let payload = if has_payload { pop(&mut stack!()) } else { Value::Null };
@@ -1016,6 +1019,18 @@ impl<'p> Runtime<'p> {
                     ptext
                 );
                 self.log_line(text);
+                if self.json_enabled() {
+                    let name = self.machines[m].name.to_string();
+                    let ename = self.event_name(ev_id).to_string();
+                    let d = crate::jsonlog::Details {
+                        log: Some(format!("{} announced event {}{}.", name, ename, ptext)),
+                        id: Some(name),
+                        event: Some(ename),
+                        payload: (!payload.is_null()).then(|| crate::jsonlog::to_dict(&payload, prog)),
+                        ..Default::default()
+                    };
+                    self.jlog("Announce", d, true);
+                }
                 let e = Event { id: ev_id, payload };
                 self.announce_internal(m, &e)?;
             }
@@ -1104,24 +1119,63 @@ impl<'p> Runtime<'p> {
             let e = self.machines[m].inbox.queue.remove(i).unwrap();
             let ev = self.event_with_payload(&e);
             self.log_line(format!("<ReceiveLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state));
+            if self.json_enabled() {
+                let (payload, key) = self.jpayload(&e);
+                let d = crate::jsonlog::Details {
+                    log: Some(format!("'{}' dequeued event '{}' in state '{}'.", name, ev, state)),
+                    id: Some(name.to_string()),
+                    state: Some(self.short_state(self.machines[m].state)),
+                    event: Some(self.event_name(e.id).to_string()),
+                    payload,
+                    was_blocked: Some(false),
+                    payload_key: key,
+                    ..Default::default()
+                };
+                self.jlog("ReceiveEvent", d, true);
+            }
             exec.pending = Some(Pending::ReceiveFound { cases, exit, event: e });
             return Ok(Flow::Yield(SchedKind::Receive));
         }
         let names: Vec<String> = wait.iter().map(|e| self.event_name(*e).to_string()).collect();
         let event_names = if names.len() == 1 {
+            // the single-type overload logs the full type name
             format!("'{}'", event_cs_full_name(self.prog, wait[0]))
         } else {
-            let (last, init) = names.split_last().unwrap();
-            format!("'{}' or '{}'", init.join("', '"), last)
+            wait_event_names(&names)
         };
         self.log_line(format!(
             "<ReceiveLog> {} is waiting to dequeue an event of type {} in state '{}'.",
             name, event_names, state
         ));
+        if self.json_enabled() {
+            let d = crate::jsonlog::Details {
+                log: Some(format!("{} is waiting to dequeue an event of type {} in state '{}'.", name, event_names, state)),
+                id: Some(name.to_string()),
+                event_types: Some(names.clone()),
+                ..Default::default()
+            };
+            self.jlog("WaitMultipleEvents", d, true);
+        }
         self.machines[m].inbox.waiting = Some(Rc::from(wait));
         let id = self.machines[m].id;
         self.op_mut(id).status = OpStatus::BlockedOnReceive;
         exec.pending = Some(Pending::ReceiveWait { cases, exit });
         Ok(Flow::Yield(SchedKind::Join))
+    }
+}
+
+/// Event list of the receive wait log (`OnWaitEvent`), including upstream's quirk of
+/// leaving the second-to-last name empty for four or more types.
+fn wait_event_names(names: &[String]) -> String {
+    match names.len() {
+        0 => "'<missing>'".to_string(),
+        1 => format!("'{}'", names[0]),
+        2 => format!("'{}' or '{}'", names[0], names[1]),
+        3 => format!("'{}', '{}' or '{}'", names[0], names[1], names[2]),
+        n => {
+            let mut arr: Vec<&str> = names[..n - 2].iter().map(String::as_str).collect();
+            arr.push("");
+            format!("'{}' or '{}'", arr.join("', '"), names[n - 1])
+        }
     }
 }

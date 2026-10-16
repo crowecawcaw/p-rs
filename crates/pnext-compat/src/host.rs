@@ -82,6 +82,28 @@ pub fn normalize(p: &Path) -> PathBuf {
     out
 }
 
+/// `Path.GetRelativePath(from, to)` for absolute, normalized paths.
+pub fn relative_path(from: &Path, to: &Path) -> String {
+    let f: Vec<_> = from.components().collect();
+    let t: Vec<_> = to.components().collect();
+    let common = f.iter().zip(t.iter()).take_while(|(a, b)| a == b).count();
+    if common == 0 {
+        return to.to_string_lossy().to_string();
+    }
+    let mut parts: Vec<String> = Vec::new();
+    for _ in common..f.len() {
+        parts.push("..".into());
+    }
+    for c in &t[common..] {
+        parts.push(c.as_os_str().to_string_lossy().to_string());
+    }
+    if parts.is_empty() {
+        ".".into()
+    } else {
+        parts.join("/")
+    }
+}
+
 /// Whether a file name is hidden the way .NET reports it on Unix (leading dot).
 pub fn is_hidden(p: &Path) -> bool {
     p.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with('.')).unwrap_or(false)

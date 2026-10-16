@@ -296,7 +296,8 @@ impl<'a> Analyzer<'a> {
                 callers[c.idx()].push(FunId(i as u32));
             }
         }
-        let getters: [(fn(&FunDecl) -> bool, fn(&mut FunDecl)); 6] = [
+        type Flag = (fn(&FunDecl) -> bool, fn(&mut FunDecl));
+        let getters: [Flag; 6] = [
             (|f| f.can_raise, |f| f.can_raise = true),
             (|f| f.can_receive, |f| f.can_receive = true),
             (|f| f.can_change_state, |f| f.can_change_state = true),

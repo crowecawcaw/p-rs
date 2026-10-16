@@ -16,6 +16,7 @@ use pnext_sema::{
 
 use crate::bytecode::{CodeBlock, ReceiveCase, Root};
 use crate::compile::Code;
+use crate::jsonlog::{payload_key, to_dict, Details, JsonLog};
 use crate::strategy::{OpInfo, ScheduleStep, ScheduleTrace, Strategy};
 use crate::value::{default_value, event_cs_full_name, event_cs_name, MachineRef, Value};
 
@@ -191,6 +192,9 @@ pub struct Machine {
     pub goto_payload: Option<Value>,
     /// Target of a pending `GotoStateEvent` in the raised slot.
     pub goto_target: Option<StateId>,
+    /// The state popped because it could not handle the current event (for the
+    /// `UnhandledEventException` log lines).
+    pub popped_from: Option<StateId>,
     pub stage: Stage,
     pub exec: Option<Exec>,
     /// Event delivered to a blocked `receive`.
@@ -253,6 +257,9 @@ pub struct Config {
     /// without reaching a scheduling point; 0 = unbounded. Upstream has no such bound and
     /// simply hangs on e.g. an endless raise/goto cycle.
     pub max_work_per_step: u64,
+    /// Strategy description recorded in the JSON trace (overrides the running strategy's,
+    /// used when a buggy schedule is replayed to produce its JSON trace).
+    pub strategy_description: Option<String>,
 }
 
 impl Default for Config {
@@ -265,6 +272,7 @@ impl Default for Config {
             fail_on_max_steps: false,
             strategy_name: "random".into(),
             max_work_per_step: DEFAULT_MAX_WORK_PER_STEP,
+            strategy_description: None,
         }
     }
 }
@@ -315,6 +323,10 @@ pub struct Runtime<'p> {
     pub scheduled_steps: usize,
     /// Work done since the last scheduling point (see [`Config::max_work_per_step`]).
     pub step_work: u64,
+    /// The JSON trace, when enabled.
+    pub json: Option<JsonLog>,
+    /// The strategy description at the time the bug was found.
+    pub bug_strategy_description: Option<String>,
     next_op_id: u64,
     anon_names: Vec<String>,
 }
@@ -371,6 +383,8 @@ impl<'p> Runtime<'p> {
             fully_explored: false,
             scheduled_steps: 0,
             step_work: 0,
+            json: None,
+            bug_strategy_description: None,
             next_op_id: 0,
             anon_names,
         }
@@ -419,6 +433,33 @@ impl<'p> Runtime<'p> {
         }
     }
 
+    // ---- JSON trace ------------------------------------------------------------
+
+    /// Adds a JSON trace entry (no-op unless the JSON trace is enabled).
+    pub fn jlog(&mut self, ty: &str, d: Details, update_vc: bool) {
+        if let Some(j) = &mut self.json {
+            j.add(ty, d, update_vc);
+        }
+    }
+
+    pub fn json_enabled(&self) -> bool {
+        self.json.is_some()
+    }
+
+    /// `(payload ToDict, payload identity)` of an event for the JSON trace.
+    pub fn jpayload(&self, e: &Event) -> (Option<crate::jsonlog::Json>, String) {
+        if e.id == GOTO_EVENT || e.payload.is_null() {
+            return (None, String::new());
+        }
+        (Some(to_dict(&e.payload, self.prog)), payload_key(Some(&e.payload), self.prog))
+    }
+
+    /// Short (unqualified) state name.
+    pub fn short_state(&self, s: Option<StateId>) -> String {
+        let n = self.state_name(s);
+        n.rsplit('.').next().unwrap_or(&n).to_string()
+    }
+
     // ---- assertions and bugs ------------------------------------------------
 
     /// `OperationScheduler.NotifyAssertionFailure`.
@@ -426,6 +467,26 @@ impl<'p> Runtime<'p> {
         if self.bug.is_none() {
             self.log_line(format!("<ErrorLog> {}", text));
             self.log_line(format!("<StrategyLog> Found bug using '{}' strategy.", self.config.strategy_name));
+            let desc = self.config.strategy_description.clone().unwrap_or_else(|| self.strategy.description());
+            self.bug_strategy_description = Some(desc.clone());
+            if self.json_enabled() {
+                self.jlog(
+                    "AssertionFailure",
+                    Details { log: Some(text.clone()), error: Some(text.clone()), ..Default::default() },
+                    false,
+                );
+                let suffix = if desc.is_empty() { " Description: " } else { "" };
+                self.jlog(
+                    "StrategyDescription",
+                    Details {
+                        log: Some(format!("Found bug using '{}' strategy.{}", self.config.strategy_name, suffix)),
+                        strategy: Some(self.config.strategy_name.clone()),
+                        strategy_description: Some(desc),
+                        ..Default::default()
+                    },
+                    false,
+                );
+            }
             self.bug = Some(text);
         }
         self.stopped = true;
@@ -434,6 +495,28 @@ impl<'p> Runtime<'p> {
 
     /// Reports an unhandled .NET exception thrown inside an action.
     pub fn report_exception(&mut self, actor: Actor, exc: &Exception, action: &str) -> Stop {
+        if let Actor::Machine(m) = actor {
+            let short = exc.ty.rsplit('.').next().unwrap_or(exc.ty);
+            let body = format!(
+                "{} running action '{}' in state '{}' threw exception '{}'.",
+                self.machines[m].name,
+                action,
+                self.machine_state_name(m),
+                short
+            );
+            self.log_line(format!("<ExceptionLog> {}", body));
+            if self.json_enabled() {
+                let d = Details {
+                    log: Some(body),
+                    id: Some(self.machines[m].name.to_string()),
+                    state: Some(self.short_state(self.machines[m].state)),
+                    action: Some(action.to_string()),
+                    exception: Some(short.to_string()),
+                    ..Default::default()
+                };
+                self.jlog("ExceptionThrown", d, true);
+            }
+        }
         let ctx = match actor {
             Actor::Machine(m) => {
                 let state = match self.machines[m].state {
@@ -607,6 +690,14 @@ impl<'p> Runtime<'p> {
             let creator = format!("task '{}'", 1);
             let mname = self.machines[midx].name.clone();
             self.log_line(format!("<CreateLog> {} was created by {}.", mname, creator));
+            if self.json_enabled() {
+                let d = Details {
+                    log: Some(format!("{} was created by {}.", mname, creator)),
+                    id: Some(mname.to_string()),
+                    ..Default::default()
+                };
+                self.jlog("CreateStateMachine", d, true);
+            }
             self.start_handler(midx);
             self.op_mut(task).status = OpStatus::Completed;
             self.schedule_next(SchedKind::Stop)?;
@@ -692,6 +783,7 @@ impl<'p> Runtime<'p> {
             pending_transition: Transition::None,
             goto_payload: None,
             goto_target: None,
+            popped_from: None,
             stage: Stage::Start(payload),
             exec: None,
             received: None,
@@ -715,6 +807,16 @@ impl<'p> Runtime<'p> {
         let created = self.machines[idx].name.clone();
         let creator_name = self.machines[creator].name.clone();
         self.log_line(format!("<CreateLog> {} was created by {}.", created, creator_name));
+        if self.json_enabled() {
+            let d = Details {
+                log: Some(format!("{} was created by {}.", created, creator_name)),
+                id: Some(created.to_string()),
+                creator_name: Some(creator_name.to_string()),
+                creator_type: Some(self.prog.machine(self.machines[creator].decl).name.clone()),
+                ..Default::default()
+            };
+            self.jlog("CreateStateMachine", d, true);
+        }
         self.start_handler(idx);
         Value::Machine(self.machines[idx].this.clone())
     }
@@ -732,6 +834,28 @@ impl<'p> Runtime<'p> {
         let ev = self.event_with_payload(&event);
         let tidx = self.find_machine(target.id);
         let halted = tidx.map(|t| self.machines[t].status == MachineStatus::Halted).unwrap_or(true);
+        if self.json_enabled() {
+            let (payload, key) = self.jpayload(&event);
+            let d = Details {
+                log: Some(format!(
+                    "'{}' in state '{}' sent event '{}' to '{}'{}.",
+                    sender_name,
+                    sender_state,
+                    ev,
+                    target.name,
+                    if halted { " which has halted" } else { "" }
+                )),
+                state: Some(self.short_state(self.machines[sender].state)),
+                event: Some(self.event_name(event.id).to_string()),
+                payload,
+                sender: Some(sender_name.to_string()),
+                target: Some(target.name.to_string()),
+                is_target_halted: Some(halted),
+                payload_key: key,
+                ..Default::default()
+            };
+            self.jlog("SendEvent", d, true);
+        }
         if halted {
             self.log_line(format!(
                 "<SendLog> '{}' in state '{}' sent event '{}' to '{}' which has halted.",
@@ -765,6 +889,20 @@ impl<'p> Runtime<'p> {
                     "<ReceiveLog> '{}' dequeued event '{}' and unblocked in state '{}'.",
                     name, ev, state
                 ));
+                if self.json_enabled() {
+                    let (payload, key) = self.jpayload(&e);
+                    let d = Details {
+                        log: Some(format!("'{}' dequeued event '{}' and unblocked in state '{}'.", name, ev, state)),
+                        id: Some(name.to_string()),
+                        state: Some(self.short_state(self.machines[t].state)),
+                        event: Some(self.event_name(e.id).to_string()),
+                        payload,
+                        was_blocked: Some(true),
+                        payload_key: key,
+                        ..Default::default()
+                    };
+                    self.jlog("ReceiveEvent", d, true);
+                }
                 self.machines[t].received = Some(e);
                 let id = self.machines[t].id;
                 self.op_mut(id).status = OpStatus::Enabled;
@@ -838,7 +976,7 @@ impl<'p> Runtime<'p> {
         }
         for i in targets {
             if self.prog.machine(self.monitors[i].decl).observes.contains(&e.id) {
-                self.monitor_event(i, e.clone())?;
+                self.monitor_event(i, e.clone(), Some(self.machines[sender].name.clone()))?;
             }
         }
         Ok(())
@@ -912,6 +1050,15 @@ impl<'p> Runtime<'p> {
                             "<DefaultLog> {} is executing the default handler in state '{}'.",
                             name, state
                         ));
+                        if self.json_enabled() {
+                            let d = Details {
+                                log: Some(format!("{} is executing the default handler in state '{}'.", name, state)),
+                                id: Some(name.to_string()),
+                                state: Some(self.short_state(self.machines[m].state)),
+                                ..Default::default()
+                            };
+                            self.jlog("DefaultEventHandler", d, true);
+                        }
                         return Ok(SchedKind::Receive);
                     } else {
                         self.machines[m].inbox.handler_running = false;
@@ -924,6 +1071,19 @@ impl<'p> Runtime<'p> {
                     let state = self.machine_state_name(m);
                     let ev = self.event_with_payload(&e);
                     self.log_line(format!("<DequeueLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state));
+                    if self.json_enabled() {
+                        let (payload, key) = self.jpayload(&e);
+                        let d = Details {
+                            log: Some(format!("'{}' dequeued event '{}' in state '{}'.", name, ev, state)),
+                            id: Some(name.to_string()),
+                            event: Some(self.event_name(e.id).to_string()),
+                            state: Some(self.short_state(self.machines[m].state)),
+                            payload,
+                            payload_key: key,
+                            ..Default::default()
+                        };
+                        self.jlog("DequeueEvent", d, true);
+                    }
                     let label = self.event_name(e.id).to_string();
                     self.timeline.record(&name, &label);
                     self.machines[m].stage = Stage::Handle(e);
@@ -939,7 +1099,47 @@ impl<'p> Runtime<'p> {
                         continue;
                     }
                     let Some(state) = self.machines[m].state else {
+                        // UnhandledEventException, logged by OnUnhandledEventExceptionHandler
+                        let name = self.machines[m].name.clone();
+                        let popped = self.machines[m].popped_from.take();
+                        let from = self.state_name(popped);
+                        self.log_line(format!(
+                            "<ExceptionLog> {} running action '' in state '{}' threw exception 'UnhandledEventException'.",
+                            name, from
+                        ));
+                        if self.json_enabled() {
+                            let d = Details {
+                                log: Some(format!(
+                                    "{} running action '' in state '{}' threw exception 'UnhandledEventException'.",
+                                    name, from
+                                )),
+                                id: Some(name.to_string()),
+                                state: Some(from.clone()),
+                                action: Some(String::new()),
+                                exception: Some("UnhandledEventException".into()),
+                                ..Default::default()
+                            };
+                            self.jlog("ExceptionThrown", d, true);
+                        }
                         if e.id == self.prog.halt_event {
+                            self.log_line(format!(
+                                "<ExceptionLog> {} running action '' in state '{}' chose to handle exception 'UnhandledEventException'.",
+                                name, from
+                            ));
+                            if self.json_enabled() {
+                                let d = Details {
+                                    log: Some(format!(
+                                        "{} running action '' in state '{}' chose to handle exception 'UnhandledEventException'.",
+                                        name, from
+                                    )),
+                                    id: Some(name.to_string()),
+                                    state: Some(from.clone()),
+                                    action: Some(String::new()),
+                                    exception: Some("UnhandledEventException".into()),
+                                    ..Default::default()
+                                };
+                                self.jlog("ExceptionHandled", d, true);
+                            }
                             self.machines[m].status = MachineStatus::Halting;
                             self.machines[m].stage = Stage::Halt;
                             continue;
@@ -1010,6 +1210,22 @@ impl<'p> Runtime<'p> {
                                     state,
                                     self.event_name(e.id)
                                 ));
+                                if self.json_enabled() {
+                                    let d = Details {
+                                        log: Some(format!(
+                                            "{} popped state {} due to unhandled event '{}'.",
+                                            name,
+                                            state,
+                                            self.event_name(e.id)
+                                        )),
+                                        id: Some(name.to_string()),
+                                        state: Some(state.clone()),
+                                        event: Some(self.event_name(e.id).to_string()),
+                                        ..Default::default()
+                                    };
+                                    self.jlog("PopStateUnhandledEvent", d, true);
+                                }
+                                self.machines[m].popped_from = self.machines[m].state;
                                 self.machines[m].state = None;
                                 self.machines[m].stage = Stage::Handle(e);
                             } else {
@@ -1052,6 +1268,15 @@ impl<'p> Runtime<'p> {
                     let n = self.machines[m].inbox.queue.len();
                     let name = self.machines[m].name.clone();
                     self.log_line(format!("<HaltLog> {} halted with {} events in its inbox.", name, n));
+                    if self.json_enabled() {
+                        let d = Details {
+                            log: Some(format!("{} halted with {} events in its inbox.", name, n)),
+                            id: Some(name.to_string()),
+                            halt_inbox_size: Some(n as i64),
+                            ..Default::default()
+                        };
+                        self.jlog("Halt", d, true);
+                    }
                     self.machines[m].inbox.queue.clear();
                     self.machines[m].stage = Stage::Idle;
                     return Ok(SchedKind::Stop);
@@ -1092,6 +1317,7 @@ impl<'p> Runtime<'p> {
         let name = self.machines[m].name.clone();
         let state = self.machine_state_name(m);
         self.log_line(format!("<StateLog> {} enters state '{}'.", name, state));
+        self.json_state_transition(m, true);
         if let Some(s) = self.machines[m].state {
             if let Some(entry) = self.prog.state(s).entry {
                 self.start_action(m, entry, &e);
@@ -1100,10 +1326,27 @@ impl<'p> Runtime<'p> {
         Ok(())
     }
 
+    fn json_state_transition(&mut self, m: usize, is_entry: bool) {
+        if !self.json_enabled() {
+            return;
+        }
+        let name = self.machines[m].name.to_string();
+        let st = self.short_state(self.machines[m].state);
+        let d = Details {
+            log: Some(format!("{} {} state '{}'.", name, if is_entry { "enters" } else { "exits" }, st)),
+            id: Some(name),
+            state: Some(st),
+            is_entry: Some(is_entry),
+            ..Default::default()
+        };
+        self.jlog("StateTransition", d, true);
+    }
+
     fn exit_state(&mut self, m: usize, e: Event) -> Result<(), Stop> {
         let name = self.machines[m].name.clone();
         let state = self.machine_state_name(m);
         self.log_line(format!("<StateLog> {} exits state '{}'.", name, state));
+        self.json_state_transition(m, false);
         if let Some(s) = self.machines[m].state {
             if let Some(exit) = self.prog.state(s).exit {
                 self.start_action(m, exit, &e);
@@ -1121,6 +1364,17 @@ impl<'p> Runtime<'p> {
             "<GotoLog> {} is transitioning from state '{}' to state 'PImplementation.{}.{}'.",
             name, cur, mname, tname
         ));
+        if self.json_enabled() {
+            let short_cur = self.short_state(self.machines[m].state);
+            let d = Details {
+                log: Some(format!("{} is transitioning from state '{}' to state '{}'.", name, short_cur, tname)),
+                id: Some(name.to_string()),
+                start_state: Some(short_cur),
+                end_state: Some(tname.clone()),
+                ..Default::default()
+            };
+            self.jlog("GotoState", d, true);
+        }
         self.machines[m].stage = Stage::AfterExit { e: e.clone(), then: ExitThen::Goto { target, with } };
         self.exit_state(m, e)
     }
@@ -1135,6 +1389,20 @@ impl<'p> Runtime<'p> {
                 let state = self.machine_state_name(m);
                 let ev = self.event_with_payload(&e);
                 self.log_line(format!("<RaiseLog> '{}' raised event '{}' in state '{}'.", name, ev, state));
+                if self.json_enabled() {
+                    let (payload, key) = self.jpayload(&e);
+                    let st = self.short_state(self.machines[m].state);
+                    let d = Details {
+                        log: Some(format!("'{}' raised event '{}' in state '{}'.", name, ev, st)),
+                        id: Some(name.to_string()),
+                        event: Some(self.event_name(e.id).to_string()),
+                        state: Some(st),
+                        payload,
+                        payload_key: key,
+                        ..Default::default()
+                    };
+                    self.jlog("RaiseEvent", d, true);
+                }
                 self.machines[m].inbox.raised = Some(e);
             }
             Transition::Goto(target) => {
@@ -1174,6 +1442,11 @@ impl<'p> Runtime<'p> {
                 goto_payload: None,
             });
             self.log_line(format!("<CreateLog> {} was created.", self.monitor_full_name(idx)));
+            if self.json_enabled() {
+                let short = self.prog.machine(decl).name.clone();
+                let d = Details { log: Some(format!("{} was created.", short)), monitor: Some(short), ..Default::default() };
+                self.jlog("CreateMonitor", d, true);
+            }
             let e = Event { id: self.prog.null_event, payload: Value::Null };
             self.monitor_enter_state(idx, &e)?;
         }
@@ -1195,6 +1468,24 @@ impl<'p> Runtime<'p> {
             self.state_name(s)
         );
         self.log_line(text);
+        if self.json_enabled() {
+            let short = self.prog.machine(self.monitors[mon].decl).name.clone();
+            let st = self.short_state(s);
+            let hot = match s.map(|s| self.prog.state(s).temperature) {
+                Some(Temperature::Hot) => Some(true),
+                Some(Temperature::Cold) => Some(false),
+                _ => None,
+            };
+            let d = Details {
+                log: Some(format!("{} {} {}state '{}'.", short, if enters { "enters" } else { "exits" }, liveness, st)),
+                state: Some(st),
+                is_entry: Some(enters),
+                is_in_hot_state: hot,
+                monitor: Some(short),
+                ..Default::default()
+            };
+            self.jlog("MonitorStateTransition", d, true);
+        }
     }
 
     fn monitor_run_action(&mut self, mon: usize, f: FunId, e: &Event) -> Result<(), Stop> {
@@ -1267,6 +1558,21 @@ impl<'p> Runtime<'p> {
                     self.state_name(self.monitors[mon].state)
                 );
                 self.log_line(text);
+                if self.json_enabled() {
+                    let (payload, key) = self.jpayload(&e);
+                    let short = self.prog.machine(self.monitors[mon].decl).name.clone();
+                    let st = self.short_state(self.monitors[mon].state);
+                    let d = Details {
+                        log: Some(format!("Monitor '{}' raised event '{}' in state '{}'.", short, self.event_with_payload(&e), st)),
+                        event: Some(self.event_name(e.id).to_string()),
+                        state: Some(st),
+                        payload,
+                        monitor: Some(short),
+                        payload_key: key,
+                        ..Default::default()
+                    };
+                    self.jlog("MonitorRaiseEvent", d, true);
+                }
                 self.monitor_handle_event(mon, e)
             }
             Transition::Goto(target) => {
@@ -1276,6 +1582,18 @@ impl<'p> Runtime<'p> {
                     self.state_name(self.monitors[mon].state)
                 );
                 self.log_line(text);
+                if self.json_enabled() {
+                    let short = self.prog.machine(self.monitors[mon].decl).name.clone();
+                    let st = self.short_state(self.monitors[mon].state);
+                    let d = Details {
+                        log: Some(format!("Monitor '{}' raised event 'GotoStateEvent' in state '{}'.", short, st)),
+                        event: Some("GotoStateEvent".into()),
+                        state: Some(st),
+                        monitor: Some(short),
+                        ..Default::default()
+                    };
+                    self.jlog("MonitorRaiseEvent", d, true);
+                }
                 let e = Event { id: self.prog.null_event, payload: Value::Null };
                 self.monitor_goto(mon, target, None, &e)
             }
@@ -1292,7 +1610,7 @@ impl<'p> Runtime<'p> {
     }
 
     /// `Monitor.MonitorEvent`.
-    pub fn monitor_event(&mut self, mon: usize, e: Event) -> Result<(), Stop> {
+    pub fn monitor_event(&mut self, mon: usize, e: Event, sender: Option<Rc<str>>) -> Result<(), Stop> {
         let text = format!(
             "<MonitorLog> {} is processing event '{}' in state '{}'.",
             self.prog.machine(self.monitors[mon].decl).name,
@@ -1300,6 +1618,26 @@ impl<'p> Runtime<'p> {
             self.state_name(self.monitors[mon].state)
         );
         self.log_line(text);
+        if self.json_enabled() {
+            let (payload, key) = self.jpayload(&e);
+            let short = self.prog.machine(self.monitors[mon].decl).name.clone();
+            let d = Details {
+                log: Some(format!(
+                    "{} is processing event '{}' in state '{}'.",
+                    short,
+                    self.event_with_payload(&e),
+                    self.state_name(self.monitors[mon].state)
+                )),
+                state: Some(self.state_name(self.monitors[mon].state)),
+                event: Some(self.event_name(e.id).to_string()),
+                payload,
+                sender: sender.map(|s| s.to_string()),
+                monitor: Some(short),
+                payload_key: key,
+                ..Default::default()
+            };
+            self.jlog("MonitorProcessEvent", d, true);
+        }
         self.monitor_handle_event(mon, e)
     }
 

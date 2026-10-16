@@ -15,8 +15,11 @@ pub const FORMAT: &str = "pnext-compiled-project/1";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SourceFile {
-    /// Absolute path at compile time (used in messages and traces).
+    /// Absolute path at compile time.
     pub path: String,
+    /// Path relative to the directory `p compile` ran in; upstream bakes this into assert
+    /// messages and diagnostics.
+    pub name: String,
     pub text: String,
 }
 
@@ -48,10 +51,15 @@ impl Artifact {
     }
 
     /// The sources as a [`SourceMap`](pnext_syntax::SourceMap).
+    /// Absolute path of the file registered as `id` in [`Artifact::source_map`].
+    pub fn full_path(&self, id: pnext_syntax::FileId) -> &str {
+        &self.sources[id.0 as usize].path
+    }
+
     pub fn source_map(&self) -> pnext_syntax::SourceMap {
         let mut sm = pnext_syntax::SourceMap::new();
         for s in &self.sources {
-            sm.add(s.path.clone(), s.text.clone());
+            sm.add(s.name.clone(), s.text.clone());
         }
         sm
     }
