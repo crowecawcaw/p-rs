@@ -293,13 +293,13 @@ pub enum Actor {
 /// A .NET-style exception raised by P code.
 #[derive(Debug, Clone)]
 pub struct Exception {
-    pub ty: &'static str,
+    pub ty: std::borrow::Cow<'static, str>,
     pub message: String,
 }
 
 impl Exception {
-    pub fn new(ty: &'static str, message: impl Into<String>) -> Exception {
-        Exception { ty, message: message.into() }
+    pub fn new(ty: impl Into<std::borrow::Cow<'static, str>>, message: impl Into<String>) -> Exception {
+        Exception { ty: ty.into(), message: message.into() }
     }
 }
 
@@ -327,6 +327,8 @@ pub struct Runtime<'p> {
     pub json: Option<JsonLog>,
     /// The strategy description at the time the bug was found.
     pub bug_strategy_description: Option<String>,
+    /// Implementations of foreign functions.
+    pub foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
     next_op_id: u64,
     anon_names: Vec<String>,
 }
@@ -385,6 +387,7 @@ impl<'p> Runtime<'p> {
             step_work: 0,
             json: None,
             bug_strategy_description: None,
+            foreign: None,
             next_op_id: 0,
             anon_names,
         }
@@ -496,7 +499,7 @@ impl<'p> Runtime<'p> {
     /// Reports an unhandled .NET exception thrown inside an action.
     pub fn report_exception(&mut self, actor: Actor, exc: &Exception, action: &str) -> Stop {
         if let Actor::Machine(m) = actor {
-            let short = exc.ty.rsplit('.').next().unwrap_or(exc.ty);
+            let short = exc.ty.rsplit('.').next().unwrap_or(&exc.ty).to_string();
             let body = format!(
                 "{} running action '{}' in state '{}' threw exception '{}'.",
                 self.machines[m].name,

@@ -315,6 +315,17 @@ pub fn compile(cfg: &CompilerConfig, host: &mut dyn Host) -> i32 {
     };
     let r = pnext_sema::compile(&sm, &opts);
     let ok = report_compile_result(host, &art, &sm, &r, |h| h.out_line("Type checking ..."));
+    if ok {
+        for f in &cfg.input_foreign_files {
+            host.out_colored_line(
+                &format!(
+                    "Warning: foreign file {} is ignored; pnext runs P models directly, so foreign functions must be provided to the checker in Rust.",
+                    f
+                ),
+                Color::Yellow,
+            );
+        }
+    }
     if !ok {
         return 1;
     }

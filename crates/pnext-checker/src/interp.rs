@@ -361,6 +361,28 @@ impl<'p> Runtime<'p> {
         }
     }
 
+    /// Calls a foreign function through the embedder's [`ForeignFunctions`].
+    fn call_foreign(&mut self, actor: Actor, fun: pnext_sema::FunId, args: &[Value]) -> Result<Value, Fault> {
+        let prog = self.prog;
+        let decl = prog.fun(fun);
+        let name = decl.name.clone();
+        let owner = decl.owner.map(|m| prog.machine(m).name.clone());
+        let machine = match actor {
+            Actor::Machine(m) => Some(m),
+            Actor::Monitor(_) => None,
+        };
+        let Some(f) = self.foreign.clone() else {
+            return Err(foreign_missing(&name).into());
+        };
+        let mut cx = crate::foreign::ForeignCx { rt: self, machine };
+        match f.call(&name, owner.as_deref(), args, &mut cx) {
+            None => Err(foreign_missing(&name).into()),
+            Some(Ok(v)) => Ok(v),
+            Some(Err(crate::foreign::ForeignError::Stopped(s))) => Err(s.into()),
+            Some(Err(crate::foreign::ForeignError::Exception(ty, msg))) => Err(Exception::new(ty, msg).into()),
+        }
+    }
+
     fn resume(&mut self, actor: Actor, exec: &mut Exec, p: Pending) -> Result<Flow, Fault> {
         let Actor::Machine(m) = actor else { return Ok(Flow::Continue) };
         match p {
@@ -751,12 +773,8 @@ impl<'p> Runtime<'p> {
                         exec.frames.push(make_frame(code.clone(), fun, args));
                     }
                     None => {
-                        let name = prog.fun(fun).name.clone();
-                        return Err(Exception::new(
-                            "System.NotImplementedException",
-                            format!("foreign function '{}' is not available in the interpreter", name),
-                        )
-                        .into());
+                        let v = self.call_foreign(actor, fun, &args)?;
+                        stack!().push(v);
                     }
                 }
             }
@@ -1178,4 +1196,11 @@ fn wait_event_names(names: &[String]) -> String {
             format!("'{}' or '{}'", arr.join("', '"), names[n - 1])
         }
     }
+}
+
+fn foreign_missing(name: &str) -> Exception {
+    Exception::new(
+        "System.NotImplementedException",
+        format!("foreign function '{}' has no implementation registered with the checker", name),
+    )
 }

@@ -239,11 +239,19 @@ impl PrintGuard {
 pub struct Checker<'p> {
     pub prog: &'p Program,
     pub code: Code,
+    /// Implementations of the program's foreign functions.
+    pub foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
 }
 
 impl<'p> Checker<'p> {
     pub fn new(prog: &'p Program) -> Checker<'p> {
-        Checker { prog, code: compile_program(prog) }
+        Checker { prog, code: compile_program(prog), foreign: None }
+    }
+
+    /// Registers implementations for the program's foreign functions.
+    pub fn with_foreign(mut self, f: Rc<dyn crate::foreign::ForeignFunctions>) -> Checker<'p> {
+        self.foreign = Some(f);
+        self
     }
 
     /// Replays a schedule with JSON logging enabled and returns the JSON trace.
@@ -262,6 +270,7 @@ impl<'p> Checker<'p> {
         let mut config = config.clone();
         config.strategy_description = desc;
         let mut rt = Runtime::new(self.prog, &self.code, module, &config, &mut strategy, assignment);
+        rt.foreign = self.foreign.clone();
         rt.json = Some(crate::jsonlog::JsonLog::new());
         rt.run_test(main, &tc.name);
         if rt.bug.is_none() {
@@ -314,6 +323,7 @@ impl<'p> Checker<'p> {
             let bug_found;
             {
                 let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, assignment);
+                rt.foreign = self.foreign.clone();
                 rt.run_test(main, &tc.name);
                 if rt.bug.is_none() {
                     rt.check_hot_monitors_at_termination();

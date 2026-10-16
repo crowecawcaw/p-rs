@@ -17,3 +17,4 @@ pub mod runtime;
 pub mod interp;
 pub mod engine;
 pub mod jsonlog;
+pub mod foreign;

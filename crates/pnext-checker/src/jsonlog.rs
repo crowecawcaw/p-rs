@@ -362,6 +362,8 @@ pub fn to_dict(v: &Value, prog: &Program) -> Json {
         Value::Seq(s) => Json::Arr(s.iter().map(|v| to_dict(v, prog)).collect()),
         Value::Set(s) => Json::Arr(s.iter().map(|v| to_dict(v, prog)).collect()),
         Value::Map(m) => Json::Obj(m.iter().map(|(k, v)| (k.to_escaped(prog), to_dict(v, prog))).collect()),
+        // IPValue.ToDict's default: the escaped string
+        Value::Foreign(f) => Json::str(f.display()),
     }
 }
 

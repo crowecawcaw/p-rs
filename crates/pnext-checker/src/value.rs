@@ -43,6 +43,8 @@ pub enum Value {
     Seq(Rc<Vec<Value>>),
     Set(Rc<SlotSet>),
     Map(Rc<SlotMap>),
+    /// A value of a foreign type.
+    Foreign(Rc<dyn crate::foreign::ForeignValue>),
 }
 
 impl Default for Value {
@@ -73,6 +75,7 @@ impl PartialEq for Value {
             (Value::Map(a), Value::Map(b)) => {
                 a.len() == b.len() && a.iter().all(|(k, v)| b.get(k).map(|w| w == v).unwrap_or(false))
             }
+            (Value::Foreign(a), Value::Foreign(b)) => a.eq_value(b.as_ref()),
             _ => false,
         }
     }
@@ -127,6 +130,7 @@ impl Hash for Value {
                 }
                 h.hash(state)
             }
+            Value::Foreign(f) => f.hash_value().hash(state),
         }
     }
 }
@@ -341,6 +345,7 @@ impl Value {
             Value::Seq(_) => "PSeq",
             Value::Set(_) => "PSet",
             Value::Map(_) => "PMap",
+            Value::Foreign(_) => "IPValue",
         }
     }
 
@@ -371,6 +376,7 @@ impl Value {
             Value::Int(i) => write!(out, "{}", i).unwrap(),
             Value::Float(f) => out.push_str(&format_double(*f)),
             Value::Str(s) => out.push_str(s),
+            Value::Foreign(f) => out.push_str(&f.display()),
             Value::Machine(m) => out.push_str(&m.name),
             Value::Event(e) => out.push_str(event_cs_name(prog, *e)),
             Value::Tuple(t) => {
