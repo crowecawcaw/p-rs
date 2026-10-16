@@ -41,6 +41,12 @@ pub struct CheckerOptions {
     pub replay: Option<ScheduleTrace>,
     /// See [`Config::max_work_per_step`](crate::runtime::Config::max_work_per_step).
     pub max_work_per_step: u64,
+    /// Write `--test-method:<name>` into the reproducible trace (upstream does so only when
+    /// a test case was named with `--testcase`).
+    pub record_test_name: bool,
+    /// Stream every schedule's runtime log to the output instead of keeping it in memory
+    /// (`--verbose`); no readable trace is produced then.
+    pub verbose: bool,
 }
 
 impl Default for CheckerOptions {
@@ -59,6 +65,8 @@ impl Default for CheckerOptions {
             incremental_seed: false,
             replay: None,
             max_work_per_step: crate::runtime::DEFAULT_MAX_WORK_PER_STEP,
+            record_test_name: true,
+            verbose: false,
         }
     }
 }
@@ -157,6 +165,10 @@ pub trait Output {
     fn line(&mut self, s: &str);
     /// A bug report (`ErrorReporter.WriteErrorLine`).
     fn error(&mut self, s: &str);
+    /// Polled before every schedule; returning true stops exploration (timeouts).
+    fn cancelled(&mut self) -> bool {
+        false
+    }
 }
 
 impl Output for Vec<String> {
@@ -181,6 +193,8 @@ pub struct CheckResult {
     pub strategy_description: String,
     /// Set when a replay could not follow its trace.
     pub replay_error: Option<String>,
+    /// Exploration was stopped by [`Output::cancelled`].
+    pub cancelled: bool,
 }
 
 fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn Strategy>, String> {
@@ -258,6 +272,10 @@ impl<'p> Checker<'p> {
         let max_iterations = if is_replay { 1 } else { opts.iterations };
         let mut i = 0usize;
         while max_iterations == 0 || i < max_iterations {
+            if out.cancelled() {
+                result.cancelled = true;
+                break;
+            }
             if !is_replay && guard.should_print(i + 1) {
                 out.line(&format!("..... Schedule #{}", i + 1));
             }
@@ -269,6 +287,11 @@ impl<'p> Checker<'p> {
                     rt.check_hot_monitors_at_termination();
                 }
                 bug_found = rt.bug.is_some();
+                if opts.verbose {
+                    for l in &rt.log {
+                        out.line(l);
+                    }
+                }
                 if let Some(b) = &rt.bug {
                     out.error(b);
                 }
@@ -302,15 +325,17 @@ impl<'p> Checker<'p> {
                 if let Some(e) = rt.strategy.replay_error() {
                     result.replay_error = Some(e);
                 }
-                if bug_found && !is_replay && result.readable_trace.is_none() {
-                    let mut text = rt.log.join("\n");
-                    text.push('\n');
-                    text.push_str(&result.report.text(opts, "<StrategyLog>"));
-                    result.readable_trace = Some(text);
+                if bug_found && !is_replay && result.schedule_trace.is_none() {
+                    if !opts.verbose {
+                        let mut text = rt.log.join("\n");
+                        text.push('\n');
+                        text.push_str(&result.report.text(opts, "<StrategyLog>"));
+                        result.readable_trace = Some(text);
+                    }
                     let mut trace = rt.trace.clone();
                     trace.is_fair = fair;
                     trace.liveness_temperature_threshold = Some(config.liveness_temperature_threshold);
-                    trace.test_name = Some(tc.name.clone());
+                    trace.test_name = if opts.record_test_name { Some(tc.name.clone()) } else { None };
                     result.schedule_trace = Some(trace.to_text());
                 }
                 if bug_found && !is_replay && opts.full_exploration {

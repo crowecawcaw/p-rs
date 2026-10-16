@@ -596,17 +596,18 @@ impl Program {
         }
     }
 
-    /// Enumerates all expanded test cases `(test, assignment index, case name)` in
-    /// declaration order, followed by implementations.
+    /// Enumerates all runnable test cases: implementations first, then every expanded
+    /// `test` (one per parameter assignment) in declaration order.
     pub fn test_cases(&self) -> Vec<TestCase> {
+        // upstream emits implementations before tests (`Scope.AllDecls` order)
         let mut v = Vec::new();
+        for (ii, i) in self.impls.iter().enumerate() {
+            v.push(TestCase { name: i.name.clone(), kind: TestCaseKind::Impl(ImplId(ii as u32)) });
+        }
         for (ti, t) in self.tests.iter().enumerate() {
             for (ai, a) in t.assignments.iter().enumerate() {
                 v.push(TestCase { name: t.case_name(a, self), kind: TestCaseKind::Test(TestId(ti as u32), ai) });
             }
-        }
-        for (ii, i) in self.impls.iter().enumerate() {
-            v.push(TestCase { name: i.name.clone(), kind: TestCaseKind::Impl(ImplId(ii as u32)) });
         }
         v
     }
