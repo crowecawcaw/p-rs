@@ -391,6 +391,8 @@ pub struct Runtime<'p> {
     pub step_work: u64,
     /// The JSON trace, when enabled.
     pub json: Option<JsonLog>,
+    /// The XML trace, when enabled.
+    pub xml: Option<crate::xmllog::XmlLog>,
     /// The strategy description at the time the bug was found.
     pub bug_strategy_description: Option<String>,
     /// Implementations of foreign functions.
@@ -410,6 +412,8 @@ pub struct Runtime<'p> {
     pub coverage_tables: Option<Rc<crate::coverage::CoverageTables>>,
     /// Time tracking (see `design/time/PROPOSAL.md`); `None` when the test does not use it.
     pub time: Option<Box<crate::time::TimeState>>,
+    /// Machine event handlers started (each runs on a fresh .NET task upstream).
+    pub handler_starts: u64,
     next_op_id: u64,
     action_names: Vec<String>,
 }
@@ -458,6 +462,7 @@ impl<'p> Runtime<'p> {
             scheduled_steps: 0,
             step_work: 0,
             json: None,
+            xml: None,
             bug_strategy_description: None,
             foreign: None,
             monitor_map: monitor_map_with_scenarios(prog, module),
@@ -468,6 +473,7 @@ impl<'p> Runtime<'p> {
             coverage_run: None,
             coverage_tables: None,
             time: None,
+            handler_starts: 0,
             next_op_id: 0,
             action_names,
         }
@@ -497,7 +503,7 @@ impl<'p> Runtime<'p> {
 
     /// The state name for log lines only (empty when neither log is produced).
     pub fn log_state_name(&self, m: usize) -> String {
-        if self.logging || self.json_enabled() {
+        if self.logging || self.json_enabled() || self.xml.is_some() {
             self.machine_state_name(m)
         } else {
             String::new()
@@ -538,6 +544,41 @@ impl<'p> Runtime<'p> {
         self.json.is_some()
     }
 
+    // ---- XML trace -------------------------------------------------------------
+
+    /// Adds an XML trace element (no-op unless the XML trace is enabled).
+    pub fn xlog(&mut self, name: &str, attrs: &[(&str, &str)], text: Option<&str>) {
+        if let Some(x) = &mut self.xml {
+            x.element(name, attrs, text);
+        }
+    }
+
+    /// `e.GetType().FullName`.
+    pub fn xml_event(&self, e: EventId) -> String {
+        if e == GOTO_EVENT {
+            return "PChecker.Runtime.Events.GotoStateEvent".to_string();
+        }
+        event_cs_full_name(self.prog, e)
+    }
+
+    /// `OnRandom`: the caller is a machine's or monitor's name.
+    fn xml_random(&mut self, result: &str, caller: &str) {
+        if self.xml.is_none() {
+            return;
+        }
+        let (name, ty) = match self.machines.iter().position(|m| &*m.name == caller) {
+            Some(m) => (caller.to_string(), self.machine_type(m)),
+            None if caller.starts_with("PImplementation.") => (caller.to_string(), caller.to_string()),
+            None => (self.xml.as_ref().unwrap().task_id.to_string(), "task".to_string()),
+        };
+        self.xlog("Random", &[("result", result), ("creatorName", &name), ("creatorType", &ty)], None);
+    }
+
+    /// The generated class of machine `m` (`PImplementation.Client`).
+    pub fn machine_type(&self, m: usize) -> String {
+        format!("PImplementation.{}", self.prog.machine(self.machines[m].decl).cs_name)
+    }
+
     /// `(payload ToDict, payload identity)` of an event for the JSON trace.
     pub fn jpayload(&self, e: &Event) -> (Option<crate::jsonlog::Json>, String) {
         if e.id == GOTO_EVENT || e.payload.is_null() {
@@ -573,11 +614,16 @@ impl<'p> Runtime<'p> {
                     Details {
                         log: Some(format!("Found bug using '{}' strategy.{}", self.config.strategy_name, suffix)),
                         strategy: Some(self.config.strategy_name.clone()),
-                        strategy_description: Some(desc),
+                        strategy_description: Some(desc.clone()),
                         ..Default::default()
                     },
                     false,
                 );
+            }
+            if self.xml.is_some() {
+                self.xlog("AssertionFailure", &[], Some(&format!("<ErrorLog> {}", text)));
+                let strategy = self.config.strategy_name.clone();
+                self.xlog("Strategy", &[("strategy", &strategy)], Some(&desc));
             }
             self.bug = Some(text);
         }
@@ -607,6 +653,11 @@ impl<'p> Runtime<'p> {
                     ..Default::default()
                 };
                 self.jlog("ExceptionThrown", d, true);
+            }
+            if self.xml.is_some() {
+                let (id, state) = (self.machines[m].name.to_string(), self.machine_state_name(m));
+                let text = format!("{}: {}", exc.ty, exc.message);
+                self.xlog("ExceptionThrown", &[("id", &id), ("state", &state), ("action", action), ("type", &exc.ty)], Some(&text));
             }
         }
         let ctx = match actor {
@@ -772,6 +823,7 @@ impl<'p> Runtime<'p> {
             caller,
             if b { "True" } else { "False" }
         )); } else { self.step_work += LOG_LINE_WORK; }
+        self.xml_random(if b { "True" } else { "False" }, caller);
         Ok(b)
     }
 
@@ -783,6 +835,7 @@ impl<'p> Runtime<'p> {
         self.scheduled_steps = self.strategy.scheduled_steps();
         self.trace.steps.push(ScheduleStep::Int(i));
         if self.logging { self.log_line(format!("<RandomLog> {} nondeterministically chose '{}'.", caller, i)); } else { self.step_work += LOG_LINE_WORK; }
+        self.xml_random(&i.to_string(), caller);
         Ok(i)
     }
 
@@ -810,6 +863,10 @@ impl<'p> Runtime<'p> {
                     ..Default::default()
                 };
                 self.jlog("CreateStateMachine", d, true);
+            }
+            if let Some(x) = &self.xml {
+                let task = x.task_id.to_string();
+                self.xlog("CreateStateMachine", &[("id", &mname), ("creatorName", &task), ("creatorType", "task")], None);
             }
             self.start_handler(midx);
             self.op_mut(task).status = OpStatus::Completed;
@@ -911,6 +968,7 @@ impl<'p> Runtime<'p> {
 
     /// `RunStateMachineEventHandler`: enables the machine's operation.
     fn start_handler(&mut self, m: usize) {
+        self.handler_starts += 1;
         let id = self.machines[m].id;
         self.op_mut(id).status = OpStatus::Enabled;
     }
@@ -932,6 +990,10 @@ impl<'p> Runtime<'p> {
                 ..Default::default()
             };
             self.jlog("CreateStateMachine", d, true);
+        }
+        if self.xml.is_some() {
+            let ty = self.machine_type(creator);
+            self.xlog("CreateStateMachine", &[("id", &created), ("creatorName", &creator_name), ("creatorType", &ty)], None);
         }
         self.start_handler(idx);
         Value::Machine(self.machines[idx].this.clone())
@@ -977,6 +1039,15 @@ impl<'p> Runtime<'p> {
                 ..Default::default()
             };
             self.jlog("SendEvent", d, true);
+        }
+        if self.xml.is_some() {
+            let (ty, ev) = (self.machine_type(sender), self.xml_event(event.id));
+            let halted = if halted { "True" } else { "False" };
+            self.xlog(
+                "Send",
+                &[("target", &target.name), ("senderName", &sender_name), ("senderType", &ty), ("senderState", &sender_state), ("event", &ev), ("isTargetHalted", halted)],
+                None,
+            );
         }
         if halted {
             if self.logging { self.log_line(format!(
@@ -1037,12 +1108,20 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("ReceiveEvent", d, true);
                 }
+                if self.xml.is_some() {
+                    let ev = self.xml_event(e.id);
+                    self.xlog("Receive", &[("id", &name), ("state", &state), ("event", &ev), ("wasBlocked", "True")], None);
+                }
                 self.cov_receive(t, e.id);
                 self.machines[t].received = Some(e);
                 let id = self.machines[t].id;
                 self.op_mut(id).status = OpStatus::Enabled;
                 return EnqueueStatus::HandlerRunning;
             }
+        }
+        if self.xml.is_some() {
+            let (id, ev) = (self.machines[t].name.to_string(), self.xml_event(e.id));
+            self.xlog("EnqueueEvent", &[("id", &id), ("event", &ev)], None);
         }
         self.machines[t].inbox.queue.push_back(e);
         if !self.machines[t].inbox.handler_running {
@@ -1212,6 +1291,7 @@ impl<'p> Runtime<'p> {
                             };
                             self.jlog("DefaultEventHandler", d, true);
                         }
+                        self.xlog("DefaultEvent", &[("id", &name), ("state", &state)], None);
                         return Ok(SchedKind::Receive);
                     } else {
                         self.machines[m].inbox.handler_running = false;
@@ -1237,6 +1317,10 @@ impl<'p> Runtime<'p> {
                             ..Default::default()
                         };
                         self.jlog("DequeueEvent", d, true);
+                    }
+                    if self.xml.is_some() {
+                        let ev = self.xml_event(e.id);
+                        self.xlog("DequeueEvent", &[("id", &name), ("state", &state), ("event", &ev)], None);
                     }
                     let label = event_cs_name(self.prog, e.id);
                     self.timeline.record(&name, label);
@@ -1276,6 +1360,9 @@ impl<'p> Runtime<'p> {
                             };
                             self.jlog("ExceptionThrown", d, true);
                         }
+                        const UNHANDLED: &str = "PChecker.Runtime.StateMachines.Exceptions.UnhandledEventException";
+                        let unhandled_text = format!("{}: Unhandled Event", UNHANDLED);
+                        self.xlog("ExceptionThrown", &[("id", &name), ("state", &from), ("action", ""), ("type", UNHANDLED)], Some(&unhandled_text));
                         if e.id == self.prog.halt_event {
                             if self.logging { self.log_line(format!(
                                 "<ExceptionLog> {} running action '' in state '{}' chose to handle exception 'UnhandledEventException'.",
@@ -1295,6 +1382,11 @@ impl<'p> Runtime<'p> {
                                 };
                                 self.jlog("ExceptionHandled", d, true);
                             }
+                            let mut attrs = vec![("id", &*name), ("state", from.as_str()), ("action", ""), ("type", UNHANDLED)];
+                            if from.is_empty() {
+                                attrs.remove(1);
+                            }
+                            self.xlog("ExceptionHandled", &attrs, Some(&unhandled_text));
                             self.machines[m].status = MachineStatus::Halting;
                             self.machines[m].stage = Stage::Halt;
                             continue;
@@ -1380,6 +1472,10 @@ impl<'p> Runtime<'p> {
                                     };
                                     self.jlog("PopStateUnhandledEvent", d, true);
                                 }
+                                if self.xml.is_some() {
+                                    let ev = self.xml_event(e.id);
+                                    self.xlog("PopUnhandled", &[("id", &name), ("state", &state), ("event", &ev)], None);
+                                }
                                 self.machines[m].popped_from = self.machines[m].state;
                                 self.machines[m].state = None;
                                 self.machines[m].stage = Stage::Handle(e);
@@ -1432,6 +1528,7 @@ impl<'p> Runtime<'p> {
                         };
                         self.jlog("Halt", d, true);
                     }
+                    self.xlog("Halt", &[("id", &name), ("inboxSize", &n.to_string())], None);
                     self.machines[m].inbox.queue.clear();
                     self.machines[m].stage = Stage::Idle;
                     return Ok(SchedKind::Stop);
@@ -1456,6 +1553,15 @@ impl<'p> Runtime<'p> {
 
     fn start_action(&mut self, m: usize, f: FunId, e: &Event) {
         self.cov_execute_action(m);
+        if self.xml.is_some() {
+            let (id, state) = (self.machines[m].name.to_string(), self.machine_state_name(m));
+            let action = self.fun_name(f).to_string();
+            let mut attrs = vec![("id", id.as_str()), ("state", state.as_str()), ("action", action.as_str())];
+            if state.is_empty() {
+                attrs.remove(1);
+            }
+            self.xlog("Action", &attrs, None);
+        }
         let arg = if self.prog.fun(f).params.is_empty() { Value::Null } else { self.take_payload(m, e) };
         let exec = self.new_exec(f, vec![arg]);
         self.machines[m].exec = Some(exec);
@@ -1483,6 +1589,10 @@ impl<'p> Runtime<'p> {
     }
 
     fn json_state_transition(&mut self, m: usize, is_entry: bool) {
+        if self.xml.is_some() {
+            let (id, state) = (self.machines[m].name.to_string(), self.machine_state_name(m));
+            self.xlog("State", &[("id", &id), ("state", &state), ("isEntry", if is_entry { "True" } else { "False" })], None);
+        }
         if !self.json_enabled() {
             return;
         }
@@ -1532,6 +1642,10 @@ impl<'p> Runtime<'p> {
             };
             self.jlog("GotoState", d, true);
         }
+        if self.xml.is_some() {
+            let new_state = format!("PImplementation.{}.{}", mname, tname);
+            self.xlog("Goto", &[("id", &name), ("currState", &cur), ("newState", &new_state)], None);
+        }
         self.machines[m].stage = Stage::AfterExit { e: e.clone(), then: ExitThen::Goto { target, with } };
         self.exit_state(m, e)
     }
@@ -1561,10 +1675,18 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("RaiseEvent", d, true);
                 }
+                if self.xml.is_some() {
+                    let ev = self.xml_event(e.id);
+                    self.xlog("Raise", &[("id", &name), ("state", &state), ("event", &ev)], None);
+                }
                 self.machines[m].inbox.raised = Some(e);
             }
             Transition::Goto(target) => {
                 self.cov_raise(m, GOTO_EVENT);
+                if self.xml.is_some() {
+                    let (id, state, ev) = (self.machines[m].name.to_string(), self.machine_state_name(m), self.xml_event(GOTO_EVENT));
+                    self.xlog("Raise", &[("id", &id), ("state", &state), ("event", &ev)], None);
+                }
                 // Modeled as a raised goto event, handled on the next dequeue.
                 self.machines[m].inbox.raised = Some(Event { id: GOTO_EVENT, payload: Value::Null, stamp: None });
                 self.machines[m].goto_target = Some(target);
@@ -1616,6 +1738,10 @@ impl<'p> Runtime<'p> {
                 let short = self.prog.machine(decl).cs_name.clone();
                 let d = Details { log: Some(format!("{} was created.", short)), monitor: Some(short), ..Default::default() };
                 self.jlog("CreateMonitor", d, true);
+            }
+            if self.xml.is_some() {
+                let ty = self.monitor_full_name(idx);
+                self.xlog("CreateMonitor", &[("type", &ty)], None);
             }
             let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None };
             self.monitor_enter_state(idx, &e)?;
@@ -1674,6 +1800,15 @@ impl<'p> Runtime<'p> {
                 ..Default::default()
             };
             self.jlog("MonitorStateTransition", d, true);
+        }
+        if self.xml.is_some() {
+            let (ty, st) = (self.monitor_full_name(mon), self.state_name(s));
+            let hot = s.is_some_and(|s| self.prog.state(s).temperature == Temperature::Hot);
+            self.xlog(
+                "MonitorState",
+                &[("monitorType", &ty), ("state", &st), ("isEntry", if enters { "True" } else { "False" }), ("isInHotState", if hot { "True" } else { "False" })],
+                None,
+            );
         }
     }
 
@@ -1767,6 +1902,7 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("MonitorRaiseEvent", d, true);
                 }
+                self.xml_monitor_raise(mon, e.id);
                 self.monitor_handle_event(mon, e)
             }
             Transition::Goto(target) => {
@@ -1793,9 +1929,17 @@ impl<'p> Runtime<'p> {
                     };
                     self.jlog("MonitorRaiseEvent", d, true);
                 }
+                self.xml_monitor_raise(mon, GOTO_EVENT);
                 let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None };
                 self.monitor_goto(mon, target, None, &e)
             }
+        }
+    }
+
+    fn xml_monitor_raise(&mut self, mon: usize, e: EventId) {
+        if self.xml.is_some() {
+            let (ty, st, ev) = (self.monitor_full_name(mon), self.state_name(self.monitors[mon].state), self.xml_event(e));
+            self.xlog("MonitorRaise", &[("monitorType", &ty), ("state", &st), ("event", &ev)], None);
         }
     }
 
@@ -1842,6 +1986,19 @@ impl<'p> Runtime<'p> {
                 ..Default::default()
             };
             self.jlog("MonitorProcessEvent", d, true);
+        }
+        if self.xml.is_some() {
+            let (ty, st) = (self.monitor_full_name(mon), self.state_name(self.monitors[mon].state));
+            let (sname, stype, sstate) = match sender_idx {
+                Some(i) => (self.machines[i].name.to_string(), self.machine_type(i), self.machine_state_name(i)),
+                None => (self.xml.as_ref().unwrap().task_id.to_string(), "task".to_string(), String::new()),
+            };
+            let ev = event_cs_name(self.prog, e.id).to_string();
+            self.xlog(
+                "MonitorEvent",
+                &[("monitorType", &ty), ("state", &st), ("senderName", &sname), ("senderType", &stype), ("senderState", &sstate), ("event", &ev)],
+                None,
+            );
         }
         let prev = self.time.as_mut().map(|t| std::mem::replace(&mut t.observer, sender_idx));
         let r = self.monitor_handle_event(mon, e);
@@ -2117,6 +2274,18 @@ impl<'p> Runtime<'p> {
             match action {
                 Some(HandlerAction::Do(f)) => {
                     self.cov_monitor_do(mon);
+                    if self.xml.is_some() {
+                        // `Monitor.Do` (entry and exit actions are not logged)
+                        let s = self.monitors[mon].state;
+                        let temp = match s.map(|s| self.prog.state(s).temperature) {
+                            Some(Temperature::Hot) => "[hot]",
+                            Some(Temperature::Cold) => "[cold]",
+                            _ => "",
+                        };
+                        let (ty, st) = (self.monitor_full_name(mon), format!("{}{}", self.state_name(s), temp));
+                        let action = self.fun_name(f).to_string();
+                        self.xlog("MonitorAction", &[("monitorType", &ty), ("state", &st), ("action", &action)], None);
+                    }
                     self.monitor_run_action(mon, f, &e)?;
                     return self.monitor_apply_transition(mon);
                 }

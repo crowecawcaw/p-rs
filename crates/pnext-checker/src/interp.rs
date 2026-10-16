@@ -325,7 +325,19 @@ impl<'p> Runtime<'p> {
         match r {
             Ok(Flow::Finished(v)) => Ok(ExecOutcome::Finished(v)),
             Ok(Flow::Yield(kind)) => Ok(ExecOutcome::Yield(exec, kind)),
-            Ok(Flow::Unwound) => Ok(ExecOutcome::Unwound),
+            Ok(Flow::Unwound) => {
+                if let (Actor::Machine(m), true) = (actor, self.xml.is_some()) {
+                    // `raise`/`goto` return through a `PNonStandardReturnException`
+                    const TY: &str = "PChecker.Runtime.Exceptions.PNonStandardReturnException";
+                    let text = format!("{}: Exception of type '{}' was thrown.", TY, TY);
+                    let (id, state) = (self.machines[m].name.to_string(), self.machine_state_name(m));
+                    let attrs = [("id", id.as_str()), ("state", state.as_str()), ("action", exec.action.as_str()), ("type", TY)];
+                    self.xlog("ExceptionThrown", &attrs, Some(&text));
+                    let handled: Vec<_> = attrs.iter().copied().filter(|(k, v)| *k != "state" || !v.is_empty()).collect();
+                    self.xlog("ExceptionHandled", &handled, Some(&text));
+                }
+                Ok(ExecOutcome::Unwound)
+            }
             Ok(Flow::Continue) => Ok(ExecOutcome::Finished(Value::Null)),
             Err(Fault::Stop) => Err(Stop),
             Err(Fault::Exc(e)) => {
@@ -1188,6 +1200,10 @@ impl<'p> Runtime<'p> {
                 };
                 self.jlog("ReceiveEvent", d, true);
             }
+            if self.xml.is_some() {
+                let ev = self.xml_event(e.id);
+                self.xlog("Receive", &[("id", &name), ("state", &state), ("event", &ev), ("wasBlocked", "False")], None);
+            }
             self.cov_receive(m, e.id);
             if timed {
                 return Ok(self.dispatch_receive(m, exec, &cases, e));
@@ -1214,6 +1230,10 @@ impl<'p> Runtime<'p> {
                 ..Default::default()
             };
             self.jlog("WaitMultipleEvents", d, true);
+        }
+        if self.xml.is_some() {
+            let evs: Vec<String> = wait.iter().map(|e| self.xml_event(*e)).collect();
+            self.xlog("WaitEvent", &[("id", &name), ("event", &evs.join(", ")), ("state", &state)], None);
         }
         self.machines[m].inbox.waiting = Some(Rc::from(wait));
         let id = self.machines[m].id;

@@ -207,6 +207,8 @@ pub struct CheckConfig {
     pub liveness_threshold: usize,
     pub timeout: u32,
     pub verbose: bool,
+    /// `--xml-trace`: also write the buggy schedule's `.trace.xml`.
+    pub xml_trace: bool,
     pub schedule_file: String,
     pub latency_file: String,
     pub latency_profile: Option<String>,
@@ -237,6 +239,7 @@ impl CheckConfig {
             liveness_threshold: 0,
             timeout: 0,
             verbose: false,
+            xml_trace: false,
             schedule_file: String::new(),
             latency_file: String::new(),
             latency_profile: None,
@@ -289,7 +292,8 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
         match a.long_name.as_str() {
             "outdir" => cfg.output_path = string(),
             "verbose" => cfg.verbose = true,
-            "debug" | "memout" | "graph" | "graph-bug" | "xml-trace" | "jvm-args" | "checker-args" | "psym-args"
+            "xml-trace" => cfg.xml_trace = true,
+            "debug" | "memout" | "graph" | "graph-bug" | "jvm-args" | "checker-args" | "psym-args"
             | "timeline-repr" | "timeline-kgram" | "timeline-payload" => {}
             "timeout" => {
                 cfg.timeout = uint();
@@ -640,6 +644,7 @@ fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
         record_test_name: !cfg.test_case_name.is_empty(),
         verbose: cfg.verbose,
         json_trace: true,
+        xml_trace: cfg.xml_trace,
         activity_coverage: true,
         latency: cfg.latency.clone(),
         latency_profile: cfg.latency_profile.clone(),
@@ -809,6 +814,11 @@ fn emit_traces(host: &mut dyn Host, cfg: &CheckConfig, res: &CheckResult, file: 
             host.out_line(&format!("..... Writing {}", path));
             let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), t);
         }
+    }
+    if let Some(x) = &res.xml_trace {
+        let path = format!("{}.trace.xml", base);
+        host.out_line(&format!("..... Writing {}", path));
+        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), x);
     }
     if let Some(j) = &res.json_trace {
         let path = format!("{}.trace.json", base);

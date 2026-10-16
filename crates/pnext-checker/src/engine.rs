@@ -56,6 +56,8 @@ pub struct CheckerOptions {
     /// Produce the JSON trace of the first buggy schedule (by replaying it with JSON
     /// logging on, so exploration itself pays nothing).
     pub json_trace: bool,
+    /// Produce the XML trace of the first buggy schedule (`--xml-trace`), also by replaying it.
+    pub xml_trace: bool,
     /// Name of the compiled project, the source upstream reports for exceptions raised by
     /// the model's own code.
     pub assembly_name: String,
@@ -88,6 +90,7 @@ impl Default for CheckerOptions {
             log_every_schedule: false,
             activity_coverage: false,
             json_trace: false,
+            xml_trace: false,
             assembly_name: "PImplementation".into(),
             latency: None,
             latency_profile: None,
@@ -285,6 +288,8 @@ struct BugSchedule {
     strategy_description: Option<String>,
     bug: Option<String>,
     report_text: String,
+    /// `Task.CurrentId` of the buggy schedule's test task.
+    test_task_id: u64,
 }
 
 /// What a checking run produced.
@@ -305,6 +310,8 @@ pub struct CheckResult {
     pub cancelled: bool,
     /// The `.trace.json` contents of the first buggy schedule (see `json_trace`).
     pub json_trace: Option<String>,
+    /// The `.trace.xml` contents of the first buggy schedule (see `xml_trace`).
+    pub xml_trace: Option<String>,
     /// With `verbose` and `json_trace`: the JSON logs of every schedule explored, as one
     /// array of arrays (upstream's `_verbose.trace.json`).
     pub verbose_json_trace: Option<String>,
@@ -463,8 +470,9 @@ impl<'p> Checker<'p> {
         config: &Config,
         bug: &BugSchedule,
         json: bool,
+        xml: bool,
         time: Option<&crate::time::TimeOptions>,
-    ) -> (Vec<String>, Option<String>) {
+    ) -> (Vec<String>, Option<String>, Option<String>) {
         let mut strategy = ReplayStrategy::new(bug.trace.clone());
         strategy.stop_at = bug.bound_hit_at;
         let mut config = config.clone();
@@ -476,12 +484,15 @@ impl<'p> Checker<'p> {
         if json {
             rt.json = Some(crate::jsonlog::JsonLog::new());
         }
+        if xml {
+            rt.xml = Some(crate::xmllog::XmlLog::new(bug.test_task_id));
+        }
         rt.run_test(main, &tc.name);
         if rt.bug.is_none() {
             rt.check_hot_monitors_at_termination();
         }
         debug_assert_eq!(rt.bug, bug.bug, "replaying a buggy schedule must reproduce its bug");
-        (std::mem::take(&mut rt.log), rt.json.take().map(|j| j.to_json_text()))
+        (std::mem::take(&mut rt.log), rt.json.take().map(|j| j.to_json_text()), rt.xml.take().map(|x| x.finish()))
     }
 
     /// Runs one test case (`TestingEngine.Run`).
@@ -538,6 +549,9 @@ impl<'p> Checker<'p> {
         let max_iterations = if is_replay { 1 } else { opts.iterations };
         let mut i = 0usize;
         let mut first_bug: Option<BugSchedule> = None;
+        // `Task.Id`s are handed out in order: one for the engine, then per schedule one for
+        // the test task and one per machine event handler run
+        let mut tasks_used = 1u64;
         let coverage_tables = opts.activity_coverage.then(|| self.coverage_tables());
         let mut verbose_json = (opts.verbose && opts.json_trace && !is_replay).then(Vec::new);
         while max_iterations == 0 || i < max_iterations {
@@ -576,6 +590,8 @@ impl<'p> Checker<'p> {
                     rt.check_hot_monitors_at_termination();
                 }
                 bug_found = rt.bug.is_some();
+                let test_task_id = tasks_used + 1;
+                tasks_used += 1 + rt.handler_starts;
                 if let (Some(all), Some(j)) = (verbose_json.as_mut(), rt.json.take()) {
                     all.push(j.to_json(false));
                 }
@@ -646,6 +662,7 @@ impl<'p> Checker<'p> {
                         strategy_description: rt.bug_strategy_description.clone(),
                         bug: rt.bug.clone(),
                         report_text: result.report.text(opts, "<StrategyLog>"),
+                        test_task_id,
                     });
                 }
                 if bug_found && !is_replay && opts.full_exploration {
@@ -667,7 +684,8 @@ impl<'p> Checker<'p> {
         }
         result.verbose_json_trace = verbose_json.map(|v| crate::jsonlog::Json::Arr(v).to_pretty());
         if let Some(bug) = first_bug {
-            let (log, json) = self.logged_replay(tc, main, module, assignment, &config, &bug, opts.json_trace, time.as_ref());
+            let (log, json, xml) =
+                self.logged_replay(tc, main, module, assignment, &config, &bug, opts.json_trace, opts.xml_trace, time.as_ref());
             if !opts.verbose {
                 // `ReadableTrace`: the runtime log followed by the report so far
                 let mut text = log.join("\n");
@@ -676,6 +694,7 @@ impl<'p> Checker<'p> {
                 result.readable_trace = Some(text);
             }
             result.json_trace = json;
+            result.xml_trace = xml;
             if !config.logging {
                 result.last_log = log;
             }
