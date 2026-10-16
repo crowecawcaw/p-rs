@@ -379,6 +379,8 @@ pub struct ScheduleTrace {
     pub test_name: Option<String>,
     /// `--pnext-time:<header>`: time tracking mode and profile (see `TimeOptions`).
     pub time: Option<String>,
+    /// `--pnext-latency:<key>=<value>`: the resolved profile entries.
+    pub latency: Vec<(String, String)>,
     pub steps: Vec<ScheduleStep>,
 }
 
@@ -397,6 +399,9 @@ impl ScheduleTrace {
         }
         if let Some(h) = &self.time {
             s.push_str(&format!("--pnext-time:{}\n", h));
+        }
+        for (k, v) in &self.latency {
+            s.push_str(&format!("--pnext-latency:{}={}\n", k, v));
         }
         // steps are newline-separated, with no newline after the last (upstream format)
         for (i, st) in self.steps.iter().enumerate() {
@@ -427,6 +432,9 @@ impl ScheduleTrace {
                 t.test_name = Some(v.to_string());
             } else if let Some(v) = line.strip_prefix("--pnext-time:") {
                 t.time = Some(v.to_string());
+            } else if let Some(v) = line.strip_prefix("--pnext-latency:") {
+                let (k, v) = v.rsplit_once('=').ok_or_else(|| format!("bad latency entry {v}"))?;
+                t.latency.push((k.to_string(), v.to_string()));
             } else if line.starts_with("--") {
                 continue;
             } else if let Some(v) = line.strip_prefix('(').and_then(|l| l.strip_suffix(')')) {

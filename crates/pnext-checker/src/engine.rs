@@ -387,25 +387,55 @@ impl<'p> Checker<'p> {
     /// Time tracking for `tc`: active when the program declares one of the time
     /// functions or a latency file or `--timed` is given. Checks the profile's names.
     fn time_options(&self, tc: &TestCase, opts: &CheckerOptions) -> Result<Option<crate::time::TimeOptions>, String> {
+        use pnext_sema::PType;
         let prog = self.prog;
-        let declares = prog
-            .funs
-            .iter()
-            .any(|f| f.owner.is_none() && f.is_foreign() && crate::time::TIME_FUNCTIONS.contains(&f.name.as_str()));
+        let mut declares = false;
+        for f in prog.funs.iter().filter(|f| f.owner.is_none() && f.is_foreign()) {
+            let Some(sig) = crate::time::time_signature(&f.name) else { continue };
+            declares = true;
+            let params: Vec<&PType> = f.params.iter().map(|v| &prog.var(*v).ty).collect();
+            let want = |t: &str| match t {
+                "int" => PType::Int,
+                "string" => PType::String,
+                _ => PType::Null,
+            };
+            let (want_params, want_ret) = sig;
+            let ok = params.len() == want_params.len()
+                && params.iter().zip(want_params).all(|(p, w)| **p == want(w))
+                && f.ret == want(want_ret);
+            if !ok {
+                return Err(format!(
+                    "foreign function '{}' is a time function and must be declared as {}",
+                    f.name,
+                    crate::time::time_declaration(&f.name)
+                ));
+            }
+        }
         if !declares && opts.latency.is_none() && !opts.timed {
             return Ok(None);
         }
         let profile = match &opts.latency {
-            Some(set) => set.for_test(&tc.name, opts.latency_profile.as_deref())?.cloned(),
+            Some(set) => match set.for_test(&tc.name, opts.latency_profile.as_deref())? {
+                Some(p) => Some(p.clone()),
+                None => {
+                    return Err(format!(
+                        "test case '{}' has no latency profile: add it to [tests] in the latency file or pass --latency-profile",
+                        tc.name
+                    ))
+                }
+            },
             None if opts.latency_profile.is_some() => return Err("--latency-profile needs --latency".into()),
             None => None,
         };
-        if let Some(p) = &profile {
-            let machines: Vec<&str> = prog.machines.iter().map(|m| m.name.as_str()).collect();
-            let events: Vec<&str> = prog.events.iter().map(|e| e.name.as_str()).collect();
-            p.check_names(&machines, &events)?;
-        }
+        self.check_profile(profile.as_ref())?;
         Ok(Some(crate::time::TimeOptions { profile, timed: opts.timed }))
+    }
+
+    fn check_profile(&self, profile: Option<&crate::time::Profile>) -> Result<(), String> {
+        let Some(p) = profile else { return Ok(()) };
+        let machines: Vec<&str> = self.prog.machines.iter().map(|m| m.name.as_str()).collect();
+        let events: Vec<&str> = self.prog.events.iter().map(|e| e.name.as_str()).collect();
+        p.check_names(&machines, &events)
     }
 
     /// Replays a buggy schedule with text (and optionally JSON) logging enabled; returns
@@ -452,19 +482,16 @@ impl<'p> Checker<'p> {
         let rng: SharedRandom = Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed)));
         let mut strategy = build_strategy(opts, &rng)?;
         let is_replay = opts.strategy == "replay";
-        let time = self.time_options(tc, opts)?;
-        if is_replay {
-            let recorded = opts.replay.as_ref().and_then(|t| t.time.clone());
-            let current = time.as_ref().map(|t| t.schedule_header());
-            if recorded != current {
-                let show = |h: &Option<String>| h.clone().unwrap_or_else(|| "no time tracking".into());
-                return Err(format!(
-                    "the schedule was recorded with time settings '{}' but is replayed with '{}'",
-                    show(&recorded),
-                    show(&current)
-                ));
+        // a replay takes its time settings from the schedule file
+        let time = match opts.replay.as_ref().filter(|_| is_replay).and_then(|t| t.time.as_ref().map(|h| (h, t))) {
+            Some((header, t)) => {
+                let o = crate::time::TimeOptions::from_schedule(header, &t.latency)
+                    .map_err(|e| format!("the schedule's time settings: {}", e))?;
+                self.check_profile(o.profile.as_ref())?;
+                Some(o)
             }
-        }
+            None => self.time_options(tc, opts)?,
+        };
         let seed_opt = match opts.strategy.as_str() {
             "random" | "pct" | "pos" | "feedbackpct" | "feedbackpos" | "fairpct" | "probabilistic" | "rl" => {
                 format!(" (seed:{})", opts.seed)
@@ -584,6 +611,7 @@ impl<'p> Checker<'p> {
                     trace.liveness_temperature_threshold = Some(config.liveness_temperature_threshold);
                     trace.test_name = if opts.record_test_name { Some(tc.name.clone()) } else { None };
                     trace.time = time.as_ref().map(|t| t.schedule_header());
+                    trace.latency = time.as_ref().and_then(|t| t.profile.as_ref()).map(|p| p.entries()).unwrap_or_default();
                     result.schedule_trace = Some(trace.to_text());
                     first_bug = Some(BugSchedule {
                         trace,

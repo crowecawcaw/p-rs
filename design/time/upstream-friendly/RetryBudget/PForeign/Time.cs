@@ -1,18 +1,20 @@
 // Upstream P only: time stands still, so the model runs untimed.
-// (Signatures follow upstream's foreign-function convention: P arguments,
-// then the calling machine.)
-using PChecker.PRuntime;
-using PChecker.PRuntime.Values;
+//
+// Not yet compiled against upstream. Types follow the current runtime
+// (PChecker.Runtime.Values.PInt); foreign functions take the P arguments and
+// then the caller, which is a machine or (for Budget.p) a spec monitor, hence
+// `object`. Adjust to your P version's foreign-function convention if needed.
+using PChecker.Runtime.Values;
 
 namespace PImplementation
 {
     public static partial class GlobalFunctions
     {
-        public static PrtInt Now(PMachine machine) => (PrtInt)0;
-        public static PrtInt NowBest(PMachine machine) => (PrtInt)0;
-        public static void Elapse(PrtInt lo, PrtInt hi, PMachine machine) { }
-        public static PrtInt Mark(PMachine machine) => (PrtInt)0;
-        public static PrtInt Elapsed(PrtInt m, PMachine machine) => (PrtInt)0;
-        public static PrtInt ElapsedBest(PrtInt m, PMachine machine) => (PrtInt)0;
+        public static PInt Now(object caller) => (PInt)0;
+        public static PInt NowBest(object caller) => (PInt)0;
+        public static void Elapse(PInt lo, PInt hi, object caller) { }
+        public static PInt Mark(object caller) => (PInt)0;
+        public static PInt Elapsed(PInt m, object caller) => (PInt)0;
+        public static PInt ElapsedBest(PInt m, object caller) => (PInt)0;
     }
 }

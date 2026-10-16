@@ -9,32 +9,36 @@ Sample 5 of `../../examples/` rewritten with no new syntax. The extension is:
 | Delivery latencies | `PTst/latency.toml` | no |
 | Time-ordered scheduling | `p check --timed` | no |
 
-`p compile` already accepts this project today (verified with the current p-next
-build); only the checker behaviour below is new.
-
-## Intended runs (hypothetical output)
+Runs with the current p-next build (`p compile` first):
 
 ```
-$ p check -tc tcRetry -s 1000                       # upstream, or p-next without --latency
-... Found 0 bugs.                                    # Now() is 0: budgets trivially hold
-
-$ p check -tc tcRetry -s 1000 --latency PTst/latency.toml
-<ErrorLog> Assertion Failed: resolved (ok = false) after up to 1050000us; deadline is 1000000us
-  critical path: eReq@750ms -> drop -> Timer(300ms) -> eTimeout@1050ms -> eOutcome
+$ p check -tc tcRetry -s 1000                        # p-next, no latency file
+<ErrorLog> Assertion Failed: PSpec/Budget.p:7:7 resolved (ok = False) after up to 1050000us; deadline is 1000000us
 ... Found 1 bug.
 
-$ p check -tc tcRetry -s 1000 --latency PTst/latency.toml --timed --latency-report
-<ErrorLog> Assertion Failed: ... after up to 1050000us ...       # same bug: drops are real
-latency report:
-  PSpec/Budget.p:6  max 1050000us (schedule 17)  ok-path max 790000us (schedule 3)
+$ p check -tc tcRetry -s 1000 --latency PTst/latency.toml          # same bug
+$ p check -tc tcRetry -s 1000 --latency PTst/latency.toml --timed  # same bug
 ```
 
-Fix: `timeoutAfter = ms(250)` makes the give-up path 900ms and the check passes.
+Time is tracked as soon as the model declares the time functions: the timer
+durations and backoffs are model time, so the all-drops path (3 x 300ms timeout
++ 50ms + 100ms backoff = 1050ms) exceeds the 1s budget even with zero
+latencies. The latency file adds network time (1..2ms per hop here; 60..90ms in
+`cross-region`). Upstream P links `PForeign/Time.cs`, where `Elapsed` is
+always 0, so it finds 0 bugs.
+
+Fix: `timeoutAfter = ms(250)` makes the give-up path 900ms and the check passes
+in all three modes. The slowest successful path is the third attempt answered
+at the last moment: 750ms + 2 + 36 + 2 = 790ms.
+
+The bug's `.schedule` file records the time mode and the resolved profile
+(`--pnext-time:` and `--pnext-latency:` lines), so `p check --replay` needs no
+other options.
 
 ## What `--timed` changes here
 
 Untimed, a Timer's `eTimeout` (stamp +300ms) can be handled before an `eResp`
-stamped +40ms, so the checker also explores retries after successful replies.
+stamped around +40ms, so the checker also explores retries after successful replies.
 They do not change the worst-case bound here, but a spec counting attempts per
 request would report impossible retry counts. With `--timed` those orders are
 pruned.

@@ -56,7 +56,7 @@ fn retry_budget_finds_the_give_up_path_and_accepts_the_fix() {
         assert!(bug.contains("ok = False") && bug.contains("1050000us"), "{}", bug);
         let log = r.readable_trace.unwrap();
         assert!(log.contains("<TimeLog> 'Client(3)' clock is 1050000 us."), "{}", log);
-        assert!(r.schedule_trace.unwrap().contains(&format!("--pnext-time:timed={};profile=same-az;hash=", timed as u8)));
+        assert!(r.schedule_trace.unwrap().contains(&format!("--pnext-time:timed={};profile=same-az\n", timed as u8)));
     }
 
     let (fixed, _) = retry_budget(|s| s.replace("ms(300)", "ms(250)"));
@@ -68,27 +68,30 @@ fn retry_budget_finds_the_give_up_path_and_accepts_the_fix() {
 }
 
 #[test]
-fn replay_needs_the_same_time_settings() {
+fn replay_takes_time_settings_from_the_schedule() {
     let (a, profiles) = retry_budget(|s| s);
-    let opts = CheckerOptions { iterations: 500, seed: 2, latency: Some(profiles.clone()), ..Default::default() };
+    let opts = CheckerOptions { iterations: 500, seed: 2, latency: Some(profiles.clone()), timed: true, ..Default::default() };
     let r = check(&a, "tcRetry", &opts).unwrap();
-    let trace = ScheduleTrace::parse(&r.schedule_trace.unwrap()).unwrap();
+    let text = r.schedule_trace.unwrap();
+    assert!(text.contains("--pnext-time:timed=1;profile=same-az\n"), "{}", text);
+    assert!(text.contains("--pnext-latency:eReq=1000us..2000us\n"), "{}", text);
+    let trace = ScheduleTrace::parse(&text).unwrap();
+    assert_eq!(trace.to_text(), text);
 
-    let replay = |latency_profile: Option<&str>, timed: bool| CheckerOptions {
-        strategy: "replay".into(),
-        replay: Some(trace.clone()),
-        latency: Some(profiles.clone()),
-        latency_profile: latency_profile.map(String::from),
-        timed,
-        ..Default::default()
-    };
-    let again = check(&a, "tcRetry", &replay(None, false)).unwrap();
-    assert_eq!(again.report.bug_reports, r.report.bug_reports);
-    assert!(again.replay_error.is_none());
-
-    let err = check(&a, "tcRetry", &replay(Some("cross-region"), false)).unwrap_err();
-    assert!(err.contains("profile=cross-region"), "{}", err);
-    assert!(check(&a, "tcRetry", &replay(None, true)).is_err());
+    // no latency file and no --timed needed; other time options are ignored
+    for (latency, latency_profile) in [(None, None), (Some(profiles.clone()), Some("cross-region".to_string()))] {
+        let replay = CheckerOptions {
+            strategy: "replay".into(),
+            replay: Some(trace.clone()),
+            latency,
+            latency_profile,
+            ..Default::default()
+        };
+        let again = check(&a, "tcRetry", &replay).unwrap();
+        assert_eq!(again.report.bug_reports, r.report.bug_reports);
+        assert!(again.replay_error.is_none());
+        assert!(again.last_log.iter().any(|l| l == "<TimeLog> 'Client(3)' clock is 1050000 us."));
+    }
 }
 
 const RACE: &str = "
@@ -160,7 +163,6 @@ machine Main {
       assert Now() == 25 && NowBest() == 15;
       ElapseCost(\"Query\");
       assert Elapsed(n) == 5 + 8000 && ElapsedBest(n) == 5 + 2000;
-      ElapseCost(\"Unpriced\");
       assert Now() == 8025;
     }
   }
@@ -189,6 +191,23 @@ fn bad_calls_and_names_are_reported() {
     let opts = CheckerOptions { latency: Some(typo), latency_profile: Some("p".into()), ..Default::default() };
     let err = check(&a, "tcBad", &opts).unwrap_err();
     assert!(err.contains("unknown event 'eRequest'"), "{}", err);
+
+    let no_profile = Rc::new(ProfileSet::parse("[profile.p]\ndefault = \"1ms\"").unwrap());
+    let err = check(&a, "tcBad", &CheckerOptions { latency: Some(no_profile.clone()), ..Default::default() }).unwrap_err();
+    assert!(err.contains("has no latency profile"), "{}", err);
+
+    let unpriced = "machine Main { start state Init { entry { ElapseCost(\"Db\"); } } }\ntest tcCost [main=Main]: { Main };";
+    let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("cost.p".into(), unpriced.into())]);
+    let r = check(&a, "tcCost", &CheckerOptions::default()).unwrap();
+    assert_eq!(r.report.num_bugs, 0, "no profile: costs are 0");
+    let opts = CheckerOptions { latency: Some(no_profile), latency_profile: Some("p".into()), ..Default::default() };
+    let r = check(&a, "tcCost", &opts).unwrap();
+    assert!(r.report.bug_reports[0].contains("has no entry \"cost.Db\""), "{:?}", r.report.bug_reports);
+
+    let wrong = "fun Now(): bool;\nmachine Main { start state Init { entry { } } }\ntest tcSig [main=Main]: { Main };";
+    let a = compile(&[("sig.p".into(), wrong.into())]);
+    let err = check(&a, "tcSig", &CheckerOptions::default()).unwrap_err();
+    assert!(err.contains("must be declared as fun Now(): int;"), "{}", err);
 }
 
 #[test]
@@ -204,4 +223,61 @@ test tcPlain [main=Main]: { Main };";
     assert_eq!(r.report.num_bugs, 1);
     assert!(!r.readable_trace.unwrap().contains("<TimeLog>"));
     assert!(!r.schedule_trace.unwrap().contains("--pnext-time"));
+}
+
+const ARRIVAL_ORDER: &str = "
+event eA: int;
+
+machine Handler {
+  var seen: bool;
+  start state S {
+    on eA do (n: int) {
+      if (!seen) { seen = true; assert n == 2, \"handled the later arrival first\"; }
+    }
+  }
+}
+
+machine Receiver {
+  start state S {
+    entry {
+      receive { case eA: (n: int) { assert n == 2, \"received the later arrival first\"; } }
+    }
+    ignore eA;
+  }
+}
+
+// sends first, but its event arrives after 300ms
+machine Far { start state S { entry (r: machine) { send r, eA, 1; } } }
+// sends 10ms later, arriving after 1ms
+machine Near { start state S { entry (r: machine) { Elapse(10000, 10000); send r, eA, 2; } } }
+
+machine MainHandler {
+  start state S { entry { var r: machine; r = new Handler(); new Far(r); new Near(r); } }
+}
+machine MainReceiver {
+  start state S { entry { var r: machine; r = new Receiver(); new Far(r); new Near(r); } }
+}
+
+test tcHandler [main=MainHandler]: { MainHandler, Handler, Far, Near };
+test tcReceiver [main=MainReceiver]: { MainReceiver, Receiver, Far, Near };
+";
+
+#[test]
+fn timed_delivery_follows_arrival_not_send_order() {
+    let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("order.p".into(), ARRIVAL_ORDER.into())]);
+    let profiles = Rc::new(ProfileSet::parse("[profile.p]\neA = \"1ms\"\n\"(Far, Handler)\" = \"300ms\"\n\"(Far, Receiver)\" = \"300ms\"").unwrap());
+    for test in ["tcHandler", "tcReceiver"] {
+        let opts = |timed| CheckerOptions {
+            iterations: 200,
+            seed: 5,
+            latency: Some(profiles.clone()),
+            latency_profile: Some("p".into()),
+            timed,
+            ..Default::default()
+        };
+        let r = check(&a, test, &opts(false)).unwrap();
+        assert_eq!(r.report.num_bugs, 1, "{} untimed", test);
+        let r = check(&a, test, &opts(true)).unwrap();
+        assert_eq!(r.report.num_bugs, 0, "{} timed: {:?}", test, r.report.bug_reports);
+    }
 }

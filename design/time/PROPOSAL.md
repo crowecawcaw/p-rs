@@ -1,12 +1,18 @@
-# Time, timeouts and latency budgets in p-next (design proposal, v3)
+# Time, timeouts and latency budgets in p-next (design proposal, v4)
 
-Status: under review; Phase 1 below is what gets implemented first.
+Status: Phase 1 implemented in `pnext-checker` (`src/time.rs`, runtime hooks)
+and `p check` (`--latency`, `--latency-profile`, `--timed`); tests in
+`crates/pnext-checker/tests/time.rs`.
 
-v3 makes the decision of v2 explicit: **no language change**. Models use plain P
-(foreign functions and ordinary machines), so they compile and run upstream,
-where time stands still. Everything new is in `pnext-checker` and the CLI.
-The native syntax explored in v1/v2 (`examples/`) is kept as a possible later
-surface over the same semantics.
+**No language change.** Models use plain P (foreign functions and ordinary
+machines), so they compile and run upstream, where time stands still.
+Everything new is in `pnext-checker` and the CLI. The native syntax explored in
+v1/v2 (`examples/`) is kept as a possible later surface over the same semantics.
+
+v4 changes (review of v3): events are picked at the receiver's scheduling point
+under `--timed` (send reordering removed); the guarantee is restated (passes are
+sound, failures are possible); the max rule keeps correlation; replay files
+carry the resolved profile; signature, missing-profile and cost-name checks.
 
 ## Motivation and scope
 
@@ -23,113 +29,178 @@ already sums today.
 
 ## Surface (plain P)
 
-A model opts in by declaring any of these foreign functions (exact names and
-signatures; times are `int` microseconds):
+A model opts in by declaring any of these global foreign functions. Times are
+`int` microseconds.
 
 ```p
 fun Now(): int;                // worst case of this machine's clock
 fun NowBest(): int;            // best case
-fun Elapse(lo: int, hi: int);  // local work taking lo..hi us (lo <= hi, lo >= 0)
-fun ElapseCost(name: string);  // local work priced by the latency profile
+fun Elapse(lo: int, hi: int);  // local work taking lo..hi us
+fun ElapseCost(name: string);  // local work priced by the profile's "cost.<name>"
 fun Mark(): int;               // stopwatch handle for the current clock
 fun Elapsed(m: int): int;      // worst case of (clock - mark m)
 fun ElapsedBest(m: int): int;  // best case
 ```
 
-p-next implements them natively. A user's Rust `ForeignFunctions` is not
-consulted for these names. Upstream links C# stubs that return 0 and do nothing
-(`upstream-friendly/RetryBudget/PForeign/Time.cs`).
+* p-next implements these natively and does not consult a user's Rust
+  `ForeignFunctions` for them. Only global declarations count (a machine-owned
+  `fun Now()` is an ordinary foreign function). If a declaration uses one of these
+  names with a different signature, that is an error that names the expected
+  declaration.
+* Declare only the functions you use. Upstream links C# stubs that return 0
+  and do nothing (`upstream-friendly/RetryBudget/PForeign/Time.cs`, not yet
+  compiled against upstream).
+* `Elapse` needs `0 <= lo <= hi <= 2^40`; other arguments are a checker
+  error (an exception in the model).
+* `Mark` handles count up from 0 within each schedule. They are deterministic
+  and appear in payload logs. Upstream they are all 0. An unknown handle is an
+  error.
 
-Timers are ordinary machines (`upstream-friendly/RetryBudget/PSrc/Timer.p`): a
-fresh machine per armed timer calls `Elapse(d, d)` and then sends the timeout.
-Because the timer is a separate machine, the scheduler already decides whether a
-reply or the timeout is handled first; no special delivery semantics are needed.
+Timers are ordinary machines (`upstream-friendly/RetryBudget/PSrc/Timer.p`). Each
+armed timer is a fresh machine that calls `Elapse(d, d)` and then sends the
+timeout. Because the timer is a separate machine, the scheduler already decides
+whether a reply or the timeout is handled first.
 
 ## Semantics
 
 ### Clocks
 
-Time tracking is active for a test when the program declares any function above
-or `--latency` is given; otherwise nothing is computed and nothing changes.
+Time tracking is active for a test when the program declares any function above,
+or when `--latency` or `--timed` is given. Otherwise nothing is computed, and
+logs and traces are byte-identical to today's.
 
 | Operation | Effect |
 |---|---|
 | machine created by `new` | child clock = creator clock (Main starts at 0) |
-| `Elapse(lo, hi)` | clock += a fresh range `lo..hi` |
-| `ElapseCost(n)` | clock += a fresh draw of the profile's cost `n` (0 if none) |
-| `send` | event stamp = sender clock + delivery latency (fresh draw, see Profiles) |
-| dequeue, or event delivered to a waiting `receive` | clock = max(clock, stamp) |
+| `Elapse(lo, hi)` | clock += a fresh draw of `lo..hi` |
+| `ElapseCost(n)` | clock += a fresh draw of the profile's `cost.n`; 0 without a profile; error if the profile has no such entry |
+| `send` | event stamp = sender clock + delivery latency (a fresh draw, see Profiles) |
+| an event is dequeued, or taken by a `receive` | clock = max(clock, stamp) |
 | ignored event dropped | no effect |
-| `raise`, `goto`, `announce` | no cost; raised events carry the current clock |
-| monitors | read the clock of the machine whose send/announce they observe |
+| monitors | read the clock of the machine whose send or announce they observe; 0 in a spec's start entry |
 
-Clocks only grow. A spec's start entry runs with clock 0.
+Clocks only grow. Ranges are at most 2^40 us. With the step bounds, that keeps
+the arithmetic far from overflow (saturating arithmetic is only a backstop).
 
 ### Values: affine forms
 
 A plain interval is wrong for budgets: in `Elapsed(m)` the mark and the clock
 share history, and interval subtraction would add their widths instead of
-cancelling them. Each time value is therefore an affine form
+cancelling them. Each time value is therefore an affine form:
 
-    v = c + Σ a_i·ε_i,   ε_i ∈ [0, 1], a_i ≥ 0, symbols fresh per draw
+    v = c + Σ a_i·ε_i,   ε_i ∈ [0, 1], one fresh symbol per draw
 
+* Stored clocks and stamps have `a_i ≥ 0`. Differences (inside `Elapsed`) can
+  have negative coefficients.
+* `best(v) = c + Σ min(0, a_i)` and `worst(v) = c + Σ max(0, a_i)`.
 * A range `lo..hi` drawn once is `lo + (hi - lo)·ε_new`.
-* `+` and `-` are exact; shared symbols cancel.
-* `best(v) = c + Σ min(0, coef)`, `worst(v) = c + Σ max(0, coef)` (differences
-  can have negative coefficients).
-* `max(a, b)`: if `best(a - b) ≥ 0` it is `a`; if `worst(a - b) ≤ 0` it is `b`;
-  otherwise a fresh form `[max(best a, best b), max(worst a, worst b)]`
-  (correlation is lost, the range is exact).
-* To bound cost, a form with more than 32 symbols collapses its smallest-range
-  symbols into one fresh symbol. That keeps its own range but loses correlation
-  with other values, which only widens later differences.
+* `+` and `-` are exact: shared symbols cancel.
+* `max(a, b)` is exact when the sign of `a - b` is certain. Otherwise it is sound
+  but not exact, and it is one of these three forms:
+  * `b + ε_new·worst(a - b)`, which keeps `b`'s correlation;
+  * `a + ε_new·worst(b - a)`, which keeps `a`'s correlation;
+  * a fresh `[max(best a, best b), max(worst a, worst b)]`, which keeps none.
 
-Arithmetic is exact `i64` microseconds; overflow is a checker error.
+  The form adding the least new (uncorrelated) width wins, then the one with the
+  smaller worst case, then the order above. In a join, `b` is the incoming stamp,
+  so a reply that descends from the client's own request keeps cancelling
+  against the client's marks.
+* A form with more than 32 symbols collapses its smallest symbols into one fresh
+  symbol. Its own range is kept; correlation through those symbols is lost, which
+  only widens later differences. Whether 32 and "smallest first" are right is to
+  be measured on Raft in Phase 2.
 
-### Delivery order
+### Delivery order (default mode)
 
-Delivery follows P: an event enters the receiver's queue when it is sent, so
-queue order is send order. Latency changes stamps, not order, in the default
-mode. Consequence (documented limitation): a message sent earlier with a long
-latency is handled before one sent later with a short latency from another
-sender, unless `--timed` is on (below) or the network is modelled as a machine.
+Delivery follows P: an event enters the receiver's queue when it is sent, and
+queue order is send order. Latency changes stamps, not order. Consequence: an
+event sent earlier with a long latency is handled before one sent later with a
+short latency, unless `--timed` is on.
 
 ### `--timed` scheduling
 
-Untimed, the scheduler may run steps in an order impossible in time (a timer's
-300 ms send before a reply's 20 ms send). With `--timed`, before each scheduling
-decision, every enabled operation gets a **ready time**:
+Untimed, the scheduler may run steps in orders that are impossible in time, for
+example a timer's 300 ms timeout handled before a reply stamped 20 ms. With
+`--timed`:
 
-* test task: 0;
-* a machine about to dequeue: `max(clock, stamp)` of the event it would dequeue
-  (or its clock when it would take a default handler);
-* a machine whose blocked `receive` just got its event: `max(clock, stamp)`;
-* any other machine (paused at a send/create/receive point mid-handler, or
-  newly created): its clock.
+1. **Events are picked at the receiver's scheduling point.**
+   * When a machine finishes a handler and has events to take, it yields first.
+   * A `receive` whose events are already queued yields first.
+   * A blocked `receive` is enabled by a matching send, but it takes nothing
+     until it runs.
+   * When the machine resumes, the event comes from a candidate set that
+     contains the first eligible event of each sender (per-sender FIFO). Eligible
+     means not deferred or ignored, or for a `receive`, listed in its cases. The
+     candidate with the earliest worst-case stamp wins; ties go to the one
+     queued first. Ignored events queued before it are dropped, as today.
+2. **Ready times.** Before each scheduling decision, every enabled operation
+   gets one:
 
-Operation `x` is removed from the candidates if some other enabled `y` has
-`worst(ready y) < best(ready x)`. Ties and overlaps stay nondeterministic. The
-earliest operation is never removed, so this cannot create deadlocks. `Elapse`
-is not a scheduling point; its effect counts at the machine's next one (the
-only observer in between would be a spec via `announce`, which reads the clock
-anyway).
+   | Operation | Ready time |
+   |---|---|
+   | test task | 0 |
+   | machine about to take an event (handler loop or `receive`) | max(clock, stamp of the event it would pick) |
+   | machine whose state has a default handler | clock |
+   | anything else (start, create, send, paused mid-handler) | clock |
 
-Also with `--timed`, `send` inserts the event ahead of queued events **from
-other senders** whose stamp is certainly later (`best(queued) > worst(new)`).
-Per-sender FIFO is kept. Overlapping stamps keep send order.
+   Operation `x` is removed from the candidates when some other enabled `y` has
+   `worst(ready y) < best(ready x)`. Ties and overlaps stay nondeterministic. The
+   earliest operation is never removed, so no deadlocks are introduced.
+3. **Default handlers.** A machine with a default handler takes the picked
+   event unless that event certainly arrives after the machine's clock
+   (`best(stamp) > worst(clock)`). In that case it runs the default handler.
 
-Deferred to Phase 2: narrowing (when `x` is chosen ahead of an overlapping
-`y`, record `x ≤ y`). Without it, "first reply wins" patterns (hedging) get
+Notes:
+
+* `Elapse` is not a scheduling point; its effect counts at the machine's next
+  one.
+* Specs observe sends and announces in schedule order, not time order. A spec
+  that is sensitive to the order of observations from different machines can
+  see an order that is impossible in time. See open question 1.
+* The filter changes which choices the strategies see. Seeds therefore do not
+  reproduce untimed runs, and POS racing only sees the unfiltered operations.
+* Timed traces have extra scheduling points (the yields in step 1), so a
+  schedule recorded with `--timed` only replays timed. The schedule file says so
+  (see Replay).
+* **Zeno loops.** A machine that loops with no cost (a default handler, or
+  zero-latency self-sends) keeps the lowest ready time. Every operation that is
+  certainly later then starves, and the run ends at the step bound, which can
+  show up as a liveness report. Give such loops a cost (`Elapse`, or a profile
+  entry for the self-sent event). A "time did not advance" diagnostic is
+  planned for Phase 2.
+
+Deferred to Phase 2: **narrowing**. When `x` is chosen ahead of an overlapping
+`y`, record `x ≤ y`. Without it, "first reply wins" patterns (hedging) get
 pessimistic bounds.
 
 ### What results mean
 
-Clock values over-approximate: queueing only delays, ranges are taken at their
-extremes, and collapses widen. So a **monotone** budget assertion such as
-`assert Elapsed(m) <= budget` that fails on an explored schedule is a real
-schedule exceeding the budget *under the stated latencies*, and one that never
-fails holds for every explored schedule. Checks in the other direction (e.g.
-`ElapsedBest(m) > x`) can be masked. As always, schedules are sampled.
+Clock values over-approximate:
+
+* queueing only delays;
+* ranges are kept as ranges;
+* an inexact max or a collapse only widens.
+
+So for a **monotone** budget assertion, such as `assert Elapsed(m) <= budget`
+(or `Now() <= deadline`):
+
+* **A pass is sound.** If the assertion holds on every explored schedule, it
+  holds for those schedules under the stated latencies. This needs the model not
+  to branch on time values: `if (Now() > deadline)` always reads the worst case,
+  so the branch where the deadline has not yet passed is never explored.
+* **A failure is possible, not certain.** The schedule can exceed the budget
+  when every draw is at its worst. It can also be spurious, in any of these
+  ways:
+  * an inexact max or a collapse;
+  * untimed mode exploring an order that is impossible in time (run with
+    `--timed`);
+  * an overlap that `--timed` resolved without narrowing.
+
+  When every value involved is a point (as in RetryBudget's give-up path), the
+  failure is exact.
+
+As always, schedules are sampled. Checks in the other direction (for example
+`ElapsedBest(m) > x`) can be masked.
 
 ## Profiles
 
@@ -141,7 +212,7 @@ A small TOML subset, passed with `p check --latency <file>`:
 [profile.same-az]
 default        = "500us..2ms"   # any send without a more specific entry
 eReq           = "1ms..2ms"     # by event name
-"(Client, LB)" = "1ms..5ms"     # by (sender machine type, receiver machine type)
+"(Client, LB)" = "1ms..5ms"     # by (sender, receiver) machine declaration names
 "(LB, Db).eGet" = "2ms..4ms"    # by link and event
 "cost.DbQuery" = "2ms..8ms"     # priced by ElapseCost("DbQuery")
 
@@ -153,52 +224,77 @@ extends        = "same-az"
 tcRetry = "same-az"             # profile per test case
 ```
 
-* Values: `"lo..hi"` or a single value, each an integer with unit `us`, `ms`
-  or `s`.
-* Precedence, most specific first: `(A, B).e`, `(A, B)`, `e`, `default`, 0.
-  `extends` copies the parent's entries first.
-* `default` and the link entries never apply to self-sends (a machine sending
-  to itself); a self-send can still be priced by its event-name entry.
-* Unknown machine, event or profile names are errors (typos otherwise silently
-  mean 0).
-* `--latency-profile <name>` overrides `[tests]`; a test with no entry uses no
-  profile (all latencies 0, costs 0).
+* **Values.** `"lo..hi"` or a single value, each an integer with unit `us`, `ms`
+  or `s`, at most 2^40 us.
+* **Precedence**, most specific first: `(A, B).e`, `(A, B)`, `e`, `default`,
+  0. `extends` copies the parent's entries first.
+* **Self-sends.** A self-send is a machine instance sending to itself; two
+  `Server` instances still use `(Server, Server)`. A self-send is priced only by
+  its event-name entry: `default` and link entries do not apply. That keeps
+  internal `raise`-like sends free unless priced explicitly.
+* **Names.** Machine names are declaration names, not interface names. An
+  unknown machine or event name is an error, and so are unknown profiles,
+  duplicate keys and duplicate `[tests]` entries. The keys `default` and
+  `extends` are reserved, so an event with either name can only be priced
+  through `(A, B).e` keys. Cost names cannot be checked statically;
+  `ElapseCost` with a name the active profile does not price is a runtime error.
+* **Choosing a profile.** `--latency-profile <name>` overrides `[tests]`. With
+  `--latency`, a test that has neither is an error, so all-zero latencies never
+  happen silently. Without `--latency`, there is no profile: latencies and costs
+  are 0.
 
 ## Output
 
-* When time tracking is active, a `<TimeLog>` line after each dequeue gives the
-  machine's clock as `[best, worst]` in microseconds. Programs without time
-  produce byte-identical logs (and JSON traces) to today.
+* When time tracking is active, a `<TimeLog>` line follows each dequeue or
+  receive, giving the machine's clock in microseconds (`[best, worst]`, or one
+  number when exact). The JSON trace has no time entries in Phase 1.
 * Assertion messages are the model's own (it formats `Elapsed(m)`).
-* Phase 2: critical path on failure; `--latency-report` (max `Elapsed` per call
-  site over explored schedules).
+* Phase 2: the critical path on failure, and `--latency-report` (the maximum
+  `Elapsed` per call site over explored schedules).
 
 ## Replay
 
-A schedule only replays under the same profile and mode. When time tracking is
-active the `.schedule` file gets one header line
+When time tracking is active, the `.schedule` file gets these lines:
 
-    --pnext-time:timed=<0|1>;profile=<name or ->;hash=<16 hex digits>
+    --pnext-time:timed=<0|1>;profile=<name or ->
+    --pnext-latency:<key>=<lo>us..<hi>us      (one per resolved profile entry)
 
-(hash of the resolved profile entries). Replay with a mismatch is an error. The
-line is absent otherwise, so other schedule files are unchanged.
+`p check --replay` takes the mode and profile from these lines and ignores
+`--latency`, `--latency-profile` and `--timed`, as it already ignores other
+options. A replay therefore needs no latency file and cannot silently run a
+different mode. The profile's names are still checked against the program.
+Schedule files without these lines are unchanged. Builds that do not know the
+lines skip them, as they skip any unknown `--` line, and diverge; upstream
+cannot replay time-tracked schedules meaningfully in any case.
 
 ## Phases
 
-**Phase 1 (implement now):** clocks and affine forms, the seven foreign
-functions, profiles with `--latency` / `--latency-profile`, `--timed`
-(ready-time filtering and send reordering), `<TimeLog>`, replay header, tests:
-the RetryBudget project and focused unit tests (correlation cancels, max rule,
-collapse, profile precedence, timed filtering, determinism of replay).
+**Phase 1 (done):**
+* clocks and affine forms;
+* the seven foreign functions, with signature checks;
+* profiles via `--latency` and `--latency-profile`;
+* `--timed`, with pick-at-resume and ready-time filtering;
+* `<TimeLog>` lines;
+* self-contained replay headers;
+* tests: the RetryBudget project, arrival order under `--timed` (handler and
+  `receive`), timeout-vs-reply filtering, stopwatches and cancellation, the max
+  rule, collapse, profile parsing and errors, and replay without a latency file.
 
-**Phase 2:** narrowing, critical path, `--latency-report`, port the Raft and
-FailureDetector tutorials and decide whether to keep going.
+**Phase 2:**
+* narrowing;
+* a "time did not advance" diagnostic;
+* the critical path and `--latency-report`;
+* measuring the collapse policy;
+* porting the Raft and FailureDetector tutorials, then deciding whether to keep
+  going.
 
 **Later, only if Phase 2 pays off:** native syntax (`examples/`).
 
 ## Open questions
 
-1. Should `Elapse` become a scheduling point under `--timed` (finer
-   interleavings at the cost of more steps)?
-2. Is 32 symbols the right collapse threshold?
-3. Should unknown names in a profile be warnings rather than errors?
+1. Should `Elapse` (and `announce`) become scheduling points under `--timed`?
+   That would give finer interleavings and time-ordered spec observations, at
+   the cost of more steps.
+2. Is 32 symbols, folded smallest first, the right collapse policy?
+3. Should a profile's link keys also accept interface names when they are
+   unambiguous?

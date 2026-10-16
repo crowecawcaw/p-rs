@@ -99,8 +99,16 @@ impl Time {
         self.combine(other, -1)
     }
 
-    /// `max(a, b)`: exact when the sign of `a - b` is certain; otherwise a fresh
-    /// form with the exact range but no correlation.
+    /// `max(a, b)`: exact when the sign of `a - b` is certain. Otherwise the result
+    /// is sound (contains every possible value) but not exact, and is one of
+    ///
+    /// * `b + fresh[0, worst(a - b)]`, keeping `b`'s correlation,
+    /// * `a + fresh[0, worst(b - a)]`, keeping `a`'s correlation,
+    /// * a fresh `[max best, max worst]`, keeping none.
+    ///
+    /// The form adding the least new (uncorrelated) width wins, so differences with
+    /// shared history keep cancelling; then the smaller worst case; then that order
+    /// (`b` is the incoming stamp in a join).
     pub fn max(&self, other: &Time, syms: &mut Symbols) -> Time {
         let d = self.sub(other);
         if d.best() >= 0 {
@@ -109,9 +117,17 @@ impl Time {
         if d.worst() <= 0 {
             return other.clone();
         }
-        let lo = self.best().max(other.best());
-        let hi = self.worst().max(other.worst());
-        Time::range(Range { lo, hi }, syms)
+        let (lo, hi) = (self.best().max(other.best()), self.worst().max(other.worst()));
+        let keep_b = (d.worst(), other.worst().saturating_add(d.worst()));
+        let keep_a = (-d.best(), self.worst().saturating_sub(d.best()));
+        let fresh = (hi - lo, hi);
+        if keep_b <= keep_a && keep_b <= fresh {
+            other.add(&Time::range(Range { lo: 0, hi: d.worst() }, syms))
+        } else if keep_a <= fresh {
+            self.add(&Time::range(Range { lo: 0, hi: -d.best() }, syms))
+        } else {
+            Time::range(Range { lo, hi }, syms)
+        }
     }
 
     /// Keeps the form small: folds the smallest terms into one fresh symbol. The
@@ -168,12 +184,30 @@ pub struct TimeOptions {
 }
 
 impl TimeOptions {
-    /// The `.schedule` header line identifying the mode and profile.
+    /// The `.schedule` header: `timed=<0|1>;profile=<name or ->`.
     pub fn schedule_header(&self) -> String {
-        match &self.profile {
-            Some(p) => format!("timed={};profile={};hash={:016x}", self.timed as u8, p.name, p.hash()),
-            None => format!("timed={};profile=-;hash={:016x}", self.timed as u8, 0),
+        let name = self.profile.as_ref().map_or("-", |p| p.name.as_str());
+        format!("timed={};profile={}", self.timed as u8, name)
+    }
+
+    /// Reads back what [`TimeOptions::schedule_header`] and the profile's entries wrote.
+    pub fn from_schedule(header: &str, entries: &[(String, String)]) -> Result<TimeOptions, String> {
+        let bad = || format!("malformed time header '{}'", header);
+        let (mut timed, mut profile) = (None, None);
+        for part in header.split(';') {
+            match part.split_once('=').ok_or_else(bad)? {
+                ("timed", "0") => timed = Some(false),
+                ("timed", "1") => timed = Some(true),
+                ("profile", p) => profile = Some(p.to_string()),
+                _ => return Err(bad()),
+            }
         }
+        let (Some(timed), Some(profile)) = (timed, profile) else { return Err(bad()) };
+        let profile = match profile.as_str() {
+            "-" => None,
+            p => Some(Profile::from_entries(p, entries)?),
+        };
+        Ok(TimeOptions { profile, timed })
     }
 }
 
@@ -208,8 +242,39 @@ impl TimeState {
     }
 }
 
-/// Names of the foreign functions the checker implements natively.
-pub const TIME_FUNCTIONS: [&str; 7] = ["Now", "NowBest", "Elapse", "ElapseCost", "Mark", "Elapsed", "ElapsedBest"];
+/// Largest range bound (about 12.7 days). With step bounds this keeps clock
+/// arithmetic far from `i64` overflow; saturating arithmetic is only a backstop.
+pub const MAX_RANGE: i64 = 1 << 40;
+
+/// The foreign functions the checker implements natively: name, parameter types,
+/// return type (`void` for none).
+pub const TIME_FUNCTIONS: [(&str, &[&str], &str); 7] = [
+    ("Now", &[], "int"),
+    ("NowBest", &[], "int"),
+    ("Elapse", &["int", "int"], "void"),
+    ("ElapseCost", &["string"], "void"),
+    ("Mark", &[], "int"),
+    ("Elapsed", &["int"], "int"),
+    ("ElapsedBest", &["int"], "int"),
+];
+
+/// Parameter and return types of time function `name`.
+pub fn time_signature(name: &str) -> Option<(&'static [&'static str], &'static str)> {
+    TIME_FUNCTIONS.iter().find(|f| f.0 == name).map(|f| (f.1, f.2))
+}
+
+/// The declaration a model must use, e.g. `fun Elapse(lo: int, hi: int);`.
+pub fn time_declaration(name: &str) -> String {
+    let Some((params, ret)) = time_signature(name) else { return String::new() };
+    let names = match name {
+        "Elapse" => vec!["lo", "hi"],
+        "ElapseCost" => vec!["name"],
+        _ => vec!["m"],
+    };
+    let ps: Vec<String> = params.iter().zip(names).map(|(t, n)| format!("{}: {}", n, t)).collect();
+    let ret = if ret == "void" { String::new() } else { format!(": {}", ret) };
+    format!("fun {}({}){};", name, ps.join(", "), ret)
+}
 
 // ---- profiles ------------------------------------------------------------------------
 
@@ -271,45 +336,30 @@ impl Profile {
         Ok(())
     }
 
-    /// Stable hash of the resolved entries (FNV-1a), recorded in schedule files.
-    pub fn hash(&self) -> u64 {
-        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-        let mut feed = |s: &str| {
-            for b in s.bytes().chain(std::iter::once(0)) {
-                h ^= b as u64;
-                h = h.wrapping_mul(0x0000_0100_0000_01b3);
-            }
-        };
-        let r = |r: &Range| format!("{}..{}", r.lo, r.hi);
-        feed(&self.name);
+    /// The resolved entries as profile-file keys and values in microseconds
+    /// (`"(LB, Db).eGet" = "2000us..4000us"`), in a canonical order. Schedule files
+    /// record them so a replay does not depend on the latency file.
+    pub fn entries(&self) -> Vec<(String, String)> {
+        let r = |r: &Range| format!("{}us..{}us", r.lo, r.hi);
+        let mut out = Vec::new();
         if let Some(d) = &self.default {
-            feed("default");
-            feed(&r(d));
+            out.push(("default".to_string(), r(d)));
         }
-        for (k, v) in &self.events {
-            feed("e");
-            feed(k);
-            feed(&r(v));
+        out.extend(self.events.iter().map(|(k, v)| (k.clone(), r(v))));
+        out.extend(self.links.iter().map(|((a, b), v)| (format!("({}, {})", a, b), r(v))));
+        out.extend(self.link_events.iter().map(|((a, b, e), v)| (format!("({}, {}).{}", a, b, e), r(v))));
+        out.extend(self.costs.iter().map(|(k, v)| (format!("cost.{}", k), r(v))));
+        out
+    }
+
+    /// Inverse of [`Profile::entries`].
+    pub fn from_entries(name: &str, entries: &[(String, String)]) -> Result<Profile, String> {
+        let mut text = format!("[profile.\"{}\"]\n", name);
+        for (k, v) in entries {
+            text.push_str(&format!("\"{}\" = \"{}\"\n", k, v));
         }
-        for ((a, b), v) in &self.links {
-            feed("l");
-            feed(a);
-            feed(b);
-            feed(&r(v));
-        }
-        for ((a, b, e), v) in &self.link_events {
-            feed("le");
-            feed(a);
-            feed(b);
-            feed(e);
-            feed(&r(v));
-        }
-        for (k, v) in &self.costs {
-            feed("c");
-            feed(k);
-            feed(&r(v));
-        }
-        h
+        let mut set = ProfileSet::parse(&text)?;
+        Ok(set.profiles.remove(name).unwrap_or_default())
     }
 }
 
@@ -359,9 +409,17 @@ impl ProfileSet {
             match &section {
                 Section::None => return Err(format!("line {}: entry outside a section", ln)),
                 Section::Tests => {
-                    tests.insert(k, v);
+                    if tests.insert(k.clone(), v).is_some() {
+                        return Err(format!("line {}: test '{}' is listed twice", ln, k));
+                    }
                 }
-                Section::Profile(p) => raw.get_mut(p).unwrap().push((k, v, ln)),
+                Section::Profile(p) => {
+                    let entries = raw.get_mut(p).unwrap();
+                    if entries.iter().any(|(e, _, _)| *e == k) {
+                        return Err(format!("line {}: '{}' is set twice in profile '{}'", ln, k, p));
+                    }
+                    entries.push((k, v, ln));
+                }
             }
         }
         let mut profiles = BTreeMap::new();
@@ -484,6 +542,9 @@ pub fn parse_range(s: &str) -> Result<Range, String> {
     if lo > hi {
         return Err(format!("range '{}' has lo > hi", s));
     }
+    if hi > MAX_RANGE {
+        return Err(format!("range '{}' is longer than {}us", s, MAX_RANGE));
+    }
     Ok(Range { lo, hi })
 }
 
@@ -536,7 +597,28 @@ mod tests {
         assert_eq!(b.max(&a, &mut s), b);
         let c = Time::range(r(3, 20), &mut s);
         let m = a.max(&c, &mut s);
-        assert_eq!((m.best(), m.worst()), (3, 20));
+        // overlapping: c's correlation is kept at the cost of a wider worst case
+        assert_eq!((m.best(), m.worst()), (3, 27));
+        assert_eq!((m.sub(&c).best(), m.sub(&c).worst()), (0, 7));
+    }
+
+    #[test]
+    fn max_keeps_shared_history() {
+        let mut s = Symbols::default();
+        let x = Time::range(r(0, 100), &mut s);
+        let a = x.add(&Time::range(r(0, 10), &mut s));
+        let b = x.add(&Time::range(r(5, 6), &mut s));
+        let m = a.max(&b, &mut s);
+        // sound: m >= a and m >= b for every value of the symbols
+        assert!(m.sub(&a).best() >= -10 && m.sub(&b).best() >= 0);
+        // correlated with x: m - x stays narrow
+        let since = m.sub(&x);
+        assert_eq!((since.best(), since.worst()), (5, 11));
+        // independent draws: the uncorrelated range is tighter and is used
+        let p = Time::range(r(0, 10), &mut s);
+        let q = Time::range(r(0, 10), &mut s);
+        let m = p.max(&q, &mut s);
+        assert_eq!((m.best(), m.worst()), (0, 10));
     }
 
     #[test]
@@ -581,7 +663,11 @@ mod tests {
         assert_eq!(far.latency("X", "X", "eZ", true), None);
         assert_eq!(far.latency("X", "X", "eReq", true), Some(r(1_000, 2_000)));
         assert_eq!(far.cost("DbQuery"), Some(r(2_000, 8_000)));
-        assert_ne!(far.hash(), ps.profiles["base"].hash());
+        let back = Profile::from_entries("far", &far.entries()).unwrap();
+        assert_eq!(&back, far);
+        let opts = TimeOptions { profile: Some(back), timed: true };
+        let again = TimeOptions::from_schedule(&opts.schedule_header(), &far.entries()).unwrap();
+        assert_eq!((again.profile.as_ref(), again.timed), (Some(far), true));
         assert!(ps.for_test("tcB", None).unwrap().is_none());
     }
 
@@ -593,5 +679,8 @@ mod tests {
         assert!(ProfileSet::parse("[tests]\nt = \"nope\"").is_err());
         assert!(ProfileSet::parse("x = \"1ms\"").is_err());
         assert!(ProfileSet::parse("[profile.a]\nx = \"1.5ms\"").is_err());
+        assert!(ProfileSet::parse("[profile.a]\nx = \"1ms\"\nx = \"2ms\"").is_err());
+        assert!(ProfileSet::parse("[profile.a]\n[tests]\nt = \"a\"\nt = \"a\"").is_err());
+        assert!(ProfileSet::parse("[profile.a]\nx = \"2000000s\"").unwrap_err().contains("longer than"));
     }
 }

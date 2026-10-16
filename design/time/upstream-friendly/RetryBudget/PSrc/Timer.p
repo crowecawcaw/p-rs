@@ -6,7 +6,7 @@
  * sends is stamped creation + after.
  *   upstream / p-next untimed: the timeout may be delivered before replies
  *                              stamped earlier, as with today's $-timers.
- *   p-next --timed:            it is delivered in stamp order.
+ *   p-next --timed:            events certainly arriving earlier are handled first.
  * Cancelling is done by the holder ignoring stale tags, which is simpler and
  * race-free compared to a cancel message.
  *****************************************************************************/

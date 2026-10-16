@@ -983,8 +983,16 @@ impl<'p> Runtime<'p> {
             return EnqueueStatus::Dropped;
         }
         let waiting = self.machines[t].inbox.waiting.clone();
-        if let Some(w) = waiting {
-            if w.contains(&e.id) {
+        if waiting.is_some_and(|w| w.contains(&e.id)) {
+            if self.timed() {
+                // the receiver picks among its queued events when it resumes
+                self.machines[t].inbox.waiting = None;
+                self.machines[t].inbox.queue.push_back(e);
+                let id = self.machines[t].id;
+                self.op_mut(id).status = OpStatus::Enabled;
+                return EnqueueStatus::HandlerRunning;
+            }
+            {
                 self.machines[t].inbox.waiting = None;
                 let name = self.machines[t].name.clone();
                 let state = self.log_state_name(t);
@@ -1008,15 +1016,13 @@ impl<'p> Runtime<'p> {
                     self.jlog("ReceiveEvent", d, true);
                 }
                 self.cov_receive(t, e.id);
-                self.time_receive(t, &e);
                 self.machines[t].received = Some(e);
                 let id = self.machines[t].id;
                 self.op_mut(id).status = OpStatus::Enabled;
                 return EnqueueStatus::HandlerRunning;
             }
         }
-        let pos = self.enqueue_position(t, &e);
-        self.machines[t].inbox.queue.insert(pos, e);
+        self.machines[t].inbox.queue.push_back(e);
         if !self.machines[t].inbox.handler_running {
             if self.try_dequeue(t, true).is_none() {
                 return EnqueueStatus::NextEventUnavailable;
@@ -1094,9 +1100,12 @@ impl<'p> Runtime<'p> {
     /// Runs machine `m` until it reaches a scheduling point. Returns the kind of point
     /// (`SchedKind::Stop` when the event handler completed).
     fn run_machine(&mut self, m: usize) -> Result<SchedKind, Stop> {
+        // Still at the scheduling point this step started from (`--timed` picks events here).
+        let mut at_point = true;
         loop {
             // Resume or run the current action, if any.
             if let Some(exec) = self.machines[m].exec.take() {
+                at_point = false;
                 match self.run_exec(Actor::Machine(m), exec)? {
                     ExecOutcome::Finished(_) | ExecOutcome::Unwound => {}
                     ExecOutcome::Yield(exec, kind) => {
@@ -1106,6 +1115,9 @@ impl<'p> Runtime<'p> {
                 }
             }
             let stage = std::mem::replace(&mut self.machines[m].stage, Stage::Idle);
+            if !matches!(stage, Stage::Idle | Stage::Loop | Stage::DequeueTry { .. }) {
+                at_point = false;
+            }
             match stage {
                 Stage::Start(payload) => {
                     let e = Event { id: self.prog.null_event, payload, stamp: None };
@@ -1134,12 +1146,22 @@ impl<'p> Runtime<'p> {
                     }
                     let has_default = self.has_default_handler(m);
                     self.machines[m].stage = Stage::DequeueTry { has_default };
-                    if has_default {
+                    if self.timed() {
+                        // pick the event at a scheduling point, once earlier senders have run
+                        if !at_point && (has_default || self.timed_pick(m, None).is_some()) {
+                            return Ok(if has_default { SchedKind::Default } else { SchedKind::Receive });
+                        }
+                    } else if has_default {
                         return Ok(SchedKind::Default);
                     }
                 }
                 Stage::DequeueTry { has_default } => {
-                    if let Some(e) = self.try_dequeue(m, false) {
+                    let taken = if self.timed() { self.timed_take(m, has_default) } else { self.try_dequeue(m, false) };
+                    if let Some(e) = taken.as_ref().filter(|_| self.timed()) {
+                        self.machines[m].stage = Stage::Dequeued(e.clone());
+                        continue;
+                    }
+                    if let Some(e) = taken {
                         let id = self.machines[m].id;
                         let op = self.op_mut(id);
                         if op.skip_next_receive {
@@ -1830,7 +1852,7 @@ impl<'p> Runtime<'p> {
     }
 
     /// Machine `m` takes event `e`: its clock catches up with the event's stamp.
-    fn time_receive(&mut self, m: usize, e: &Event) {
+    pub fn time_receive(&mut self, m: usize, e: &Event) {
         let (Some(ts), Some(stamp)) = (self.time.as_mut(), e.stamp.as_ref()) else { return };
         let clock = ts.join(&self.machines[m].clock, &stamp.at);
         self.machines[m].clock = clock;
@@ -1840,38 +1862,90 @@ impl<'p> Runtime<'p> {
         }
     }
 
-    /// Where `e` enters machine `t`'s queue: at the end, except that under `--timed` it
-    /// overtakes queued events from other senders that certainly arrive later.
-    fn enqueue_position(&self, t: usize, e: &Event) -> usize {
-        let q = &self.machines[t].inbox.queue;
-        let timed = self.time.as_ref().is_some_and(|ts| ts.opts.timed);
-        let Some(stamp) = e.stamp.as_ref().filter(|_| timed) else { return q.len() };
-        let worst = stamp.at.worst();
-        let mut i = q.len();
-        while i > 0 {
-            match q[i - 1].stamp.as_ref() {
-                Some(s) if s.sender != stamp.sender && s.at.best() > worst => i -= 1,
-                _ => break,
-            }
-        }
-        i
-    }
-
     /// When operation `op` would act if scheduled now (`--timed`).
     fn ready_time(&mut self, op: usize) -> crate::time::Time {
         let Some(m) = self.ops[op].machine else { return crate::time::Time::default() };
         let clock = self.machines[m].clock.clone();
-        let next = match &self.machines[m].stage {
-            Stage::Idle | Stage::Loop | Stage::DequeueTry { .. } if self.machines[m].inbox.raised.is_none() => {
-                self.try_dequeue(m, true)
+        let mach = &self.machines[m];
+        let next = match &mach.stage {
+            Stage::Idle | Stage::Loop | Stage::DequeueTry { .. } if mach.inbox.raised.is_none() && mach.exec.is_none() => {
+                // a default handler runs at the clock when nothing has certainly arrived
+                if self.has_default_handler(m) {
+                    None
+                } else {
+                    self.timed_pick(m, None).and_then(|i| self.machines[m].inbox.queue[i].stamp.clone())
+                }
             }
-            Stage::Dequeued(e) => Some(e.clone()),
-            _ => None,
+            Stage::Dequeued(e) => e.stamp.clone(),
+            _ => match mach.exec.as_ref().and_then(|x| x.pending.as_ref()) {
+                Some(Pending::ReceiveWait { cases, .. }) => {
+                    let wait = receive_wait_set(self.prog, cases);
+                    self.timed_pick(m, Some(&wait)).and_then(|i| self.machines[m].inbox.queue[i].stamp.clone())
+                }
+                _ => None,
+            },
         };
-        match next.and_then(|e| e.stamp) {
+        match next {
             Some(s) => self.time.as_mut().unwrap().join(&clock, &s.at),
             None => clock,
         }
+    }
+
+    pub fn timed(&self) -> bool {
+        self.time.as_ref().is_some_and(|t| t.opts.timed)
+    }
+
+    /// `--timed`: the queued event machine `m` takes next, among the events `wait`
+    /// lists (a `receive`) or that the current state neither ignores nor defers. The
+    /// first such event of each sender is a candidate (per-sender FIFO); the one with
+    /// the earliest worst-case stamp wins, the earliest queued on ties.
+    pub fn timed_pick(&self, m: usize, wait: Option<&[EventId]>) -> Option<usize> {
+        let mut senders: Vec<u64> = Vec::new();
+        let mut best: Option<(i64, usize)> = None;
+        for (i, e) in self.machines[m].inbox.queue.iter().enumerate() {
+            let eligible = match wait {
+                Some(w) => w.contains(&e.id),
+                None => !self.is_ignored(m, e.id) && !self.is_deferred(m, e.id),
+            };
+            if !eligible {
+                continue;
+            }
+            if let Some(st) = &e.stamp {
+                if senders.contains(&st.sender) {
+                    continue;
+                }
+                senders.push(st.sender);
+            }
+            let w = e.stamp.as_ref().map_or(i64::MIN, |st| st.at.worst());
+            if best.is_none_or(|(bw, _)| w < bw) {
+                best = Some((w, i));
+            }
+        }
+        best.map(|(_, i)| i)
+    }
+
+    /// `--timed` dequeue: removes the picked event, dropping ignored events queued
+    /// ahead of it as `try_dequeue` does. With a default handler, an event that
+    /// certainly arrives after the machine's clock counts as not there yet.
+    fn timed_take(&mut self, m: usize, has_default: bool) -> Option<Event> {
+        let mut i = self.timed_pick(m, None)?;
+        if has_default {
+            let e = &self.machines[m].inbox.queue[i];
+            if e.stamp.as_ref().is_some_and(|st| st.at.best() > self.machines[m].clock.worst()) {
+                return None;
+            }
+        }
+        let mut j = 0;
+        while j < i {
+            let id = self.machines[m].inbox.queue[j].id;
+            if self.is_ignored(m, id) {
+                self.machines[m].inbox.queue.remove(j);
+                i -= 1;
+            } else {
+                j += 1;
+            }
+        }
+        self.machines[m].inbox.queue.remove(i)
     }
 
     /// `--timed`: disables every enabled operation that certainly acts later than
@@ -1918,9 +1992,7 @@ impl<'p> Runtime<'p> {
     /// The natively implemented time functions; `None` if `name` is not one of them.
     pub fn call_time_function(&mut self, actor: Actor, name: &str, args: &[Value]) -> Option<Result<Value, Exception>> {
         self.time.as_ref()?;
-        if !crate::time::TIME_FUNCTIONS.contains(&name) {
-            return None;
-        }
+        crate::time::time_signature(name)?;
         let int = |i: usize| match args.get(i) {
             Some(Value::Int(v)) => Ok(*v),
             _ => Err(Exception::new("System.ArgumentException", format!("{} expects int arguments", name))),
@@ -1945,10 +2017,10 @@ impl<'p> Runtime<'p> {
             "NowBest" => Ok(Value::Int(clock.best())),
             "Elapse" => {
                 let (lo, hi) = (int(0)?, int(1)?);
-                if lo < 0 || lo > hi {
+                if lo < 0 || lo > hi || hi > crate::time::MAX_RANGE {
                     return Err(Exception::new(
                         "System.ArgumentException",
-                        format!("Elapse({}, {}): expected 0 <= lo <= hi", lo, hi),
+                        format!("Elapse({}, {}): expected 0 <= lo <= hi <= {}", lo, hi, crate::time::MAX_RANGE),
                     ));
                 }
                 elapse(self, crate::time::Range { lo, hi })
@@ -1957,8 +2029,17 @@ impl<'p> Runtime<'p> {
                 let Some(Value::Str(n)) = args.first() else {
                     return Err(Exception::new("System.ArgumentException", "ElapseCost expects a string"));
                 };
-                let r = self.time.as_ref().unwrap().opts.profile.as_ref().and_then(|p| p.cost(n));
-                elapse(self, r.unwrap_or(crate::time::Range { lo: 0, hi: 0 }))
+                // without a profile everything costs 0; with one, an unpriced name is a typo
+                let r = match &self.time.as_ref().unwrap().opts.profile {
+                    None => crate::time::Range { lo: 0, hi: 0 },
+                    Some(p) => p.cost(n).ok_or_else(|| {
+                        Exception::new(
+                            "System.ArgumentException",
+                            format!("ElapseCost(\"{}\"): latency profile '{}' has no entry \"cost.{}\"", n, p.name, n),
+                        )
+                    })?,
+                };
+                elapse(self, r)
             }
             "Mark" => {
                 let ts = self.time.as_mut().unwrap();
@@ -2071,4 +2152,18 @@ pub fn monitor_map_with_scenarios(prog: &Program, module: &ModuleInfo) -> Vec<(M
         }
     }
     map
+}
+
+/// The events a `receive` with these cases waits for (`halt` always included).
+pub fn receive_wait_set(prog: &Program, cases: &[ReceiveCase]) -> Vec<EventId> {
+    let mut wait: Vec<EventId> = Vec::new();
+    for c in cases {
+        if !wait.contains(&c.event) {
+            wait.push(c.event);
+        }
+    }
+    if !wait.contains(&prog.halt_event) {
+        wait.push(prog.halt_event);
+    }
+    wait
 }
