@@ -5,6 +5,10 @@ version = 4
 [[package]]
 name = "pnext-checker"
 version = "0.1.0"
+dependencies = [
+ "pnext-sema",
+ "pnext-syntax",
+]
 
 [[package]]
 name = "pnext-cli"
