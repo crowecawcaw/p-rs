@@ -16,6 +16,8 @@ scheduler, with the same bug-finding semantics as the upstream checker.
 | `pnext-cli` | The `p` binary. |
 | `pnext-wasm` | WebAssembly module plus a JavaScript wrapper to run `p` in a browser or Node.js. |
 
+Try it in the browser: the [P Playground](https://crowecawcaw.github.io/p-rs/) (source in `web/`).
+
 The core crates use no file system, process or threading APIs and build for
 `wasm32-unknown-unknown` unchanged.
 
