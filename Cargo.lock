@@ -53,6 +53,15 @@ name = "pnext-syntax"
 version = "0.1.0"
 
 [[package]]
+name = "pnext-wasm"
+version = "0.1.0"
+dependencies = [
+ "pnext-compat",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"

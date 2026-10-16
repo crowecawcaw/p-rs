@@ -6,6 +6,7 @@ members = [
     "crates/pnext-checker",
     "crates/pnext-compat",
     "crates/pnext-cli",
+    "crates/pnext-wasm",
 ]
 
 [workspace.package]
@@ -26,3 +27,13 @@ roxmltree = "0.20"
 
 [profile.release]
 debug = 1
+
+# Size-optimized build for the WebAssembly module:
+#   cargo build --profile wasm --target wasm32-unknown-unknown -p pnext-wasm
+[profile.wasm]
+inherits = "release"
+debug = false
+strip = true
+opt-level = "s"
+lto = true
+codegen-units = 1
