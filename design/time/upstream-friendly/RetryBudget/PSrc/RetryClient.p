@@ -36,7 +36,7 @@ machine Client {
       timeoutAfter = ms(300);
       backoff += (0, ms(50));
       backoff += (1, ms(100));
-      started = Now();
+      started = Mark();
       goto Trying;
     }
   }

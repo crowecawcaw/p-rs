@@ -49,7 +49,7 @@ machine Api {
     on eQueryResp do (resp: (reqId: int, throttled: bool)) {
       if (resp.throttled && tries[resp.reqId] < 3) {
         tries[resp.reqId] = tries[resp.reqId] + 1;
-        elapse 10ms;                                       // backoff
+        elapse 10ms;                                       // backoff; blocks the Api on purpose
         send db, eQuery, (reqId = resp.reqId, api = this, rows = rowsOf[resp.reqId]);
       }
     }
@@ -78,10 +78,9 @@ spec RcuRateLimit observes eDbCall {
       var inWindow: int;
       log += (sizeof(log), (at = now(), rcu = c.rcu));
       while (i < sizeof(log)) {
-        // Uncertain comparison: both outcomes are explored, so a call that
-        // *could* fall in the same window as this one is counted on some
-        // schedule. That is the intended (conservative) reading of a limit.
-        if (now() - log[i].at < 1s) { inWindow = inWindow + log[i].rcu; }
+        // Specs may not branch on uncertain time. `possibly` counts a call
+        // that *could* fall in the same window: the conservative reading.
+        if (possibly(now() - log[i].at < 1s)) { inWindow = inWindow + log[i].rcu; }
         i = i + 1;
       }
       assert inWindow <= 40, format("{0} RCU within 1s", inWindow);

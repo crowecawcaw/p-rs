@@ -4,7 +4,7 @@ Sample 5 of `../../examples/` rewritten with no new syntax. The extension is:
 
 | Piece | Where | Upstream P sees it? |
 |---|---|---|
-| `Now()`, `NowBest()`, `Elapse(lo, hi)` | foreign functions in `PSrc/Time.p` | yes, as foreign functions (C# stubs in `PForeign/`: time stands still) |
+| `Now()`, `NowBest()`, `Elapse(lo, hi)`, `Mark()`, `Elapsed(m)`, `ElapsedBest(m)` | foreign functions in `PSrc/Time.p` | yes, as foreign functions (C# stubs in `PForeign/`: time stands still) |
 | One-shot `Timer` | plain P in `PSrc/Timer.p` | yes, behaves like today's nondeterministic timer |
 | Delivery latencies | `PTst/latency.toml` | no |
 | Time-ordered scheduling | `p check --timed` | no |
@@ -45,6 +45,10 @@ pruned.
   best case. No uncertain comparisons: `if (Now() > deadline)` is
   pessimistic (fails fast whenever the deadline might have passed).
 * Per-send latency overrides become Timer machines or profile entries.
-* `Now() - started` is a difference of worst cases. That is the right reading
-  when both readings share the same history, and avoids the interval-arithmetic
-  dependency problem of `[a, b] - [c, d]`.
+* Budgets use the stopwatch `Mark()` / `Elapsed(m)`, not `Now() - t0`: the
+  checker keeps the correlation between the two readings (affine forms, see
+  PROPOSAL.md), so shared history cancels. Subtracting two worst cases could
+  understate a budget after a fan-in; subtracting two intervals overstates it.
+* The `Timer` is a separate machine, so the scheduler already chooses when its
+  timeout lands relative to replies. (The native `send ... latency d` needs
+  delivery to be its own scheduler step to get the same; see PROPOSAL.md.)

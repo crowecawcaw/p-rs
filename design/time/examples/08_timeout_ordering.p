@@ -11,6 +11,10 @@
  * scheduler may show the spec either event first; the comparison itself is
  * on stamps, not on schedule order.
  *
+ * The spec compares two ranges, so it states the modality explicitly (specs may
+ * not contain uncertain comparisons). This is a non-monotone check: "no bug"
+ * is weaker than for a plain budget, because inflated clocks can hide it.
+ *
  * Config below: client 1s, LB 2s, server work 200ms..1.5s -> bug.
  * Fix: client 2.5s > LB 2s > server worst 1.5s + links.
  *****************************************************************************/
@@ -87,7 +91,7 @@ spec NoOrphanedWork observes eGaveUp, eFinished {
     }
   }
   fun check(id: int) {
-    assert finishedAt[id] < gaveUpAt[id],
+    assert worst(finishedAt[id]) < best(gaveUpAt[id]),
       format("attempt {0}: server finished at {1} but the client gave up at {2}",
              id, finishedAt[id], gaveUpAt[id]);
   }

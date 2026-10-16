@@ -6,8 +6,8 @@
  * The ideal bound is min(A, 20 + B) = min(200, 50) = 50ms.
  *
  * This sample needs --timed, including its narrowing rule: when the scheduler
- * dequeues e while f is still pending, e's time is clamped to f.worst (e
- * happened no later than f). Without --timed the scheduler may deliver A's
+ * delivers e ahead of a pending delivery f, it records e <= f (e happened no
+ * later than f). Without --timed the scheduler may deliver A's
  * slow reply first, the reported bound is 200ms, and the check fails:
  * hedging cannot be verified by an untimed checker.
  *

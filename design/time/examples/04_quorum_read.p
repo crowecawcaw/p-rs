@@ -11,8 +11,11 @@
  * Replica 2 sits in another region (40..60ms). Budget 30ms:
  *   untimed: fails (may wait on replica 2).
  *   --timed: passes, since replicas 0 and 1 are both certainly earlier.
- * The third reply arriving after the response has been sent advances the
- * coordinator's clock but no longer matters for this request.
+ * The third reply arrives after the response has been sent; it is ignored in
+ * Idle, and ignored events have no clock effect.
+ * Each replica's `link` is one stored value used for both directions, so the
+ * request and reply latencies of a replica are the same value (correlated),
+ * not two independent draws from the range.
  *****************************************************************************/
 
 type tRead     = (client: machine, key: int);
@@ -41,7 +44,7 @@ machine Replica {
 machine Coordinator {
   var replicas: seq[(r: Replica, link: duration)];
   var replies: int;
-  var best: int;
+  var newest: int;
   var client: machine;
 
   start state Init {
@@ -56,7 +59,7 @@ machine Coordinator {
   state Idle {
     on eRead do (r: tRead) {
       var i: int;
-      client = r.client; replies = 0; best = -1;
+      client = r.client; replies = 0; newest = -1;
       while (i < sizeof(replicas)) {
         send replicas[i].r, eReplicaQ, (coord = this, key = r.key) latency replicas[i].link;
         i = i + 1;
@@ -69,8 +72,8 @@ machine Coordinator {
   state Waiting {
     on eReplicaR do (r: tReplicaR) {
       replies = replies + 1;
-      if (r.version > best) { best = r.version; }
-      if (replies == 2) { send client, eReadResp, best; goto Idle; }
+      if (r.version > newest) { newest = r.version; }
+      if (replies == 2) { send client, eReadResp, newest; goto Idle; }
     }
     defer eRead;
   }

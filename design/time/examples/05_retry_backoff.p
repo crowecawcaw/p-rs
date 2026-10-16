@@ -16,7 +16,10 @@
  * The give-up path exceeds 1s: bug. The fix is a shorter per-attempt timeout
  * or fewer attempts; with 250ms timeouts the give-up path ends @900.
  *
- * Untimed vs --timed: untimed, the 300ms timeout may be dequeued before a
+ * Delayed sends are in flight until the scheduler delivers them, so both
+ * reply-before-timeout and timeout-before-reply are explored.
+ *
+ * Untimed vs --timed: untimed, the 300ms timeout may be delivered before a
  * 10..40ms reply, so the checker also explores "slow" retries that cannot
  * happen. They do not produce false latency bugs here (their cost is bounded
  * by the drop path), but they do inflate retry counts, so any assertion about

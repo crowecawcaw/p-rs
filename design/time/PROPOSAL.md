@@ -1,199 +1,253 @@
-# Latency budgets for P (design proposal)
+# Time, timeouts and latency budgets for P (design proposal, v2)
 
-Status: draft for discussion. Nothing here is implemented.
+Status: draft for discussion. Nothing here is implemented. v2 incorporates an
+independent review of v1 (summary of changes at the end).
 
-## Motivation
+## Motivation and scope
 
-Distributed systems have latency ranges per hop, budgets per request, retries,
-timeouts and alternative paths (cache hit/miss, failover). P checks the *logic* of
-such systems but has no notion of time: timers fire on `$`, and the scheduler
-interleaves without regard to how long anything takes. We want to:
+P checks the *logic* of distributed protocols but has no time: timers fire on `$`
+and the scheduler ignores how long anything takes. The bugs worth catching are
+those where **time interacts with control flow**:
 
-* declare how long message delivery and local work take (as ranges),
-* compute how long a request took along the path an execution actually followed,
-* assert that this is within a budget, and get a replayable trace when it is not.
+* retry policies that outlast the caller's deadline,
+* timeout layering that orphans work or causes retry storms,
+* deadlines that are not propagated,
+* failover paths that exceed a budget,
+* hedging and quorum patterns whose benefit depends on which reply comes first,
+* false bugs in today's models where a timeout fires before a reply that would
+  certainly have arrived.
 
-## Core idea: causal cost clocks
+Summing latencies along a fixed path (examples 1-3) is supported but is not the
+motivation: a spreadsheet does that. Percentiles are out of scope: ranges give
+per-path bounds, not distributions. Additive non-time costs (RCU, rows, call
+counts) need no feature: a spec monitor sums them today (example 10).
 
-Every machine has a local clock. Every sent event carries a *stamp*:
+## Two surfaces, one semantics
+
+**Recommended first: the upstream-compatible surface** (`upstream-friendly/`).
+
+* `Now()`, `NowBest()`, `Elapse(lo, hi)`, `Mark()`, `Elapsed(m)`, `ElapsedBest(m)`
+  are foreign functions over `int` microseconds. Upstream links C# stubs where
+  time stands still, so the same `.p` files run there untimed.
+* Timers are ordinary machines (`Timer` in `upstream-friendly/RetryBudget`).
+* Delivery latencies and named costs live in a profile file passed with
+  `p check --latency <file>`.
+* `--timed` is a checker flag.
+
+**Possible later: native syntax** (`examples/`): `duration` values and
+literals, `elapse`, `send ... latency d`, latency profiles in `.p` files. Same
+semantics, nicer to write, but models no longer compile upstream. Build only if
+the foreign-function surface proves the idea on real models.
+
+## Semantics
+
+### Clocks and stamps
+
+Every machine has a local clock.
 
 ```
-stamp(e)        = clock(sender) at send + latency(e)
-on dequeue:       clock(receiver) = max(clock(receiver), stamp(e))
-elapse d:         clock(self)     = clock(self) + d
+send e (latency L):   stamp(e)  = clock(sender) + L
+dequeue e:            clock(rcv) = max(clock(rcv), stamp(e))
+Elapse / elapse d:    clock(self) = clock(self) + d
+new M(...):           clock(child) = clock(creator)
+announce e:           observed by specs at clock(announcer); no latency
+raise e, goto:        no cost
+ignored event:        dropped, no clock effect
+deferred event:       clock effect when finally dequeued
+receive:              like dequeue
 ```
 
-This is a Lamport clock with weights. It gives critical-path latency for free:
-sequential work sums, parallel fan-in takes the max, retries accumulate in the
-loop that performs them, and a machine busy with other work delays the next event
-(head-of-line queueing on a single-threaded actor).
+Specs read `Now()` (or `now()`) as the clock of the machine whose send or
+announce is being observed, plus `arrival()` = send stamp for sends, = `now()` for
+announces. In a spec's start entry and in spec functions called from it the
+clock is 0. Specs may not contain uncertain comparisons (see below): P forbids
+nondeterminism in monitors.
 
-In the base mode the clocks only *observe*; they never change which schedules are
-explored. That keeps the feature inside P's model (properties over executions) and
-costs nothing for programs that do not use it.
+### Delivery is a scheduler step
 
-## Values are intervals
+v1 enqueued a delayed send immediately. P mailboxes are FIFO, so a 300ms timeout
+sent to self always sat ahead of a reply that came later: the reply-before-timeout
+interleaving was never explored, which is *fewer* behaviours than today's
+`Timer` machine. Fix:
 
-A `duration` is an interval `[best, worst]`; a point duration has `best == worst`.
+* A send with nonzero latency puts the event **in flight**. Moving it into the
+  receiver's mailbox is a separate, schedulable operation.
+* Per (sender, receiver) link, deliveries stay FIFO, as in P.
+* Self-sends with latency (timers) are exempt from link FIFO.
+* Zero-latency sends behave exactly as today.
 
-| Expression | Meaning |
-|---|---|
-| `5ms`, `2s`, `250us` | point literals |
-| `5ms..20ms` | range literal |
-| `a + b` | `[a.best + b.best, a.worst + b.worst]` |
-| `a - b` | `[a.best - b.worst, a.worst - b.best]` |
-| `k * a` (`k: int >= 0`) | scaled |
-| `max(a, b)`, `min(a, b)` | componentwise |
-| `best(a)`, `worst(a)` | point durations |
-| `a <= b` etc. | see below |
+In the upstream-compatible surface this falls out for free: a `Timer` is a
+separate machine, so the scheduler already chooses when its timeout lands.
 
-**Comparisons are three-valued.** `a <= b` is *certainly true* if
-`a.worst <= b.best`, *certainly false* if `a.best > b.worst`, and *uncertain*
-otherwise. Uncertain comparisons resolve as follows:
+Consequence: delayed sends **add** interleavings (as many as today's
+nondeterministic timers). "Zero cost when unused" holds; "never changes the
+explored schedules" holds only for programs whose sends all have latency 0.
 
-* In `assert`, uncertain counts as false. An assertion over durations therefore
-  states a worst-case bound: `assert now() - t0 <= 100ms` fails if the request
-  *could* have taken more than 100ms on this path.
-* In `if`/`while` conditions, an uncertain comparison is a nondeterministic
-  choice (like `$`), recorded in the schedule and replayable. Model code that
-  branches on time (`if (now() > deadline)`) thus explores both outcomes when
-  both are possible. The interval is not narrowed after the branch (a known
-  imprecision, see Open questions).
+### Values: ranges with correlation
 
-Intervals rather than sampling: deterministic, no extra state space, and the
-reported number is the true worst case of the explored path rather than a lucky
-draw.
+A duration is a range `[best, worst]`, but plain interval arithmetic is wrong for
+budgets: in `now() - t0`, both share their history, and interval subtraction
+adds their widths instead of cancelling them (v1's examples 1 and 2 failed
+falsely this way: a 22ms request reported as up to 38ms, and 62ms).
 
-## Syntax
+Representation: **affine forms**. Each evaluation of a range (an `Elapse(lo, hi)`
+call, a latency from the profile, a range literal) introduces a fresh noise
+symbol `e_i ∈ [0, 1]`; a duration is `c + Σ a_i e_i`. Then:
 
-### Delivery latency
+* `+`, `-`, scaling by a constant: exact; shared terms cancel.
+* `max(a, b)`: exact when `a - b` has a certain sign (the common case
+  `max(local, local + delay)`), otherwise over-approximated by a fresh symbol.
+* `best`/`worst`: minimise/maximise over the symbols.
+* A value stored in a variable keeps its symbols: reusing it means *the same*
+  value (example 4 uses one stored link latency for both directions on purpose).
+  A range literal is fresh at each evaluation.
+* Values may be negative (a difference of correlated quantities).
+* Symbols are bounded by the steps of one execution; the implementation may
+  collapse old symbols into a constant range when no live value references them.
 
-```p
-event eReadReq : tReadReq latency 1ms..5ms;      // default for this event type
-send backup, eReplicate, r latency 40ms..60ms;   // per-send override
-send this, eTimeout latency 300ms;               // a timer is a delayed self-send
-```
+Upstream-compatible surface: `Mark()` returns a handle to the current clock;
+`Elapsed(m)` / `ElapsedBest(m)` return the worst / best of `now - mark` as
+`int`, computed exactly as above. `Now()` / `NowBest()` return the worst / best
+of the clock itself (for deadlines carried in payloads).
 
-Events without a declared latency are delivered with latency `0ms`.
+### Comparisons (native surface)
 
-### Local work
+A comparison of durations is *certain* or *uncertain*. One rule everywhere: an
+uncertain comparison is a recorded nondeterministic choice (like `$`), in
+`if`, `while`, `assert`, assignments and function arguments alike. So
+`assert now() - t0 <= 100ms` fails on some schedule whenever the bound *could* be
+exceeded (the worst-case reading), and `assert !(now() > d)` behaves the same way,
+without three-valued logic. `==` on durations is structural (same form).
 
-```p
-elapse 2ms..8ms;
-elapse sizeof(batch) * 100us;
-```
+After a branch on `now() <op> d`, `now()` is narrowed in each branch (it is a
+path condition, as a guard in a timed automaton). Explicit modalities:
+`best(x)`, `worst(x)`, `certainly(cmp)`, `possibly(cmp)`. Specs must use those.
 
-### Reading clocks
+The upstream-compatible surface has no uncertainty: functions return `int`
+bounds and the model chooses which one it compares.
 
-* `now()` in a machine: the machine's local clock.
-* `now()` in a spec handler: the *send* stamp of the observed event (the
-  sender's clock at the moment of the send, before delivery latency).
-* `arrival()` in a spec handler: the delivery stamp of the observed event
-  (`now() + latency`), i.e. the earliest time the receiver can process it.
+### What the bounds mean (and do not)
 
-### Latency profiles
+Clock values over-approximate: FIFO and head-of-line ordering can only delay a
+machine, and range bounds are the extremes. So **monotone** budget assertions
+(`elapsed <= c`, where `elapsed` grows with latency) are sound for the explored
+schedules: if the checker finds no violation, none of those schedules can exceed
+the budget. Non-monotone checks (`best(now()) <= deadline`, `finishedAt <
+gaveUpAt`) can be hidden by that over-approximation; they still find bugs, but
+"no bug found" is weaker. As always in P, schedules are sampled, so "explored"
+does not mean "all".
 
-Deployment numbers belong to tests, not to protocol code:
+## `--timed` scheduling
 
-```p
-latency profile SameAZ {
-  default            0.5ms..2ms;   // any event without a more specific entry
-  eReadReq           1ms..3ms;     // per event type
-  (Client, LB)       1ms..5ms;     // per (sender machine type, receiver machine type)
-  (LB, Storage).eRead 2ms..4ms;    // per link and event type
-  Storage.Serving    2ms..8ms;     // charged on entry to every handler in that state
-}
-latency profile CrossRegion extends SameAZ {
-  (LB, Storage)      60ms..90ms;
-}
+Untimed, the scheduler may deliver events in an order that is impossible in time.
+That over-approximates but gives false positives in timeout-heavy models (and
+makes hedging unverifiable). With `--timed`:
 
-test tcAZ     [main=Main, latency=SameAZ]:     assert ReadSLA in (union Sys, { Main });
-test tcRegion [main=Main, latency=CrossRegion]: assert ReadSLA in (union Sys, { Main });
-```
+* The candidates are **dequeuable** steps: in-flight deliveries, and machines
+  that can run (their next event is neither deferred nor blocked in a `receive`
+  for another event; halted machines and empty mailboxes do not count). A machine
+  that can run is ranked by its own clock; a delivery by its stamp.
+* A candidate `x` may be scheduled unless some other candidate `y` has
+  `worst(y) < best(x)` (strictly earlier). Ties and overlaps stay
+  nondeterministic.
+* `Elapse` is a scheduling point in `--timed` mode, so a machine whose clock
+  jumps yields to earlier work.
+* **Narrowing**: when `x` is scheduled ahead of a candidate `y`, record
+  `x <= y` (it happened no later). With affine forms this is a constraint on the
+  symbols; in a simpler implementation, clamp `worst(x)` to `worst(y)` and
+  raise `best(y)` to `best(x)`. This is sound because, in `--timed` mode,
+  schedule order of candidates is arrival order (delivery is a step; see above).
+  It is what makes "first reply wins" (example 6) checkable.
 
-Most specific wins: per-send override > `(A, B).e` > `(A, B)` > `e` > `default`
-> event declaration > `0ms`. Handler costs from the profile are added to any
-`elapse` in the handler.
+This turns P into a bounded discrete-event simulator. It changes exploration, so
+it is opt-in.
 
-### Budgets
+## Profiles
 
-Budgets are ordinary assertions, usually in `spec` monitors so they reuse traces,
-replay and coverage:
+Code says *where* a cost occurs; the profile says *how much*.
 
-```p
-spec ReadSLA observes eReadReq, eReadResp {
-  var started: map[int, duration];
-  start state S {
-    on eReadReq  do (r: tReadReq)  { started[r.id] = now(); }
-    on eReadResp do (r: tReadResp) {
-      assert arrival() - started[r.id] <= 100ms,
-        format("read {0} took up to {1}", r.id, arrival() - started[r.id]);
-    }
-  }
-}
-```
+* Delivery latency per event, per link `(SenderType, ReceiverType)`, or per link
+  and event.
+* Named parameters: `Elapse(Cost("DbQuery"))` or, natively,
+  `elapse cost.DbQuery; send s, e, p latency link.ToReplica;`.
+* Precedence, most specific first: per-send literal > `(A, B).e` > `(A, B)` >
+  profile `e` > event declaration > profile `default` > `0`.
+* `default` never applies to self-sends (timers), Main's setup sends, or
+  announces.
+* Timeouts are protocol constants and belong in code; network numbers belong in
+  the profile.
+* A profile is attached per test case (`[tests]` table, or natively
+  `test t [main=M, latency=P]`) and can be overridden with `--latency-profile`.
 
-A spec sees the *arrival* stamp, not when the client actually dequeues the
-response; for budgets that must include the client's own queueing, assert in the
-client with `now()`.
+## Representation and replay
+
+* Integer microseconds throughout; native literals take a mandatory unit
+  (`us`, `ms`, `s`) and are integral (`500us`, not `0.5ms`). Overflow is a
+  checker error.
+* The schedule file records `--timed`, the profile name and a hash of the
+  profile. Replay refuses a mismatch, since changing a number can turn a certain
+  comparison uncertain (or vice versa) and shift every later choice.
+* Trace lines get an `@ [best, worst]` suffix only when the program uses time,
+  so traces of other programs stay byte-identical to upstream's.
 
 ## Checker output
 
-* Traces print the clock with each step: `<Dequeue> 'eReadResp' ... @ [42ms, 118ms]`.
-* On a failed duration assertion, the trace ends with the critical path: the chain
-  of sends/elapses that produced the `worst` bound.
-* `--latency-report` prints, per assertion site, the maximum `worst` value seen
-  across all schedules and the schedule that produced it, even when no bug is found.
+* Failed budget assertion: the trace ends with the critical path (the chain of
+  sends, deliveries and `Elapse` calls behind the `worst` bound).
+* `--latency-report`: per assertion site, the maximum `worst` seen across the
+  explored schedules and the schedule that produced it, even without a bug.
 
-## Phase 2: timed scheduling (`--timed`)
+## Validation before building more
 
-In the base mode the scheduler may deliver events in an order that is impossible
-in time (e.g. a 300ms timeout before a reply that arrives within 20ms). That is
-sound for safety (it over-approximates) but produces false positives in
-timeout-heavy models. With `--timed`, the scheduler only dequeues an event `e`
-when no other enabled event `f` satisfies `f.worst < e.best`. Overlapping
-intervals stay nondeterministic. Dequeuing `e` ahead of a pending `f` also
-*narrows* `e`: its time is clamped to at most `f.worst` (it happened no later than
-`f`). Without narrowing, "first reply wins" patterns such as hedging (example 6)
-would keep the slow reply's full interval. This turns timers into real timers and
-makes P a bounded discrete-event simulator. It changes exploration and so is
-opt-in.
-
-## Non-time costs
-
-Additive costs (RCU, rows read, RPC count, retry amplification) sum across all
-branches rather than taking the max, need no causal propagation, and are already
-expressible as a spec monitor summing payload fields (see example 10). No language
-feature is proposed for them now. The stamp is internally a small record, so a
-later `resource rcu : int join sum;` could ride the same propagation.
-
-## Out of scope
-
-Percentiles and distributions (intervals give per-path bounds, not p99), wall-clock
-skew between machines, and changing the default (untimed) scheduling.
+1. Implement clocks, `Mark`/`Elapsed`, the profile file and `--timed` behind the
+   foreign-function surface (no syntax change).
+2. Port the Raft and FailureDetector tutorials and one retry/timeout model.
+3. Keep it if it finds bugs, or removes false positives, that untimed P cannot.
+   Otherwise stop.
 
 ## Open questions
 
-1. Should `if` on an uncertain comparison narrow the interval in each branch?
-   Precise but needs per-variable refinement.
-2. Should `0ms` really be the default latency, or should using durations at all
-   require every event to have one?
-3. Does the per-state handler cost in profiles pull its weight, or is `elapse`
-   enough?
+1. Is affine-form narrowing (constraints between symbols) worth it, or is
+   clamping enough in practice?
+2. Should time budgets also turn P's liveness monitors into bounded-response
+   safety checks (`hot` state must be left within d)?
+3. A cancellable timer construct would remove the generation-counter boilerplate
+   in examples 5, 8 and 9. Library machine or built-in?
 
 ## Examples
 
-See `examples/`:
+`upstream-friendly/RetryBudget/` is the recommended shape and compiles with
+today's `p compile`. `examples/` uses the native syntax:
 
 | # | File | Shows |
 |---|---|---|
-| 1 | `01_client_server_sla.p` | event latency, `elapse`, assert in client with `now()` |
-| 2 | `02_cache_profiles.p` | cache hit/miss paths, profiles, two test cases |
-| 3 | `03_scatter_gather.p` | fan-out/fan-in = max |
-| 4 | `04_quorum_read.p` | 2-of-3 quorum, k-th fastest reply |
-| 5 | `05_retry_backoff.p` | timeouts as delayed self-sends, backoff, `--timed` |
-| 6 | `06_hedged_request.p` | hedging, first reply wins |
-| 7 | `07_deadline_propagation.p` | deadlines in payloads, branching on uncertain time |
-| 8 | `08_timeout_ordering.p` | client < LB < server timeouts as a spec |
-| 9 | `09_failover.p` | leader failure, election and redirect within budget |
-| 10 | `10_capacity_costs.p` | RCU and retry amplification with today's monitors |
+| 1 | `01_client_server_sla.p` | event latency, `elapse`, budget in the client |
+| 2 | `02_cache_profiles.p` | hit/miss paths, profiles with named costs, two test cases |
+| 3 | `03_scatter_gather.p` | fan-in is a max; head-of-line merge cost |
+| 4 | `04_quorum_read.p` | 2-of-3 quorum; untimed vs `--timed` |
+| 5 | `05_retry_backoff.p` | timeouts and backoff as delayed self-sends |
+| 6 | `06_hedged_request.p` | hedging; needs `--timed` with narrowing |
+| 7 | `07_deadline_propagation.p` | deadlines in payloads, branching on time, `best`/`worst` |
+| 8 | `08_timeout_ordering.p` | client / LB / server timeout layering |
+| 9 | `09_failover.p` | crash, detection, takeover, redirect within budget |
+| 10 | `10_capacity_costs.p` | RCU and amplification with today's monitors, `possibly` |
+
+## Changes from v1 (review findings)
+
+* Delayed sends are in flight; delivery is a scheduler step (v1 never explored
+  reply-before-timeout).
+* Affine forms instead of plain intervals (v1 gave false budget failures).
+* One rule for uncertain comparisons (choice everywhere), branch narrowing,
+  explicit modalities, none in specs.
+* `--timed` defined over dequeuable candidates; `Elapse` is a scheduling point;
+  narrowing justified by delivery-as-step.
+* Soundness stated for monotone assertions only.
+* `new`, `announce`, `ignore`, `defer`, `receive`, `raise` specified.
+* Profile precedence fixed; per-state handler costs replaced by named costs;
+  `default` excludes timers.
+* Integer microseconds, unit-suffixed integral literals, replay metadata,
+  byte-identical traces for untimed programs.
+* Examples fixed: 2 (named costs), 4 (no clash with `best`, ignore has no clock
+  effect), 7 (numbers, interval-safe check), 8 (explicit modality in the spec),
+  9 (rewritten: unhandled event, crash ordering, takeover model), 10 (`possibly`
+  in the spec), literals in 2, 3.

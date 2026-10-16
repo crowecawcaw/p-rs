@@ -11,5 +11,8 @@ namespace PImplementation
         public static PrtInt Now(PMachine machine) => (PrtInt)0;
         public static PrtInt NowBest(PMachine machine) => (PrtInt)0;
         public static void Elapse(PrtInt lo, PrtInt hi, PMachine machine) { }
+        public static PrtInt Mark(PMachine machine) => (PrtInt)0;
+        public static PrtInt Elapsed(PrtInt m, PMachine machine) => (PrtInt)0;
+        public static PrtInt ElapsedBest(PrtInt m, PMachine machine) => (PrtInt)0;
     }
 }

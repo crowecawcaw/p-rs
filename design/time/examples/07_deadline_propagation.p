@@ -6,14 +6,15 @@
  * outcomes; `best(...)` states "certainly", where a plain assert states
  * "worst case".
  *
- * Chain: Frontend -> Api -> Db. The client's deadline is 100ms. Each hop
- * checks the deadline on arrival and fails fast if it has passed. The property
+ * Chain: Frontend -> Api -> Db. The client's deadline is 100ms. Api and Db
+ * check the deadline on arrival and fail fast if it has passed (an uncertain
+ * check explores both outcomes, and each branch narrows now()). The property
  * (spec NoWastedWork): the Db never starts work for a request whose original
  * deadline has *certainly* passed.
  *
  * Bug: Api sets a fresh deadline (now() + 500ms) for its call to Db instead of
  * forwarding the caller's. On Api's slow path the request reaches the Db at
- * [116ms, 164ms], certainly past the 100ms deadline, and the Db works on it
+ * [114ms, 164ms], certainly past the 100ms deadline, and the Db works on it
  * anyway. Fix: forward `r.deadline` (the commented-out line); the Db's own
  * check is then certainly true and it fails fast.
  *
@@ -94,7 +95,7 @@ spec NoWastedWork observes eFrontendReq, eDbWork {
   start state S {
     on eFrontendReq do (r: tReq) { deadlineOf[r.id] = r.deadline; }
     on eDbWork do (w: (id: int)) {
-      assert best(now()) <= deadlineOf[w.id],
+      assert best(now()) <= worst(deadlineOf[w.id]),       // certain: specs must not branch on uncertainty
         format("Db started request {0} at least {1} after its deadline",
                w.id, best(now()) - deadlineOf[w.id]);
     }

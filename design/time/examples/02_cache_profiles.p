@@ -2,13 +2,14 @@
  * 2. Alternative paths (cache hit / miss) checked under two deployment
  *    profiles.
  *
- * Shows: protocol code with no numbers in it; latency profiles attached to
- * test cases; `extends`; per-link and per-state entries. The checker explores
+ * Shows: protocol code with no numbers in it (it names costs, the profile
+ * prices them); latency profiles attached to test cases; `extends`; per-link
+ * entries. The checker explores
  * both the hit path and the miss path (the cache's `$`), and the budget must
  * hold on each.
  *
- * Miss path = Client->Cache + Cache.Serving + Cache->Db + Db.Serving
- *             + Db->Cache + Cache.Serving + Cache->Client (default).
+ * Miss path = Client->Cache + CacheLookup + Cache->Db + DbQuery
+ *             + Db->Cache + CacheLookup + Cache->Client (default).
  * SameAZ      worst: 2 + 1 + 3 + 8 + 3 + 1 + 2 = 20ms  <= 50ms. OK.
  * CrossRegion worst: 2 + 1 + 90 + 8 + 90 + 1 + 2 = 194ms > 50ms: bug, while
  *             the hit path (2 + 1 + 2 = 5ms) still passes. The trace shows the
@@ -29,7 +30,10 @@ event eVal   : tVal;
 
 machine Db {
   start state Serving {
-    on eDbRead do (f: tFill) { send f.cache, eDbVal, f.req; }
+    on eDbRead do (f: tFill) {
+      elapse cost.DbQuery;
+      send f.cache, eDbVal, f.req;
+    }
   }
 }
 
@@ -39,6 +43,7 @@ machine Cache {
   start state Init { entry (d: Db) { db = d; goto Serving; } }
   state Serving {
     on eGet do (g: tGet) {
+      elapse cost.CacheLookup;
       if (g.key in entries && $) {          // hit (may also have been evicted)
         send g.client, eVal, (id = g.id, val = g.key);
       } else {
@@ -46,6 +51,7 @@ machine Cache {
       }
     }
     on eDbVal do (g: tGet) {
+      elapse cost.CacheLookup;
       entries += (g.key);
       send g.client, eVal, (id = g.id, val = g.key);
     }
@@ -64,12 +70,12 @@ spec GetSLA observes eGet, eVal {
 }
 
 latency profile SameAZ {
-  default            0.5ms..2ms;
+  default            500us..2ms;
   (Client, Cache)    1ms..2ms;
   (Cache, Db)        1ms..3ms;
   (Db, Cache)        1ms..3ms;
-  Cache.Serving      0.2ms..1ms;     // lookup cost charged on every Cache handler
-  Db.Serving         2ms..8ms;       // query cost
+  cost.CacheLookup   200us..1ms;
+  cost.DbQuery       2ms..8ms;
 }
 
 latency profile CrossRegion extends SameAZ {

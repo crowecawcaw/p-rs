@@ -58,7 +58,7 @@ machine Aggregator {
 
   state Gathering {
     on ePartial do (p: tPartial) {
-      elapse 0.5ms;                          // merge one partial result
+      elapse 500us;                          // merge one partial result
       total = total + p.hits;
       pending = pending - 1;
       if (pending == 0) { send client, eResult, total; goto Idle; }
