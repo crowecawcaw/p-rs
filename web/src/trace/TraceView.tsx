@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { search, visible } from "./filter";
+import { visible } from "./filter";
 import { parseTrace, type Trace } from "./model";
 import { laneColors, SequenceDiagram } from "./SequenceDiagram";
 
@@ -18,30 +18,27 @@ const SIDE_LIST_MIN = 820;
 /** …and below it when the panel is at least this tall (phones have the Log tab instead). */
 const BOTTOM_LIST_MIN_H = 560;
 
-/** Bug trace: step-through controls, search and focus, the diagram, and the step list. */
+/** Bug trace: step-through controls, machine focus, the diagram, and the step list. */
 export function TraceView({ json, view, onOpenLocation, onShowDiagram }: Props) {
   const trace = useMemo(() => parseTrace(json), [json]);
   const color = useMemo(() => laneColors(trace.lanes), [trace]);
   const [cursor, setCursor] = useState(trace.steps.length - 1);
   const [playing, setPlaying] = useState(false);
   const [bannerOpen, setBannerOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const [focus, setFocus] = useState<ReadonlySet<number>>(new Set());
   const [hover, setHover] = useState<number>();
   const root = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<"side" | "bottom" | "none">("none");
 
   const { rows, cols } = useMemo(() => visible(trace, focus), [trace, focus]);
-  const matches = useMemo(() => search(trace, rows, query), [trace, rows, query]);
   const pos = rows.indexOf(cursor);
   const lastPos = rows.length - 1;
 
-  // A new trace: start at the bug, with no search or focus.
+  // A new trace: start at the bug, with no focus.
   useEffect(() => {
     setCursor(trace.steps.length - 1);
     setPlaying(false);
     setFocus(new Set());
-    setQuery("");
   }, [trace]);
 
   // Focusing can hide the current step: move to the nearest earlier one still shown.
@@ -77,12 +74,6 @@ export function TraceView({ json, view, onOpenLocation, onShowDiagram }: Props) 
     setCursor(i);
   };
   const toPos = (p: number) => go(rows[Math.max(0, Math.min(p, lastPos))]);
-  const hits = matches ? rows.filter((i) => matches.has(i)) : [];
-  const nextHit = (dir: 1 | -1) => {
-    if (!hits.length) return;
-    const after = dir > 0 ? hits.find((i) => i > cursor) ?? hits[0] : [...hits].reverse().find((i) => i < cursor) ?? hits[hits.length - 1];
-    go(after);
-  };
   const toggleLane = (l: number) =>
     setFocus((f) => {
       const n = new Set(f);
@@ -100,8 +91,6 @@ export function TraceView({ json, view, onOpenLocation, onShowDiagram }: Props) 
       color={color}
       cursor={cursor}
       hover={hover}
-      matches={matches}
-      query={query}
       onSelect={(i) => {
         go(i);
         if (view === "log") onShowDiagram();
@@ -160,32 +149,6 @@ export function TraceView({ json, view, onOpenLocation, onShowDiagram }: Props) 
           </span>
         </div>
       )}
-      <div className="trace-find">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              nextHit(e.shiftKey ? -1 : 1);
-            } else if (e.key === "Escape") setQuery("");
-          }}
-          placeholder="Search steps or machine=Client"
-          title="Matches text in each step. Also: machine=, from=, to=, event=, state=, kind=. Enter: next match."
-          aria-label="Search steps"
-          spellCheck={false}
-          autoCapitalize="off"
-          autoCorrect="off"
-        />
-        {matches && (
-          <>
-            <span className="muted hits">{hits.length ? `${hits.indexOf(cursor) + 1 || "–"}/${hits.length}` : "0"}</span>
-            <button onClick={() => nextHit(-1)} disabled={!hits.length} aria-label="Previous match" title="Previous match (Shift+Enter)">↑</button>
-            <button onClick={() => nextHit(1)} disabled={!hits.length} aria-label="Next match" title="Next match (Enter)">↓</button>
-          </>
-        )}
-      </div>
       {focus.size > 0 && (
         <div className="trace-focus">
           <span className="muted">Only steps of</span>
@@ -212,7 +175,6 @@ export function TraceView({ json, view, onOpenLocation, onShowDiagram }: Props) 
               focus={focus}
               cursor={cursor}
               hover={hover}
-              matches={matches}
               onSelect={go}
               onHover={setHover}
               onToggleLane={toggleLane}
@@ -232,14 +194,12 @@ export function TraceView({ json, view, onOpenLocation, onShowDiagram }: Props) 
 }
 
 /** Every shown step's log line; linked to the diagram by cursor and hover. */
-function StepList({ trace, rows, color, cursor, hover, matches, query, onSelect, onHover }: {
+function StepList({ trace, rows, color, cursor, hover, onSelect, onHover }: {
   trace: Trace;
   rows: number[];
   color: string[];
   cursor: number;
   hover?: number;
-  matches: ReadonlySet<number> | null;
-  query: string;
   onSelect: (i: number) => void;
   onHover: (i: number | undefined) => void;
 }) {
@@ -262,7 +222,6 @@ function StepList({ trace, rows, color, cursor, hover, matches, query, onSelect,
         const cls = [
           i === cursor && "current",
           i === hover && "hover",
-          matches && !matches.has(i) && "dim",
           s.kind === "error" && "error",
         ]
           .filter(Boolean)
@@ -277,25 +236,11 @@ function StepList({ trace, rows, color, cursor, hover, matches, query, onSelect,
             >
               <span className="n">{i + 1}</span>
               <span className="swatch" style={{ background: s.lane !== undefined ? color[s.lane] : "var(--muted)" }} />
-              <span className="text">
-                <Highlight text={s.log} query={matches && matches.has(i) ? query : ""} />
-              </span>
+              <span className="text">{s.log}</span>
             </button>
           </li>
         );
       })}
     </ol>
   );
-}
-
-/** Marks plain-text search terms in a log line. */
-function Highlight({ text, query }: { text: string; query: string }) {
-  const terms = query
-    .trim()
-    .split(/\s+/)
-    .filter((t) => t && !/^\w+[=:]/.test(t))
-    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  if (!terms.length) return <>{text}</>;
-  const parts = text.split(new RegExp(`(${terms.join("|")})`, "gi"));
-  return <>{parts.map((p, k) => (k % 2 ? <mark key={k}>{p}</mark> : p))}</>;
 }

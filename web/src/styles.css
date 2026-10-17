@@ -214,10 +214,6 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
 }
 .step-detail pre { margin: 4px 0 0; color: var(--muted); }
 
-.trace-find { display: flex; gap: 6px; align-items: center; padding: 6px var(--g); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.trace-find input { flex: 1; min-width: 0; min-height: 32px; padding: 0 10px; border-radius: 8px; font: 13px var(--mono); }
-.trace-find button { min-width: 32px; padding: 0 8px; }
-.trace-find .hits { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
 .trace-focus { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px var(--g); border-bottom: 1px solid var(--border); font-size: 12px; flex-shrink: 0; }
 .trace-focus .chip {
   min-height: 26px; padding: 0 10px; border-radius: 999px; font: 600 12px var(--mono);
@@ -244,14 +240,10 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
 .step-list .text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .step-list li.hover button, .step-list button:hover { background: var(--active-line); }
 .step-list li.current button { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 var(--accent); }
-.step-list li.dim { opacity: 0.4; }
 .step-list li.error .text { color: var(--bad); font-weight: 600; }
-.step-list mark { background: var(--flash); color: inherit; border-radius: 2px; }
 .lane { cursor: pointer; }
 .lane:hover .lane-head { fill: color-mix(in srgb, var(--c) 18%, var(--panel)); }
 .lane.focused .lane-head { fill: color-mix(in srgb, var(--c) 22%, var(--panel)); stroke: var(--c); stroke-width: 2; }
-.row.dim { opacity: 0.22; }
-.row.dim.selected { opacity: 0.6; }
 .row.hover .row-hit { fill: var(--active-line); }
 
 .seq-wrap { flex: 1; min-width: 0; min-height: 0; position: relative; display: flex; }
@@ -372,9 +364,7 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
 
   .trace-controls { gap: 4px; }
   .trace-controls .jump { display: none; }
-  .trace-find input { font-size: 16px; min-height: 36px; }
-  .trace-find button { min-width: 40px; min-height: 36px; }
-  .step-list { font-size: 12.5px; }
+      .step-list { font-size: 12.5px; }
   .step-list button { padding-top: 7px; padding-bottom: 7px; }
   .trace-controls input[type="range"] { height: 32px; }
   .trace-controls button { min-width: 40px; padding: 0 8px; }

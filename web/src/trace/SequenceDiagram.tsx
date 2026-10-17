@@ -44,8 +44,6 @@ interface Props {
   focus: ReadonlySet<number>;
   cursor: number;
   hover?: number;
-  /** Search hits; other rows are dimmed. Null when not searching. */
-  matches: ReadonlySet<number> | null;
   onSelect: (i: number) => void;
   onHover: (i: number | undefined) => void;
   onToggleLane: (lane: number) => void;
@@ -64,7 +62,7 @@ interface Layout {
 }
 
 /** A message sequence chart of a bug trace: one lane per machine or spec. Zoomable. */
-export function SequenceDiagram({ trace, rows, cols, color, focus, cursor, hover, matches, onSelect, onHover, onToggleLane }: Props) {
+export function SequenceDiagram({ trace, rows, cols, color, focus, cursor, hover, onSelect, onHover, onToggleLane }: Props) {
   const { lanes, steps } = trace;
   const [W] = useState(() => (matchMedia("(max-width: 600px)").matches ? LANE_W_NARROW : LANE_W));
   const laneX = laneXFor(W);
@@ -284,7 +282,6 @@ export function SequenceDiagram({ trace, rows, cols, color, focus, cursor, hover
               width={width}
               cursor={cursor}
               hover={hover === i}
-              dim={matches !== null && !matches.has(i)}
               color={color}
               layout={layout}
               onSelect={onSelect}
@@ -312,8 +309,8 @@ export function SequenceDiagram({ trace, rows, cols, color, focus, cursor, hover
   );
 }
 
-function Row({ i, s, W, width, cursor, hover, dim, color, layout, onSelect, onHover }: {
-  i: number; s: Step; W: number; width: number; cursor: number; hover: boolean; dim: boolean; color: string[];
+function Row({ i, s, W, width, cursor, hover, color, layout, onSelect, onHover }: {
+  i: number; s: Step; W: number; width: number; cursor: number; hover: boolean; color: string[];
   layout: Layout; onSelect: (i: number) => void; onHover: (i: number | undefined) => void;
 }) {
   const at = laneXFor(W);
@@ -322,7 +319,7 @@ function Row({ i, s, W, width, cursor, hover, dim, color, layout, onSelect, onHo
   const future = i > cursor;
   const selected = i === cursor;
   const linked = s.peer !== undefined && s.peer === cursor;
-  const cls = ["row", future && "future", (selected || linked) && "selected", hover && "hover", dim && "dim", `k-${s.kind}`]
+  const cls = ["row", future && "future", (selected || linked) && "selected", hover && "hover", `k-${s.kind}`]
     .filter(Boolean)
     .join(" ");
   const x = s.lane !== undefined ? laneX(s.lane) : 0;
