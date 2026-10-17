@@ -122,6 +122,7 @@
   const upstreamUrl = params.get("upstream") || raw("upstream.jsonl");
 
   const fmtNum = (v) => v >= 100 ? Math.round(v).toLocaleString() : v.toPrecision(3);
+  const day = (r) => (r.commit_date || r.date).slice(0, 10);
   const fmtTime = (v) => `${v.toFixed(v < 10 ? 3 : 1)} s`;
   const el = (tag, attrs = {}, text) => {
     const e = document.createElementNS(tag === "svg" || attrs.svg ? "http://www.w3.org/2000/svg" : "http://www.w3.org/1999/xhtml", tag);
@@ -164,8 +165,8 @@
       svg.append(svgEl("text", { x: L - 4, y: yy + 3, "text-anchor": "end" }, fmtNum(v)));
     }
     const first = points[0].rec, lastRec = last.rec;
-    svg.append(svgEl("text", { x: L, y: H - 4 }, first.date.slice(0, 10)));
-    if (points.length > 1) svg.append(svgEl("text", { x: W - R, y: H - 4, "text-anchor": "end" }, lastRec.date.slice(0, 10)));
+    svg.append(svgEl("text", { x: L, y: H - 4 }, day(first)));
+    if (points.length > 1) svg.append(svgEl("text", { x: W - R, y: H - 4, "text-anchor": "end" }, day(lastRec)));
 
     const d = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
     svg.append(svgEl("path", { d, fill: "none", stroke: "var(--series-1)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
@@ -194,7 +195,7 @@
       dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(p.v)); dot.setAttribute("visibility", "visible");
       tip.replaceChildren(
         el("strong", {}, fmt(p.v)),
-        el("div", { class: "meta" }, `${p.rec.commit.slice(0, 7)} · ${p.rec.date.slice(0, 10)}`),
+        el("div", { class: "meta" }, `${p.rec.commit.slice(0, 7)} · ${day(p.rec)}`),
         el("div", {}, p.rec.message || ""),
       );
       tip.style.display = "block";
@@ -225,6 +226,11 @@
   }
 
   function render(history, upstream) {
+    // Runs for different commits finish in any order, and a commit can be re-run:
+    // keep the newest entry per commit and order by commit date.
+    const when = (r) => r.commit_date || r.date;
+    history = [...new Map(history.map((r) => [r.commit, r])).values()]
+      .sort((a, b) => Date.parse(when(a)) - Date.parse(when(b)));
     const status = document.getElementById("status");
     if (!history.length) { status.textContent = "No benchmark data yet."; return; }
     status.hidden = true;
@@ -250,7 +256,7 @@
     document.getElementById("workloads").hidden = false;
 
     document.getElementById("latest-sub").textContent =
-      `${latest.commit.slice(0, 7)} · ${latest.date.slice(0, 10)} · ${latest.message} · ${latest.runner.cpu}`;
+      `${latest.commit.slice(0, 7)} · ${day(latest)} · ${latest.message} · ${latest.runner.cpu}`;
     table(document.getElementById("latest-table"),
       ["workload", "schedules", "time", "schedules/s", "instructions"],
       [...latest.results, { name: "total", ...latest.total }].map((r) => [
