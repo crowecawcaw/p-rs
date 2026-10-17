@@ -4,7 +4,7 @@
 //! output, report files and exit codes follow PObserve, with one change in how the spec is
 //! found: PObserve loads specs and parsers from jars produced by `p compile --mode pobserve`,
 //! while `p observe` type-checks the P sources directly. The spec comes from the `.pproj` in
-//! the current folder, or from `--pproj` / `--pfiles` (the options `p compile` takes), and
+//! the current folder, or from `--pproj` / `--pfiles` (the options `p check` takes), and
 //! there is no `--jars` option.
 //!
 //! Parsers are Rust values implementing [`Parser`]. Two are built in ([`JsonLinesParser`]
@@ -22,9 +22,9 @@ use prs_checker::value::{MachineRef, NamedTuple, SlotMap, SlotSet, Value};
 use prs_sema::{MachineKind, PType, Program};
 use serde_json::Value as Json;
 
-use crate::artifact::{Artifact, SourceFile};
 use crate::host::{full_path, relative_path, Color, Host, HostExt, Stream};
 use crate::pproj;
+use crate::project::{SourceFile, Sources};
 
 /// `PObserveExitStatus`.
 pub const EXIT_SUCCESS: i32 = 0;
@@ -665,7 +665,7 @@ fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, Stri
                 ))
             }
         };
-        let proj = match pproj::parse_for_compiler(&mut quiet, &file) {
+        let proj = match pproj::parse(&mut quiet, &file) {
             Ok(p) => p,
             Err(_) => {
                 let msg = quiet.errors.trim().trim_start_matches("Error: ").to_string();
@@ -683,11 +683,11 @@ fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, Stri
         let text = quiet.read_to_string(f).map_err(|e| format!("{}: {}", f.display(), e))?;
         sources.push(SourceFile { path: f.to_string_lossy().to_string(), name: relative_path(&root, f), text });
     }
-    let art = Artifact::new(&project_name, sources, Vec::new());
+    let art = Sources { project_name: project_name.clone(), files: sources };
     let sm = art.source_map();
     let r = prs_sema::compile(&sm, &prs_sema::Options::default());
     let host = quiet.inner;
-    if !crate::compile::report_compile_result(host, &art, &sm, &r, |_| {}) {
+    if !crate::project::report_result(host, &art, &sm, &r) {
         return Err("The P specification does not type-check.".into());
     }
     let program = r.map(|a| a.program).map_err(|_| "The P specification does not type-check.".to_string())?;

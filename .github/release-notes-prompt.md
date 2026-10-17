@@ -3,7 +3,7 @@
 You are writing release notes for **p-rs** (repo `p-rs`), a pure Rust
 implementation of the P modeling language toolchain: parser, type checker and
 model checker, the `p` command-line tool, a WebAssembly build, and a browser
-playground. Users write P models and run `p compile` / `p check`, embed the
+playground. Users write P models and run `p check`, embed the
 crates as a library, or use the playground.
 
 You get a context document listing every change that landed on `main` in this

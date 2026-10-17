@@ -6,9 +6,9 @@ use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Output};
 use prs_checker::strategy::ScheduleTrace;
 
 use crate::argparse::{ArgParser, DataType, ParseError};
-use crate::artifact::{self, Artifact};
-use crate::host::{full_path, is_hidden, Color, Host, HostExt, Stream};
-use crate::{format_0_00, pproj, report_and_exit, Exit};
+use crate::host::{full_path, Color, Host, HostExt, Stream};
+use crate::project::{self, Sources};
+use crate::{format_0_00, report_and_exit, Exit};
 
 const STRATEGIES: &[&str] = &[
     "portfolio",
@@ -55,9 +55,12 @@ pub fn parser() -> ArgParser {
     p.add_positional(
         b,
         "path",
-        "Path to the compiled file to check for correctness (*.dll). If this option is not passed, the compiler searches for a *.dll file in the current folder",
+        "P project file (*.pproj) or P file (*.p) to check. If no sources are given, the checker uses the *.pproj in the current folder, or else the *.p files in it and its immediate subfolders",
     )
     .optional();
+    p.add(b, "pproj", Some("pp"), "P project file to check (*.pproj)", DataType::Str);
+    p.add(b, "pfiles", Some("pf"), "List of P files to check", DataType::Str).multi();
+    p.add(b, "projname", Some("pn"), "Project name (names the output files)", DataType::Str);
     p.add(
         b,
         "mode",
@@ -235,11 +238,15 @@ impl Mode {
 /// `CheckerConfiguration` (the parts prs uses).
 #[derive(Debug, Clone)]
 pub struct CheckConfig {
-    pub pcompiled_path: String,
+    /// Where the P sources come from.
+    pub input: project::Input,
+    /// The project, resolved from `input`.
+    pub project_name: String,
+    pub p_files: Vec<PathBuf>,
+    pub foreign_files: Vec<PathBuf>,
     pub output_path: String,
     /// Output directory with a trailing separator, as upstream builds it.
     pub output_directory: String,
-    pub assembly: String,
     pub mode: Mode,
     pub test_case_name: String,
     pub list_test_cases: bool,
@@ -269,12 +276,14 @@ pub struct CheckConfig {
 }
 
 impl CheckConfig {
-    fn new(host: &dyn Host) -> CheckConfig {
+    fn new() -> CheckConfig {
         CheckConfig {
-            pcompiled_path: host.cwd().to_string_lossy().to_string(),
+            input: Default::default(),
+            project_name: project::DEFAULT_NAME.into(),
+            p_files: Vec::new(),
+            foreign_files: Vec::new(),
             output_path: "PCheckerOutput".into(),
             output_directory: String::new(),
-            assembly: String::new(),
             mode: Mode::BugFinding,
             test_case_name: String::new(),
             list_test_cases: false,
@@ -334,10 +343,7 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
         }
         Err(ParseError::Invalid(m)) => return Err(help_and_exit(&p, host, &m)),
     };
-    let mut cfg = CheckConfig::new(host);
-    if let Some(pp) = pproj::find_local_pproj(host) {
-        cfg.pcompiled_path = pproj::parse_for_checker(host, &pp)?;
-    }
+    let mut cfg = CheckConfig::new();
     for a in &result {
         let v = a.value.clone();
         let uint = || v.as_ref().map(|v| v.as_uint()).unwrap_or(0);
@@ -357,7 +363,23 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
                     cfg.iterations = 0;
                 }
             }
-            "path" => cfg.assembly = string(),
+            "path" => {
+                let f = string();
+                let l = f.to_lowercase();
+                if l.ends_with(".pproj") {
+                    cfg.input.pproj = Some(f);
+                } else if l.ends_with(".p") {
+                    cfg.input.pfiles.push(f);
+                } else {
+                    return Err(checker_report_and_exit(
+                        host,
+                        &format!("'{}' is not a P project file (*.pproj) or P file (*.p). prs checks P sources directly; there is no compiled file.", f),
+                    ));
+                }
+            }
+            "pproj" => cfg.input.pproj = Some(string()),
+            "pfiles" => cfg.input.pfiles.extend(v.as_ref().map(|v| v.as_str_list()).unwrap_or_default()),
+            "projname" => cfg.input.project_name = Some(string()),
             "mode" => cfg.mode = if string().to_lowercase() == "pex" { Mode::PEx } else { Mode::BugFinding },
             "testcase" => cfg.test_case_name = string(),
             "list-tests" => cfg.list_test_cases = true,
@@ -409,9 +431,10 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             other => return Err(help_and_exit(&p, host, &format!("Unhandled parsed argument: '{}'", other))),
         }
     }
-    if cfg.assembly.is_empty() {
-        find_local_compiled_file(host, &mut cfg)?;
-    }
+    let resolved = project::resolve(host, &cfg.input)?;
+    cfg.project_name = resolved.project_name;
+    cfg.p_files = resolved.p_files;
+    cfg.foreign_files = resolved.foreign_files;
     if cfg.latency_profile.is_some() && cfg.latency_file.is_empty() {
         return Err(checker_report_and_exit(host, "The option '--latency-profile' needs '--latency <file>'."));
     }
@@ -453,39 +476,6 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
     Ok(cfg)
 }
 
-/// `FindLocalPCompiledFile`.
-fn find_local_compiled_file(host: &mut dyn Host, cfg: &mut CheckConfig) -> Result<(), Exit> {
-    host.out_line(&format!(".. Searching for a P compiled file locally in folder {}", cfg.pcompiled_path));
-    // Both modes check the same compiled file: PEx mode takes the one `p compile --mode
-    // pex` writes to `PEx/` (upstream looks for a jar there), bug finding the `PChecker/`
-    // one; each falls back to the other.
-    let folders: &[&str] = if cfg.mode == Mode::PEx { &["PEx", "PChecker"] } else { &["PChecker", "PEx"] };
-    let pattern = format!("*.{}", artifact::EXTENSION);
-    let root = full_path(&host.cwd(), Path::new(&cfg.pcompiled_path));
-    let mut files = Vec::new();
-    pproj::list_files(host, &root, Some(3), &mut files);
-    let in_folder = |f: &PathBuf, folder: &str| {
-        let rel = f.strip_prefix(&root).unwrap_or(f);
-        !is_hidden(f)
-            && f.extension().map(|e| e == artifact::EXTENSION).unwrap_or(false)
-            && rel.parent().map(|p| p.components().any(|c| c.as_os_str() == folder)).unwrap_or(false)
-    };
-    let found = folders.iter().find_map(|folder| files.iter().find(|f| in_folder(f, folder)).cloned());
-    if let Some(f) = found {
-        let rel = f.strip_prefix(&root).unwrap_or(&f);
-        let mut display = cfg.pcompiled_path.clone();
-        if !display.ends_with('/') {
-            display.push('/');
-        }
-        display.push_str(&rel.to_string_lossy());
-        cfg.assembly = display;
-        host.out_line(&format!(".. Found a P compiled file: {}", cfg.assembly));
-        return Ok(());
-    }
-    host.out_line(&format!(".. No P compiled file {} found in the current folder: {}", pattern, host.cwd().display()));
-    Err(checker_report_and_exit(host, &format!("Could not find any {} file.", pattern)))
-}
-
 fn sanitize_segment(name: &str) -> String {
     name.chars().map(|c| if c.is_alphanumeric() || matches!(c, '.' | '-' | '_') { c } else { '_' }).collect()
 }
@@ -499,10 +489,7 @@ fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) {
         format!("{}/{}", sanitize_segment(&cfg.test_case_name), cfg.mode.name())
     };
     let base = if cfg.output_path.is_empty() {
-        let parent = Path::new(&cfg.assembly).parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
-        let parent = if parent.is_empty() { ".".to_string() } else { parent };
-        let name = Path::new(&cfg.assembly).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-        format!("{}/Output/{}/", parent, name)
+        format!("./Output/{}/", cfg.project_name)
     } else {
         format!("{}/", cfg.output_path)
     };
@@ -531,50 +518,35 @@ fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) {
     let _ = host.create_dir_all(&abs(&cfg.output_directory));
 }
 
-/// A loaded, type-checked compiled file.
+/// Type-checked sources.
 pub struct Loaded {
-    pub artifact: Artifact,
+    pub sources: Sources,
     pub analysis: prs_sema::Analysis,
 }
 
-/// Resolves a compiled-file path: `.prs` as is; for an upstream-style `.dll` path, the
-/// `.prs` next to it or in its parent folder.
-fn resolve_compiled(host: &dyn Host, path: &str) -> Option<PathBuf> {
-    let full = full_path(&host.cwd(), Path::new(path));
-    if full.extension().map(|e| e == artifact::EXTENSION).unwrap_or(false) {
-        return host.is_file(&full).then_some(full);
-    }
-    let with = full.with_extension(artifact::EXTENSION);
-    if host.is_file(&with) {
-        return Some(with);
-    }
-    let name = with.file_name()?.to_owned();
-    let up = with.parent()?.parent()?.join(name);
-    host.is_file(&up).then_some(up)
-}
-
-/// `TestingEngine.LoadAssembly`.
-pub fn load(host: &mut dyn Host, path: &str) -> Result<Loaded, Exit> {
-    let not_found = format!("Could not load file or assembly '{}'. The system cannot find the file specified.", path);
-    let Some(file) = resolve_compiled(host, path) else {
-        return Err(report_and_exit(host, &not_found));
+/// Reads and type-checks the project's sources (upstream: `TestingEngine.LoadAssembly`);
+/// type errors are reported as upstream's compiler reports them.
+pub fn load(host: &mut dyn Host, cfg: &CheckConfig) -> Result<Loaded, Exit> {
+    let sources = match project::read(host, &cfg.project_name, &cfg.p_files, &host.cwd()) {
+        Ok(s) => s,
+        Err(e) => return Err(report_and_exit(host, &e)),
     };
-    let text = match host.read_to_string(&file) {
-        Ok(t) => t,
-        Err(_) => return Err(report_and_exit(host, &not_found)),
-    };
-    let artifact = match Artifact::from_json(&text) {
-        Ok(a) => a,
-        Err(e) => return Err(report_and_exit(host, &format!("Could not load file or assembly '{}'. {}", path, e))),
-    };
-    let sm = artifact.source_map();
-    match prs_sema::compile(&sm, &prs_sema::Options::default()) {
-        Ok(analysis) => Ok(Loaded { artifact, analysis }),
-        Err(_) => Err(report_and_exit(
-            host,
-            &format!("The compiled file '{}' does not type-check; recompile it with `p compile`.", path),
-        )),
+    let sm = sources.source_map();
+    let r = prs_sema::compile(&sm, &prs_sema::Options::default());
+    if !project::report_result(host, &sources, &sm, &r) {
+        return Err(Exit(1));
     }
+    for f in &cfg.foreign_files {
+        host.out_colored_line(
+            &format!(
+                "Warning: foreign file {} is ignored; prs runs P models directly, so foreign functions must be provided to the checker in Rust.",
+                f.display()
+            ),
+            Color::Yellow,
+        );
+    }
+    let analysis = r.map_err(|_| Exit(1))?;
+    Ok(Loaded { sources, analysis })
 }
 
 /// `Checker.Run`.
@@ -585,7 +557,7 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
             cfg.schedule_file
         ));
         host.out_line(&format!("... Replaying {}", cfg.schedule_file));
-        let loaded = load(host, &cfg.assembly)?;
+        let loaded = load(host, &cfg)?;
         let tc_name = cfg.test_case_name.clone();
         let tc = select_test_case(host, &loaded, &tc_name)?;
         let text = match host.read_to_string(&full_path(&host.cwd(), Path::new(&cfg.schedule_file))) {
@@ -613,10 +585,10 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
         return Ok(0);
     }
 
-    host.out_line(&format!(".. Checking {}", cfg.assembly));
+    host.out_line(&format!(".. Checking {}", cfg.project_name));
     let mut exit_code = 0;
     // both modes run the same engine; PEx mode with an exhaustive search strategy
-    let loaded = load(host, &cfg.assembly)?;
+    let loaded = load(host, &cfg)?;
     let cases = fetch_test_cases(host, &loaded, &cfg);
     if !cfg.list_test_cases {
         for tc in cases {
@@ -748,7 +720,7 @@ fn run_engine(
     }
     let checker = Checker::new(&loaded.analysis.program);
     let mut out = ConsoleOut { host, deadline };
-    let opts = &CheckerOptions { assembly_name: loaded.artifact.project_name.clone(), ..opts.clone() };
+    let opts = &CheckerOptions { assembly_name: loaded.sources.project_name.clone(), ..opts.clone() };
     match checker.check(tc, opts, &mut out) {
         Ok(r) => Ok(r),
         Err(e) => Err(report_and_exit(host, &e)),
@@ -771,7 +743,7 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
     if res.cancelled {
         host.out_line("... Checker timed out.");
     }
-    let file = Path::new(&cfg.assembly).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let file = cfg.project_name.clone();
     if let Some(j) = &res.verbose_json_trace {
         host.out_line("... Emitting verbose logs:");
         let path = format!("{}{}_0_verbose.trace.json", cfg.output_directory, file);

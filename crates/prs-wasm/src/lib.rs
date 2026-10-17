@@ -10,8 +10,8 @@
 //! A request is JSON: `{"args": ["check", "-tc", "t"], "files": {"path": "text"},
 //! "cwd": "/work", "seed": 42}`. The command runs against an in-memory file system holding
 //! `files`; the response carries the exit code, console output and the complete file
-//! system afterwards (so a following request can pass it back in, e.g. `compile` then
-//! `check`). `js/prs.mjs` wraps this for JavaScript.
+//! system afterwards (so a following request can pass it back in, e.g. to replay a
+//! schedule). `js/prs.mjs` wraps this for JavaScript.
 //!
 //! The host may import `env.prs_now() -> f64` (seconds) for elapsed-time reporting;
 //! when targeting WebAssembly it is required.
@@ -180,20 +180,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn compile_then_check_round_trip() {
+    fn check_round_trip() {
         let mut files = BTreeMap::new();
         files.insert(
             "/work/m.p".to_string(),
             "machine Main { start state S { entry { assert false, \"no\"; } } }".to_string(),
         );
-        let r = run(Request { args: vec!["compile".into(), "-pf".into(), "m.p".into()], files, cwd: None, seed: None });
-        assert_eq!(r.exit_code, 0, "{}", r.stdout);
-        let r = run(Request {
-            args: vec!["check".into(), "PGenerated/PChecker/generatedOutput.prs".into()],
-            files: r.files,
-            cwd: None,
-            seed: Some(7),
-        });
+        let r =
+            run(Request { args: vec!["check".into(), "-pf".into(), "m.p".into()], files, cwd: None, seed: Some(7) });
         assert_eq!(r.exit_code, 1, "{}", r.stdout);
         assert!(r.stdout.contains("Checker found a bug."), "{}", r.stdout);
         let trace = r.files.iter().find(|(k, _)| k.ends_with("_0_0.txt")).map(|(_, v)| v.clone()).unwrap();

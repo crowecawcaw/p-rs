@@ -1,4 +1,4 @@
-//! End-to-end tests of `p compile` / `p check` on an in-memory host.
+//! End-to-end tests of `p check` on an in-memory host.
 
 use std::path::Path;
 
@@ -33,9 +33,7 @@ fn json_subset(sub: &serde_json::Value, sup: &serde_json::Value) -> bool {
 fn log_generator_matches_upstream_golden_files() {
     let mut h = MemHost::new("/work");
     h.add_file("bug2.p", &upstream("RegressionTests/Feature1SMLevelDecls/DynamicError/bug2/bug2.p"));
-    assert_eq!(run(&mut h, &["compile", "-pf", "bug2.p", "-pn", "bug2", "-o", "out"]), 0, "{}", h.stdout);
-    assert!(h.stdout.contains("Compilation succeeded."));
-    let code = run(&mut h, &["check", "out/PChecker/bug2.prs", "-o", "res"]);
+    let code = run(&mut h, &["check", "-pf", "bug2.p", "-pn", "bug2", "-o", "res"]);
     assert_eq!(code, 1, "{}", h.stdout);
     assert!(h.stdout.contains("Checker found a bug."));
 
@@ -59,14 +57,13 @@ fn log_generator_matches_upstream_golden_files() {
 fn replay_reproduces_the_bug() {
     let mut h = MemHost::new("/work");
     h.add_file("bug2.p", &upstream("RegressionTests/Feature1SMLevelDecls/DynamicError/bug2/bug2.p"));
-    run(&mut h, &["compile", "-pf", "bug2.p", "-pn", "bug2", "-o", "out"]);
-    run(&mut h, &["check", "out/PChecker/bug2.prs"]);
-    run(&mut h, &["check", "out/PChecker/bug2.prs", "--replay", "PCheckerOutput/BugFinding/bug2_0_0.schedule"]);
+    run(&mut h, &["check", "bug2.p", "-pn", "bug2"]);
+    run(&mut h, &["check", "bug2.p", "-pn", "bug2", "--replay", "PCheckerOutput/BugFinding/bug2_0_0.schedule"]);
     assert!(h.stdout.contains("... Reproduced 1 bug."), "{}", h.stdout);
 }
 
 #[test]
-fn project_file_compile_and_test_case_listing() {
+fn project_file_and_test_case_listing() {
     let mut h = MemHost::new("/proj");
     h.add_file(
         "Demo.pproj",
@@ -79,11 +76,10 @@ fn project_file_compile_and_test_case_listing() {
          test tcFails [main=M]: { M };\n\
          test tcPasses [main=N]: { N };\n",
     );
-    assert_eq!(run(&mut h, &["compile"]), 0, "{}{}", h.stdout, h.stderr);
+    assert_eq!(run(&mut h, &["check", "--list-tests"]), 0, "{}{}", h.stdout, h.stderr);
     assert!(h.stdout.contains("....... includes p file: /proj/PSrc/demo.p"));
-    assert!(h.is_file(Path::new("PGenerated/PChecker/Demo.prs")));
-
-    assert_eq!(run(&mut h, &["check", "--list-tests"]), 0);
+    // nothing is generated
+    assert!(!h.is_dir(Path::new("PGenerated")));
     assert!(h.stdout.contains(".. List of test cases (total 2)\ntcFails\ntcPasses\n"), "{}", h.stdout);
 
     // ambiguous: upstream lists the options on stderr and exits with 1
@@ -102,12 +98,21 @@ fn project_file_compile_and_test_case_listing() {
 }
 
 #[test]
-fn compile_errors_are_reported() {
+fn type_errors_are_reported() {
     let mut h = MemHost::new("/w");
     h.add_file("bad.p", "machine M { start state S { entry { x = 1; } } }");
-    assert_eq!(run(&mut h, &["compile", "-pf", "bad.p"]), 1);
+    assert_eq!(run(&mut h, &["check", "-pf", "bad.p"]), 1);
     assert!(h.stdout.contains("[Error:]"), "{}", h.stdout);
     assert!(h.stdout.ends_with("~~ [PTool]: Thanks for using P! ~~\n"));
+}
+
+#[test]
+fn compile_is_not_a_command() {
+    let mut h = MemHost::new("/w");
+    assert_eq!(run(&mut h, &["compile"]), 1);
+    assert!(h.stderr.contains("There is no `compile` command"), "{}", h.stderr);
+    assert_eq!(run(&mut h, &["check", "out/PChecker/net8.0/X.dll"]), 1);
+    assert!(h.stderr.contains("there is no compiled file"), "{}", h.stderr);
 }
 
 #[test]
@@ -122,9 +127,8 @@ fn bad_option_prints_help_and_error() {
 fn output_directory_history_rotates() {
     let mut h = MemHost::new("/w");
     h.add_file("bug2.p", &upstream("RegressionTests/Feature1SMLevelDecls/DynamicError/bug2/bug2.p"));
-    run(&mut h, &["compile", "-pf", "bug2.p", "-pn", "bug2", "-o", "out"]);
     for _ in 0..3 {
-        run(&mut h, &["check", "out/PChecker/bug2.prs"]);
+        run(&mut h, &["check", "-pf", "bug2.p", "-pn", "bug2"]);
     }
     assert!(h.is_dir(Path::new("PCheckerOutput/BugFinding")));
     assert!(h.is_dir(Path::new("PCheckerOutput/BugFinding0")));
@@ -139,8 +143,7 @@ fn scenario_coverage_is_reported_written_and_merged() {
         "s.p",
         &upstream("RegressionTests/Feature1SMLevelDecls/Correct/ScenarioCoverageBasic/ScenarioCoverageBasic.p"),
     );
-    assert_eq!(run(&mut h, &["compile", "-pf", "s.p", "-pn", "S"]), 0);
-    assert_eq!(run(&mut h, &["check", "-s", "5"]), 0, "{}", h.stdout);
+    assert_eq!(run(&mut h, &["check", "-pf", "s.p", "-pn", "S", "-s", "5"]), 0, "{}", h.stdout);
     assert!(
         h.stdout.contains(
             "..... Scenario coverage: 1/2 scenarios covered (1 gap)\n\
@@ -171,9 +174,6 @@ fn pex_mode_searches_exhaustively_and_rl_runs() {
          test tcFails [main=M]: { M };\n\
          test tcPasses [main=N]: { N };\n",
     );
-    assert_eq!(run(&mut h, &["compile", "--mode", "pex"]), 0, "{}{}", h.stdout, h.stderr);
-    assert!(h.is_file(Path::new("PGenerated/PEx/Demo.prs")));
-
     assert_eq!(run(&mut h, &["check", "--mode", "pex", "-tc", "tcPasses"]), 0, "{}", h.stdout);
     assert!(h.stdout.contains("'random-dfs' strategy"), "{}", h.stdout);
     assert!(h.stdout.contains("Search finished: every behaviour of the test was explored."), "{}", h.stdout);

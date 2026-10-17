@@ -17,15 +17,18 @@ proj=$(realpath "$proj"); name=$(basename "$proj")
 mkdir -p "$work/up" "$work/pn"
 cp -r "$(dirname "$proj")/." "$work/up/"; cp -r "$(dirname "$proj")/." "$work/pn/"
 
+# Source discovery is logged differently: upstream finds the compiled .dll, prs loads the
+# .pproj itself. Those lines are dropped before comparing.
 normalize() {
-  sed -E -e "s#$work/(up|pn)#<dir>#g" \
-         -e 's#\./PGenerated/PChecker/(net8\.0/)?[A-Za-z0-9_]+\.(dll|prs)#<compiled>#g' \
+  sed -E -e '/^\.\. (Searching for a P compiled file|Found a P compiled file|Checking )/d' \
+         -e '/^==== Loading project file|^\.+ includes (p|foreign) file|^-{40}$/d' \
+         -e "s#$work/(up|pn)#<dir>#g" \
          -e 's#Elapsed [0-9.E-]+ sec( and used [0-9.]+ GB)?\.#Elapsed <t>#' \
          -e "s#task '[0-9]+'#task '<n>'#g" -e "s#task \\\\u0027[0-9]+\\\\u0027#task <n>#g"
 }
 
 (cd "$work/up/$name"; $UPSTREAM_P compile >compile.txt 2>&1; $UPSTREAM_P check -tc "$tc" -s "$n" --seed "$seed" "$@" >out.txt 2>&1 || true)
-(cd "$work/pn/$name"; "$PRS_BIN" compile >compile.txt 2>&1; "$PRS_BIN" check -tc "$tc" -s "$n" --seed "$seed" "$@" >out.txt 2>&1 || true)
+(cd "$work/pn/$name"; "$PRS_BIN" check -tc "$tc" -s "$n" --seed "$seed" "$@" >out.txt 2>&1 || true)
 work_up="$work/up/$name"; work_pn="$work/pn/$name"
 
 status=0

@@ -5,14 +5,11 @@ use std::path::{Path, PathBuf};
 use crate::host::{full_path, is_hidden, Host, HostExt};
 use crate::{report_and_exit, Exit};
 
-/// What a project file contributes to a compilation.
+/// What a project file contributes: its name and sources. `OutputDir` and `Target` only
+/// matter to upstream's compiler and are ignored.
 #[derive(Debug, Clone, Default)]
 pub struct Project {
     pub name: String,
-    /// `OutputDir`, made absolute (the directory is created).
-    pub output_dir: PathBuf,
-    /// `Target` languages, lower-cased (`pchecker`, `pex`, `pobserve`, `pverifier`).
-    pub targets: Vec<String>,
     /// Input files (P and foreign), absolute, in discovery order.
     pub input_files: Vec<PathBuf>,
     pub project_root: PathBuf,
@@ -123,8 +120,8 @@ pub fn list_files(host: &dyn Host, dir: &Path, max_depth: Option<usize>, out: &m
 struct ParseErr(String);
 
 /// `ParseProjectFileForCompiler`.
-pub fn parse_for_compiler(host: &mut dyn Host, project_file: &str) -> Result<Project, Exit> {
-    match parse_for_compiler_inner(host, project_file) {
+pub fn parse(host: &mut dyn Host, project_file: &str) -> Result<Project, Exit> {
+    match parse_inner(host, project_file) {
         Ok(p) => Ok(p),
         Err(Err2::Parse(m)) => Err(report_and_exit(host, &format!("<Error parsing project file>:\n {}", m))),
         Err(Err2::Exit(e)) => Err(e),
@@ -142,7 +139,7 @@ impl From<ParseErr> for Err2 {
     }
 }
 
-fn parse_for_compiler_inner(host: &mut dyn Host, project_file: &str) -> Result<Project, Err2> {
+fn parse_inner(host: &mut dyn Host, project_file: &str) -> Result<Project, Err2> {
     let (ok, full) = legal_pproj(host, project_file);
     if !ok {
         return Err(Err2::Parse(format!(
@@ -170,39 +167,9 @@ fn parse_for_compiler_inner(host: &mut dyn Host, project_file: &str) -> Result<P
     if !is_legal_project_name(&name) {
         return Err(Err2::Parse(format!("{} is not a legal project name", name)));
     }
-    let cwd = host.cwd();
-    let output_dir = match doc.elements("OutputDir").first().filter(|s| !s.trim().is_empty()) {
-        Some(o) => {
-            let p = full_path(&cwd, Path::new(o));
-            host.create_dir_all(&p).map_err(|e| Err2::Parse(e.to_string()))?;
-            p
-        }
-        None => cwd.clone(),
-    };
-    let targets = match doc.elements("Target").first() {
-        None => vec!["pchecker".to_string()],
-        Some(t) => {
-            let mut v = Vec::new();
-            for part in t.split([',', ' ']).filter(|s| !s.is_empty()) {
-                let l = part.to_lowercase();
-                match l.as_str() {
-                    "pchecker" | "pex" | "pobserve" | "pverifier" => v.push(l),
-                    _ => {
-                        return Err(Err2::Parse(format!(
-                            "Expected PChecker, PEx, PObserve, or PVerifier as target, received {}",
-                            t
-                        )))
-                    }
-                }
-            }
-            v
-        }
-    };
     host.out_line("----------------------------------------");
     Ok(Project {
         name,
-        output_dir,
-        targets,
         input_files: inputs,
         project_root: full.parent().map(Path::to_path_buf).unwrap_or_default(),
         dependencies: deps,
@@ -278,24 +245,6 @@ fn read_all_input_files(host: &mut dyn Host, doc: &Doc) -> Vec<PathBuf> {
         }
     }
     out
-}
-
-/// `ParseProjectFileForChecker`: the compiler output directory (`PCompiledPath`), as written
-/// in the project file (or the current directory).
-pub fn parse_for_checker(host: &mut dyn Host, project_file: &str) -> Result<String, Exit> {
-    let (ok, full) = legal_pproj(host, project_file);
-    if !ok {
-        let m = format!("Illegal P project file name {} or file {} not found", project_file, full.display());
-        return Err(report_and_exit(host, &format!("<Error parsing project file>:\n {}", m)));
-    }
-    let doc = match Doc::load(host, &full) {
-        Ok(d) => d,
-        Err(m) => return Err(report_and_exit(host, &format!("<Error parsing project file>:\n {}", m))),
-    };
-    Ok(match doc.elements("OutputDir").first().filter(|s| !s.trim().is_empty()) {
-        Some(o) => o.clone(),
-        None => host.cwd().to_string_lossy().to_string(),
-    })
 }
 
 /// `ProjectFileLocator.FindLocalPProject`: the first non-hidden `*.pproj` in the current

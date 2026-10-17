@@ -5,6 +5,13 @@ toolchain: parser, type checker and model checker. No .NET and no code generatio
 models are checked directly by an interpreter driven by a controlled, reproducible
 scheduler, with the same bug-finding semantics as the upstream checker.
 
+## Goals
+
+1. Simplify or eliminate the toolchain for working with P models.
+2. Stay compatible with the official P tools: exact, drop-in compatibility where
+   feasible; functional compatibility where expedient; anything else is listed as out of
+   scope. See [Compatibility](#compatibility).
+
 ## Crates
 
 | Crate | Purpose |
@@ -12,7 +19,7 @@ scheduler, with the same bug-finding semantics as the upstream checker.
 | `prs-syntax` | Lexer, parser and AST. |
 | `prs-sema` | Name resolution, type checking, machine and module-system rules; produces a typed program. Diagnostics match upstream's. |
 | `prs-checker` | Values, bytecode interpreter, scheduling strategies (random, pct, fairpct, probabilistic, pos, feedback, feedbackpct, feedbackpos, rl, replay), exhaustive search (PEx mode), safety and liveness monitors, deadlock detection, text/JSON traces, foreign functions, runtime monitoring of event logs (`observe`). |
-| `prs-compat` | Drop-in compatibility with the upstream `p` tool: `prs compile` / `prs check` / `prs merge-scenario-coverage` options, `prs observe` as a drop-in for PObserve, help, `.pproj` files, console output, output folders, trace files and exit codes. Runs against a pluggable host (native or in-memory). |
+| `prs-compat` | Drop-in compatibility with the upstream `p` tool: `prs check` / `prs merge-scenario-coverage` options, `prs observe` as a drop-in for PObserve, help, `.pproj` files, console output, output folders, trace files and exit codes. Runs against a pluggable host (native or in-memory). |
 | `prs-cli` | The `prs` binary. |
 | `prs-wasm` | WebAssembly module plus a JavaScript wrapper to run `prs` in a browser or Node.js. |
 
@@ -26,21 +33,21 @@ The core crates use no file system, process or threading APIs and build for
 ```sh
 cargo build --release -p prs-cli      # produces target/release/prs
 cd MyProject                            # a folder with a .pproj file
-prs compile
 prs check -tc tcMyTest -s 1000
 prs check -tc tcMyTest --replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
+prs check -pf model.p -tc tcMyTest          # P files instead of a .pproj
 ```
 
-Options, messages, output layout (`PCheckerOutput/<test>/BugFinding/` with history
-rotation) and trace files (`.txt`, `.trace.json`, `.schedule`) follow upstream. `prs compile`
-writes `PGenerated/PChecker/<Project>.prs`, a self-contained snapshot of the
-type-checked sources, which `prs check` finds the way upstream finds its `.dll` (an
-upstream-style `.dll` path is also accepted and mapped to the `.prs` next to it).
+There is no compile step: `prs check` reads and type-checks the P sources itself, from
+the `.pproj` in the current folder, `-pp/--pproj <file>`, `-pf/--pfiles <files>` (with
+`-pn/--projname` to name the output), or else the `*.p` files in the current folder.
+Type errors are reported as `p compile` reports them. Options, messages, output layout
+(`PCheckerOutput/<test>/BugFinding/` with history rotation) and trace files (`.txt`,
+`.trace.json`, `.schedule`) follow upstream.
 
 ### Exhaustive checking (PEx mode)
 
 ```sh
-prs compile --mode pex                    # same compiled file, written to PGenerated/PEx/
 prs check --mode pex -tc tcMyTest         # --sch-pex dfs for a fixed order; -s / -t to bound it
 ```
 
@@ -70,8 +77,8 @@ prs observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log --keys 7 9
 Options, console output, `PObserve-<date>/` output (replay logs, `ParserError_N.txt`,
 `UnknownError_N.txt`, `PObserveMetrics.txt`) and exit codes (0 ok, 1 command line,
 2 spec violation, 3 internal error, 4 parser errors only) follow upstream. The difference
-is where the spec comes from: there is no `prs compile --mode pobserve` and no `--jars`.
-The P sources are type-checked in memory, from the `.pproj` in the current folder,
+is where the spec comes from: there are no jars (no `--jars`). The P sources are
+type-checked in memory, from the `.pproj` in the current folder,
 `-pp/--pproj <file>` or `-pf/--pfiles <files>`.
 
 Parsers turn log entries into events. Two are built in:
@@ -160,21 +167,47 @@ python3 scripts/bench.py report --current bench.json --history old.jsonl
   from NuGet and runs both tools on the same runner and workloads, and appends the
   comparison to `upstream.jsonl`.
 
-## Known differences from upstream
+## Compatibility
 
-* Not implemented: the rl strategy and the PEx and PVerifier modes. Options for them are
-  accepted; choosing an unimplemented strategy reports an error. `--graph` and `--graph-bug` are accepted and, as upstream,
-  write nothing.
-* .NET stack frames (in exception reports and in `ExceptionThrown` / `ExceptionHandled`
-  trace elements) cannot be reproduced and are omitted.
-* Foreign code in C# or Java cannot run; provide foreign functions in Rust.
+**Exact** (drop-in):
+
+* `prs check`, `prs merge-scenario-coverage` and `prs observe` options, help, console
+  output and exit codes.
+* Parse and type error messages.
+* Finding messages: bug reports, assertion and liveness messages.
+* Trace files (`.txt`, `.trace.json`, `.schedule`), coverage reports, output folder
+  layout and history rotation.
+* `.pproj` files.
+* PObserve output files (replay logs, `ParserError_N.txt`, `UnknownError_N.txt`,
+  `PObserveMetrics.txt`).
+
+**Functional** (same result, details differ):
+
+* The order of findings may differ.
+* Source discovery is logged differently (prs loads the `.pproj` itself; there is no
+  compiled file to search for).
+* File enumeration order is sorted (upstream uses the OS order); elapsed time and memory
+  figures differ.
 * An action that runs forever without reaching a scheduling point is reported as a bug
   (upstream hangs).
-* File enumeration order is sorted (upstream uses the OS order), and elapsed time and
-  memory figures naturally differ.
-* `prs observe`: specs come from P sources, not jars (no `--jars`), and parsers are written
-  in Rust. Event filters (`--filters`), socket mode and `SERIALIZEDEVENTS` input are not
-  supported and are reported as command-line errors. Java stack frames are omitted from
-  `UnknownError_N.txt`. Java's message for a null dereference names a variable of the
-  generated Java code (`because "TMP_tmp2_12" is null`). That name cannot be reproduced,
-  so `prs observe` reports a null dereference with its own message.
+* `prs observe` reports a null dereference with its own message (Java's names a variable
+  of the generated code, e.g. `because "TMP_tmp2_12" is null`).
+* Foreign functions are written in Rust (`prs_checker::foreign`), log parsers too
+  (`prs_checker::observe::Parser`).
+
+**Not supported** (yet):
+
+* PVerifier mode.
+* `prs observe`: event filters (`--filters`), socket mode and `SERIALIZEDEVENTS` input
+  (reported as command-line errors).
+* `--graph` and `--graph-bug` are accepted and, as upstream, write nothing.
+
+**Out of scope**:
+
+* `p compile` and compiled output (`PGenerated/`, `.dll`, jars). `prs check` and
+  `prs observe` read P sources directly; `OutputDir` and `Target` in `.pproj` files are
+  ignored.
+* .NET stack frames (in exception reports and `ExceptionThrown` / `ExceptionHandled`
+  trace elements) and Java stack frames (in `UnknownError_N.txt`): prs does not use .NET
+  or Java.
+* Running foreign code in C# or Java, and PObserve jars (`--jars`).
