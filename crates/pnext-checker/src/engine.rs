@@ -18,7 +18,9 @@ use crate::strategy::{
 /// Options of a checking run (the subset of `CheckerConfiguration` that affects results).
 #[derive(Debug, Clone)]
 pub struct CheckerOptions {
-    /// `random`, `pct`, `fairpct`, `probabilistic` or `replay`.
+    /// `random`, `pct`, `fairpct`, `probabilistic`, `pos`, `feedback`, `feedbackpct`,
+    /// `feedbackpos`, `rl`, `replay`, or for an exhaustive search (PEx mode) `dfs` and
+    /// `random-dfs` (alternatives tried in a random order).
     pub strategy: String,
     /// Seed of the random value generator (`--seed`). Must be given: the core crate has no
     /// source of entropy.
@@ -320,6 +322,8 @@ pub struct CheckResult {
     pub verbose_json_trace: Option<String>,
     /// Activity coverage over all schedules (see `activity_coverage`).
     pub coverage: Option<crate::coverage::CoverageInfo>,
+    /// Statistics of an exhaustive search (`dfs`, `random-dfs`).
+    pub exhaustive: Option<crate::exhaustive::SearchStats>,
 }
 
 fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn Strategy>, String> {
@@ -348,6 +352,9 @@ fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn S
             };
             Box::new(crate::feedback::FeedbackGuidedStrategy::new(opts.max_unfair_steps, opts.seed, scheduler))
         }
+        "rl" => Box::new(crate::rl::QLearningStrategy::new(opts.max_unfair_steps, rng.clone())),
+        "dfs" => Box::new(crate::exhaustive::ExhaustiveStrategy::new(opts.max_unfair_steps, None)),
+        "random-dfs" => Box::new(crate::exhaustive::ExhaustiveStrategy::new(opts.max_unfair_steps, Some(rng.clone()))),
         "replay" => match &opts.replay {
             Some(t) => Box::new(ReplayStrategy::new(t.clone())),
             None => return Err("replay strategy needs a schedule".into()),
@@ -525,8 +532,11 @@ impl<'p> Checker<'p> {
             }
             None => self.time_options(tc, opts)?,
         };
+        if time.is_some() && matches!(opts.strategy.as_str(), "dfs" | "random-dfs") {
+            return Err("exhaustive search (PEx mode) does not support time tracking yet".into());
+        }
         let seed_opt = match opts.strategy.as_str() {
-            "random" | "pct" | "pos" | "feedbackpct" | "feedbackpos" | "fairpct" | "probabilistic" | "rl" => {
+            "random" | "pct" | "pos" | "feedbackpct" | "feedbackpos" | "fairpct" | "probabilistic" | "rl" | "random-dfs" => {
                 format!(" (seed:{})", opts.seed)
             }
             _ => String::new(),
@@ -558,6 +568,7 @@ impl<'p> Checker<'p> {
         let mut tasks_used = 1u64;
         let coverage_tables = opts.activity_coverage.then(|| self.coverage_tables());
         let mut verbose_json = (opts.verbose && opts.json_trace && !is_replay).then(Vec::new);
+        let mut depth_bound_hits = 0usize;
         while max_iterations == 0 || i < max_iterations {
             if out.cancelled() {
                 result.cancelled = true;
@@ -649,6 +660,9 @@ impl<'p> Checker<'p> {
                     }
                 }
                 r.timelines.insert(abstract_timeline);
+                if rt.bound_hit_at.is_some() {
+                    depth_bound_hits += 1;
+                }
                 if let Some(e) = rt.strategy.replay_error() {
                     result.replay_error = Some(e);
                 }
@@ -686,6 +700,7 @@ impl<'p> Checker<'p> {
             }
             i += 1;
         }
+        result.exhaustive = strategy.exhaustive_stats().map(|s| crate::exhaustive::SearchStats { depth_bound_hits, ..s });
         result.verbose_json_trace = verbose_json.map(|v| crate::jsonlog::Json::Arr(v).to_pretty());
         if let Some(bug) = first_bug {
             let (log, json, xml) =

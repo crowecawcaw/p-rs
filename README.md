@@ -11,7 +11,7 @@ scheduler, with the same bug-finding semantics as the upstream checker.
 |---|---|
 | `pnext-syntax` | Lexer, parser and AST. |
 | `pnext-sema` | Name resolution, type checking, machine and module-system rules; produces a typed program. Diagnostics match upstream's. |
-| `pnext-checker` | Values, bytecode interpreter, scheduling strategies (random, pct, fairpct, probabilistic, pos, feedback, feedbackpct, feedbackpos, replay), safety and liveness monitors, deadlock detection, text/JSON traces, foreign functions. |
+| `pnext-checker` | Values, bytecode interpreter, scheduling strategies (random, pct, fairpct, probabilistic, pos, feedback, feedbackpct, feedbackpos, rl, replay), exhaustive search (PEx mode), safety and liveness monitors, deadlock detection, text/JSON traces, foreign functions. |
 | `pnext-compat` | Drop-in compatibility with the upstream `p` tool: `p compile` / `p check` / `p merge-scenario-coverage` options, help, `.pproj` files, console output, output folders, trace files and exit codes. Runs against a pluggable host (native or in-memory). |
 | `pnext-cli` | The `p` binary. |
 | `pnext-wasm` | WebAssembly module plus a JavaScript wrapper to run `p` in a browser or Node.js. |
@@ -36,6 +36,24 @@ rotation) and trace files (`.txt`, `.trace.json`, `.schedule`) follow upstream. 
 writes `PGenerated/PChecker/<Project>.pnext`, a self-contained snapshot of the
 type-checked sources, which `p check` finds the way upstream finds its `.dll` (an
 upstream-style `.dll` path is also accepted and mapped to the `.pnext` next to it).
+
+### Exhaustive checking (PEx mode)
+
+```sh
+p compile --mode pex                    # same compiled file, written to PGenerated/PEx/
+p check --mode pex -tc tcMyTest         # --sch-pex dfs for a fixed order; -s / -t to bound it
+```
+
+PEx mode explores every behaviour of the test (every scheduling choice and every `$` /
+`choose` value) by depth-first search, skipping program states it has already explored.
+The report says whether the search finished, so "no bug found" means there is none within
+the step bound (`--max-steps`), or that it stopped early. Bugs produce the usual trace and
+`.schedule` files, which `--replay` reproduces. Liveness is checked for schedules that
+end; time tracking is not supported in this mode yet.
+
+`--sch-rl` selects the Q-learning scheduler (from Coyote): random testing that favours
+choices leading to program states it has seen less often. Runs are reproducible from
+`--seed`.
 
 ## Using the library
 

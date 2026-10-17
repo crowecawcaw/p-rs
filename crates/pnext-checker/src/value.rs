@@ -196,6 +196,12 @@ impl SlotSet {
     }
 
     /// `Enumerable.ElementAt(index)` over the enumeration order.
+    /// The slots (insertion order, with holes) and the free list, which together decide
+    /// the enumeration order of later inserts (used for program-state hashing).
+    pub fn layout(&self) -> (&[Option<Value>], &[usize]) {
+        (&self.slots, &self.free)
+    }
+
     pub fn element_at(&self, index: usize) -> Option<&Value> {
         self.iter().nth(index)
     }
@@ -290,6 +296,11 @@ impl SlotMap {
 
     pub fn values(&self) -> impl Iterator<Item = &Value> {
         self.iter().map(|(_, v)| v)
+    }
+
+    /// See [`SlotSet::layout`].
+    pub fn layout(&self) -> (&[Option<(Value, Value)>], &[usize]) {
+        (&self.slots, &self.free)
     }
 
     pub fn key_at(&self, index: usize) -> Option<&Value> {

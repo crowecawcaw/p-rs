@@ -8,7 +8,7 @@ use pnext_checker::strategy::ScheduleTrace;
 use crate::argparse::{ArgParser, DataType, ParseError};
 use crate::artifact::{self, Artifact};
 use crate::host::{full_path, is_hidden, Color, Host, HostExt, Stream};
-use crate::{format_0_00, pproj, report, report_and_exit, Exit};
+use crate::{format_0_00, pproj, report_and_exit, Exit};
 
 const STRATEGIES: &[&str] = &[
     "portfolio",
@@ -28,9 +28,21 @@ const STRATEGIES: &[&str] = &[
     "astar",
 ];
 
-/// Strategies pnext implements.
-const SUPPORTED_STRATEGIES: &[&str] =
-    &["random", "pct", "fairpct", "probabilistic", "pos", "feedback", "feedbackpct", "feedbackpos", "replay"];
+/// Strategies pnext implements (`dfs` and `random-dfs` are the PEx mode searches).
+const SUPPORTED_STRATEGIES: &[&str] = &[
+    "random",
+    "pct",
+    "fairpct",
+    "probabilistic",
+    "pos",
+    "feedback",
+    "feedbackpct",
+    "feedbackpos",
+    "rl",
+    "replay",
+    "dfs",
+    "random-dfs",
+];
 
 /// `PCheckerOptions` parser definition.
 pub fn parser() -> ArgParser {
@@ -198,6 +210,8 @@ pub struct CheckConfig {
     pub strategy: String,
     pub strategy_bound: usize,
     pub iterations: usize,
+    /// `--schedules` (or `--timeout`) was given.
+    pub user_set_iterations: bool,
     pub seed: Option<u32>,
     pub full_exploration: bool,
     pub max_unfair_steps: usize,
@@ -231,6 +245,7 @@ impl CheckConfig {
             strategy: "random".into(),
             strategy_bound: 0,
             iterations: 1,
+            user_set_iterations: false,
             seed: None,
             full_exploration: false,
             max_unfair_steps: 10000,
@@ -301,6 +316,7 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             "timeline-payload" => cfg.timeline.payload = true,
             "timeout" => {
                 cfg.timeout = uint();
+                cfg.user_set_iterations = true;
                 if cfg.iterations == 1 {
                     cfg.iterations = 0;
                 }
@@ -328,7 +344,10 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
                 cfg.schedule_file = f;
                 cfg.strategy = "replay".into();
             }
-            "iterations" | "schedules" => cfg.iterations = uint() as usize,
+            "iterations" | "schedules" => {
+                cfg.iterations = uint() as usize;
+                cfg.user_set_iterations = true;
+            }
             "explore" => cfg.full_exploration = true,
             "max-steps" => {
                 let vals = v.as_ref().map(|v| v.as_uint_list()).unwrap_or_default();
@@ -369,11 +388,22 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             Err(e) => return Err(report_and_exit(host, &format!("Latency file '{}': {}", cfg.latency_file, e))),
         }
     }
+    // PEx mode searches exhaustively: `--sch-pex dfs` in order, otherwise (`random`, the
+    // default) trying the alternatives at each choice point in a random order, with no
+    // schedule limit unless one is given
+    if cfg.mode == Mode::PEx && cfg.strategy != "replay" {
+        if cfg.strategy != "dfs" && cfg.strategy != "astar" {
+            cfg.strategy = "random-dfs".into();
+        }
+        if !cfg.user_set_iterations {
+            cfg.iterations = 0;
+        }
+    }
     // SanitizeConfiguration
     if cfg.liveness_threshold == 0 && cfg.max_fair_steps > 0 {
         cfg.liveness_threshold = cfg.max_fair_steps / 2;
     }
-    if !STRATEGIES.contains(&cfg.strategy.as_str()) {
+    if !STRATEGIES.contains(&cfg.strategy.as_str()) && !SUPPORTED_STRATEGIES.contains(&cfg.strategy.as_str()) {
         return Err(checker_report_and_exit(host, "Please provide a scheduling strategy (see --sch* options)"));
     }
     if cfg.max_fair_steps < cfg.max_unfair_steps {
@@ -386,27 +416,23 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
 /// `FindLocalPCompiledFile`.
 fn find_local_compiled_file(host: &mut dyn Host, cfg: &mut CheckConfig) -> Result<(), Exit> {
     host.out_line(&format!(".. Searching for a P compiled file locally in folder {}", cfg.pcompiled_path));
-    // PEx mode looks for the jar the Java backend builds; pnext never produces one.
-    let pex = cfg.mode == Mode::PEx;
-    const PEX_SUFFIX: &str = "-jar-with-dependencies.jar";
-    let pattern = if pex { format!("*{}", PEX_SUFFIX) } else { format!("*.{}", artifact::EXTENSION) };
+    // Both modes check the same compiled file: PEx mode takes the one `p compile --mode
+    // pex` writes to `PEx/` (upstream looks for a jar there), bug finding the `PChecker/`
+    // one; each falls back to the other.
+    let folders: &[&str] = if cfg.mode == Mode::PEx { &["PEx", "PChecker"] } else { &["PChecker", "PEx"] };
+    let pattern = format!("*.{}", artifact::EXTENSION);
     let root = full_path(&host.cwd(), Path::new(&cfg.pcompiled_path));
     let mut files = Vec::new();
     pproj::list_files(host, &root, Some(3), &mut files);
-    for f in files {
-        if is_hidden(&f) {
-            continue;
-        }
+    let in_folder = |f: &PathBuf, folder: &str| {
+        let rel = f.strip_prefix(&root).unwrap_or(f);
+        !is_hidden(f)
+            && f.extension().map(|e| e == artifact::EXTENSION).unwrap_or(false)
+            && rel.parent().map(|p| p.components().any(|c| c.as_os_str() == folder)).unwrap_or(false)
+    };
+    let found = folders.iter().find_map(|folder| files.iter().find(|f| in_folder(f, folder)).cloned());
+    if let Some(f) = found {
         let rel = f.strip_prefix(&root).unwrap_or(&f);
-        if pex {
-            if !f.to_string_lossy().ends_with(PEX_SUFFIX) {
-                continue;
-            }
-        } else if f.extension().map(|e| e != artifact::EXTENSION).unwrap_or(true)
-            || !rel.parent().map(|p| p.components().any(|c| c.as_os_str() == "PChecker")).unwrap_or(false)
-        {
-            continue;
-        }
         let mut display = cfg.pcompiled_path.clone();
         if !display.ends_with('/') {
             display.push('/');
@@ -523,10 +549,6 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
             cfg.schedule_file
         ));
         host.out_line(&format!("... Replaying {}", cfg.schedule_file));
-        if cfg.mode == Mode::PEx {
-            report(host, "[PTool] Checker with PEx mode is currently unsupported.");
-            return Ok(0);
-        }
         let loaded = load(host, &cfg.assembly)?;
         let tc_name = cfg.test_case_name.clone();
         let tc = select_test_case(host, &loaded, &tc_name)?;
@@ -557,17 +579,13 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
 
     host.out_line(&format!(".. Checking {}", cfg.assembly));
     let mut exit_code = 0;
-    match cfg.mode {
-        Mode::PEx => report(host, "[PTool] Checker with PEx mode is currently unsupported."),
-        Mode::BugFinding => {
-            let loaded = load(host, &cfg.assembly)?;
-            let cases = fetch_test_cases(host, &loaded, &cfg);
-            if !cfg.list_test_cases {
-                for tc in cases {
-                    cfg.test_case_name = tc;
-                    exit_code = testing_process(host, &loaded, &cfg)?;
-                }
-            }
+    // both modes run the same engine; PEx mode with an exhaustive search strategy
+    let loaded = load(host, &cfg.assembly)?;
+    let cases = fetch_test_cases(host, &loaded, &cfg);
+    if !cfg.list_test_cases {
+        for tc in cases {
+            cfg.test_case_name = tc;
+            exit_code = testing_process(host, &loaded, &cfg)?;
         }
     }
     host.out_line(". Done");
@@ -747,6 +765,10 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
     }
     let process_elapsed = host.now() - process_start;
     host.out_line(&res.report.text(&opts, "..."));
+    if let Some(x) = &res.exhaustive {
+        let schedules = res.report.explored_fair_schedules + res.report.explored_unfair_schedules;
+        host.out_line(&x.text(schedules, opts.max_unfair_steps, "....."));
+    }
     let summary_path = format!("{}{}_pchecker_summary.txt", cfg.output_directory, file);
     host.out_line(&format!("..... Writing {}", summary_path));
     let summary = format!(

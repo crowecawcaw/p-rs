@@ -336,6 +336,8 @@ pub struct Runtime<'p> {
     pub bug: Option<String>,
     pub stopped: bool,
     pub fully_explored: bool,
+    /// The strategy cut the schedule short at an already explored state.
+    pub pruned: bool,
     pub scheduled_steps: usize,
     /// Work done since the last scheduling point (see [`Config::max_work_per_step`]).
     pub step_work: u64,
@@ -409,6 +411,7 @@ impl<'p> Runtime<'p> {
             bug: None,
             stopped: false,
             fully_explored: false,
+            pruned: false,
             scheduled_steps: 0,
             step_work: 0,
             json: None,
@@ -720,6 +723,14 @@ impl<'p> Runtime<'p> {
         let mut infos = infos;
         if self.time.as_ref().is_some_and(|t| t.opts.timed) {
             self.filter_timed(&mut infos);
+        }
+        if self.strategy.wants_state_hash() {
+            let hash = crate::statehash::program_state(self);
+            if !self.strategy.observe_state(hash) {
+                self.pruned = true;
+                self.stopped = true;
+                return Err(Stop);
+            }
         }
         let current = self.current;
         match self.strategy.next_operation(current, &infos) {
