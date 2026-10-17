@@ -145,10 +145,14 @@ def run(opts):
             print(f"{name:32} {res['check_s']:8.3f} s  {res['schedules_per_s']:10.1f} sched/s"
                   + (f"  {res['instructions']:,} instr" if "instructions" in res else ""), file=sys.stderr, flush=True)
 
+    commit = git("rev-parse", opts.commit)
     record = {
         "tool": opts.tool,
-        "commit": os.environ.get("GITHUB_SHA") or git("rev-parse", "HEAD"),
-        "message": git("log", "-1", "--format=%s"),
+        "commit": commit,
+        "message": git("log", "-1", "--format=%s", commit),
+        # Order entries by commit date: runs for different commits can finish in any order.
+        "commit_date": datetime.datetime.fromtimestamp(int(git("log", "-1", "--format=%ct", commit)),
+                                                       datetime.timezone.utc).isoformat(timespec="seconds"),
         "date": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "version": opts.version or "",
         "seed": SEED,
@@ -179,12 +183,10 @@ def report(opts):
     cur = json.loads(Path(opts.current).read_text())
     prev = None
     if opts.history and Path(opts.history).exists():
-        lines = [l for l in Path(opts.history).read_text().splitlines() if l.strip()]
-        for line in reversed(lines):
-            rec = json.loads(line)
-            if rec["commit"] != cur["commit"]:
-                prev = rec
-                break
+        recs = [json.loads(l) for l in Path(opts.history).read_text().splitlines() if l.strip()]
+        when = lambda r: datetime.datetime.fromisoformat(r.get("commit_date") or r["date"])
+        older = [r for r in recs if r["commit"] != cur["commit"] and when(r) <= when(cur)]
+        prev = max(older, key=when) if older else None
     old = {r["name"]: r for r in prev["results"]} if prev else {}
     out = [f"### Benchmarks for {cur['commit'][:7]}", ""]
     if prev:
@@ -236,6 +238,7 @@ def main():
     r.add_argument("--cmd", default="target/release/prs", help="the p command to benchmark")
     r.add_argument("--tool", default="prs", help="label stored in the result: prs or upstream")
     r.add_argument("--version", default="", help="version label stored in the result")
+    r.add_argument("--commit", default="HEAD", help="commit the binary was built from (default HEAD)")
     r.add_argument("--out", required=True)
     r.add_argument("--runs", type=int, default=5)
     r.add_argument("--instructions", action="store_true", help="also count instructions with cachegrind")

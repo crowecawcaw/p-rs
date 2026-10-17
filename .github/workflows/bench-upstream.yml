@@ -28,7 +28,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: bench
+  group: bench-upstream
   cancel-in-progress: false
 
 env:
