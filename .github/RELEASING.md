@@ -24,8 +24,15 @@ The workflow:
    If `main` moved since the run started, the push fails and nothing is published.
 3. **Publish**: publishes `p-rs` to crates.io. A version already on crates.io is
    skipped, so a run that failed after tagging can be finished with `level=release`.
-4. **GitHub release**: creates the release for the tag with notes generated from
-   the merged PRs.
+4. **GitHub release**: creates the release for the tag. Claude writes the notes
+   from the merged PRs' descriptions, following `.github/release-notes-prompt.md`.
+   If that fails (for example an expired token), the release gets GitHub's
+   generated notes instead and the run still succeeds.
+
+## Fix a release's notes
+
+Actions → **Update release notes** → enter the tag. It regenerates the notes with
+Claude and replaces them on the release. Tick *dry run* to only print them.
 
 Only the `p-rs` crate is published. The `pnext-*` crates are not.
 
@@ -40,3 +47,5 @@ Only the `p-rs` crate is published. The `pnext-*` crates are not.
 
   The `release` environment must allow the `main` branch. No crates.io token is
   stored in GitHub; the auth action gets a short-lived token and revokes it after.
+- The `CLAUDE_CODE_OAUTH_TOKEN` repository secret, for release notes. Create it
+  with `claude setup-token`; it lasts about a year.
