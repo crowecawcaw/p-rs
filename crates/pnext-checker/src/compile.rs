@@ -377,7 +377,8 @@ impl<'a> Compiler<'a> {
                 for a in args {
                     self.expr(a);
                 }
-                self.emit(Op::Format { base: Rc::from(base.as_str()), nargs: args.len() as u32 });
+                let types: Rc<[PType]> = args.iter().map(|a| a.ty.clone()).collect();
+                self.emit(Op::Format { base: Rc::from(base.as_str()), nargs: args.len() as u32, types });
             }
             ExprKind::Nondet | ExprKind::FairNondet => {
                 self.emit(Op::ChooseBool);

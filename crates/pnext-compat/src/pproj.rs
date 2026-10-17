@@ -17,6 +17,8 @@ pub struct Project {
     pub input_files: Vec<PathBuf>,
     pub project_root: PathBuf,
     pub dependencies: Vec<PathBuf>,
+    /// `<pobserve-package>`: Java package of the PObserve backend's generated classes.
+    pub pobserve_package: Option<String>,
 }
 
 struct Doc {
@@ -204,6 +206,7 @@ fn parse_for_compiler_inner(host: &mut dyn Host, project_file: &str) -> Result<P
         input_files: inputs,
         project_root: full.parent().map(Path::to_path_buf).unwrap_or_default(),
         dependencies: deps,
+        pobserve_package: doc.elements("pobserve-package").first().cloned(),
     })
 }
 

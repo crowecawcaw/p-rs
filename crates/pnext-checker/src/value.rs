@@ -142,6 +142,9 @@ pub struct SlotSet {
     slots: Vec<Option<Value>>,
     index: HashMap<Value, usize>,
     free: Vec<usize>,
+    /// Insertion stamp of each slot (for Java's `LinkedHashSet` order).
+    stamps: Vec<u64>,
+    next_stamp: u64,
 }
 
 impl SlotSet {
@@ -173,9 +176,12 @@ impl SlotSet {
             }
             None => {
                 self.slots.push(Some(v.clone()));
+                self.stamps.push(0);
                 self.slots.len() - 1
             }
         };
+        self.stamps[slot] = self.next_stamp;
+        self.next_stamp += 1;
         self.index.insert(v, slot);
         true
     }
@@ -205,6 +211,14 @@ impl SlotSet {
     pub fn element_at(&self, index: usize) -> Option<&Value> {
         self.iter().nth(index)
     }
+
+    /// The elements in insertion order (Java's `LinkedHashSet`).
+    pub fn iter_insertion(&self) -> impl Iterator<Item = &Value> {
+        let mut v: Vec<(u64, &Value)> =
+            self.slots.iter().zip(self.stamps.iter()).filter_map(|(s, t)| s.as_ref().map(|v| (*t, v))).collect();
+        v.sort_by_key(|(t, _)| *t);
+        v.into_iter().map(|(_, v)| v)
+    }
 }
 
 /// A map with .NET `Dictionary<K,V>` enumeration order (see [`SlotSet`]).
@@ -213,6 +227,9 @@ pub struct SlotMap {
     slots: Vec<Option<(Value, Value)>>,
     index: HashMap<Value, usize>,
     free: Vec<usize>,
+    /// Insertion stamp of each slot (for Java's `HashMap` bucket order).
+    stamps: Vec<u64>,
+    next_stamp: u64,
 }
 
 impl SlotMap {
@@ -269,9 +286,12 @@ impl SlotMap {
             }
             None => {
                 self.slots.push(Some((k.clone(), v)));
+                self.stamps.push(0);
                 self.slots.len() - 1
             }
         };
+        self.stamps[slot] = self.next_stamp;
+        self.next_stamp += 1;
         self.index.insert(k, slot);
     }
 
@@ -305,6 +325,14 @@ impl SlotMap {
 
     pub fn key_at(&self, index: usize) -> Option<&Value> {
         self.keys().nth(index)
+    }
+
+    /// The entries in insertion order.
+    pub fn iter_insertion(&self) -> impl Iterator<Item = (&Value, &Value)> {
+        let mut v: Vec<(u64, &(Value, Value))> =
+            self.slots.iter().zip(self.stamps.iter()).filter_map(|(s, t)| s.as_ref().map(|e| (*t, e))).collect();
+        v.sort_by_key(|(t, _)| *t);
+        v.into_iter().map(|(_, (k, v))| (k, v))
     }
 }
 

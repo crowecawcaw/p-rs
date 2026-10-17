@@ -538,6 +538,7 @@ impl<'p> Runtime<'p> {
             Op::PushNull => stack!().push(Value::Null),
             Op::PushBool(b) => stack!().push(Value::Bool(b)),
             Op::PushInt(i) => stack!().push(Value::Int(i)),
+            Op::PushFloat(f) if self.config.java_semantics => stack!().push(Value::Float(f as f32 as f64)),
             Op::PushFloat(f) => stack!().push(Value::Float(f)),
             Op::PushStr(s) => stack!().push(Value::Str(s)),
             Op::PushEvent(e) => stack!().push(Value::Event(e)),
@@ -634,6 +635,7 @@ impl<'p> Runtime<'p> {
             Op::Keys => {
                 let base = pop(&mut stack!());
                 let v = match &base {
+                    Value::Map(m) if self.config.java_semantics => Value::Seq(Rc::new(crate::javafmt::map_keys_in_java_order(m))),
                     Value::Map(m) => Value::Seq(Rc::new(m.keys().cloned().collect())),
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
@@ -643,6 +645,7 @@ impl<'p> Runtime<'p> {
             Op::Values => {
                 let base = pop(&mut stack!());
                 let v = match &base {
+                    Value::Map(m) if self.config.java_semantics => Value::Seq(Rc::new(crate::javafmt::map_values_in_java_order(m))),
                     Value::Map(m) => Value::Seq(Rc::new(m.values().cloned().collect())),
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
@@ -671,15 +674,37 @@ impl<'p> Runtime<'p> {
             Op::Default(ty) => {
                 stack!().push(ty.clone());
             }
-            Op::Format { base, nargs } => {
-                let args: Vec<String> = pop_n(&mut stack!(), nargs as usize).iter().map(|v| v.to_display(prog)).collect();
-                let text = format_composite(&base, &args).map_err(format_exception)?;
+            Op::Format { base, nargs, types } => {
+                let vals = pop_n(&mut stack!(), nargs as usize);
+                let text = if self.config.java_semantics {
+                    // a string without arguments is a plain Java literal
+                    if nargs == 0 {
+                        base.to_string()
+                    } else {
+                        let args: Vec<String> = vals
+                            .iter()
+                            .zip(types.iter())
+                            .map(|(v, t)| crate::javafmt::format_arg(v, t, prog))
+                            .collect();
+                        crate::javafmt::message_format(&base, &args)
+                            .map_err(|m| Exception::new("java.lang.IllegalArgumentException", m))?
+                    }
+                } else {
+                    let args: Vec<String> = vals.iter().map(|v| v.to_display(prog)).collect();
+                    format_composite(&base, &args).map_err(format_exception)?
+                };
                 stack!().push(Value::Str(Rc::from(text)));
             }
             Op::Bin(op) => {
                 let b = pop(&mut stack!());
                 let a = pop(&mut stack!());
-                stack!().push(arith(op, a, b)?);
+                let r = arith(op, a, b)?;
+                // P floats are Java `float`s in the PObserve backend
+                let r = match r {
+                    Value::Float(f) if self.config.java_semantics => Value::Float(f as f32 as f64),
+                    r => r,
+                };
+                stack!().push(r);
             }
             Op::Neg => {
                 let a = pop(&mut stack!());
@@ -923,9 +948,19 @@ impl<'p> Runtime<'p> {
                 let msg = pop(&mut stack!());
                 let cond = pop(&mut stack!());
                 if !cond.as_bool() {
+                    if self.config.java_semantics {
+                        // `Monitor.tryAssert`: a `PAssertionFailureException`
+                        let text = format!("Assertion failure: {}", msg.to_display(prog));
+                        self.failure.get_or_insert(crate::runtime::Failure::Assertion(text.clone()));
+                        return Err(self.report_bug(text).into());
+                    }
                     let text = format!("Assertion Failed: {}", msg.to_display(prog));
                     return Err(self.assertion_failure(text));
                 }
+            }
+            Op::Print if self.config.java_semantics => {
+                // the generated monitors log through a java.util.logging logger that is off
+                pop(&mut stack!());
             }
             Op::Print => {
                 let msg = pop(&mut stack!());

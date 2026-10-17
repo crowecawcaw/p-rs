@@ -249,6 +249,10 @@ pub struct Config {
     pub assembly_name: String,
     /// How schedules are abstracted into timelines.
     pub timeline: TimelineConfig,
+    /// Run spec monitors with the semantics of upstream's Java backend, which PObserve
+    /// uses: `MessageFormat` formatting, Java `toString()`, 32-bit floats, `with`
+    /// functions before exit actions, and unhandled events reported as exceptions.
+    pub java_semantics: bool,
 }
 
 impl Default for Config {
@@ -265,6 +269,7 @@ impl Default for Config {
             logging: true,
             assembly_name: "PImplementation".into(),
             timeline: TimelineConfig::default(),
+            java_semantics: false,
         }
     }
 }
@@ -280,6 +285,21 @@ pub const LOG_LINE_WORK: u64 = 20;
 pub enum Actor {
     Machine(usize),
     Monitor(usize),
+}
+
+/// Why execution stopped, as classified for PObserve (set when
+/// [`Config::java_semantics`] is on, or by an exception).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Failure {
+    /// A failed `assert`; the message is `Assertion failure: <message>`.
+    Assertion(String),
+    /// An exception thrown by P code (`ty`, `message`).
+    Exception(String, String),
+    /// A monitor received an observed event its state has no handler for (Java's
+    /// `UnhandledEventException`): the state and event names.
+    Unhandled { state: String, event: String },
+    /// Any other error reported as a bug.
+    Other(String),
 }
 
 /// A .NET-style exception raised by P code.
@@ -366,6 +386,8 @@ pub struct Runtime<'p> {
     pub time: Option<Box<crate::time::TimeState>>,
     /// Machine event handlers started (each runs on a fresh .NET task upstream).
     pub handler_starts: u64,
+    /// The first failure of this execution (see [`Failure`]).
+    pub failure: Option<Failure>,
     next_op_id: u64,
     action_names: Vec<String>,
 }
@@ -427,6 +449,7 @@ impl<'p> Runtime<'p> {
             coverage_tables: None,
             time: None,
             handler_starts: 0,
+            failure: None,
             next_op_id: 0,
             action_names,
         }
@@ -578,6 +601,7 @@ impl<'p> Runtime<'p> {
                 let strategy = self.config.strategy_name.clone();
                 self.xlog("Strategy", &[("strategy", &strategy)], Some(&desc));
             }
+            self.failure.get_or_insert(Failure::Other(text.clone()));
             self.bug = Some(text);
         }
         self.stopped = true;
@@ -586,6 +610,7 @@ impl<'p> Runtime<'p> {
 
     /// Reports an unhandled .NET exception thrown inside an action.
     pub fn report_exception(&mut self, actor: Actor, exc: &Exception, action: &str) -> Stop {
+        self.failure.get_or_insert(Failure::Exception(exc.ty.to_string(), exc.message.clone()));
         if let Actor::Machine(m) = actor {
             let short = exc.ty.rsplit('.').next().unwrap_or(&exc.ty).to_string();
             let body = format!(
@@ -1727,6 +1752,25 @@ impl<'p> Runtime<'p> {
         Ok(())
     }
 
+    /// Creates a monitor of type `decl` outside a test (as PObserve does) and runs its
+    /// start state's entry action. Returns its index in [`Runtime::monitors`].
+    pub fn start_monitor(&mut self, decl: MachineId) -> Result<usize, Stop> {
+        let fields =
+            self.prog.machine(decl).fields.iter().map(|v| default_value(&self.prog.var(*v).ty, self.prog)).collect();
+        let idx = self.monitors.len();
+        self.monitors.push(Monitor {
+            decl,
+            fields,
+            state: self.prog.machine(decl).start_state,
+            temperature: 0,
+            pending_transition: Transition::None,
+            goto_payload: None,
+        });
+        let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None, vt: None };
+        self.monitor_enter_state(idx, &e)?;
+        Ok(idx)
+    }
+
     fn monitor_state_log(&mut self, mon: usize, enters: bool) {
         if enters {
             self.cov_monitor_enter(mon);
@@ -1922,7 +1966,17 @@ impl<'p> Runtime<'p> {
     }
 
     fn monitor_goto(&mut self, mon: usize, target: StateId, with: Option<FunId>, e: &Event) -> Result<(), Stop> {
-        self.monitor_exit_state(mon, with, e)?;
+        if self.config.java_semantics {
+            // the generated handler is `{ with(p); gotoState(target); }`: the transition
+            // function runs before the exit action
+            if let Some(w) = with {
+                self.monitor_run_action(mon, w, e)?;
+                self.monitor_check_exit_transition(mon)?;
+            }
+            self.monitor_exit_state(mon, None, e)?;
+        } else {
+            self.monitor_exit_state(mon, with, e)?;
+        }
         self.monitors[mon].state = Some(target);
         if self.prog.state(target).temperature == Temperature::Cold {
             self.monitors[mon].temperature = 0;
@@ -2270,7 +2324,16 @@ impl<'p> Runtime<'p> {
                 Some(HandlerAction::Goto { target, with }) => {
                     return self.monitor_goto(mon, target, with, &e);
                 }
-                Some(HandlerAction::Ignore) | Some(HandlerAction::Defer) => return Ok(()),
+                Some(HandlerAction::Ignore) => return Ok(()),
+                // deferral is not supported by the Java backend: no handler is generated
+                Some(HandlerAction::Defer) | None if self.config.java_semantics => {
+                    let state = self.state_name(Some(s));
+                    let state = state.rsplit('.').next().unwrap_or(&state).to_string();
+                    let event = self.prog.event(e.id).name.clone();
+                    self.failure.get_or_insert(Failure::Unhandled { state: state.clone(), event: event.clone() });
+                    return Err(self.report_bug(format!("prt.State[{}] missing event handler for {}", state, event)));
+                }
+                Some(HandlerAction::Defer) => return Ok(()),
                 None => {
                     self.monitor_state_log(mon, false);
                     self.monitors[mon].state = None;
