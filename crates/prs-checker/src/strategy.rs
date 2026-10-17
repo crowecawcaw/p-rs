@@ -39,6 +39,11 @@ pub trait Strategy {
     fn replay_error(&self) -> Option<String> {
         None
     }
+    /// Whether the last decision could not be made (a replay that diverged from its trace,
+    /// see [`Strategy::replay_error`]); the schedule then ends there.
+    fn diverged(&self) -> bool {
+        false
+    }
     /// Feedback from a finished schedule (`IFeedbackGuidedStrategy.ObserveRunningResults`):
     /// its abstract timeline and timeline MinHash, the states each scenario reached and the
     /// scenarios it satisfied.
@@ -488,6 +493,14 @@ impl ReplayStrategy {
         let is_fair = trace.is_fair;
         ReplayStrategy { trace, index: 0, is_fair, error: None, stop_at: None }
     }
+
+    /// Records why the trace cannot be followed (upstream's `ErrorText`) and returns
+    /// `placeholder`, which the runtime discards: it ends the schedule (see
+    /// [`Strategy::diverged`]).
+    fn diverge<T>(&mut self, reason: &str, placeholder: T) -> T {
+        self.error = Some(format!("Trace is not reproducible: {}", reason));
+        placeholder
+    }
 }
 
 impl Strategy for ReplayStrategy {
@@ -496,44 +509,46 @@ impl Strategy for ReplayStrategy {
         if enabled.is_empty() {
             return None;
         }
-        if self.index >= self.trace.steps.len() {
-            self.error = Some("Trace is not reproducible: execution is longer than trace.".into());
-            return None;
+        let id = match self.trace.steps.get(self.index) {
+            None => return self.diverge("execution is longer than trace.", None),
+            Some(ScheduleStep::Operation(id)) => *id,
+            Some(_) => return self.diverge("next step is not a scheduling choice.", None),
+        };
+        if !enabled.contains(&id) {
+            return self.diverge(&format!("cannot detect id '{}'.", id), None);
         }
-        match &self.trace.steps[self.index] {
-            ScheduleStep::Operation(id) => {
-                let id = *id;
-                if !enabled.contains(&id) {
-                    self.error =
-                        Some("Trace is not reproducible: cannot detect id '".to_string() + &id.to_string() + "'.");
-                    return None;
-                }
-                self.index += 1;
-                Some(id)
-            }
-            _ => {
-                self.error = Some("Trace is not reproducible: next step is not a scheduling choice.".into());
-                None
-            }
-        }
+        self.index += 1;
+        Some(id)
     }
     fn next_bool(&mut self, _max: i32) -> bool {
-        if let Some(ScheduleStep::Bool(b)) = self.trace.steps.get(self.index) {
-            self.index += 1;
-            *b
-        } else {
-            self.error = Some("Trace is not reproducible: next step is not a nondeterministic boolean choice.".into());
-            false
-        }
+        let b = match self.trace.steps.get(self.index) {
+            None => return self.diverge("execution is longer than trace.", false),
+            Some(ScheduleStep::Bool(b)) => *b,
+            Some(ScheduleStep::Operation(_)) => {
+                return self.diverge("next step is not a nondeterministic choice.", false)
+            }
+            Some(ScheduleStep::Int(_)) => {
+                return self.diverge("next step is not a nondeterministic boolean choice.", false)
+            }
+        };
+        self.index += 1;
+        b
     }
-    fn next_int(&mut self, _max: i32) -> i32 {
-        if let Some(ScheduleStep::Int(i)) = self.trace.steps.get(self.index) {
-            self.index += 1;
-            *i
-        } else {
-            self.error = Some("Trace is not reproducible: next step is not a nondeterministic integer choice.".into());
-            0
+    fn next_int(&mut self, max: i32) -> i32 {
+        let i = match self.trace.steps.get(self.index) {
+            None => return self.diverge("execution is longer than trace.", 0),
+            Some(ScheduleStep::Int(i)) => *i,
+            Some(ScheduleStep::Operation(_)) => return self.diverge("next step is not a nondeterministic choice.", 0),
+            Some(ScheduleStep::Bool(_)) => {
+                return self.diverge("next step is not a nondeterministic integer choice.", 0)
+            }
+        };
+        // a recorded choice is below `max` (`Random.Next(0)` is 0)
+        if !(0..max.max(1)).contains(&i) {
+            return self.diverge(&format!("integer choice '{}' is not below the maximum value '{}'.", i, max), 0);
         }
+        self.index += 1;
+        i
     }
     fn prepare_next_iteration(&mut self) -> bool {
         false
@@ -555,5 +570,8 @@ impl Strategy for ReplayStrategy {
     }
     fn replay_error(&self) -> Option<String> {
         self.error.clone()
+    }
+    fn diverged(&self) -> bool {
+        self.error.is_some()
     }
 }

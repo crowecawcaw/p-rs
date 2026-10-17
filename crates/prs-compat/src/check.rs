@@ -553,6 +553,10 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
         opts.replay = Some(trace);
         let start = host.now();
         let res = run_engine(host, &loaded, &tc, &opts, None)?;
+        // `ReplayStrategy` reports a schedule it cannot follow with `Error.ReportAndExit`
+        if let Some(e) = &res.replay_error {
+            return Err(report_and_exit(host, e));
+        }
         let elapsed = host.now() - start;
         let n = res.report.num_bugs;
         let text = format!(

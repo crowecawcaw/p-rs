@@ -797,6 +797,11 @@ impl<'p> Runtime<'p> {
                 self.current = next;
                 Ok(())
             }
+            // the strategy cannot go on (a replay diverged): neither a deadlock nor the end
+            None if infos.iter().any(|o| o.enabled) => {
+                self.stopped = true;
+                Err(Stop)
+            }
             None => {
                 self.check_deadlock()?;
                 self.fully_explored = true;
@@ -833,6 +838,10 @@ impl<'p> Runtime<'p> {
         self.check_steps_bound()?;
         self.check_liveness_temperatures()?;
         let b = self.strategy.next_bool(max);
+        if self.strategy.diverged() {
+            self.stopped = true;
+            return Err(Stop);
+        }
         self.scheduled_steps = self.strategy.scheduled_steps();
         self.trace.steps.push(ScheduleStep::Bool(b));
         if self.logging {
@@ -853,6 +862,10 @@ impl<'p> Runtime<'p> {
         self.check_steps_bound()?;
         self.check_liveness_temperatures()?;
         let i = self.strategy.next_int(max);
+        if self.strategy.diverged() {
+            self.stopped = true;
+            return Err(Stop);
+        }
         self.scheduled_steps = self.strategy.scheduled_steps();
         self.trace.steps.push(ScheduleStep::Int(i));
         if self.logging {

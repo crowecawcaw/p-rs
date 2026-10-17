@@ -853,14 +853,14 @@ impl<'p> Runtime<'p> {
                 let v = pop(&mut stack!());
                 let Value::Set(s) = &v else { return Err(nre().into()) };
                 let i = self.pick(actor, s.len(), "set")?;
-                let r = s.element_at(i).cloned().unwrap_or(Value::Null);
+                let r = s.element_at(i).expect("choice in range").clone();
                 stack!().push(r);
             }
             Op::ChooseMap => {
                 let v = pop(&mut stack!());
                 let Value::Map(m) = &v else { return Err(nre().into()) };
                 let i = self.pick(actor, m.len(), "map")?;
-                let r = m.key_at(i).cloned().unwrap_or(Value::Null);
+                let r = m.key_at(i).expect("choice in range").clone();
                 stack!().push(r);
             }
             Op::Call { fun, nargs } => {
