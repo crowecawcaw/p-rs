@@ -74,8 +74,18 @@ impl ForeignCx<'_, '_> {
         }
     }
 
-    /// `machine.TryRandom(max)`: a checker-controlled choice in `0..max`.
+    /// `machine.TryRandom(max)`: a checker-controlled choice in `0..max` (0 when `max` is
+    /// 0). A negative `max` throws, as `System.Random.Next` does.
     pub fn random_int(&mut self, max: i32) -> Result<i32, ForeignError> {
+        if max < 0 {
+            return Err(ForeignError::Exception(
+                "System.ArgumentOutOfRangeException".into(),
+                format!(
+                    "maxValue ('{}') must be a non-negative value. (Parameter 'maxValue')\nActual value was {}.",
+                    max, max
+                ),
+            ));
+        }
         let caller = self.machine_name().unwrap_or_default();
         Ok(self.rt.choose_int(max, &caller)?)
     }
