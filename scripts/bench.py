@@ -52,8 +52,14 @@ WORKLOADS = [
 ]
 
 
+TIMEOUT = 900  # seconds per command; a hung tool fails the run instead of the job
+
+
 def sh(args, cwd, **kw):
-    return subprocess.run(args, cwd=cwd, capture_output=True, text=True, **kw)
+    try:
+        return subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT, **kw)
+    except subprocess.TimeoutExpired:
+        sys.exit(f"timed out after {TIMEOUT} s: {shlex.join(args)} (in {cwd})")
 
 
 def git(*args):
@@ -109,7 +115,8 @@ def run(opts):
                     sys.exit(f"{project}: compile failed\n{r.stdout}{r.stderr}")
             args = ["check", "-tc", test, "-s", str(n), "--seed", str(SEED)]
             times, schedules, bugs = [], None, None
-            for _ in range(opts.runs):
+            for i in range(opts.runs):
+                print(f"{name}: run {i + 1}/{opts.runs}", file=sys.stderr, flush=True)
                 shutil.rmtree(proj / "PCheckerOutput", ignore_errors=True)
                 t0 = time.perf_counter()
                 r = sh([*cmd, *args], proj)
@@ -132,10 +139,11 @@ def run(opts):
             if project in compiled:
                 res["compile_s"] = round(compiled[project], 4)
             if opts.instructions:
+                print(f"{name}: counting instructions", file=sys.stderr, flush=True)
                 res["instructions"] = instructions(cmd, args, proj)
             results.append(res)
             print(f"{name:32} {res['check_s']:8.3f} s  {res['schedules_per_s']:10.1f} sched/s"
-                  + (f"  {res['instructions']:,} instr" if "instructions" in res else ""), file=sys.stderr)
+                  + (f"  {res['instructions']:,} instr" if "instructions" in res else ""), file=sys.stderr, flush=True)
 
     record = {
         "tool": opts.tool,

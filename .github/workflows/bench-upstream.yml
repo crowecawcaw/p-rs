@@ -22,7 +22,7 @@ on:
       runs:
         description: "Runs per workload (the median is reported)"
         required: false
-        default: "5"
+        default: "5" # upstream takes ~15 min at 5 runs
 
 permissions:
   contents: write
