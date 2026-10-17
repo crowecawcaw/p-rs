@@ -1,0 +1,59 @@
+name: Publish p-rs
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crates-io-p-rs
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'crowecawcaw/p-rs' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release tag
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("crates/p-rs/Cargo.toml", "rb"))["package"]["version"])')
+          if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "Tag must match the p-rs version: v$version" >&2
+            exit 1
+          fi
+          git merge-base --is-ancestor HEAD origin/main
+
+      - name: Select Rust stable
+        run: rustup update stable --no-self-update
+
+      - name: Verify package
+        run: cargo +stable publish -p p-rs --locked --dry-run
+
+      - name: Authenticate with crates.io
+        id: auth
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1
+
+      - name: Publish
+        if: github.event_name == 'push'
+        run: cargo +stable publish -p p-rs --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+      - name: Report authentication check
+        if: github.event_name == 'workflow_dispatch'
+        run: echo 'Package verification and crates.io trusted authentication succeeded. No version was published.' >> "$GITHUB_STEP_SUMMARY"

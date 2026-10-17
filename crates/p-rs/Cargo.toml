@@ -1,0 +1,11 @@
+[package]
+name = "p-rs"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+description = "Placeholder for the P modeling language toolchain in Rust"
+repository = "https://github.com/crowecawcaw/p-rs"
+readme = "README.md"
+include = ["Cargo.toml", "README.md", "src/lib.rs"]
+
+[dependencies]

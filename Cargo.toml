@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/p-rs",
     "crates/pnext-syntax",
     "crates/pnext-sema",
     "crates/pnext-checker",
