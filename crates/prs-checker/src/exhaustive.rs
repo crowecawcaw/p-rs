@@ -18,7 +18,7 @@
 //! at the end of a terminating schedule); the temperature-based check needs fair
 //! schedules and is off.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::strategy::{OpInfo, SharedRandom, Strategy};
 
@@ -62,7 +62,7 @@ pub struct ExhaustiveStrategy {
     /// Position in `path` of the current schedule.
     pos: usize,
     /// Smallest depth each state was reached at.
-    visited: HashMap<u64, usize>,
+    visited: FxHashMap<u64, usize>,
     stats: SearchStats,
     error: Option<String>,
 }
@@ -74,7 +74,7 @@ impl ExhaustiveStrategy {
             rng,
             path: Vec::new(),
             pos: 0,
-            visited: HashMap::new(),
+            visited: FxHashMap::default(),
             stats: SearchStats::default(),
             error: None,
         }

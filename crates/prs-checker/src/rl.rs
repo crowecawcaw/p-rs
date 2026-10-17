@@ -12,7 +12,7 @@
 //! Upstream hashes states with .NET's per-process randomised hash codes, so its schedules
 //! are not reproducible from the seed; here they are.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::strategy::{OpInfo, SharedRandom, Strategy};
 
@@ -26,7 +26,7 @@ const BASIC_ACTION_REWARD: f64 = -1.0;
 /// The Q values of one state, in insertion order (upstream enumerates a `Dictionary`).
 #[derive(Default)]
 struct QRow {
-    index: HashMap<u64, usize>,
+    index: FxHashMap<u64, usize>,
     entries: Vec<(u64, f64)>,
 }
 
@@ -51,10 +51,10 @@ pub struct QLearningStrategy {
     max_steps: usize,
     steps: usize,
     rng: SharedRandom,
-    q_table: HashMap<u64, QRow>,
+    q_table: FxHashMap<u64, QRow>,
     /// (choice that led here, state) per step of the current schedule.
     path: Vec<(u64, u64)>,
-    frequencies: HashMap<u64, u64>,
+    frequencies: FxHashMap<u64, u64>,
     previous: u64,
     /// State of the last scheduling point and the choices made since.
     last_state: u64,
@@ -67,9 +67,9 @@ impl QLearningStrategy {
             max_steps,
             steps: 0,
             rng,
-            q_table: HashMap::new(),
+            q_table: FxHashMap::default(),
             path: Vec::new(),
-            frequencies: HashMap::new(),
+            frequencies: FxHashMap::default(),
             previous: 0,
             last_state: 0,
             choices_since: 0,

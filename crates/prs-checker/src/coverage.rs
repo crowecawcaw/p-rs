@@ -9,6 +9,8 @@
 //! temperature, ...), with nodes and events interned for speed.
 
 use std::collections::{HashMap, HashSet};
+
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 use prs_sema::{EventId, HandlerAction, MachineId, Program, StateId, Temperature};
@@ -70,16 +72,19 @@ impl CoverageTables {
     }
 }
 
+/// A set of interned pairs, updated on every event (its order is never observed).
+pub type PairSet = FxHashSet<(u32, u32)>;
+
 /// Coverage accumulated over all schedules (`CoverageInfo`).
 #[derive(Debug, Clone, Default)]
 pub struct CoverageInfo {
     /// Declared machines and monitors, in declaration order, with whether each is a monitor.
     pub declared: Vec<(MachineId, bool)>,
     /// `(state node, event)` pairs received / sent.
-    pub received: HashSet<(u32, u32)>,
-    pub sent: HashSet<(u32, u32)>,
+    pub received: PairSet,
+    pub sent: PairSet,
     /// Transition links `(source node, target node)` of the coverage graph.
-    pub links: HashSet<(u32, u32)>,
+    pub links: PairSet,
 }
 
 impl CoverageInfo {
@@ -117,9 +122,9 @@ struct CoverageRun {
     /// `ControlledRuntimeLogEventCoverage.Dequeued` (a single, global slot upstream).
     dequeued: Option<u32>,
     /// Graph builder inboxes per machine/monitor type.
-    inbox: HashMap<MachineId, Vec<InboxEntry>>,
+    inbox: FxHashMap<MachineId, Vec<InboxEntry>>,
     /// Graph builder `Dequeued`, per machine instance.
-    graph_dequeued: HashMap<usize, InboxEntry>,
+    graph_dequeued: FxHashMap<usize, InboxEntry>,
 }
 
 /// Activity coverage being collected by a runtime: the coverage accumulated so far plus the

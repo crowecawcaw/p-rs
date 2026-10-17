@@ -2,7 +2,7 @@
 //! the event deliveries of one schedule turned into a set of tokens, which the feedback
 //! strategies use as their diversity signal and the report counts as explored timelines.
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 use std::rc::Rc;
 
 /// Field separator inside tokens.
@@ -139,15 +139,15 @@ pub struct Timeline {
     /// Pairwise: labels seen so far, per receiver.
     seen: Vec<Vec<u32>>,
     /// Pairwise: `(receiver, previous label, label)`.
-    pairs: HashSet<(u32, u32, u32)>,
+    pairs: FxHashSet<(u32, u32, u32)>,
     /// K-gram: delivery sequence per receiver.
     seqs: Vec<Vec<u32>>,
     /// K-gram: `(receiver, gram)`.
-    grams: HashSet<(u32, Vec<u32>)>,
+    grams: FxHashSet<(u32, Vec<u32>)>,
     /// Causal: deliveries so far.
     deliveries: Vec<(u32, u32, Option<Rc<VectorTime>>)>,
     /// Causal: `(concurrent, a, b)` (`hb a b` or `co a b`).
-    orders: HashSet<(bool, u32, u32)>,
+    orders: FxHashSet<(bool, u32, u32)>,
 }
 
 impl Timeline {

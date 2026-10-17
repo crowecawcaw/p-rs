@@ -4,7 +4,7 @@
 //! Values have copy semantics in P. Containers are reference counted and copied on write,
 //! which makes assignment cheap while keeping the semantics.
 
-use std::collections::HashMap;
+use rustc_hash::{FxHashMap, FxHasher};
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -110,7 +110,7 @@ impl Hash for Value {
             Value::Set(s) => {
                 let mut h: u64 = 0;
                 for v in s.iter() {
-                    let mut hh = std::collections::hash_map::DefaultHasher::new();
+                    let mut hh = FxHasher::default();
                     v.hash(&mut hh);
                     h = h.wrapping_add(hh.finish());
                 }
@@ -119,7 +119,7 @@ impl Hash for Value {
             Value::Map(m) => {
                 let mut h: u64 = 0;
                 for (k, _) in m.iter() {
-                    let mut hh = std::collections::hash_map::DefaultHasher::new();
+                    let mut hh = FxHasher::default();
                     k.hash(&mut hh);
                     h = h.wrapping_add(hh.finish());
                 }
@@ -135,7 +135,7 @@ impl Hash for Value {
 #[derive(Debug, Clone, Default)]
 pub struct SlotSet {
     slots: Vec<Option<Value>>,
-    index: HashMap<Value, usize>,
+    index: FxHashMap<Value, usize>,
     free: Vec<usize>,
     /// Insertion stamp of each slot (for Java's `LinkedHashSet` order).
     stamps: Vec<u64>,
@@ -246,7 +246,7 @@ pub type MapSlot = Option<(Value, Value)>;
 #[derive(Debug, Clone, Default)]
 pub struct SlotMap {
     slots: Vec<MapSlot>,
-    index: HashMap<Value, usize>,
+    index: FxHashMap<Value, usize>,
     free: Vec<usize>,
     /// Insertion stamp of each slot (for Java's `HashMap` bucket order).
     stamps: Vec<u64>,

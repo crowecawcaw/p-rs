@@ -11,3 +11,4 @@ description = "Systematic testing of P programs: interpreter, controlled schedul
 [dependencies]
 prs-syntax = { workspace = true }
 prs-sema = { workspace = true }
+rustc-hash = { workspace = true }
