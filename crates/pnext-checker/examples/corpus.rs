@@ -175,6 +175,19 @@ fn find_tests(dir: &Path, stats: &mut Stats, args: &Args) {
                     println!("  | {}", l);
                 }
             }
+            if let (true, Some(x)) = (args.verbose, &res.exhaustive) {
+                let n = res.report.explored_fair_schedules + res.report.explored_unfair_schedules;
+                println!(
+                    "SEARCH {} finished={} states={} schedules={} pruned={} bound_hits={} depth={}",
+                    dir.display(),
+                    x.finished,
+                    x.distinct_states,
+                    n,
+                    x.pruned_schedules,
+                    x.depth_bound_hits,
+                    x.max_depth
+                );
+            }
             record(stats, ok, dir, &category, what, &format!("{} [{:.2}s]", detail, elapsed));
         }
     }

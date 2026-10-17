@@ -47,6 +47,20 @@ pub trait Strategy {
     fn wants_feedback(&self) -> bool {
         false
     }
+    /// Whether [`Strategy::observe_state`] is used (avoids hashing the state otherwise).
+    fn wants_state_hash(&self) -> bool {
+        false
+    }
+    /// The program-state hash (see [`crate::statehash`]) at the scheduling point about to
+    /// be decided by [`Strategy::next_operation`]. Returning `false` ends the schedule
+    /// there, without a deadlock or liveness check (the state was explored before).
+    fn observe_state(&mut self, _hash: u64) -> bool {
+        true
+    }
+    /// Statistics of an exhaustive search.
+    fn exhaustive_stats(&self) -> Option<crate::exhaustive::SearchStats> {
+        None
+    }
 }
 
 fn enabled_ids(ops: &[OpInfo]) -> Vec<u64> {

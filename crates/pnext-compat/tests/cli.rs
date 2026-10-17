@@ -152,3 +152,35 @@ fn scenario_coverage_is_reported_written_and_merged() {
         "Unified scenario coverage across 1 test case:\n  1/2 scenarios covered in >=1 test case; 1 coverage gap.\n"
     ), "{}", h.stdout);
 }
+
+#[test]
+fn pex_mode_searches_exhaustively_and_rl_runs() {
+    let mut h = MemHost::new("/proj");
+    h.add_file(
+        "Demo.pproj",
+        "<Project><ProjectName>Demo</ProjectName><InputFiles><PFile>./PSrc/</PFile></InputFiles><OutputDir>./PGenerated/</OutputDir></Project>",
+    );
+    h.add_file(
+        "PSrc/demo.p",
+        "machine M { start state S { entry { var n: int; if ($) { n = 1; } if ($) { n = n + 2; } assert n != 3, \"three\"; } } }\n\
+         machine N { start state S { entry { var n: int; if ($) { n = 1; } assert n < 2; } } }\n\
+         test tcFails [main=M]: { M };\n\
+         test tcPasses [main=N]: { N };\n",
+    );
+    assert_eq!(run(&mut h, &["compile", "--mode", "pex"]), 0, "{}{}", h.stdout, h.stderr);
+    assert!(h.is_file(Path::new("PGenerated/PEx/Demo.pnext")));
+
+    assert_eq!(run(&mut h, &["check", "--mode", "pex", "-tc", "tcPasses"]), 0, "{}", h.stdout);
+    assert!(h.stdout.contains("'random-dfs' strategy"), "{}", h.stdout);
+    assert!(h.stdout.contains("Search finished: every behaviour of the test was explored."), "{}", h.stdout);
+    assert!(h.stdout.contains("..... Explored 2 schedules"), "{}", h.stdout);
+
+    assert_eq!(run(&mut h, &["check", "--mode", "pex", "-tc", "tcFails", "--sch-pex", "dfs"]), 1, "{}", h.stdout);
+    assert!(h.stdout.contains("'dfs' strategy"), "{}", h.stdout);
+    assert!(h.is_file(Path::new("PCheckerOutput/tcFails/PEx/Demo_0_0.schedule")));
+    run(&mut h, &["check", "--mode", "pex", "-tc", "tcFails", "--replay", "PCheckerOutput/tcFails/PEx/Demo_0_0.schedule"]);
+    assert!(h.stdout.contains("... Reproduced 1 bug."), "{}", h.stdout);
+
+    assert_eq!(run(&mut h, &["check", "-tc", "tcFails", "--sch-rl", "-s", "100", "--seed", "1"]), 1, "{}", h.stdout);
+    assert!(h.stdout.contains("'rl' strategy (seed:1)"), "{}", h.stdout);
+}

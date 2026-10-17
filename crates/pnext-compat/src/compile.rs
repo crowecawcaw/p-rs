@@ -349,7 +349,8 @@ pub fn compile(cfg: &CompilerConfig, host: &mut dyn Host) -> i32 {
         let _ = host.create_dir_all(&dir);
         host.out_line("----------------------------------------");
         host.out_line(&format!("Code generation for {}...", b.name()));
-        if b != Backend::PChecker {
+        // PEx mode checks the same compiled file as the PChecker backend
+        if !matches!(b, Backend::PChecker | Backend::PEx) {
             write_error(
                 host,
                 &format!("[NotImplementedError:] The {} backend is not supported by pnext; use the PChecker backend.", b.name()),
