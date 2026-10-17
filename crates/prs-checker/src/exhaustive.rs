@@ -18,7 +18,7 @@
 //! at the end of a terminating schedule); the temperature-based check needs fair
 //! schedules and is off.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::strategy::{OpInfo, SharedRandom, Strategy};
 
@@ -56,15 +56,14 @@ struct Choice {
 /// generator the alternatives at each new choice point are tried in random order
 /// (`--sch-pex random`, the default).
 pub struct ExhaustiveStrategy {
-    pub max_steps: usize,
+    max_steps: usize,
     rng: Option<SharedRandom>,
     path: Vec<Choice>,
     /// Position in `path` of the current schedule.
     pos: usize,
     /// Smallest depth each state was reached at.
-    visited: HashMap<u64, usize>,
+    visited: FxHashMap<u64, usize>,
     stats: SearchStats,
-    pruned: bool,
     error: Option<String>,
 }
 
@@ -75,9 +74,8 @@ impl ExhaustiveStrategy {
             rng,
             path: Vec::new(),
             pos: 0,
-            visited: HashMap::new(),
+            visited: FxHashMap::default(),
             stats: SearchStats::default(),
-            pruned: false,
             error: None,
         }
     }
@@ -131,11 +129,7 @@ impl Strategy for ExhaustiveStrategy {
     }
 
     fn prepare_next_iteration(&mut self) -> bool {
-        if self.pruned {
-            self.stats.pruned_schedules += 1;
-        }
         self.stats.max_depth = self.stats.max_depth.max(self.pos);
-        self.pruned = false;
         self.pos = 0;
         // backtrack to the deepest choice point with an untried alternative
         while let Some(c) = self.path.last_mut() {
@@ -168,10 +162,6 @@ impl Strategy for ExhaustiveStrategy {
         }
     }
 
-    fn reset(&mut self) {
-        self.pos = 0;
-    }
-
     fn replay_error(&self) -> Option<String> {
         self.error.clone()
     }
@@ -184,7 +174,7 @@ impl Strategy for ExhaustiveStrategy {
     fn observe_state(&mut self, hash: u64) -> bool {
         match self.visited.get_mut(&hash) {
             Some(d) if *d <= self.pos => {
-                self.pruned = true;
+                self.stats.pruned_schedules += 1;
                 false
             }
             Some(d) => {
@@ -200,7 +190,9 @@ impl Strategy for ExhaustiveStrategy {
     }
 
     fn exhaustive_stats(&self) -> Option<SearchStats> {
-        Some(self.stats.clone())
+        // the last schedule counts even when no next iteration was prepared (a bug, the
+        // schedule limit or a timeout ended the search)
+        Some(SearchStats { max_depth: self.stats.max_depth.max(self.pos), ..self.stats.clone() })
     }
 }
 

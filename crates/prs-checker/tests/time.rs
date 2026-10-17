@@ -2,10 +2,10 @@
 //! `--timed` scheduling and schedule headers.
 
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use prs_checker::engine::{CheckResult, Checker, CheckerOptions};
-use prs_checker::strategy::ScheduleTrace;
+use prs_checker::strategy::{ScheduleTrace, StrategyKind};
 use prs_checker::time::ProfileSet;
 
 const TIME_DECLS: &str = "
@@ -31,7 +31,7 @@ fn check(a: &prs_sema::Analysis, test: &str, opts: &CheckerOptions) -> Result<Ch
     Checker::new(&a.program).check(&tc, opts, &mut Vec::<String>::new())
 }
 
-fn retry_budget(edit: impl Fn(String) -> String) -> (prs_sema::Analysis, Rc<ProfileSet>) {
+fn retry_budget(edit: impl Fn(String) -> String) -> (prs_sema::Analysis, Arc<ProfileSet>) {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../design/time/RetryBudget");
     let mut files = Vec::new();
     for sub in ["PSrc", "PSpec", "PTst"] {
@@ -42,7 +42,7 @@ fn retry_budget(edit: impl Fn(String) -> String) -> (prs_sema::Analysis, Rc<Prof
         }
     }
     let profiles = ProfileSet::parse(&std::fs::read_to_string(dir.join("PTst/latency.toml")).unwrap()).unwrap();
-    (compile(&files), Rc::new(profiles))
+    (compile(&files), Arc::new(profiles))
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn replay_takes_time_settings_from_the_schedule() {
     // no latency file and no --timed needed; other time options are ignored
     for (latency, latency_profile) in [(None, None), (Some(profiles.clone()), Some("cross-region".to_string()))] {
         let replay = CheckerOptions {
-            strategy: "replay".into(),
+            strategy: StrategyKind::Replay,
             replay: Some(trace.clone()),
             latency,
             latency_profile,
@@ -133,7 +133,7 @@ test tcRace [main=Main]: { Main, Client, Server, Timer };
 #[test]
 fn timed_scheduling_drops_impossible_orders() {
     let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("race.p".into(), RACE.into())]);
-    let profiles = Rc::new(ProfileSet::parse("[profile.lan]\ndefault = \"1ms..2ms\"").unwrap());
+    let profiles = Arc::new(ProfileSet::parse("[profile.lan]\ndefault = \"1ms..2ms\"").unwrap());
     let opts = |timed| CheckerOptions {
         iterations: 300,
         seed: 7,
@@ -177,8 +177,9 @@ test tcStopwatch [main=Main]: { Main };
 #[test]
 fn stopwatch_functions() {
     let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("sw.p".into(), STOPWATCH.into())]);
-    let profiles =
-        Rc::new(ProfileSet::parse("[profile.p]\n\"cost.Query\" = \"2ms..8ms\"\n[tests]\ntcStopwatch = \"p\"").unwrap());
+    let profiles = Arc::new(
+        ProfileSet::parse("[profile.p]\n\"cost.Query\" = \"2ms..8ms\"\n[tests]\ntcStopwatch = \"p\"").unwrap(),
+    );
     let opts = CheckerOptions { latency: Some(profiles), ..Default::default() };
     let r = check(&a, "tcStopwatch", &opts).unwrap();
     assert_eq!(r.report.num_bugs, 0, "{:?}", r.report.bug_reports);
@@ -191,12 +192,12 @@ fn bad_calls_and_names_are_reported() {
     let r = check(&a, "tcBad", &CheckerOptions::default()).unwrap();
     assert!(r.report.bug_reports[0].contains("expected 0 <= lo <= hi"), "{:?}", r.report.bug_reports);
 
-    let typo = Rc::new(ProfileSet::parse("[profile.p]\neRequest = \"1ms\"").unwrap());
+    let typo = Arc::new(ProfileSet::parse("[profile.p]\neRequest = \"1ms\"").unwrap());
     let opts = CheckerOptions { latency: Some(typo), latency_profile: Some("p".into()), ..Default::default() };
     let err = check(&a, "tcBad", &opts).unwrap_err();
     assert!(err.contains("unknown event 'eRequest'"), "{}", err);
 
-    let no_profile = Rc::new(ProfileSet::parse("[profile.p]\ndefault = \"1ms\"").unwrap());
+    let no_profile = Arc::new(ProfileSet::parse("[profile.p]\ndefault = \"1ms\"").unwrap());
     let err =
         check(&a, "tcBad", &CheckerOptions { latency: Some(no_profile.clone()), ..Default::default() }).unwrap_err();
     assert!(err.contains("has no latency profile"), "{}", err);
@@ -271,7 +272,7 @@ test tcReceiver [main=MainReceiver]: { MainReceiver, Receiver, Far, Near };
 #[test]
 fn timed_delivery_follows_arrival_not_send_order() {
     let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("order.p".into(), ARRIVAL_ORDER.into())]);
-    let profiles = Rc::new(
+    let profiles = Arc::new(
         ProfileSet::parse("[profile.p]\neA = \"1ms\"\n\"(Far, Handler)\" = \"300ms\"\n\"(Far, Receiver)\" = \"300ms\"")
             .unwrap(),
     );
@@ -295,7 +296,7 @@ fn timed_delivery_follows_arrival_not_send_order() {
 fn timed_delivery_explores_overlapping_arrivals() {
     // Far arrives in 0..100ms, Near (sent at 10ms) in 50..70ms: either may come first
     let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("order.p".into(), ARRIVAL_ORDER.into())]);
-    let profiles = Rc::new(
+    let profiles = Arc::new(
         ProfileSet::parse("[profile.p]\neA = \"40ms..60ms\"\n\"(Far, Handler)\" = \"0ms..100ms\"\n\"(Far, Receiver)\" = \"0ms..100ms\"").unwrap(),
     );
     for test in ["tcHandler", "tcReceiver"] {
@@ -311,7 +312,7 @@ fn timed_delivery_explores_overlapping_arrivals() {
         assert_eq!(r.report.num_bugs, 1, "{} timed", test);
         let text = r.schedule_trace.unwrap();
         let replay = CheckerOptions {
-            strategy: "replay".into(),
+            strategy: StrategyKind::Replay,
             replay: Some(ScheduleTrace::parse(&text).unwrap()),
             ..Default::default()
         };
@@ -350,7 +351,7 @@ fn timed_default_handler_races_only_overlapping_events() {
     ] {
         let src = DEFAULT_RACE.replace("TIMEOUT_FAILS", if timeout_fails { "true" } else { "false" });
         let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("race.p".into(), src)]);
-        let profiles = Rc::new(ProfileSet::parse(&format!("[profile.p]\ndefault = \"{}\"", lat)).unwrap());
+        let profiles = Arc::new(ProfileSet::parse(&format!("[profile.p]\ndefault = \"{}\"", lat)).unwrap());
         let opts = CheckerOptions {
             iterations: 200,
             seed: 3,

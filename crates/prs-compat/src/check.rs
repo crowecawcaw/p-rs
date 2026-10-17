@@ -1,48 +1,17 @@
 //! `p check` (`PCheckerOptions`, `Checker.Run`, `TestingProcess`, `TestingEngine` I/O).
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
+use std::time::Duration;
 
-use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Output};
-use prs_checker::strategy::ScheduleTrace;
+use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Exploration, Output, WorkerPool};
+use prs_checker::strategy::{ScheduleTrace, StrategyKind};
 
 use crate::argparse::{ArgParser, DataType, ParseError};
-use crate::host::{full_path, Color, Host, HostExt, Stream};
+use crate::host::{full_path, Color, Host, HostExt, Job, Stream, Threads};
 use crate::project::{self, Sources};
-use crate::{format_0_00, report_and_exit, Exit};
-
-const STRATEGIES: &[&str] = &[
-    "portfolio",
-    "random",
-    "feedback",
-    "feedbackpct",
-    "feedbackpos",
-    "pct",
-    "pos",
-    "fairpct",
-    "probabilistic",
-    "rl",
-    "replay",
-    "learn",
-    "dfs",
-    "stateless",
-    "astar",
-];
-
-/// Strategies prs implements (`dfs` and `random-dfs` are the PEx mode searches).
-const SUPPORTED_STRATEGIES: &[&str] = &[
-    "random",
-    "pct",
-    "fairpct",
-    "probabilistic",
-    "pos",
-    "feedback",
-    "feedbackpct",
-    "feedbackpos",
-    "rl",
-    "replay",
-    "dfs",
-    "random-dfs",
-];
+use crate::{format_0_00, report_and_exit, write_output, Exit};
 
 /// `PCheckerOptions` parser definition.
 pub fn parser() -> ArgParser {
@@ -81,6 +50,13 @@ pub fn parser() -> ArgParser {
     p.group("explore", "Systematic exploration options");
     p.add(e, "iterations", Some("i"), "Number of schedules to explore", DataType::UInt).hidden();
     p.add(e, "schedules", Some("s"), "Number of schedules to explore", DataType::UInt);
+    p.add(
+        e,
+        "workers",
+        None,
+        "Number of workers exploring schedules in parallel (prs extension; default: one per CPU core). The feedback and rl strategies, PEx mode, --verbose and --replay use one worker. With more than one, a given --seed explores different schedules than upstream P; use 1 for the same schedules",
+        DataType::UInt,
+    );
     p.add(
         e,
         "max-steps",
@@ -250,9 +226,11 @@ pub struct CheckConfig {
     pub mode: Mode,
     pub test_case_name: String,
     pub list_test_cases: bool,
-    pub strategy: String,
+    pub strategy: StrategyKind,
     pub strategy_bound: usize,
     pub iterations: usize,
+    /// `--workers`; `None` = one per CPU core.
+    pub workers: Option<usize>,
     /// `--schedules` (or `--timeout`) was given.
     pub user_set_iterations: bool,
     pub seed: Option<u32>,
@@ -262,17 +240,19 @@ pub struct CheckConfig {
     pub user_set_max_fair_steps: bool,
     pub fail_on_max_steps: bool,
     pub liveness_threshold: usize,
-    pub timeout: u32,
+    /// `--timeout` in seconds; `None` (or 0 on the command line) disables it.
+    pub timeout: Option<u32>,
     pub verbose: bool,
     /// `--xml-trace`: also write the buggy schedule's `.trace.xml`.
     pub xml_trace: bool,
     pub timeline: prs_checker::timeline::TimelineConfig,
-    pub schedule_file: String,
-    pub latency_file: String,
+    /// `--replay`: the schedule file to replay.
+    pub schedule_file: Option<String>,
+    pub latency_file: Option<String>,
     pub latency_profile: Option<String>,
     pub timed: bool,
     /// The parsed `--latency` file.
-    pub latency: Option<std::rc::Rc<prs_checker::time::ProfileSet>>,
+    pub latency: Option<std::sync::Arc<prs_checker::time::ProfileSet>>,
 }
 
 impl CheckConfig {
@@ -287,9 +267,10 @@ impl CheckConfig {
             mode: Mode::BugFinding,
             test_case_name: String::new(),
             list_test_cases: false,
-            strategy: "random".into(),
+            strategy: StrategyKind::Random,
             strategy_bound: 0,
             iterations: 1,
+            workers: None,
             user_set_iterations: false,
             seed: None,
             full_exploration: false,
@@ -298,12 +279,12 @@ impl CheckConfig {
             user_set_max_fair_steps: false,
             fail_on_max_steps: false,
             liveness_threshold: 0,
-            timeout: 0,
+            timeout: None,
             verbose: false,
             xml_trace: false,
             timeline: Default::default(),
-            schedule_file: String::new(),
-            latency_file: String::new(),
+            schedule_file: None,
+            latency_file: None,
             latency_profile: None,
             timed: false,
             latency: None,
@@ -356,11 +337,15 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             "timeline-repr" => cfg.timeline.repr = prs_checker::timeline::TimelineRepr::parse(&string()),
             "timeline-kgram" => cfg.timeline.kgram = uint() as usize,
             "timeline-payload" => cfg.timeline.payload = true,
+            // 0 disables the timeout (upstream instead explores without a bound, forever)
             "timeout" => {
-                cfg.timeout = uint();
-                cfg.user_set_iterations = true;
-                if cfg.iterations == 1 {
-                    cfg.iterations = 0;
+                let t = uint();
+                if t > 0 {
+                    cfg.timeout = Some(t);
+                    cfg.user_set_iterations = true;
+                    if cfg.iterations == 1 {
+                        cfg.iterations = 0;
+                    }
                 }
             }
             "path" => {
@@ -384,15 +369,28 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             "testcase" => cfg.test_case_name = string(),
             "list-tests" => cfg.list_test_cases = true,
             "seed" => cfg.seed = Some(uint()),
-            "sch-random" | "sch-pos" | "sch-feedbackpos" | "sch-feedback" => {
-                cfg.strategy = a.long_name[4..].to_string()
+            "sch-random" => cfg.strategy = StrategyKind::Random,
+            "sch-pos" => cfg.strategy = StrategyKind::Pos,
+            "sch-feedback" => cfg.strategy = StrategyKind::Feedback,
+            "sch-feedbackpos" => cfg.strategy = StrategyKind::FeedbackPos,
+            "sch-rl" => cfg.strategy = StrategyKind::Rl,
+            "sch-probabilistic" => (cfg.strategy, cfg.strategy_bound) = (StrategyKind::Probabilistic, uint() as usize),
+            "sch-pct" => (cfg.strategy, cfg.strategy_bound) = (StrategyKind::Pct, uint() as usize),
+            "sch-fairpct" => (cfg.strategy, cfg.strategy_bound) = (StrategyKind::FairPct, uint() as usize),
+            "sch-feedbackpct" => (cfg.strategy, cfg.strategy_bound) = (StrategyKind::FeedbackPct, uint() as usize),
+            "sch-pex" => {
+                cfg.strategy = match string().as_str() {
+                    "random" => StrategyKind::Random,
+                    "dfs" => StrategyKind::Dfs,
+                    "astar" => {
+                        return Err(checker_report_and_exit(
+                            host,
+                            "The 'astar' scheduling strategy is not supported by prs.",
+                        ))
+                    }
+                    other => unreachable!("--sch-pex does not allow '{}'", other),
+                }
             }
-            "sch-probabilistic" | "sch-pct" | "sch-fairpct" | "sch-feedbackpct" => {
-                cfg.strategy = a.long_name[4..].to_string();
-                cfg.strategy_bound = uint() as usize;
-            }
-            "sch-rl" => cfg.strategy = "rl".into(),
-            "sch-pex" => cfg.strategy = string(),
             "replay" => {
                 let f = string();
                 if Path::new(&f).extension().map(|e| e != "schedule").unwrap_or(true) {
@@ -401,13 +399,17 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
                         "Please give a valid schedule file '--replay x', where 'x' has extension '.schedule'.",
                     ));
                 }
-                cfg.schedule_file = f;
-                cfg.strategy = "replay".into();
+                cfg.schedule_file = Some(f);
+                cfg.strategy = StrategyKind::Replay;
             }
             "iterations" | "schedules" => {
                 cfg.iterations = uint() as usize;
                 cfg.user_set_iterations = true;
             }
+            "workers" => match uint() {
+                0 => return Err(checker_report_and_exit(host, "The option '--workers' needs at least 1 worker.")),
+                n => cfg.workers = Some(n as usize),
+            },
             "explore" => cfg.full_exploration = true,
             "max-steps" => {
                 let vals = v.as_ref().map(|v| v.as_uint_list()).unwrap_or_default();
@@ -425,7 +427,8 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
                 cfg.max_fair_steps = j as usize;
             }
             "fail-on-maxsteps" => cfg.fail_on_max_steps = true,
-            "latency" => cfg.latency_file = string(),
+            "liveness-temperature-threshold" => cfg.liveness_threshold = uint() as usize,
+            "latency" => cfg.latency_file = Some(string()),
             "latency-profile" => cfg.latency_profile = Some(string()),
             "timed" => cfg.timed = true,
             other => return Err(help_and_exit(&p, host, &format!("Unhandled parsed argument: '{}'", other))),
@@ -435,28 +438,26 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
     cfg.project_name = resolved.project_name;
     cfg.p_files = resolved.p_files;
     cfg.foreign_files = resolved.foreign_files;
-    if cfg.latency_profile.is_some() && cfg.latency_file.is_empty() {
+    if cfg.latency_profile.is_some() && cfg.latency_file.is_none() {
         return Err(checker_report_and_exit(host, "The option '--latency-profile' needs '--latency <file>'."));
     }
-    if !cfg.latency_file.is_empty() {
-        let path = full_path(&host.cwd(), Path::new(&cfg.latency_file));
+    if let Some(file) = &cfg.latency_file {
+        let path = full_path(&host.cwd(), Path::new(file));
         let text = match host.read_to_string(&path) {
             Ok(t) => t,
-            Err(e) => {
-                return Err(report_and_exit(host, &format!("Cannot read latency file '{}': {}", cfg.latency_file, e)))
-            }
+            Err(e) => return Err(report_and_exit(host, &format!("Cannot read latency file '{}': {}", file, e))),
         };
         match prs_checker::time::ProfileSet::parse(&text) {
-            Ok(set) => cfg.latency = Some(std::rc::Rc::new(set)),
-            Err(e) => return Err(report_and_exit(host, &format!("Latency file '{}': {}", cfg.latency_file, e))),
+            Ok(set) => cfg.latency = Some(std::sync::Arc::new(set)),
+            Err(e) => return Err(report_and_exit(host, &format!("Latency file '{}': {}", file, e))),
         }
     }
     // PEx mode searches exhaustively: `--sch-pex dfs` in order, otherwise (`random`, the
     // default) trying the alternatives at each choice point in a random order, with no
     // schedule limit unless one is given
-    if cfg.mode == Mode::PEx && cfg.strategy != "replay" {
-        if cfg.strategy != "dfs" && cfg.strategy != "astar" {
-            cfg.strategy = "random-dfs".into();
+    if cfg.mode == Mode::PEx && cfg.strategy != StrategyKind::Replay {
+        if cfg.strategy != StrategyKind::Dfs {
+            cfg.strategy = StrategyKind::RandomDfs;
         }
         if !cfg.user_set_iterations {
             cfg.iterations = 0;
@@ -466,13 +467,10 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
     if cfg.liveness_threshold == 0 && cfg.max_fair_steps > 0 {
         cfg.liveness_threshold = cfg.max_fair_steps / 2;
     }
-    if !STRATEGIES.contains(&cfg.strategy.as_str()) && !SUPPORTED_STRATEGIES.contains(&cfg.strategy.as_str()) {
-        return Err(checker_report_and_exit(host, "Please provide a scheduling strategy (see --sch* options)"));
-    }
     if cfg.max_fair_steps < cfg.max_unfair_steps {
         return Err(checker_report_and_exit(host, "For the option '--max-steps N[,M]', please make sure that M >= N."));
     }
-    set_output_directory(host, &mut cfg);
+    set_output_directory(host, &mut cfg)?;
     Ok(cfg)
 }
 
@@ -482,7 +480,7 @@ fn sanitize_segment(name: &str) -> String {
 
 /// `CheckerConfiguration.SetOutputDirectory`: picks `<outdir>/[<testcase>/]<Mode>/` and
 /// rotates up to ten previous runs to `<Mode>0` .. `<Mode>9`.
-fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) {
+fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) -> Result<(), Exit> {
     let suffix = if cfg.test_case_name.is_empty() {
         cfg.mode.name().to_string()
     } else {
@@ -499,23 +497,26 @@ fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) {
     let stem = &cfg.output_directory[..cfg.output_directory.len() - 1];
     let history = |h: usize| format!("{}{}", stem, h);
     const MAX_HISTORY: usize = 10;
+    let fail = |host: &mut dyn Host, path: &str, e: std::io::Error| {
+        report_and_exit(host, &format!("Cannot prepare output directory '{}': {}", path, e))
+    };
     let mut older = history(MAX_HISTORY - 1);
     if host.is_dir(&abs(&older)) {
-        let _ = host.remove_dir_all(&abs(&older));
+        host.remove_dir_all(&abs(&older)).map_err(|e| fail(host, &older, e))?;
     }
-    if cfg.strategy != "replay" {
+    if cfg.strategy != StrategyKind::Replay {
         for h in (0..MAX_HISTORY - 1).rev() {
             let newer = history(h);
             if host.is_dir(&abs(&newer)) {
-                let _ = host.rename(&abs(&newer), &abs(&older));
+                host.rename(&abs(&newer), &abs(&older)).map_err(|e| fail(host, &newer, e))?;
             }
             older = newer;
         }
         if host.is_dir(&abs(&cfg.output_directory)) {
-            let _ = host.rename(&abs(&cfg.output_directory), &abs(&older));
+            host.rename(&abs(&cfg.output_directory), &abs(&older)).map_err(|e| fail(host, &cfg.output_directory, e))?;
         }
     }
-    let _ = host.create_dir_all(&abs(&cfg.output_directory));
+    host.create_dir_all(&abs(&cfg.output_directory)).map_err(|e| fail(host, &cfg.output_directory, e))
 }
 
 /// Type-checked sources.
@@ -551,18 +552,19 @@ pub fn load(host: &mut dyn Host, cfg: &CheckConfig) -> Result<Loaded, Exit> {
 
 /// `Checker.Run`.
 pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exit> {
-    if cfg.strategy == "replay" {
+    if let Some(schedule_file) = cfg.schedule_file.clone() {
         host.out_line(&format!(
             "Replay option is used, checker is ignoring all other parameters and using the {} to replay the schedule",
-            cfg.schedule_file
+            schedule_file
         ));
-        host.out_line(&format!("... Replaying {}", cfg.schedule_file));
+        host.out_line(&format!("... Replaying {}", schedule_file));
         let loaded = load(host, &cfg)?;
-        let tc_name = cfg.test_case_name.clone();
-        let tc = select_test_case(host, &loaded, &tc_name)?;
-        let text = match host.read_to_string(&full_path(&host.cwd(), Path::new(&cfg.schedule_file))) {
+        let tc = select_test_case(host, &loaded, &cfg.test_case_name)?;
+        let text = match host.read_to_string(&full_path(&host.cwd(), Path::new(&schedule_file))) {
             Ok(t) => t,
-            Err(e) => return Err(report_and_exit(host, &e.to_string())),
+            Err(e) => {
+                return Err(report_and_exit(host, &format!("Cannot read schedule file '{}': {}", schedule_file, e)))
+            }
         };
         let trace = ScheduleTrace::parse(&text).map_err(|e| report_and_exit(host, &e))?;
         if let Some(t) = trace.liveness_temperature_threshold {
@@ -571,7 +573,11 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
         let mut opts = engine_options(&cfg, 0);
         opts.replay = Some(trace);
         let start = host.now();
-        let res = run_engine(host, &loaded, &tc, &opts, None)?;
+        let res = run_engine(host, &loaded, &tc, &opts, None, Some(1))?;
+        // `ReplayStrategy` reports a schedule it cannot follow with `Error.ReportAndExit`
+        if let Some(e) = &res.replay_error {
+            return Err(report_and_exit(host, e));
+        }
         let elapsed = host.now() - start;
         let n = res.report.num_bugs;
         let text = format!(
@@ -593,7 +599,8 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
     if !cfg.list_test_cases {
         for tc in cases {
             cfg.test_case_name = tc;
-            exit_code = testing_process(host, &loaded, &cfg)?;
+            // a failing test case fails the run (upstream keeps only the last one's code)
+            exit_code = exit_code.max(testing_process(host, &loaded, &cfg)?);
         }
     }
     host.out_line(". Done");
@@ -628,39 +635,34 @@ fn select_test_case(host: &mut dyn Host, loaded: &Loaded, name: &str) -> Result<
     let exact: Vec<_> = all.iter().filter(|t| t.name == name).cloned().collect();
     let filtered: Vec<_> =
         if !exact.is_empty() { exact } else { all.iter().filter(|t| t.name.contains(name)).cloned().collect() };
-    if filtered.is_empty() {
-        if !all.is_empty() {
-            let mut msg = format!("Cannot find a P test case that contains {}. Possible options are: \n", name);
-            for t in &all {
-                msg.push_str(&t.name);
-                msg.push('\n');
-            }
-            return Err(report_and_exit(host, &msg));
+    let options: String = all.iter().map(|t| format!("{}\n", t.name)).collect();
+    match filtered.as_slice() {
+        [tc] => {
+            host.out_line(&format!(".. Test case :: {}", tc.name));
+            Ok(tc.clone())
         }
-        return Err(report_and_exit(
+        [_, _, ..] => Err(report_and_exit(
+            host,
+            &format!(
+                "We found '{}' test cases. Please provide a more precise name of the test case you wish to check using (--testcase | -tc).\nPossible options are: \n{}",
+                all.len(),
+                options
+            ),
+        )),
+        [] if !all.is_empty() => Err(report_and_exit(
+            host,
+            &format!("Cannot find a P test case that contains {}. Possible options are: \n{}", name, options),
+        )),
+        [] => Err(report_and_exit(
             host,
             "Cannot detect a P test case to check.\n -- If you have a test case specified and P checker is not finding it, please report this error to the P team --",
-        ));
+        )),
     }
-    if filtered.len() > 1 {
-        let mut msg = format!(
-            "We found '{}' test cases. Please provide a more precise name of the test case you wish to check using (--testcase | -tc).\nPossible options are: \n",
-            all.len()
-        );
-        for t in &all {
-            msg.push_str(&t.name);
-            msg.push('\n');
-        }
-        return Err(report_and_exit(host, &msg));
-    }
-    let tc = filtered.into_iter().next().unwrap();
-    host.out_line(&format!(".. Test case :: {}", tc.name));
-    Ok(tc)
 }
 
 fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
     CheckerOptions {
-        strategy: cfg.strategy.clone(),
+        strategy: cfg.strategy,
         seed,
         iterations: cfg.iterations,
         max_unfair_steps: cfg.max_unfair_steps,
@@ -705,40 +707,112 @@ impl Output for ConsoleOut<'_> {
     }
 }
 
+/// Runs the engine on `tc` with up to `workers` workers (`None` = one per CPU core).
 fn run_engine(
     host: &mut dyn Host,
     loaded: &Loaded,
     tc: &prs_sema::TestCase,
     opts: &CheckerOptions,
     deadline: Option<f64>,
+    workers: Option<usize>,
 ) -> Result<CheckResult, Exit> {
-    if !SUPPORTED_STRATEGIES.contains(&opts.strategy.as_str()) {
-        return Err(report_and_exit(
-            host,
-            &format!("The '{}' scheduling strategy is not supported by prs.", opts.strategy),
-        ));
-    }
-    let checker = Checker::new(&loaded.analysis.program);
-    let mut out = ConsoleOut { host, deadline };
+    let prog = &loaded.analysis.program;
+    let checker = Checker::new(prog);
     let opts = &CheckerOptions { assembly_name: loaded.sources.project_name.clone(), ..opts.clone() };
-    match checker.check(tc, opts, &mut out) {
-        Ok(r) => Ok(r),
-        Err(e) => Err(report_and_exit(host, &e)),
+    // a host without threads runs one worker
+    let threads = host.threads();
+    let requested = threads.map_or(1, |t| workers.unwrap_or(t.available));
+    let workers = WorkerPool::workers_for(opts, requested);
+    let mut out = ConsoleOut { host, deadline };
+    let result = match threads {
+        Some(threads) if workers > 1 => run_workers(&checker, tc, opts, &WorkerPool::new(workers), threads, &mut out),
+        _ => checker.check(tc, opts, &mut out),
+    };
+    result.map_err(|e| report_and_exit(host, &e))
+}
+
+/// A worker's output, sent to the thread that writes the console.
+enum Message {
+    Line(String),
+    Error(String),
+    Done(usize, Box<Result<Exploration, String>>),
+}
+
+struct WorkerOut<'a> {
+    tx: mpsc::Sender<Message>,
+    timed_out: &'a AtomicBool,
+}
+
+impl Output for WorkerOut<'_> {
+    fn line(&mut self, s: &str) {
+        let _ = self.tx.send(Message::Line(s.to_string()));
     }
+    fn error(&mut self, s: &str) {
+        let _ = self.tx.send(Message::Error(s.to_string()));
+    }
+    fn cancelled(&mut self) -> bool {
+        self.timed_out.load(Ordering::Relaxed)
+    }
+}
+
+/// Explores `tc` with the workers of `pool`, each on its own thread with its own
+/// `Checker`; this thread writes their output and watches the deadline.
+fn run_workers(
+    checker: &Checker,
+    tc: &prs_sema::TestCase,
+    opts: &CheckerOptions,
+    pool: &WorkerPool,
+    threads: Threads,
+    out: &mut ConsoleOut,
+) -> Result<CheckResult, String> {
+    checker.announce(tc, opts, out)?;
+    out.line(&format!("... Checker is using {} workers.", pool.count()));
+    let prog = checker.prog;
+    let timed_out = AtomicBool::new(false);
+    let (tx, rx) = mpsc::channel();
+    let jobs: Vec<Job<'_>> = (0..pool.count())
+        .map(|index| {
+            let tx = tx.clone();
+            let timed_out = &timed_out;
+            Box::new(move || {
+                let checker = Checker::new(prog);
+                let mut out = WorkerOut { tx, timed_out };
+                let part = checker.explore(tc, opts, pool, index, &mut out);
+                let _ = out.tx.send(Message::Done(index, Box::new(part)));
+            }) as Job<'_>
+        })
+        .collect();
+    drop(tx);
+    let mut parts: Vec<Option<Result<Exploration, String>>> = (0..pool.count()).map(|_| None).collect();
+    let mut main = || loop {
+        match rx.recv_timeout(Duration::from_millis(20)) {
+            Ok(Message::Line(s)) => out.line(&s),
+            Ok(Message::Error(s)) => out.error(&s),
+            Ok(Message::Done(index, part)) => parts[index] = Some(*part),
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+        if !timed_out.load(Ordering::Relaxed) && out.cancelled() {
+            timed_out.store(true, Ordering::Relaxed);
+        }
+    };
+    (threads.run)(jobs, &mut main);
+    let parts = parts.into_iter().map(|p| p.expect("every worker reports")).collect::<Result<Vec<_>, String>>()?;
+    Ok(checker.finish(tc, opts, parts))
 }
 
 /// `TestingProcess.Run` for one test case; returns the exit code it sets.
 fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> Result<i32, Exit> {
     let process_start = host.now();
     let seed = match cfg.seed {
-        Some(s) => s, // + 673 * TestingProcessId (always 0)
+        Some(s) => s, // + 673 * TestingProcessId: see `WorkerPool::worker_options`
         None => host.random_seed(),
     };
     let tc = select_test_case(host, loaded, &cfg.test_case_name)?;
     let opts = engine_options(cfg, seed);
     let engine_start = host.now();
-    let deadline = (cfg.timeout > 0).then_some(engine_start + cfg.timeout as f64);
-    let res = run_engine(host, loaded, &tc, &opts, deadline)?;
+    let deadline = cfg.timeout.map(|t| engine_start + f64::from(t));
+    let res = run_engine(host, loaded, &tc, &opts, deadline, cfg.workers)?;
     let engine_elapsed = host.now() - engine_start;
     if res.cancelled {
         host.out_line("... Checker timed out.");
@@ -748,12 +822,12 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
         host.out_line("... Emitting verbose logs:");
         let path = format!("{}{}_0_verbose.trace.json", cfg.output_directory, file);
         host.out_line(&format!("..... Writing {}", path));
-        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), j);
+        write_output(host, &path, j)?;
     }
     if !cfg.full_exploration && res.report.num_bugs > 0 {
         host.out_line("Checker found a bug.");
         host.out_line("... Emitting traces:");
-        emit_traces(host, cfg, &res, &format!("{}_0", file), engine_elapsed);
+        emit_traces(host, cfg, &res, &format!("{}_0", file), engine_elapsed)?;
     }
     if cfg.verbose {
         host.out_line("... ### Process 0 is terminating");
@@ -766,11 +840,11 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
         let text = checker.coverage_report(cov);
         let txt = format!("{}.coverage.txt", base);
         host.out_line(&format!("..... Writing {}", txt));
-        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&txt)), &text);
+        write_output(host, &txt, &text)?;
         let sci = format!("{}.sci", base);
         host.out_line(&format!("..... Writing {}", sci));
         let xml = crate::sci::coverage_xml(&loaded.analysis.program, &checker.coverage_tables(), cov);
-        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&sci)), &xml);
+        write_output(host, &sci, &xml)?;
     }
     let process_elapsed = host.now() - process_start;
     host.out_line(&res.report.text(&opts, "..."));
@@ -788,13 +862,13 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
         format_0_00(process_elapsed),
         format_0_00(host.max_memory_gb())
     );
-    let _ = host.write_file(&full_path(&host.cwd(), Path::new(&summary_path)), &summary);
+    write_output(host, &summary_path, &summary)?;
     if !res.report.scenarios.is_empty() {
         let suffix = if cfg.test_case_name.is_empty() { String::new() } else { format!("_{}", cfg.test_case_name) };
         let path = format!("{}{}{}{}", cfg.output_directory, file, suffix, crate::scenario::FILE_SUFFIX);
         host.out_line(&format!("..... Writing {}", path));
         let art = crate::scenario::from_report(&res.report, &cfg.test_case_name);
-        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), &art.to_json());
+        write_output(host, &path, &art.to_json())?;
     }
     host.out_line(&format!("... Elapsed {} sec.", process_elapsed));
     Ok(if res.report.num_bugs > 0 { 1 } else { 0 })
@@ -840,7 +914,13 @@ fn trailing_index(name: &str) -> Option<usize> {
 }
 
 /// `TestingEngine.TryEmitTraces`.
-fn emit_traces(host: &mut dyn Host, cfg: &CheckConfig, res: &CheckResult, file: &str, engine_elapsed: f64) {
+fn emit_traces(
+    host: &mut dyn Host,
+    cfg: &CheckConfig,
+    res: &CheckResult,
+    file: &str,
+    engine_elapsed: f64,
+) -> Result<(), Exit> {
     let dir = full_path(&host.cwd(), Path::new(&cfg.output_directory));
     let index = next_trace_index(host, &dir, file);
     let base = format!("{}{}_{}", cfg.output_directory, file, index);
@@ -848,24 +928,24 @@ fn emit_traces(host: &mut dyn Host, cfg: &CheckConfig, res: &CheckResult, file: 
         if let Some(t) = res.readable_trace.as_ref().filter(|t| !t.is_empty()) {
             let path = format!("{}.txt", base);
             host.out_line(&format!("..... Writing {}", path));
-            let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), t);
+            write_output(host, &path, t)?;
         }
     }
     if let Some(x) = &res.xml_trace {
         let path = format!("{}.trace.xml", base);
         host.out_line(&format!("..... Writing {}", path));
-        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), x);
+        write_output(host, &path, x)?;
     }
     if let Some(j) = &res.json_trace {
         let path = format!("{}.trace.json", base);
         host.out_line(&format!("..... Writing {}", path));
-        let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), j);
+        write_output(host, &path, j)?;
     }
     if !cfg.full_exploration {
         if let Some(t) = res.schedule_trace.as_ref().filter(|t| !t.is_empty()) {
             let path = format!("{}.schedule", base);
             host.out_line(&format!("..... Writing {}", path));
-            let _ = host.write_file(&full_path(&host.cwd(), Path::new(&path)), t);
+            write_output(host, &path, t)?;
         }
     }
     host.out_line(&format!(
@@ -873,4 +953,5 @@ fn emit_traces(host: &mut dyn Host, cfg: &CheckConfig, res: &CheckResult, file: 
         format_0_00(engine_elapsed),
         format_0_00(host.max_memory_gb())
     ));
+    Ok(())
 }

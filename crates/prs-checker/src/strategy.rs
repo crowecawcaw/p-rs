@@ -9,6 +9,109 @@ use std::rc::Rc;
 
 use crate::random::RandomValueGenerator;
 
+/// A scheduling strategy, named as upstream names it (`CheckerConfiguration.SchedulingStrategy`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StrategyKind {
+    #[default]
+    Random,
+    Pct,
+    FairPct,
+    Probabilistic,
+    Pos,
+    Feedback,
+    FeedbackPct,
+    FeedbackPos,
+    /// Q-learning (`rl`).
+    Rl,
+    /// Replay of a recorded schedule.
+    Replay,
+    /// Exhaustive search (PEx mode), trying the alternatives in order.
+    Dfs,
+    /// Exhaustive search (PEx mode), trying the alternatives in a random order.
+    RandomDfs,
+}
+
+impl StrategyKind {
+    const ALL: [StrategyKind; 12] = [
+        StrategyKind::Random,
+        StrategyKind::Pct,
+        StrategyKind::FairPct,
+        StrategyKind::Probabilistic,
+        StrategyKind::Pos,
+        StrategyKind::Feedback,
+        StrategyKind::FeedbackPct,
+        StrategyKind::FeedbackPos,
+        StrategyKind::Rl,
+        StrategyKind::Replay,
+        StrategyKind::Dfs,
+        StrategyKind::RandomDfs,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            StrategyKind::Random => "random",
+            StrategyKind::Pct => "pct",
+            StrategyKind::FairPct => "fairpct",
+            StrategyKind::Probabilistic => "probabilistic",
+            StrategyKind::Pos => "pos",
+            StrategyKind::Feedback => "feedback",
+            StrategyKind::FeedbackPct => "feedbackpct",
+            StrategyKind::FeedbackPos => "feedbackpos",
+            StrategyKind::Rl => "rl",
+            StrategyKind::Replay => "replay",
+            StrategyKind::Dfs => "dfs",
+            StrategyKind::RandomDfs => "random-dfs",
+        }
+    }
+
+    /// Whether the checker reports the seed with the strategy (`... Checker is using
+    /// 'pct' strategy (seed:7).`).
+    pub fn reports_seed(self) -> bool {
+        // `feedback` draws from the seed too but has always been reported without it,
+        // unlike `feedbackpct` and `feedbackpos`; nothing vendored from upstream shows
+        // what upstream prints for it, so the output is kept as it is.
+        !matches!(self, StrategyKind::Feedback | StrategyKind::Replay | StrategyKind::Dfs)
+    }
+
+    /// Whether this is an exhaustive search (PEx mode).
+    pub fn is_exhaustive(self) -> bool {
+        matches!(self, StrategyKind::Dfs | StrategyKind::RandomDfs)
+    }
+
+    /// Whether workers with their own seeds can explore schedules with this strategy
+    /// side by side: it learns nothing from other schedules that would make one worker's
+    /// schedules worth less than a single checker's. The feedback strategies and `rl` learn
+    /// from earlier schedules, exhaustive search splits one search space and a replay
+    /// follows one schedule.
+    pub fn explores_independently(self) -> bool {
+        matches!(
+            self,
+            StrategyKind::Random
+                | StrategyKind::Pct
+                | StrategyKind::FairPct
+                | StrategyKind::Probabilistic
+                | StrategyKind::Pos
+        )
+    }
+}
+
+impl std::fmt::Display for StrategyKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl std::str::FromStr for StrategyKind {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<StrategyKind, String> {
+        StrategyKind::ALL
+            .into_iter()
+            .find(|k| k.name() == s)
+            .ok_or_else(|| format!("unknown scheduling strategy '{}'", s))
+    }
+}
+
 /// Identity and status of a schedulable operation as seen by a strategy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OpInfo {
@@ -34,10 +137,14 @@ pub trait Strategy {
     fn has_reached_max_steps(&self) -> bool;
     fn is_fair(&self) -> bool;
     fn description(&self) -> String;
-    fn reset(&mut self);
     /// Error of a replay strategy whose trace could not be followed.
     fn replay_error(&self) -> Option<String> {
         None
+    }
+    /// Whether the last decision could not be made (a replay that diverged from its trace,
+    /// see [`Strategy::replay_error`]); the schedule then ends there.
+    fn diverged(&self) -> bool {
+        false
     }
     /// Feedback from a finished schedule (`IFeedbackGuidedStrategy.ObserveRunningResults`):
     /// its abstract timeline and timeline MinHash, the states each scenario reached and the
@@ -77,9 +184,9 @@ fn enabled_ids(ops: &[OpInfo]) -> Vec<u64> {
 // ---------------------------------------------------------------------------
 
 pub struct RandomStrategy {
-    pub max_steps: usize,
-    pub steps: usize,
-    pub rng: SharedRandom,
+    max_steps: usize,
+    steps: usize,
+    rng: SharedRandom,
 }
 
 impl RandomStrategy {
@@ -124,16 +231,13 @@ impl Strategy for RandomStrategy {
     fn description(&self) -> String {
         format!("random[seed '{}']", self.rng.borrow().seed)
     }
-    fn reset(&mut self) {
-        self.steps = 0;
-    }
 }
 
 // ---------------------------------------------------------------------------
 
 pub struct ProbabilisticRandomStrategy {
-    pub inner: RandomStrategy,
-    pub coin_flips: usize,
+    inner: RandomStrategy,
+    coin_flips: usize,
 }
 
 impl ProbabilisticRandomStrategy {
@@ -188,22 +292,19 @@ impl Strategy for ProbabilisticRandomStrategy {
     fn description(&self) -> String {
         format!("probabilistic[seed '{}', coin flips '{}']", self.inner.rng.borrow().seed, self.coin_flips)
     }
-    fn reset(&mut self) {
-        self.inner.reset()
-    }
 }
 
 // ---------------------------------------------------------------------------
 
 pub struct PctStrategy {
-    pub max_steps: usize,
-    pub steps: usize,
-    pub max_switch_points: usize,
-    pub schedule_length: usize,
-    pub prioritized: Vec<u64>,
+    max_steps: usize,
+    steps: usize,
+    max_switch_points: usize,
+    schedule_length: usize,
+    prioritized: Vec<u64>,
     /// Kept sorted (upstream uses a `SortedSet<int>`).
-    pub change_points: Vec<usize>,
-    pub rng: SharedRandom,
+    change_points: Vec<usize>,
+    rng: SharedRandom,
 }
 
 impl PctStrategy {
@@ -317,20 +418,20 @@ impl Strategy for PctStrategy {
             self.rng.borrow().seed
         )
     }
-    fn reset(&mut self) {
-        self.schedule_length = 0;
-        self.steps = 0;
-        self.prioritized.clear();
-        self.change_points.clear();
-    }
 }
 
 // ---------------------------------------------------------------------------
 
 /// A prefix strategy followed by a suffix strategy once the prefix hits its bound.
 pub struct ComboStrategy {
-    pub prefix: Box<dyn Strategy>,
-    pub suffix: Box<dyn Strategy>,
+    prefix: Box<dyn Strategy>,
+    suffix: Box<dyn Strategy>,
+}
+
+impl ComboStrategy {
+    pub fn new(prefix: Box<dyn Strategy>, suffix: Box<dyn Strategy>) -> Self {
+        ComboStrategy { prefix, suffix }
+    }
 }
 
 impl Strategy for ComboStrategy {
@@ -375,10 +476,6 @@ impl Strategy for ComboStrategy {
     }
     fn description(&self) -> String {
         format!("combo[{},{}]", self.prefix.description(), self.suffix.description())
-    }
-    fn reset(&mut self) {
-        self.prefix.reset();
-        self.suffix.reset();
     }
 }
 
@@ -474,19 +571,27 @@ impl ScheduleTrace {
 
 /// Replays a recorded schedule (`ReplayStrategy`).
 pub struct ReplayStrategy {
-    pub trace: ScheduleTrace,
-    pub index: usize,
-    pub is_fair: bool,
-    pub error: Option<String>,
+    trace: ScheduleTrace,
+    index: usize,
+    is_fair: bool,
+    error: Option<String>,
     /// Report the step bound as reached once this many steps were replayed (used to
     /// reproduce a schedule that ended at the bound; upstream replays never hit it).
-    pub stop_at: Option<usize>,
+    pub(crate) stop_at: Option<usize>,
 }
 
 impl ReplayStrategy {
     pub fn new(trace: ScheduleTrace) -> Self {
         let is_fair = trace.is_fair;
         ReplayStrategy { trace, index: 0, is_fair, error: None, stop_at: None }
+    }
+
+    /// Records why the trace cannot be followed (upstream's `ErrorText`) and returns
+    /// `placeholder`, which the runtime discards: it ends the schedule (see
+    /// [`Strategy::diverged`]).
+    fn diverge<T>(&mut self, reason: &str, placeholder: T) -> T {
+        self.error = Some(format!("Trace is not reproducible: {}", reason));
+        placeholder
     }
 }
 
@@ -496,44 +601,46 @@ impl Strategy for ReplayStrategy {
         if enabled.is_empty() {
             return None;
         }
-        if self.index >= self.trace.steps.len() {
-            self.error = Some("Trace is not reproducible: execution is longer than trace.".into());
-            return None;
+        let id = match self.trace.steps.get(self.index) {
+            None => return self.diverge("execution is longer than trace.", None),
+            Some(ScheduleStep::Operation(id)) => *id,
+            Some(_) => return self.diverge("next step is not a scheduling choice.", None),
+        };
+        if !enabled.contains(&id) {
+            return self.diverge(&format!("cannot detect id '{}'.", id), None);
         }
-        match &self.trace.steps[self.index] {
-            ScheduleStep::Operation(id) => {
-                let id = *id;
-                if !enabled.contains(&id) {
-                    self.error =
-                        Some("Trace is not reproducible: cannot detect id '".to_string() + &id.to_string() + "'.");
-                    return None;
-                }
-                self.index += 1;
-                Some(id)
-            }
-            _ => {
-                self.error = Some("Trace is not reproducible: next step is not a scheduling choice.".into());
-                None
-            }
-        }
+        self.index += 1;
+        Some(id)
     }
     fn next_bool(&mut self, _max: i32) -> bool {
-        if let Some(ScheduleStep::Bool(b)) = self.trace.steps.get(self.index) {
-            self.index += 1;
-            *b
-        } else {
-            self.error = Some("Trace is not reproducible: next step is not a nondeterministic boolean choice.".into());
-            false
-        }
+        let b = match self.trace.steps.get(self.index) {
+            None => return self.diverge("execution is longer than trace.", false),
+            Some(ScheduleStep::Bool(b)) => *b,
+            Some(ScheduleStep::Operation(_)) => {
+                return self.diverge("next step is not a nondeterministic choice.", false)
+            }
+            Some(ScheduleStep::Int(_)) => {
+                return self.diverge("next step is not a nondeterministic boolean choice.", false)
+            }
+        };
+        self.index += 1;
+        b
     }
-    fn next_int(&mut self, _max: i32) -> i32 {
-        if let Some(ScheduleStep::Int(i)) = self.trace.steps.get(self.index) {
-            self.index += 1;
-            *i
-        } else {
-            self.error = Some("Trace is not reproducible: next step is not a nondeterministic integer choice.".into());
-            0
+    fn next_int(&mut self, max: i32) -> i32 {
+        let i = match self.trace.steps.get(self.index) {
+            None => return self.diverge("execution is longer than trace.", 0),
+            Some(ScheduleStep::Int(i)) => *i,
+            Some(ScheduleStep::Operation(_)) => return self.diverge("next step is not a nondeterministic choice.", 0),
+            Some(ScheduleStep::Bool(_)) => {
+                return self.diverge("next step is not a nondeterministic integer choice.", 0)
+            }
+        };
+        // a recorded choice is below `max` (`Random.Next(0)` is 0)
+        if !(0..max.max(1)).contains(&i) {
+            return self.diverge(&format!("integer choice '{}' is not below the maximum value '{}'.", i, max), 0);
         }
+        self.index += 1;
+        i
     }
     fn prepare_next_iteration(&mut self) -> bool {
         false
@@ -550,10 +657,23 @@ impl Strategy for ReplayStrategy {
     fn description(&self) -> String {
         "replay".into()
     }
-    fn reset(&mut self) {
-        self.index = 0;
-    }
     fn replay_error(&self) -> Option<String> {
         self.error.clone()
+    }
+    fn diverged(&self) -> bool {
+        self.error.is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StrategyKind;
+
+    #[test]
+    fn strategy_names_round_trip() {
+        for k in StrategyKind::ALL {
+            assert_eq!(k.to_string().parse(), Ok(k));
+        }
+        assert!("astar".parse::<StrategyKind>().is_err());
     }
 }

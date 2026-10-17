@@ -136,6 +136,20 @@ fn violations_are_reported_per_key_with_replay_logs() {
 }
 
 #[test]
+fn report_write_failures_are_errors() {
+    let mut h = host();
+    h.add_file("run.log", &[line("a", 1, "eDeposit", 1, 10), line("a", 2, "eWithdraw", 1, 30)].join("\n"));
+    h.create_dir_all(Path::new("out/replayEvents_a.log")).unwrap();
+    assert_eq!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "run.log", "-o", "out"]), 1, "{}", h.stdout);
+    assert!(h.stdout.contains(".. writing error log into file /work/out/replayEvents_a.log\n"), "{}", h.stdout);
+    assert_eq!(
+        h.stderr,
+        "Error: Could not write file '/work/out/replayEvents_a.log': Is a directory: '/work/out/replayEvents_a.log'\n"
+    );
+    assert!(!h.stdout.contains("PObserve run completed"), "{}", h.stdout);
+}
+
+#[test]
 fn parser_errors_alone_exit_with_4() {
     let mut h = host();
     h.add_file("run.log", &format!("{}\n{{oops", line("k", 1, "eDeposit", 1, 1)));

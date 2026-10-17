@@ -8,7 +8,6 @@ use std::fmt::Write as _;
 pub enum DataType {
     None,
     Str,
-    Int,
     UInt,
     Double,
     Bool,
@@ -18,14 +17,11 @@ pub enum DataType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Str(String),
-    Int(i32),
     UInt(u32),
     Double(f64),
     Bool(bool),
     StrList(Vec<String>),
-    IntList(Vec<i32>),
     UIntList(Vec<u32>),
-    DoubleList(Vec<f64>),
 }
 
 impl Value {
@@ -39,18 +35,6 @@ impl Value {
         match self {
             Value::UInt(v) => *v,
             _ => 0,
-        }
-    }
-    pub fn as_int(&self) -> i32 {
-        match self {
-            Value::Int(v) => *v,
-            _ => 0,
-        }
-    }
-    pub fn as_double(&self) -> f64 {
-        match self {
-            Value::Double(v) => *v,
-            _ => 0.0,
         }
     }
     pub fn as_str_list(&self) -> Vec<String> {
@@ -365,7 +349,6 @@ impl Argument {
             text.push(' ');
             text.push_str(match self.data_type {
                 DataType::Str => "string",
-                DataType::Int => "int",
                 DataType::UInt => "uint",
                 DataType::Double => "double",
                 DataType::None | DataType::Bool => "",
@@ -401,7 +384,6 @@ fn parse_value(def: &Argument, value: &str) -> Result<Value, ParseError> {
     let v = match def.data_type {
         DataType::None | DataType::Str => Value::Str(value.to_string()),
         DataType::Bool => Value::Bool(parse_bool(value).ok_or_else(|| err("bool"))?),
-        DataType::Int => Value::Int(parse_int::<i32>(value).ok_or_else(|| err("integer"))?),
         DataType::UInt => Value::UInt(parse_int::<u32>(value).ok_or_else(|| err("unsigned integer"))?),
         DataType::Double => Value::Double(value.trim().parse::<f64>().map_err(|_| err("double"))?),
     };
@@ -415,7 +397,6 @@ fn parse_value(def: &Argument, value: &str) -> Result<Value, ParseError> {
                     "false".into()
                 }
             }
-            Value::Int(i) => i.to_string(),
             Value::UInt(i) => i.to_string(),
             Value::Double(d) => d.to_string(),
             _ => String::new(),
@@ -461,24 +442,14 @@ fn add_parsed_value(def: &Argument, p: &mut Parsed, arg: &str) -> Result<(), Par
     let v = parse_value(def, arg)?;
     p.value = Some(match (p.value.take(), v) {
         (None, Value::Str(s)) => Value::StrList(vec![s]),
-        (None, Value::Int(i)) => Value::IntList(vec![i]),
         (None, Value::UInt(i)) => Value::UIntList(vec![i]),
-        (None, Value::Double(d)) => Value::DoubleList(vec![d]),
         (Some(Value::StrList(mut l)), Value::Str(s)) => {
             l.push(s);
             Value::StrList(l)
         }
-        (Some(Value::IntList(mut l)), Value::Int(i)) => {
-            l.push(i);
-            Value::IntList(l)
-        }
         (Some(Value::UIntList(mut l)), Value::UInt(i)) => {
             l.push(i);
             Value::UIntList(l)
-        }
-        (Some(Value::DoubleList(mut l)), Value::Double(d)) => {
-            l.push(d);
-            Value::DoubleList(l)
         }
         (_, v) => v,
     });

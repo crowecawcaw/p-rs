@@ -24,7 +24,6 @@ pub struct Analyzer<'a> {
     pub prog: Program,
     pub scopes: Scopes,
     pub diags: Diagnostics,
-    pub verifier: bool,
     pub machine_scopes: Vec<ScopeId>,
     pub machine_src: Vec<&'a ast::MachineDecl>,
     pub state_src: Vec<&'a ast::StateDecl>,
@@ -41,12 +40,10 @@ pub struct Analyzer<'a> {
     pub test_src: Vec<&'a ast::SafetyTestDecl>,
     pub refinement_src: Vec<(String, &'a ast::ModExpr, &'a ast::ModExpr, Span, String)>,
     pub impl_src: Vec<&'a ast::TopDecl>,
-    /// Interfaces (by id) for which a machine bound-check was requested, in order.
-    pub pure_names: Vec<String>,
 }
 
 impl<'a> Analyzer<'a> {
-    pub fn new(sm: &'a SourceMap, continue_on_error: bool, verifier: bool) -> Analyzer<'a> {
+    pub fn new(sm: &'a SourceMap, continue_on_error: bool) -> Analyzer<'a> {
         let mut prog = Program::default();
         // built-in events
         prog.events.push(EventDecl { name: "null".into(), payload: PType::Null, span: Span::dummy() });
@@ -63,7 +60,6 @@ impl<'a> Analyzer<'a> {
             prog,
             scopes,
             diags: Diagnostics::new(continue_on_error),
-            verifier,
             machine_scopes: Vec::new(),
             machine_src: Vec::new(),
             state_src: Vec::new(),
@@ -78,7 +74,6 @@ impl<'a> Analyzer<'a> {
             test_src: Vec::new(),
             refinement_src: Vec::new(),
             impl_src: Vec::new(),
-            pure_names: Vec::new(),
         }
     }
 
@@ -145,10 +140,5 @@ impl<'a> Analyzer<'a> {
         if !f.callees.contains(&callee) {
             f.callees.push(callee);
         }
-    }
-
-    /// Looks up a state the way upstream's `Scope.Lookup(string, out State)` does.
-    pub fn lookup_state(&self, scope: ScopeId, name: &str) -> Option<StateId> {
-        self.scopes.lookup_state(scope, name, &self.machine_scopes)
     }
 }

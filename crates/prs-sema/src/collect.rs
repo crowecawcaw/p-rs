@@ -1,7 +1,7 @@
 //! Declaration collection: `DeclarationStubVisitor`, `DeclarationVisitor` and `TypeResolver`.
 
 use crate::analyzer::{Analyzer, FunSrc};
-use crate::diag::{Diagnostic, Fatal};
+use crate::diag::Fatal;
 use crate::program::*;
 use crate::scope::{Namespace, ScopeId};
 use crate::types::{PType, PermissionOrigin};
@@ -199,9 +199,8 @@ impl<'a> Analyzer<'a> {
                     self.stub_fun(g, f, None)?;
                 }
                 ast::TopDecl::Pure(p) => {
-                    let idx = self.pure_names.len() as u32;
+                    let idx = self.scopes.get(g).pures.len() as u32;
                     self.check_conflict(g, &p.name.name, p.name.span, &[Namespace::Pures])?;
-                    self.pure_names.push(p.name.name.clone());
                     self.scopes.get_mut(g).pures.insert(p.name.name.clone(), idx);
                 }
                 ast::TopDecl::Invariant(inv) => {
@@ -379,14 +378,7 @@ impl<'a> Analyzer<'a> {
             return Ok(PType::Permission(PermissionOrigin::Machine(m)));
         }
         if let Some(ev) = self.scopes.lookup_event(scope, &n.name) {
-            // an event used as a type is the permission type of a singleton event set
-            self.prog.event_sets.push(EventSetDecl {
-                name: n.name.clone(),
-                events: vec![ev],
-                span: self.prog.events[ev.idx()].span,
-            });
-            let es = EventSetId(self.prog.event_sets.len() as u32 - 1);
-            return Ok(PType::Permission(PermissionOrigin::EventSet(es)));
+            return Ok(PType::Permission(PermissionOrigin::Event(ev)));
         }
         Err(self.e.missing_declaration(n.span, "enum, typedef, event set, machine, or interface", &n.name))
     }
@@ -491,7 +483,7 @@ impl<'a> Analyzer<'a> {
                     self.declare_machine(mid, m, fun_cursor)?;
                 }
                 ast::TopDecl::Fun(f) => {
-                    let id = fun_cursor.next_named(&self.fun_src);
+                    let id = fun_cursor.next_named(&self.fun_src, f);
                     self.declare_fun(id, f)?;
                 }
                 _ => {}
@@ -574,7 +566,7 @@ impl<'a> Analyzer<'a> {
         }
         // named functions
         for f in &m.funs {
-            let id = cursor.next_named(&self.fun_src);
+            let id = cursor.next_named(&self.fun_src, f);
             self.declare_fun(id, f)?;
         }
         // states
@@ -748,15 +740,18 @@ pub struct FunCursor {
 }
 
 impl FunCursor {
-    fn next_named(&mut self, src: &[FunSrc<'_>]) -> FunId {
+    /// The id of `decl`, the next named function in stub order.
+    fn next_named(&mut self, src: &[FunSrc<'_>], decl: &ast::FunDecl) -> FunId {
         while !matches!(src[self.pos], FunSrc::Named(_)) {
             self.pos += 1;
         }
+        debug_assert!(
+            matches!(src[self.pos], FunSrc::Named(d) if std::ptr::eq(d, decl)),
+            "function `{}` declared out of stub order",
+            decl.name.name
+        );
         let id = FunId(self.pos as u32);
         self.pos += 1;
         id
     }
 }
-
-#[allow(dead_code)]
-fn _unused(_: Diagnostic) {}

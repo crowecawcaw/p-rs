@@ -193,3 +193,105 @@ fn pex_mode_searches_exhaustively_and_rl_runs() {
     assert_eq!(run(&mut h, &["check", "-tc", "tcFails", "--sch-rl", "-s", "100", "--seed", "1"]), 1, "{}", h.stdout);
     assert!(h.stdout.contains("'rl' strategy (seed:1)"), "{}", h.stdout);
 }
+
+/// Two test cases sharing the prefix `tc`: the first finds a bug, the second passes.
+fn failing_then_passing() -> MemHost {
+    let mut h = MemHost::new("/w");
+    h.add_file(
+        "m.p",
+        "machine M { start state S { entry { assert false, \"boom\"; } } }\n\
+         machine N { start state S { } }\n\
+         test tcA [main=M]: { M };\n\
+         test tcB [main=N]: { N };\n",
+    );
+    h
+}
+
+#[test]
+fn liveness_temperature_threshold_is_accepted() {
+    let mut h = failing_then_passing();
+    assert_eq!(
+        run(&mut h, &["check", "m.p", "-tc", "tcA", "--liveness-temperature-threshold", "7"]),
+        1,
+        "{}",
+        h.stderr
+    );
+    let schedule = h.read_to_string(Path::new("PCheckerOutput/tcA/BugFinding/generatedOutput_0_0.schedule")).unwrap();
+    assert!(schedule.contains("--liveness-temperature-threshold:7\n"), "{}", schedule);
+}
+
+#[test]
+fn a_bug_in_any_matching_test_case_fails_the_run() {
+    let mut h = failing_then_passing();
+    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tc"]), 1, "{}", h.stdout);
+    assert!(h.stdout.contains("Checker found a bug."), "{}", h.stdout);
+    assert!(h.stdout.contains(".. Test case :: tcB"), "{}", h.stdout);
+}
+
+#[test]
+fn zero_timeout_means_no_timeout() {
+    let mut h = failing_then_passing();
+    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tcB", "-t", "0"]), 0, "{}", h.stdout);
+    assert!(h.stdout.contains("..... Explored 1 schedule"), "{}", h.stdout);
+}
+
+#[test]
+fn unsupported_pex_strategy_is_rejected_before_checking() {
+    let mut h = failing_then_passing();
+    assert_eq!(run(&mut h, &["check", "m.p", "--mode", "pex", "--sch-pex", "astar"]), 1);
+    assert_eq!(
+        h.stderr,
+        "Error: The 'astar' scheduling strategy is not supported by prs. Run `p check --help` for usage help.\n"
+    );
+    assert!(!h.stdout.contains(".. Checking"), "{}", h.stdout);
+}
+
+#[test]
+fn merge_scenario_coverage_help() {
+    let mut h = MemHost::new("/w");
+    for flag in ["-h", "--help"] {
+        assert_eq!(run(&mut h, &["merge-scenario-coverage", flag]), 0);
+        assert!(h.stdout.starts_with("usage: p merge-scenario-coverage [directory]\n"), "{}", h.stdout);
+    }
+}
+
+#[test]
+fn unusable_output_directory_is_an_error() {
+    let mut h = failing_then_passing();
+    h.add_file("afile", "");
+    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tcA", "-o", "afile/out"]), 1);
+    assert_eq!(
+        h.stderr,
+        "Error: Cannot prepare output directory 'afile/out/tcA/BugFinding/': File exists: '/w/afile'\n"
+    );
+}
+
+#[test]
+fn missing_replay_file_is_named() {
+    let mut h = failing_then_passing();
+    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tcA", "--replay", "nope.schedule"]), 1);
+    assert!(h.stderr.starts_with("Error: Cannot read schedule file 'nope.schedule': "), "{}", h.stderr);
+}
+
+#[test]
+fn mem_host_file_system_matches_native_semantics() {
+    use std::io::ErrorKind;
+    let mut h = MemHost::new("/w");
+    h.add_file("d/f.txt", "x");
+    assert_eq!(h.remove_dir_all(Path::new("missing")).unwrap_err().kind(), ErrorKind::NotFound);
+    assert!(h.remove_dir_all(Path::new("d/f.txt")).is_err());
+    assert!(h.write_file(Path::new("d"), "y").is_err());
+    assert_eq!(h.read_to_string(Path::new("d/f.txt")).unwrap(), "x", "children survive");
+    assert!(h.read_to_string(Path::new("d")).is_err());
+    assert!(h.write_file(Path::new("d/f.txt/g"), "z").is_err());
+    h.remove_dir_all(Path::new("d")).unwrap();
+    assert!(!h.is_dir(Path::new("d")) && !h.is_file(Path::new("d/f.txt")));
+}
+
+#[test]
+#[should_panic(expected = "cannot add d")]
+fn mem_host_add_file_panics_on_failure() {
+    let mut h = MemHost::new("/w");
+    h.add_file("d/f.txt", "x");
+    h.add_file("d", "y");
+}

@@ -1,7 +1,7 @@
 //! The exhaustive search (`dfs`, `random-dfs`) and the Q-learning strategy (`rl`).
 
 use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Output};
-use prs_checker::strategy::ScheduleTrace;
+use prs_checker::strategy::{ScheduleTrace, StrategyKind};
 
 struct Quiet;
 impl Output for Quiet {
@@ -17,8 +17,8 @@ fn check(src: &str, opts: &CheckerOptions) -> CheckResult {
     Checker::new(&a.program).check(&tc, opts, &mut Quiet).unwrap()
 }
 
-fn opts(strategy: &str, iterations: usize) -> CheckerOptions {
-    CheckerOptions { strategy: strategy.into(), iterations, seed: 7, ..Default::default() }
+fn opts(strategy: StrategyKind, iterations: usize) -> CheckerOptions {
+    CheckerOptions { strategy, iterations, seed: 7, ..Default::default() }
 }
 
 /// Three clients send to a server; `ORDER` decides which delivery order fails.
@@ -56,7 +56,7 @@ fn clients(check: &str) -> String {
 
 #[test]
 fn dfs_explores_everything_of_a_correct_test() {
-    let r = check(&clients("assert sizeof(got) == 3;"), &opts("dfs", 0));
+    let r = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::Dfs, 0));
     assert_eq!(r.report.num_bugs, 0);
     let x = r.exhaustive.expect("search stats");
     assert!(x.finished && x.depth_bound_hits == 0, "{:?}", x);
@@ -64,7 +64,7 @@ fn dfs_explores_everything_of_a_correct_test() {
     // caching: far fewer schedules than interleavings (every pruned one ends early)
     assert!(x.pruned_schedules > 0, "{:?}", x);
     // the random order explores the same state space
-    let rr = check(&clients("assert sizeof(got) == 3;"), &opts("random-dfs", 0));
+    let rr = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::RandomDfs, 0));
     let y = rr.exhaustive.unwrap();
     assert!(y.finished);
     assert_eq!(x.distinct_states, y.distinct_states);
@@ -73,13 +73,13 @@ fn dfs_explores_everything_of_a_correct_test() {
 #[test]
 fn dfs_finds_a_specific_interleaving_and_its_schedule_replays() {
     let src = clients("assert !(got[0] == 3 && got[1] == 2 && got[2] == 1), \"reversed\";");
-    for strategy in ["dfs", "random-dfs"] {
+    for strategy in [StrategyKind::Dfs, StrategyKind::RandomDfs] {
         let r = check(&src, &opts(strategy, 0));
         assert_eq!(r.report.num_bugs, 1, "{strategy}");
         assert!(r.report.bug_reports[0].contains("reversed"));
         assert!(!r.exhaustive.unwrap().finished);
         let trace = ScheduleTrace::parse(r.schedule_trace.as_ref().unwrap()).unwrap();
-        let replay = check(&src, &CheckerOptions { replay: Some(trace), ..opts("replay", 1) });
+        let replay = check(&src, &CheckerOptions { replay: Some(trace), ..opts(StrategyKind::Replay, 1) });
         assert_eq!(replay.report.num_bugs, 1, "{strategy}");
         assert!(replay.replay_error.is_none());
     }
@@ -98,9 +98,9 @@ fn dfs_branches_on_nondeterministic_choices() {
                  }
                }
                test tcMain [main=Main]: { Main };";
-    let r = check(src, &opts("dfs", 0));
+    let r = check(src, &opts(StrategyKind::Dfs, 0));
     assert_eq!(r.report.num_bugs, 1);
-    let ok = check(&src.replace("!= 6", "!= 7"), &opts("dfs", 0));
+    let ok = check(&src.replace("!= 6", "!= 7"), &opts(StrategyKind::Dfs, 0));
     assert_eq!(ok.report.num_bugs, 0);
     assert!(ok.exhaustive.unwrap().finished);
 }
@@ -118,7 +118,7 @@ fn dfs_reports_a_hot_monitor_at_the_end() {
                  }
                }
                test tcMain [main=Main]: assert Live in { Main };";
-    let r = check(src, &opts("dfs", 0));
+    let r = check(src, &opts(StrategyKind::Dfs, 0));
     assert_eq!(r.report.num_bugs, 1);
     assert!(r.report.bug_reports[0].contains("hot state 'Waiting'"), "{}", r.report.bug_reports[0]);
 }
@@ -134,7 +134,7 @@ fn dfs_reports_when_the_depth_bound_cut_the_search() {
                  }
                }
                test tcMain [main=Main]: { Main };";
-    let r = check(src, &CheckerOptions { max_unfair_steps: 50, ..opts("dfs", 0) });
+    let r = check(src, &CheckerOptions { max_unfair_steps: 50, ..opts(StrategyKind::Dfs, 0) });
     assert_eq!(r.report.num_bugs, 0);
     let x = r.exhaustive.unwrap();
     assert!(x.finished);
@@ -142,20 +142,30 @@ fn dfs_reports_when_the_depth_bound_cut_the_search() {
 }
 
 #[test]
+fn dfs_statistics_count_the_schedule_that_found_the_bug() {
+    let src = "machine Main { start state Init { entry { assert $, \"first\"; } } }
+               test tcMain [main=Main]: { Main };";
+    let r = check(src, &opts(StrategyKind::Dfs, 0));
+    assert_eq!((r.report.num_bugs, r.report.explored_unfair_schedules), (1, 1));
+    let trace = ScheduleTrace::parse(r.schedule_trace.as_ref().unwrap()).unwrap();
+    assert_eq!(r.exhaustive.unwrap().max_depth, trace.steps.len());
+}
+
+#[test]
 fn rl_is_reproducible_finds_bugs_and_replays() {
     let src = clients("assert !(got[0] == 3 && got[1] == 2 && got[2] == 1), \"reversed\";");
-    let a = check(&src, &opts("rl", 1000));
-    let b = check(&src, &opts("rl", 1000));
+    let a = check(&src, &opts(StrategyKind::Rl, 1000));
+    let b = check(&src, &opts(StrategyKind::Rl, 1000));
     assert_eq!(a.report.num_bugs, 1);
     assert_eq!(a.schedule_trace, b.schedule_trace);
     assert_eq!(a.report.explored_fair_schedules, b.report.explored_fair_schedules);
     assert!(a.strategy_description.starts_with("rl[seed '7']"));
     let trace = ScheduleTrace::parse(a.schedule_trace.as_ref().unwrap()).unwrap();
-    let replay = check(&src, &CheckerOptions { replay: Some(trace), ..opts("replay", 1) });
+    let replay = check(&src, &CheckerOptions { replay: Some(trace), ..opts(StrategyKind::Replay, 1) });
     assert_eq!(replay.report.num_bugs, 1);
     assert!(replay.replay_error.is_none());
     // a correct test stays clean
-    let ok = check(&clients("assert sizeof(got) == 3;"), &opts("rl", 200));
+    let ok = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::Rl, 200));
     assert_eq!(ok.report.num_bugs, 0);
     assert_eq!(ok.report.explored_fair_schedules, 200);
 }

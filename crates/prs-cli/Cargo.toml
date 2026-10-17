@@ -4,7 +4,9 @@ version.workspace = true
 publish = false
 edition.workspace = true
 license.workspace = true
-description = "The `p` command line tool (drop-in replacement for the upstream P tool)"
+repository.workspace = true
+rust-version.workspace = true
+description = "The `prs` command line tool (drop-in replacement for the upstream P tool)"
 
 [[bin]]
 name = "prs"

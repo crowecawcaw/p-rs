@@ -25,48 +25,50 @@ fn expr(kind: ExprKind, ty: PType, span: Span) -> Expr {
     Expr { kind, ty, span }
 }
 
-/// `TypeCheckingUtils.PrintStmtNumArgs`: number of required arguments, or -1 when malformed.
-pub fn format_num_args(message: &str) -> i64 {
+/// `TypeCheckingUtils.PrintStmtNumArgs`: number of required arguments, or `None` when
+/// malformed. Like upstream, indices use wrapping 32-bit arithmetic: an overflowing index
+/// counts as the value it wraps to, and a negative one requires no arguments.
+pub fn format_num_args(message: &str) -> Option<usize> {
     let m: Vec<char> = message.chars().collect();
-    let mut max = 0i64;
+    let mut max = 0i32;
     let mut i = 0usize;
     while i < m.len() {
         if m[i] == '{' {
             i += 1;
             if i >= m.len() {
-                return -1;
+                return None;
             }
             if m[i] == '{' {
                 i += 1;
                 continue;
             }
-            let mut cur = 0i64;
+            let mut cur = 0i32;
             loop {
                 if !m[i].is_ascii_digit() {
-                    return -1;
+                    return None;
                 }
-                cur = 10 * cur + (m[i] as i64 - '0' as i64);
+                cur = cur.wrapping_mul(10).wrapping_add(m[i] as i32 - '0' as i32);
                 i += 1;
                 if i >= m.len() || m[i] == '}' {
                     break;
                 }
             }
             if i >= m.len() {
-                return -1;
+                return None;
             }
-            max = max.max(cur + 1);
+            max = max.max(cur.wrapping_add(1));
             i += 1;
         } else if m[i] == '}' {
             i += 1;
             if i >= m.len() || m[i] != '}' {
-                return -1;
+                return None;
             }
             i += 1;
         } else {
             i += 1;
         }
     }
-    max
+    Some(max as usize)
 }
 
 /// Interprets C# escape sequences the way the generated C# source would.
@@ -476,17 +478,17 @@ impl<'a> Analyzer<'a> {
                 };
                 Ok(expr(ExprKind::Choose(Some(Box::new(x))), ty, span))
             }
-            ast::ExprKind::Str { raw, raw_span, args, is_format: _ } => {
+            ast::ExprKind::Str { raw, raw_span, args } => {
                 let base = &raw[1..raw.len() - 1];
                 let needed = format_num_args(base);
                 let a = self.check_args(ctx, args)?;
-                if needed == -1 {
+                let Some(needed) = needed else {
                     let d = self.e.invalid_string_expr_format(*raw_span);
                     self.report(d)?;
                     return Ok(err_expr(span));
-                }
-                if a.len() as i64 != needed {
-                    let d = self.e.incorrect_argument_count(span, a.len(), needed as usize);
+                };
+                if a.len() != needed {
+                    let d = self.e.incorrect_argument_count(span, a.len(), needed);
                     self.report(d)?;
                     return Ok(err_expr(span));
                 }
@@ -819,7 +821,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    /// Checks an event expression used by raise/send/announce; returns false when erroneous.
+    /// Checks an event expression used by raise/send/announce, reporting null and non-event values.
     fn check_event_expr(&mut self, ctx: Ctx, e: &ast::Expr) -> Result<Expr, Fatal> {
         let x = self.check_expr(ctx, e)?;
         if x.ty.is_error() {
@@ -855,9 +857,11 @@ impl<'a> Analyzer<'a> {
         Ok(x)
     }
 
+    /// Checks a statement. Only the statements that contain statements are
+    /// checked in this frame, one of which is on the stack per level of
+    /// statement nesting; the others go to [`Self::check_simple_stmt`].
     pub fn check_stmt(&mut self, ctx: Ctx, s: &'a ast::Stmt) -> Result<Stmt, Fatal> {
         let span = s.span;
-        let ret_is_void = self.prog.funs[ctx.fun.idx()].ret.is_same_type_as(&PType::Null, &self.prog);
         match &s.kind {
             ast::StmtKind::Compound(stmts) => {
                 let mut v = Vec::new();
@@ -866,6 +870,86 @@ impl<'a> Analyzer<'a> {
                 }
                 Ok(Self::stmt(StmtKind::Block(Block { stmts: v, span }), span))
             }
+            ast::StmtKind::While { cond, body } => {
+                let c = self.check_bool_cond(ctx, cond)?;
+                let b = self.check_stmt(ctx, body)?;
+                Ok(Self::stmt(StmtKind::While { cond: c, body: Box::new(b) }, span))
+            }
+            ast::StmtKind::If { cond, then_branch, else_branch } => {
+                let c = self.check_bool_cond(ctx, cond)?;
+                let t = self.check_stmt(ctx, then_branch)?;
+                let el = match else_branch {
+                    None => Self::stmt(StmtKind::Nop, span),
+                    Some(e) => self.check_stmt(ctx, e)?,
+                };
+                Ok(Self::stmt(StmtKind::If { cond: c, then_branch: Box::new(t), else_branch: Box::new(el) }, span))
+            }
+            ast::StmtKind::Foreach { item, collection, invariants, body } => {
+                self.check_foreach(ctx, item, collection, invariants, body, span)
+            }
+            _ => self.check_simple_stmt(ctx, s),
+        }
+    }
+
+    #[inline(never)]
+    fn check_foreach(
+        &mut self,
+        ctx: Ctx,
+        item: &'a ast::Ident,
+        collection: &'a ast::Expr,
+        invariants: &'a [ast::Expr],
+        body: &'a ast::Stmt,
+        span: Span,
+    ) -> Result<Stmt, Fatal> {
+        let Some(var) = self.scopes.lookup_var(ctx.scope, &item.name) else {
+            let d = self.e.missing_declaration(item.span, "foreach iterator variable", &item.name);
+            self.report(d)?;
+            self.check_expr(ctx, collection)?;
+            self.check_stmt(ctx, body)?;
+            for inv in invariants {
+                self.check_expr(ctx, inv)?;
+            }
+            return Ok(Self::stmt(StmtKind::Nop, span));
+        };
+        let coll = self.check_expr(ctx, collection)?;
+        let expected = if coll.ty.is_error() {
+            PType::Error
+        } else {
+            match coll.ty.canonicalize(&self.prog) {
+                PType::Set(el) => *el,
+                PType::Seq(el) => *el,
+                _ => {
+                    let d = self.e.type_mismatch_kinds(
+                        coll.span,
+                        &coll.ty,
+                        &[TypeKind::Set, TypeKind::Sequence],
+                        &self.prog,
+                    );
+                    self.report(d)?;
+                    PType::Error
+                }
+            }
+        };
+        let item_ty = self.prog.var_decls[var.idx()].ty.clone();
+        if !expected.is_error()
+            && !item_ty.is_error()
+            && (!expected.is_same_type_as(&item_ty, &self.prog) || !expected.is_assignable_from(&item_ty, &self.prog))
+        {
+            let d = self.e.type_mismatch(item.span, &item_ty, &[&expected], &self.prog);
+            self.report(d)?;
+        }
+        let b = self.check_stmt(ctx, body)?;
+        for inv in invariants {
+            self.check_expr(ctx, inv)?;
+        }
+        Ok(Self::stmt(StmtKind::Foreach { item: var, collection: coll, body: Box::new(b) }, span))
+    }
+
+    #[inline(never)]
+    fn check_simple_stmt(&mut self, ctx: Ctx, s: &'a ast::Stmt) -> Result<Stmt, Fatal> {
+        let span = s.span;
+        let ret_is_void = self.prog.funs[ctx.fun.idx()].ret.is_same_type_as(&PType::Null, &self.prog);
+        match &s.kind {
             ast::StmtKind::Assert { cond, message } | ast::StmtKind::Assume { cond, message } => {
                 let c = self.check_bool_cond(ctx, cond)?;
                 let loc = self.sm.location(span).to_string().replace('\\', "\\\\");
@@ -972,65 +1056,6 @@ impl<'a> Analyzer<'a> {
                     }
                 }
                 Ok(Self::stmt(StmtKind::Remove { lhs: l, value: v }, span))
-            }
-            ast::StmtKind::While { cond, body } => {
-                let c = self.check_bool_cond(ctx, cond)?;
-                let b = self.check_stmt(ctx, body)?;
-                Ok(Self::stmt(StmtKind::While { cond: c, body: Box::new(b) }, span))
-            }
-            ast::StmtKind::Foreach { item, collection, invariants, body } => {
-                let Some(var) = self.scopes.lookup_var(ctx.scope, &item.name) else {
-                    let d = self.e.missing_declaration(item.span, "foreach iterator variable", &item.name);
-                    self.report(d)?;
-                    self.check_expr(ctx, collection)?;
-                    self.check_stmt(ctx, body)?;
-                    for inv in invariants {
-                        self.check_expr(ctx, inv)?;
-                    }
-                    return Ok(Self::stmt(StmtKind::Nop, span));
-                };
-                let coll = self.check_expr(ctx, collection)?;
-                let expected = if coll.ty.is_error() {
-                    PType::Error
-                } else {
-                    match coll.ty.canonicalize(&self.prog) {
-                        PType::Set(el) => *el,
-                        PType::Seq(el) => *el,
-                        _ => {
-                            let d = self.e.type_mismatch_kinds(
-                                coll.span,
-                                &coll.ty,
-                                &[TypeKind::Set, TypeKind::Sequence],
-                                &self.prog,
-                            );
-                            self.report(d)?;
-                            PType::Error
-                        }
-                    }
-                };
-                let item_ty = self.prog.var_decls[var.idx()].ty.clone();
-                if !expected.is_error()
-                    && !item_ty.is_error()
-                    && (!expected.is_same_type_as(&item_ty, &self.prog)
-                        || !expected.is_assignable_from(&item_ty, &self.prog))
-                {
-                    let d = self.e.type_mismatch(item.span, &item_ty, &[&expected], &self.prog);
-                    self.report(d)?;
-                }
-                let b = self.check_stmt(ctx, body)?;
-                for inv in invariants {
-                    self.check_expr(ctx, inv)?;
-                }
-                Ok(Self::stmt(StmtKind::Foreach { item: var, collection: coll, body: Box::new(b) }, span))
-            }
-            ast::StmtKind::If { cond, then_branch, else_branch } => {
-                let c = self.check_bool_cond(ctx, cond)?;
-                let t = self.check_stmt(ctx, then_branch)?;
-                let el = match else_branch {
-                    None => Self::stmt(StmtKind::Nop, span),
-                    Some(e) => self.check_stmt(ctx, e)?,
-                };
-                Ok(Self::stmt(StmtKind::If { cond: c, then_branch: Box::new(t), else_branch: Box::new(el) }, span))
             }
             ast::StmtKind::Ctor { interface, args } => {
                 let a = self.check_args(ctx, args)?;
@@ -1170,7 +1195,32 @@ impl<'a> Analyzer<'a> {
             }
             ast::StmtKind::Receive { cases } => self.check_receive(ctx, cases, span),
             ast::StmtKind::NoStmt => Ok(Self::stmt(StmtKind::Nop, span)),
+            ast::StmtKind::Compound(_)
+            | ast::StmtKind::While { .. }
+            | ast::StmtKind::If { .. }
+            | ast::StmtKind::Foreach { .. } => unreachable!("checked by check_stmt"),
         }
+    }
+
+    /// Creates and checks the handler function of a receive case, nested in `ctx.fun`.
+    fn receive_handler(&mut self, ctx: Ctx, case: &'a ast::RecvCase) -> Result<FunId, Fatal> {
+        let hs = self.scopes.child(ctx.scope);
+        let hid = self.new_fun("", ctx.machine, hs, FunSrc::Receive, case.handler.span);
+        self.fun_root[hid.idx()] = self.fun_root[ctx.fun.idx()];
+        self.prog.funs[hid.idx()].parent = Some(ctx.fun);
+        self.prog.funs[hid.idx()].role.receive = true;
+        if let Some(p) = &case.handler.param {
+            self.check_conflict_var(hs, &p.name.name, p.name.span)?;
+            let slot = self.alloc_slot(hid);
+            let t = self.resolve_type(&p.ty, hs)?;
+            let v = self.new_var(&p.name.name, VarRole::Param, t, slot, p.name.span);
+            let s = self.scopes.get_mut(hs);
+            s.variables.insert(p.name.name.clone(), v);
+            s.var_list.push(v);
+            self.prog.funs[hid.idx()].params.push(v);
+        }
+        self.populate_body(hid, &case.handler.body)?;
+        Ok(hid)
     }
 
     fn check_receive(&mut self, ctx: Ctx, cases: &'a [ast::RecvCase], span: Span) -> Result<Stmt, Fatal> {
@@ -1187,22 +1237,7 @@ impl<'a> Analyzer<'a> {
                         self.report(d)?;
                     }
                 }
-                let hs = self.scopes.child(ctx.scope);
-                let hid = self.new_fun("", ctx.machine, hs, FunSrc::Receive, case.handler.span);
-                self.fun_root[hid.idx()] = self.fun_root[ctx.fun.idx()];
-                self.prog.funs[hid.idx()].parent = Some(ctx.fun);
-                self.prog.funs[hid.idx()].role.receive = true;
-                if let Some(p) = &case.handler.param {
-                    self.check_conflict_var(hs, &p.name.name, p.name.span)?;
-                    let slot = self.alloc_slot(hid);
-                    let t = self.resolve_type(&p.ty, hs)?;
-                    let v = self.new_var(&p.name.name, VarRole::Param, t, slot, p.name.span);
-                    let s = self.scopes.get_mut(hs);
-                    s.variables.insert(p.name.name.clone(), v);
-                    s.var_list.push(v);
-                    self.prog.funs[hid.idx()].params.push(v);
-                }
-                self.populate_body(hid, &case.handler.body)?;
+                self.receive_handler(ctx, case)?;
             }
             return Ok(Self::stmt(StmtKind::Nop, span));
         }
@@ -1210,22 +1245,7 @@ impl<'a> Analyzer<'a> {
         for case in cases {
             for ev in &case.events {
                 // one handler function per event id, as upstream
-                let hs = self.scopes.child(ctx.scope);
-                let hid = self.new_fun("", ctx.machine, hs, FunSrc::Receive, case.handler.span);
-                self.fun_root[hid.idx()] = self.fun_root[ctx.fun.idx()];
-                self.prog.funs[hid.idx()].parent = Some(ctx.fun);
-                self.prog.funs[hid.idx()].role.receive = true;
-                if let Some(p) = &case.handler.param {
-                    self.check_conflict_var(hs, &p.name.name, p.name.span)?;
-                    let slot = self.alloc_slot(hid);
-                    let t = self.resolve_type(&p.ty, hs)?;
-                    let v = self.new_var(&p.name.name, VarRole::Param, t, slot, p.name.span);
-                    let s = self.scopes.get_mut(hs);
-                    s.variables.insert(p.name.name.clone(), v);
-                    s.var_list.push(v);
-                    self.prog.funs[hid.idx()].params.push(v);
-                }
-                self.populate_body(hid, &case.handler.body)?;
+                let hid = self.receive_handler(ctx, case)?;
                 let Some(eid) = self.scopes.lookup_event(ctx.scope, &ev.name) else {
                     let d = self.e.missing_declaration(ev.span, "event", &ev.name);
                     self.report(d)?;

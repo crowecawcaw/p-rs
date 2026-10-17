@@ -1,4 +1,4 @@
-//! The `p` binary: [`prs_compat::run`] on the native file system and console.
+//! The `prs` binary: [`prs_compat::run`] on the native file system and console.
 
 use std::io::{self, Write};
 

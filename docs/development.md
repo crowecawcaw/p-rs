@@ -15,7 +15,9 @@ The commands to build, test and lint are in [AGENTS.md](../AGENTS.md).
 | `p-rs` | Placeholder that reserves the name on crates.io. |
 
 The core crates use no file system, process or threading APIs, so they build for
-`wasm32-unknown-unknown` unchanged.
+`wasm32-unknown-unknown` unchanged. `prs-compat` reaches all of these through its `Host`;
+the threads for `prs check --workers` come from `Host::threads`, which only the native
+host provides, so the WebAssembly module runs one worker.
 
 ## WebAssembly
 
@@ -34,8 +36,8 @@ The module is about 1 MB (320 KB gzipped). The playground in `web/` is built on 
 Upstream's test suites are vendored in `tests/upstream`.
 
 * Type checker: all 424 upstream regression tests compile or fail to compile as
-  upstream expects.
-  `cargo run --release -p prs-sema --example corpus -- tests/upstream/RegressionTests`
+  upstream expects. Checked in `cargo test`, or
+  `cargo run --release -p prs-sema --example typecheck_corpus -- tests/upstream/RegressionTests`.
 * Checker: all 249 tests of the suites upstream's harness runs find a bug exactly when
   upstream expects one, with upstream's settings (1000 schedules, 1000 steps) across
   seeds. `cargo run --release -p prs-checker --example corpus -- <suite dir>`.
@@ -54,8 +56,9 @@ Upstream's test suites are vendored in `tests/upstream`.
 ## Benchmarks
 
 `scripts/bench.py` runs `prs check` on six tutorial tests with fixed schedule counts
-and seed. It records check time, schedules per second and, with `--instructions`
-(via Valgrind), instructions executed.
+and seed, on one worker (`--workers 1`) so that the schedules match upstream's and
+history; `run --workers N` measures N workers. It records check time, schedules per
+second and, with `--instructions` (via Valgrind), instructions executed.
 
 ```sh
 cargo build --release -p prs-cli

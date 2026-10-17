@@ -47,8 +47,8 @@ struct ParamSpec {
     values: Vec<ParamValue>,
 }
 
-fn sorted_dedup_by_name<T: Copy + PartialEq>(mut v: Vec<T>, name: impl Fn(T) -> String) -> Vec<T> {
-    v.sort_by_key(|a| name(*a));
+fn sorted_dedup_by_name<'n, T: Copy + PartialEq>(mut v: Vec<T>, name: impl Fn(T) -> &'n str) -> Vec<T> {
+    v.sort_by(|a, b| name(*a).cmp(name(*b)));
     v.dedup();
     v
 }
@@ -61,10 +61,10 @@ impl<'a> Analyzer<'a> {
         self.prog.interfaces[i.idx()].name.clone()
     }
     fn sorted_events(&self, v: Vec<EventId>) -> Vec<EventId> {
-        sorted_dedup_by_name(v, |e| self.event_name(e))
+        sorted_dedup_by_name(v, |e| &self.prog.events[e.idx()].name)
     }
     fn sorted_ifaces(&self, v: Vec<InterfaceId>) -> Vec<InterfaceId> {
-        sorted_dedup_by_name(v, |i| self.iface_name(i))
+        sorted_dedup_by_name(v, |i| &self.prog.interfaces[i.idx()].name)
     }
     /// `GetPermissions`: permissions embedded in a type, or the universal event set when the type
     /// admits any permission.
@@ -837,10 +837,13 @@ impl<'a> Analyzer<'a> {
             };
             let twise = match &t.twise {
                 None => specs.len(),
-                Some(ast::Twise::Pairwise(_)) => 2,
-                Some(ast::Twise::N(text, span)) => {
-                    let Some(n) = parse_int_literal(text) else {
-                        return Err(self.e.value_out_of_range(*span, "int"));
+                Some(tw) => {
+                    let (n, span) = match tw {
+                        ast::Twise::Pairwise(span) => (2, span),
+                        ast::Twise::N(text, span) => match parse_int_literal(text) {
+                            Some(n) => (n, span),
+                            None => return Err(self.e.value_out_of_range(*span, "int")),
+                        },
                     };
                     let check = if n < 1 {
                         Some(format!("twise number {} is less than 1.", n))

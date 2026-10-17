@@ -338,11 +338,10 @@ impl<'a> Analyzer<'a> {
                 }
             }
             if f.owner.is_none() && impure {
-                for (ci, c) in self.prog.funs.iter().enumerate() {
+                for c in &self.prog.funs {
                     if c.callees.contains(&FunId(i as u32)) {
                         if let Some(o) = c.owner {
                             if self.prog.machines[o.idx()].is_spec() {
-                                let _ = ci;
                                 return Err(self.e.illegal_function_used_in_spec(
                                     f.span,
                                     &self.fun_name(FunId(i as u32)),

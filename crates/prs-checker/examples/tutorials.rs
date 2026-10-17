@@ -1,8 +1,13 @@
 //! Mirrors upstream's `TutorialsChecker/check.sh`: for every project directory under the
-//! given root, checks each test case whose name has no underscore.
+//! given root, checks each test case whose name has no underscore. Exits with status 1
+//! when any test case fails, like the script.
 //!
-//! Usage: tutorials [--schedules N] [--seed N] ROOT
+//! Usage: tutorials [--schedules N] [--seed N] [--trace TEST] ROOT
+//!
+//! `--trace` checks only the named test case and prints the log of a failing schedule.
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::time::Instant;
 
 use prs_checker::engine::{Checker, CheckerOptions, Output};
@@ -45,31 +50,35 @@ fn project_files(pproj: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+fn usage() -> ! {
+    eprintln!("usage: tutorials [--schedules N] [--seed N] [--trace TEST] ROOT");
+    std::process::exit(2);
+}
+
+/// The value of the flag at `raw[*i]`, advancing `i` past it.
+fn value<T: FromStr>(raw: &[String], i: &mut usize) -> T {
+    *i += 1;
+    raw.get(*i).and_then(|v| v.parse().ok()).unwrap_or_else(|| usage())
+}
+
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
     let mut schedules: Option<usize> = None;
     let mut seed = 0u32;
-    let mut root = String::new();
+    let mut root: Option<String> = None;
     let mut trace: Option<String> = None;
     let mut i = 0;
     while i < raw.len() {
         match raw[i].as_str() {
-            "--schedules" => {
-                i += 1;
-                schedules = Some(raw[i].parse().unwrap());
-            }
-            "--seed" => {
-                i += 1;
-                seed = raw[i].parse().unwrap();
-            }
-            "--trace" => {
-                i += 1;
-                trace = Some(raw[i].clone());
-            }
-            r => root = r.to_string(),
+            "--schedules" => schedules = Some(value(&raw, &mut i)),
+            "--seed" => seed = value(&raw, &mut i),
+            "--trace" => trace = Some(value(&raw, &mut i)),
+            r if r.starts_with('-') || root.is_some() => usage(),
+            r => root = Some(r.to_string()),
         }
         i += 1;
     }
+    let Some(root) = root else { usage() };
     let mut dirs: Vec<_> =
         std::fs::read_dir(&root).unwrap().map(|e| e.unwrap().path()).filter(|p| p.is_dir()).collect();
     dirs.sort();
@@ -84,7 +93,9 @@ fn main() {
         };
         let mut files = Vec::new();
         project_files(&pproj, &mut files);
-        files.dedup();
+        // a file included by several projects is compiled once, at its first inclusion
+        let mut seen = HashSet::new();
+        files.retain(|f| seen.insert(f.clone()));
         let mut sm = prs_syntax::SourceMap::new();
         for f in &files {
             sm.add(f.display().to_string(), std::fs::read_to_string(f).unwrap());
@@ -139,4 +150,7 @@ fn main() {
         }
     }
     println!("Error Count: {}", errors);
+    if errors > 0 {
+        std::process::exit(1);
+    }
 }

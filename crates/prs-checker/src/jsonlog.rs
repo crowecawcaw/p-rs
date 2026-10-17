@@ -341,14 +341,6 @@ impl JsonLog {
         self.entries.push((ty.to_string(), d));
     }
 
-    pub fn len(&self) -> usize {
-        self.entries.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
-    }
-
     /// The log as a JSON array of `{type, details}` entries (see [`Details::to_json`]).
     pub fn to_json(&self, replace_nulls: bool) -> Json {
         Json::Arr(

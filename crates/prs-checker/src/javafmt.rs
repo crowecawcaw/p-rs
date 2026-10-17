@@ -7,6 +7,7 @@
 //! `HashMap`, and tuples to generated `PTuple_*` classes. Formatting therefore needs the
 //! static type of a value (an enum value is just an integer at run time).
 
+use std::collections::HashMap;
 use std::fmt::Write;
 
 use prs_sema::{EventId, PType, Program};
@@ -30,7 +31,7 @@ fn long_hash(v: i64) -> i32 {
 }
 
 /// `String.hashCode` (over UTF-16 code units).
-pub fn string_hash(s: &str) -> i32 {
+fn string_hash(s: &str) -> i32 {
     let mut h: i32 = 0;
     for u in s.encode_utf16() {
         h = h.wrapping_mul(31).wrapping_add(u as i32);
@@ -40,7 +41,7 @@ pub fn string_hash(s: &str) -> i32 {
 
 /// `hashCode()` of the Java object a value maps to. Enum constants hash by identity in
 /// Java (different on every run); their ordinal value stands in for it.
-pub fn java_hash(v: &Value) -> i32 {
+fn java_hash(v: &Value) -> i32 {
     match v {
         Value::Null => 0,
         Value::Bool(b) => {
@@ -180,11 +181,7 @@ fn canonical(ty: &PType, prog: &Program) -> String {
             let fs: Vec<String> = fs.iter().map(|(n, t)| format!("{}:{}", n, canonical(t, prog))).collect();
             format!("({})", fs.join(","))
         }
-        PType::Permission(o) => match o {
-            prs_sema::PermissionOrigin::Machine(m) => prog.machines[m.idx()].name.clone(),
-            prs_sema::PermissionOrigin::Interface(i) => prog.interfaces[i.idx()].name.clone(),
-            prs_sema::PermissionOrigin::EventSet(e) => prog.event_sets[e.idx()].name.clone(),
-        },
+        PType::Permission(o) => prog.permission_name(*o).to_string(),
         PType::Foreign(n) => n.clone(),
         PType::TypeDef(_) => unreachable!(),
     }
@@ -211,13 +208,20 @@ fn collect_tuples(ty: &PType, prog: &Program, out: &mut Vec<(String, Vec<String>
     }
 }
 
-/// Generated class names of the program's tuple types (`NameManager.NameForNamedTuple`):
-/// the abbreviated name, plus `_1`, `_2`, ... for later distinct types that abbreviate to the
-/// same name. Upstream names them in the order `TypesGenerator` declares them: tuples of the
-/// global scope (typedefs, events, interfaces, in source order), then of global functions,
-/// then of each machine (its fields, then its functions).
-fn tuple_names(prog: &Program) -> &std::collections::HashMap<String, String> {
-    prog.java_tuple_names.get_or_init(|| {
+/// Formats values of one program as upstream's Java backend does.
+pub struct JavaFormatter<'p> {
+    prog: &'p Program,
+    /// The generated class name of each tuple type, by canonical representation.
+    tuple_classes: HashMap<String, String>,
+}
+
+impl<'p> JavaFormatter<'p> {
+    /// Names the generated classes of the program's tuple types (`NameManager.NameForNamedTuple`):
+    /// the abbreviated name, plus `_1`, `_2`, ... for later distinct types that abbreviate to the
+    /// same name. Upstream names them in the order `TypesGenerator` declares them: tuples of the
+    /// global scope (typedefs, events, interfaces, in source order), then of global functions,
+    /// then of each machine (its fields, then its functions).
+    pub fn new(prog: &'p Program) -> JavaFormatter<'p> {
         let mut tuples = Vec::new();
         let mut global: Vec<(prs_syntax::Span, &PType)> = Vec::new();
         global.extend(prog.typedefs.iter().map(|t| (t.span, &t.ty)));
@@ -249,8 +253,8 @@ fn tuple_names(prog: &Program) -> &std::collections::HashMap<String, String> {
             }
         }
         // NameManagerBase.UniquifyName
-        let mut usages: std::collections::HashMap<String, usize> = Default::default();
-        let mut names = std::collections::HashMap::new();
+        let mut usages: HashMap<String, usize> = HashMap::new();
+        let mut names = HashMap::new();
         for (canon, fields) in tuples {
             if names.contains_key(&canon) {
                 continue;
@@ -265,149 +269,162 @@ fn tuple_names(prog: &Program) -> &std::collections::HashMap<String, String> {
             usages.insert(name.clone(), 1);
             names.insert(canon, name);
         }
-        names
-    })
-}
-
-/// The generated Java class of the tuple type `ty` with field names `names`.
-fn tuple_class<'a>(ty: &PType, prog: &Program, names: impl Iterator<Item = &'a str>) -> String {
-    match tuple_names(prog).get(&canonical(ty, prog)) {
-        Some(n) => n.clone(),
-        None => tuple_class_name(names),
+        JavaFormatter { prog, tuple_classes: names }
     }
-}
 
-// ---- toString ---------------------------------------------------------------------------
+    /// The generated Java class of the tuple type `ty` with field names `names`.
+    fn tuple_class<'a>(&self, ty: &PType, names: impl Iterator<Item = &'a str>) -> String {
+        match self.tuple_classes.get(&canonical(ty, self.prog)) {
+            Some(n) => n.clone(),
+            None => tuple_class_name(names),
+        }
+    }
 
-/// `String.valueOf(o)` of the Java object for `v` of static type `ty`.
-pub fn to_string(v: &Value, ty: &PType, prog: &Program) -> String {
-    let mut s = String::new();
-    write_value(&mut s, v, ty, prog);
-    s
-}
+    // ---- toString -----------------------------------------------------------------------
 
-fn write_value(out: &mut String, v: &Value, ty: &PType, prog: &Program) {
-    let ty = resolve(ty, prog);
-    match v {
-        Value::Null => out.push_str("null"),
-        Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
-        Value::Int(i) => match ty {
-            PType::Enum(id) => match prog.enums[id.idx()].elems.iter().find(|e| e.value == *i) {
-                Some(e) => out.push_str(&e.name),
-                None => write!(out, "{}", i).unwrap(),
+    /// `String.valueOf(o)` of the Java object for `v` of static type `ty`.
+    pub fn to_string(&self, v: &Value, ty: &PType) -> String {
+        let mut s = String::new();
+        self.write_value(&mut s, v, ty);
+        s
+    }
+
+    fn write_value(&self, out: &mut String, v: &Value, ty: &PType) {
+        let prog = self.prog;
+        let ty = resolve(ty, prog);
+        match v {
+            Value::Null => out.push_str("null"),
+            Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+            Value::Int(i) => match ty {
+                PType::Enum(id) => match prog.enums[id.idx()].elems.iter().find(|e| e.value == *i) {
+                    Some(e) => out.push_str(&e.name),
+                    None => write!(out, "{}", i).unwrap(),
+                },
+                _ => write!(out, "{}", i).unwrap(),
             },
-            _ => write!(out, "{}", i).unwrap(),
-        },
-        Value::Float(f) => out.push_str(&float_to_string(*f as f32)),
-        Value::Str(s) => out.push_str(s),
-        Value::Machine(m) => write!(out, "{}", m.id).unwrap(),
-        Value::Event(e) => out.push_str(&prog.event(*e).name),
-        Value::Foreign(f) => out.push_str(&f.display()),
-        Value::Seq(s) => {
-            let elem = match ty {
-                PType::Seq(t) => t.as_ref(),
-                _ => &PType::Any,
-            };
-            write_list(out, s.iter(), elem, prog);
-        }
-        Value::Set(s) => {
-            let elem = match ty {
-                PType::Set(t) => t.as_ref(),
-                _ => &PType::Any,
-            };
-            write_list(out, s.iter_insertion(), elem, prog);
-        }
-        Value::Map(m) => {
-            let (kt, vt) = match ty {
-                PType::Map(k, v) => (k.as_ref(), v.as_ref()),
-                _ => (&PType::Any, &PType::Any),
-            };
-            out.push('{');
-            let entries = hashmap_order(m.iter_insertion());
-            for (i, (k, v)) in entries.into_iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                write_value(out, k, kt, prog);
-                out.push('=');
-                write_value(out, v, vt, prog);
+            Value::Float(f) => out.push_str(&float_to_string(*f as f32)),
+            Value::Str(s) => out.push_str(s),
+            Value::Machine(m) => write!(out, "{}", m.id).unwrap(),
+            Value::Event(e) => out.push_str(&prog.event(*e).name),
+            Value::Foreign(f) => out.push_str(&f.display()),
+            Value::Seq(s) => {
+                let elem = match ty {
+                    PType::Seq(t) => t.as_ref(),
+                    _ => &PType::Any,
+                };
+                self.write_list(out, s.iter(), elem);
             }
-            out.push('}');
-        }
-        Value::NamedTuple(t) => {
-            let types: Vec<PType> = match ty {
-                PType::NamedTuple(fs) => fs.iter().map(|(_, t)| t.clone()).collect(),
-                _ => vec![PType::Any; t.values.len()],
-            };
-            out.push_str(&tuple_class(ty, prog, t.names.iter().map(|n| n.as_str())));
-            out.push('[');
-            for (i, (n, v)) in t.names.iter().zip(t.values.iter()).enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                out.push_str(n);
-                out.push('=');
-                write_value(out, v, types.get(i).unwrap_or(&PType::Any), prog);
+            Value::Set(s) => {
+                let elem = match ty {
+                    PType::Set(t) => t.as_ref(),
+                    _ => &PType::Any,
+                };
+                self.write_list(out, s.iter_insertion(), elem);
             }
-            out.push(']');
-        }
-        Value::Tuple(t) => {
-            // unnamed tuples become named tuples with fields arg_0, arg_1, ...
-            let types: Vec<PType> = match ty {
-                PType::Tuple(ts) => ts.clone(),
-                _ => vec![PType::Any; t.len()],
-            };
-            let names: Vec<String> = (0..t.len()).map(|i| format!("arg_{}", i)).collect();
-            out.push_str(&tuple_class(ty, prog, names.iter().map(|n| n.as_str())));
-            out.push('[');
-            for (i, v) in t.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
+            Value::Map(m) => {
+                let (kt, vt) = match ty {
+                    PType::Map(k, v) => (k.as_ref(), v.as_ref()),
+                    _ => (&PType::Any, &PType::Any),
+                };
+                out.push('{');
+                let entries = hashmap_order(m.iter_insertion());
+                for (i, (k, v)) in entries.into_iter().enumerate() {
+                    if i > 0 {
+                        out.push_str(", ");
+                    }
+                    self.write_value(out, k, kt);
+                    out.push('=');
+                    self.write_value(out, v, vt);
                 }
-                write!(out, "arg_{}=", i).unwrap();
-                write_value(out, v, types.get(i).unwrap_or(&PType::Any), prog);
+                out.push('}');
             }
-            out.push(']');
+            Value::NamedTuple(t) => {
+                let types: Vec<PType> = match ty {
+                    PType::NamedTuple(fs) => fs.iter().map(|(_, t)| t.clone()).collect(),
+                    _ => vec![PType::Any; t.values.len()],
+                };
+                out.push_str(&self.tuple_class(ty, t.names.iter().map(|n| n.as_str())));
+                out.push('[');
+                for (i, (n, v)) in t.names.iter().zip(t.values.iter()).enumerate() {
+                    if i > 0 {
+                        out.push_str(", ");
+                    }
+                    out.push_str(n);
+                    out.push('=');
+                    self.write_value(out, v, types.get(i).unwrap_or(&PType::Any));
+                }
+                out.push(']');
+            }
+            Value::Tuple(t) => {
+                // unnamed tuples become named tuples with fields arg_0, arg_1, ...
+                let types: Vec<PType> = match ty {
+                    PType::Tuple(ts) => ts.clone(),
+                    _ => vec![PType::Any; t.len()],
+                };
+                let names: Vec<String> = (0..t.len()).map(|i| format!("arg_{}", i)).collect();
+                out.push_str(&self.tuple_class(ty, names.iter().map(|n| n.as_str())));
+                out.push('[');
+                for (i, v) in t.iter().enumerate() {
+                    if i > 0 {
+                        out.push_str(", ");
+                    }
+                    write!(out, "arg_{}=", i).unwrap();
+                    self.write_value(out, v, types.get(i).unwrap_or(&PType::Any));
+                }
+                out.push(']');
+            }
         }
     }
-}
 
-fn write_list<'a>(out: &mut String, it: impl Iterator<Item = &'a Value>, elem: &PType, prog: &Program) {
-    out.push('[');
-    for (i, v) in it.enumerate() {
-        if i > 0 {
-            out.push_str(", ");
+    fn write_list<'a>(&self, out: &mut String, it: impl Iterator<Item = &'a Value>, elem: &PType) {
+        out.push('[');
+        for (i, v) in it.enumerate() {
+            if i > 0 {
+                out.push_str(", ");
+            }
+            self.write_value(out, v, elem);
         }
-        write_value(out, v, elem, prog);
+        out.push(']');
     }
-    out.push(']');
-}
 
-/// `toString()` of a generated event class: `e[payload]`, or `e` without a payload.
-pub fn event_to_string(prog: &Program, e: EventId, payload: &Value) -> String {
-    let d = prog.event(e);
-    if matches!(resolve(&d.payload, prog), PType::Null) {
-        d.name.clone()
-    } else {
-        format!("{}[{}]", d.name, to_string(payload, &d.payload, prog))
+    /// `toString()` of a generated event class: `e[payload]`, or `e` without a payload.
+    pub fn event_to_string(&self, e: EventId, payload: &Value) -> String {
+        let d = self.prog.event(e);
+        if matches!(resolve(&d.payload, self.prog), PType::Null) {
+            d.name.clone()
+        } else {
+            format!("{}[{}]", d.name, self.to_string(payload, &d.payload))
+        }
+    }
+
+    /// P's `format(base, args...)` with arguments `vals` of static types `types`, which the
+    /// Java backend renders with `MessageFormat` (see [`message_format`]); a string without
+    /// arguments is a plain Java literal. `Err` carries the message of the
+    /// `IllegalArgumentException` a malformed pattern throws.
+    pub fn format(&self, base: &str, vals: &[Value], types: &[PType]) -> Result<String, String> {
+        if vals.is_empty() {
+            return Ok(base.to_string());
+        }
+        let args: Vec<String> = vals.iter().zip(types).map(|(v, t)| self.format_arg(v, t)).collect();
+        message_format(base, &args)
+    }
+
+    /// How `MessageFormat` renders one argument: numbers through `NumberFormat.getInstance()`
+    /// (grouping, at most three fraction digits), strings as they are, anything else through
+    /// `toString()`.
+    fn format_arg(&self, v: &Value, ty: &PType) -> String {
+        match v {
+            Value::Int(i) if !matches!(resolve(ty, self.prog), PType::Enum(_)) => {
+                group_digits(&i.unsigned_abs().to_string(), *i < 0)
+            }
+            Value::Machine(m) => group_digits(&m.id.to_string(), false),
+            Value::Float(f) => number_format_float(*f as f32),
+            _ => self.to_string(v, ty),
+        }
     }
 }
 
 // ---- java.text.MessageFormat --------------------------------------------------------------
-
-/// How `MessageFormat` renders one argument: numbers through `NumberFormat.getInstance()`
-/// (grouping, at most three fraction digits), strings as they are, anything else through
-/// `toString()`.
-pub fn format_arg(v: &Value, ty: &PType, prog: &Program) -> String {
-    match v {
-        Value::Int(i) if !matches!(resolve(ty, prog), PType::Enum(_)) => {
-            group_digits(&i.unsigned_abs().to_string(), *i < 0)
-        }
-        Value::Machine(m) => group_digits(&m.id.to_string(), false),
-        Value::Float(f) => number_format_float(*f as f32),
-        _ => to_string(v, ty, prog),
-    }
-}
 
 fn group_digits(digits: &str, negative: bool) -> String {
     let mut out = String::new();
@@ -471,11 +488,8 @@ fn number_format_float(f: f32) -> String {
     while frac_str.ends_with('0') {
         frac_str.pop();
     }
-    let is_zero = int_str == "0" && frac_str.is_empty();
-    let mut out = group_digits(int_str, d < 0.0 && !is_zero);
-    if d.is_sign_negative() && is_zero && d != 0.0 {
-        out = format!("-{}", out);
-    }
+    // negative values keep their sign even when they round to zero, as does -0.0
+    let mut out = group_digits(int_str, d.is_sign_negative());
     if !frac_str.is_empty() {
         out.push('.');
         out.push_str(&frac_str);
@@ -544,10 +558,8 @@ pub fn message_format(pattern: &str, args: &[String]) -> Result<String, String> 
             if !closed {
                 return Err("Unmatched braces in the pattern.".into());
             }
-            let index_text = segments[0].trim();
-            let index: i64 = match index_text.parse::<i64>() {
-                Ok(n) if !index_text.starts_with('+') => n,
-                _ => return Err(format!("can't parse argument number: {}", segments[0])),
+            let Some(index) = parse_java_int(&segments[0]) else {
+                return Err(format!("can't parse argument number: {}", segments[0]));
             };
             if index < 0 {
                 return Err(format!("negative argument number: {}", index));
@@ -563,6 +575,28 @@ pub fn message_format(pattern: &str, args: &[String]) -> Result<String, String> 
         i += 1;
     }
     Ok(out)
+}
+
+/// `Integer.parseInt(s)` for ASCII digits: an optional sign, then digits, within `int` range.
+fn parse_java_int(s: &str) -> Option<i32> {
+    let (negative, digits) = match s.as_bytes().first()? {
+        b'-' => (true, &s[1..]),
+        b'+' => (false, &s[1..]),
+        _ => (false, s),
+    };
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    // accumulate negatively so that `i32::MIN` parses
+    let mut n: i32 = 0;
+    for b in digits.bytes() {
+        n = n.checked_mul(10)?.checked_sub(i32::from(b - b'0'))?;
+    }
+    if negative {
+        Some(n)
+    } else {
+        n.checked_neg()
+    }
 }
 
 // ---- Float.toString / Double.toString ----------------------------------------------------
@@ -581,17 +615,6 @@ pub fn float_to_string(f: f32) -> String {
         f.is_sign_negative(),
         (f.abs() as f64) >= 1e-3 && (f.abs() as f64) < 1e7,
     )
-}
-
-/// `Double.toString(d)`.
-pub fn double_to_string(d: f64) -> String {
-    if d.is_nan() {
-        return "NaN".into();
-    }
-    if d.is_infinite() {
-        return if d > 0.0 { "Infinity".into() } else { "-Infinity".into() };
-    }
-    java_decimal(&format!("{:e}", d), d == 0.0, d.is_sign_negative(), d.abs() >= 1e-3 && d.abs() < 1e7)
 }
 
 /// Renders Rust's shortest scientific representation (`1.2345e7`) in Java's style.
@@ -678,8 +701,8 @@ mod tests {
         assert_eq!(float_to_string(0.001), "0.001");
         assert_eq!(float_to_string(3.8333333E-4), "3.8333333E-4");
         assert_eq!(float_to_string(5.0E-4), "5.0E-4");
-        assert_eq!(double_to_string(1e7), "1.0E7");
-        assert_eq!(double_to_string(9999999.0), "9999999.0");
+        assert_eq!(float_to_string(1e7), "1.0E7");
+        assert_eq!(float_to_string(9999999.0), "9999999.0");
     }
 
     #[test]
@@ -689,6 +712,8 @@ mod tests {
         assert_eq!(number_format_float(2.0), "2");
         assert_eq!(number_format_float(1.0005), "1");
         assert_eq!(number_format_float(0.0), "0");
+        assert_eq!(number_format_float(-0.0), "-0");
+        assert_eq!(number_format_float(-0.0001), "-0");
         assert_eq!(number_format_float(-1234567.0), "-1,234,567");
         assert_eq!(group_digits("1234567", false), "1,234,567");
         assert_eq!(group_digits("123", true), "-123");
@@ -702,6 +727,24 @@ mod tests {
         assert_eq!(message_format("{0} and {0}", &a(&["2"])).unwrap(), "2 and 2");
         assert!(message_format("{0", &a(&["x"])).is_err());
         assert_eq!(message_format("{x}", &a(&["x"])).unwrap_err(), "can't parse argument number: x");
+    }
+
+    #[test]
+    fn message_format_parses_indices_like_integer_parse_int() {
+        // Results from `MessageFormat.format` on JDK 21.
+        let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let args = a(&["A", "B"]);
+        assert_eq!(message_format("{ 0 }", &args).unwrap_err(), "can't parse argument number:  0 ");
+        assert_eq!(message_format("{0 }", &args).unwrap_err(), "can't parse argument number: 0 ");
+        assert_eq!(message_format("{+1}", &args).unwrap(), "B");
+        assert_eq!(message_format("{-0}", &args).unwrap(), "A");
+        assert_eq!(message_format("{00}", &args).unwrap(), "A");
+        assert_eq!(message_format("{0, }", &args).unwrap(), "A");
+        assert_eq!(message_format("{-1}", &args).unwrap_err(), "negative argument number: -1");
+        assert_eq!(message_format("{3000000000}", &args).unwrap_err(), "can't parse argument number: 3000000000");
+        assert_eq!(parse_java_int("-2147483648"), Some(i32::MIN));
+        assert_eq!(parse_java_int("2147483648"), None);
+        assert_eq!(parse_java_int("+"), None);
     }
 
     #[test]

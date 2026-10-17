@@ -171,11 +171,12 @@ fn stage(s: &Stage, h: &mut StableHasher) {
 
 fn exec(x: &Exec, h: &mut StableHasher) {
     h.write_usize(x.frames.len());
-    for f in &x.frames {
+    for (i, f) in x.frames.iter().enumerate() {
         f.fun.hash(h);
         h.write_usize(f.pc);
-        values(&f.locals, h);
-        values(&f.stack, h);
+        let (locals, stack) = x.frame_values(i);
+        values(locals, h);
+        values(stack, h);
     }
     h.write_usize(x.iters.len());
     for it in &x.iters {
@@ -205,15 +206,13 @@ fn exec(x: &Exec, h: &mut StableHasher) {
             h.write_u64(target.id);
             event(e, h);
         }
-        Some(Pending::ReceiveWait { cases, exit }) => {
+        Some(Pending::ReceiveWait { cases }) => {
             h.write_u8(3);
             receive_cases(cases, h);
-            h.write_u32(*exit);
         }
-        Some(Pending::ReceiveFound { cases, exit, event: e }) => {
+        Some(Pending::ReceiveFound { cases, event: e }) => {
             h.write_u8(4);
             receive_cases(cases, h);
-            h.write_u32(*exit);
             event(e, h);
         }
     }

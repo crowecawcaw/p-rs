@@ -35,6 +35,9 @@ pub enum PermissionOrigin {
     Machine(MachineId),
     Interface(InterfaceId),
     EventSet(EventSetId),
+    /// An event used as a type: the permission of a singleton event set that, as upstream,
+    /// is not declared anywhere.
+    Event(EventId),
 }
 
 /// Coarse classification used in `expected: ...` error messages (`TypeKind` upstream).

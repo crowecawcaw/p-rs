@@ -2,7 +2,7 @@
 //!
 //! Commands never touch `std::fs`, `std::time` or `std::process` directly so that the crate
 //! also runs in a browser. [`MemHost`] is an in-memory implementation for tests and wasm;
-//! the `p` binary supplies a native one.
+//! the `prs` binary supplies a native one.
 
 use std::collections::BTreeMap;
 use std::io;
@@ -23,12 +23,15 @@ pub enum Color {
     Cyan,
 }
 
+/// Everything the commands need from their environment. File system methods behave like
+/// their `std::fs` namesakes unless documented otherwise.
 pub trait Host {
     /// Writes console text (no newline added).
     fn write(&mut self, stream: Stream, text: &str, color: Option<Color>);
     /// The current directory (absolute).
     fn cwd(&self) -> PathBuf;
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
+    /// Creates or replaces a file, creating its parent directories first.
     fn write_file(&mut self, path: &Path, contents: &str) -> io::Result<()>;
     fn is_file(&self, path: &Path) -> bool;
     fn is_dir(&self, path: &Path) -> bool;
@@ -39,16 +42,30 @@ pub trait Host {
     fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()>;
     /// Seconds since an arbitrary fixed point (for elapsed-time reporting).
     fn now(&self) -> f64;
-    /// Peak memory use of the process in gigabytes, if known.
-    fn max_memory_gb(&self) -> f64 {
-        0.0
-    }
+    /// Peak memory use of the process in gigabytes, or 0 if unknown.
+    fn max_memory_gb(&self) -> f64;
     /// A fresh random seed (used when `--seed` is not given).
     fn random_seed(&mut self) -> u32;
-    /// Seconds since the Unix epoch (wall-clock time, for timestamped names).
-    fn unix_time(&self) -> f64 {
-        0.0
+    /// Seconds since the Unix epoch (wall-clock time, for timestamped names), or 0 if unknown.
+    fn unix_time(&self) -> f64;
+    /// Threads for checking schedules in parallel; `None` (the default) when the host has
+    /// none, and `prs check` then runs a single worker.
+    fn threads(&self) -> Option<Threads> {
+        None
     }
+}
+
+/// Work for a thread of [`Threads::run`].
+pub type Job<'a> = Box<dyn FnOnce() + Send + 'a>;
+
+/// A host's threads (see [`Host::threads`]).
+#[derive(Debug, Clone, Copy)]
+pub struct Threads {
+    /// How many workers `prs check` uses by default (one per CPU core).
+    pub available: usize,
+    /// Runs each job on its own thread and `main` on the calling thread; returns once all
+    /// have finished.
+    pub run: for<'a> fn(jobs: Vec<Job<'a>>, main: &mut (dyn FnMut() + 'a)),
 }
 
 /// Convenience console helpers.
@@ -119,15 +136,20 @@ enum Node {
     File(String),
 }
 
-/// An in-memory host: a virtual file system plus captured console output.
+/// An in-memory host: a virtual file system plus captured console output. Memory use and
+/// wall-clock time read as 0.
 #[derive(Debug, Clone)]
 pub struct MemHost {
     nodes: BTreeMap<PathBuf, Node>,
     pub cwd: PathBuf,
     pub stdout: String,
     pub stderr: String,
-    pub clock: f64,
+    /// [`Host::now`]; always 0 by default.
+    pub clock: fn() -> f64,
+    /// [`Host::random_seed`].
     pub seed: u32,
+    /// [`Host::threads`]; `None` by default.
+    pub threads: Option<Threads>,
 }
 
 impl Default for MemHost {
@@ -143,10 +165,11 @@ impl MemHost {
             cwd: PathBuf::from(cwd),
             stdout: String::new(),
             stderr: String::new(),
-            clock: 0.0,
+            clock: || 0.0,
             seed: 0,
+            threads: None,
         };
-        let _ = h.create_dir_all(&PathBuf::from(cwd));
+        h.create_dir_all(Path::new(cwd)).expect("an empty file system has no files in the way");
         h
     }
 
@@ -155,8 +178,15 @@ impl MemHost {
     }
 
     /// Adds a file (creating parent directories), path relative to the cwd or absolute.
+    ///
+    /// # Panics
+    ///
+    /// If the file cannot be written (a directory is in the way, or a file where a parent
+    /// directory should be).
     pub fn add_file(&mut self, path: &str, contents: &str) {
-        let _ = self.write_file(Path::new(path), contents);
+        if let Err(e) = self.write_file(Path::new(path), contents) {
+            panic!("cannot add {}: {}", path, e);
+        }
     }
 
     /// All files under `dir` (absolute paths).
@@ -174,6 +204,14 @@ fn not_found(p: &Path) -> io::Error {
     io::Error::new(io::ErrorKind::NotFound, format!("Could not find a part of the path '{}'.", p.display()))
 }
 
+fn is_a_directory(p: &Path) -> io::Error {
+    io::Error::other(format!("Is a directory: '{}'", p.display()))
+}
+
+fn not_a_directory(p: &Path) -> io::Error {
+    io::Error::other(format!("Not a directory: '{}'", p.display()))
+}
+
 impl Host for MemHost {
     fn write(&mut self, stream: Stream, text: &str, _color: Option<Color>) {
         match stream {
@@ -189,12 +227,16 @@ impl Host for MemHost {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         match self.nodes.get(&self.abs(path)) {
             Some(Node::File(s)) => Ok(s.clone()),
-            _ => Err(not_found(path)),
+            Some(Node::Dir) => Err(is_a_directory(path)),
+            None => Err(not_found(path)),
         }
     }
 
     fn write_file(&mut self, path: &Path, contents: &str) -> io::Result<()> {
         let p = self.abs(path);
+        if let Some(Node::Dir) = self.nodes.get(&p) {
+            return Err(is_a_directory(path));
+        }
         if let Some(parent) = p.parent() {
             self.create_dir_all(parent)?;
         }
@@ -224,7 +266,7 @@ impl Host for MemHost {
         for c in p.components() {
             cur.push(c.as_os_str());
             if let Some(Node::File(_)) = self.nodes.get(&cur) {
-                return Err(io::Error::new(io::ErrorKind::AlreadyExists, "file exists"));
+                return Err(io::Error::new(io::ErrorKind::AlreadyExists, format!("File exists: '{}'", cur.display())));
             }
             self.nodes.entry(cur.clone()).or_insert(Node::Dir);
         }
@@ -233,8 +275,14 @@ impl Host for MemHost {
 
     fn remove_dir_all(&mut self, path: &Path) -> io::Result<()> {
         let p = self.abs(path);
-        self.nodes.retain(|k, _| !k.starts_with(&p));
-        Ok(())
+        match self.nodes.get(&p) {
+            Some(Node::Dir) => {
+                self.nodes.retain(|k, _| !k.starts_with(&p));
+                Ok(())
+            }
+            Some(Node::File(_)) => Err(not_a_directory(path)),
+            None => Err(not_found(path)),
+        }
     }
 
     fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()> {
@@ -255,10 +303,22 @@ impl Host for MemHost {
     }
 
     fn now(&self) -> f64 {
-        self.clock
+        (self.clock)()
+    }
+
+    fn max_memory_gb(&self) -> f64 {
+        0.0
     }
 
     fn random_seed(&mut self) -> u32 {
         self.seed
+    }
+
+    fn unix_time(&self) -> f64 {
+        0.0
+    }
+
+    fn threads(&self) -> Option<Threads> {
+        self.threads
     }
 }

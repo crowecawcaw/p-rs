@@ -65,7 +65,7 @@ pub fn coverage_xml(prog: &Program, tables: &CoverageTables, info: &CoverageInfo
             }
         }
     }
-    let group = |set: &std::collections::HashSet<(u32, u32)>| {
+    let group = |set: &prs_checker::coverage::PairSet| {
         let mut by: Vec<(String, Vec<String>)> = Vec::new();
         let mut pairs: Vec<&(u32, u32)> = set.iter().collect();
         pairs.sort();

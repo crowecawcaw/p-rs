@@ -3,11 +3,16 @@
 //! schedules of at most 1000 steps. The `DefaultImpl` test case is checked, or the single
 //! expected test of a parametric test directory.
 //!
-//! Usage: corpus [-v] [--seed N] [--schedules N] [--filter SUBSTR] ROOT...
+//! Exits with status 1 when any test disagrees with upstream.
+//!
+//! Usage: corpus [-v] [--trace] [--seed N] [--schedules N] [--strategy NAME] [--bound N]
+//! [--filter SUBSTR] ROOT...
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::time::Instant;
 
 use prs_checker::engine::{Checker, CheckerOptions, Output};
+use prs_checker::strategy::StrategyKind;
 
 struct Quiet;
 impl Output for Quiet {
@@ -28,8 +33,22 @@ struct Args {
     schedules: usize,
     filter: Option<String>,
     trace: bool,
-    strategy: String,
+    strategy: StrategyKind,
     bound: usize,
+}
+
+const USAGE: &str = "usage: corpus [-v] [--trace] [--seed N] [--schedules N] [--strategy NAME] \
+                     [--bound N] [--filter SUBSTR] ROOT...";
+
+fn usage() -> ! {
+    eprintln!("{USAGE}");
+    std::process::exit(2);
+}
+
+/// The value of the flag at `raw[*i]`, advancing `i` past it.
+fn value<T: FromStr>(raw: &[String], i: &mut usize) -> T {
+    *i += 1;
+    raw.get(*i).and_then(|v| v.parse().ok()).unwrap_or_else(|| usage())
 }
 
 fn main() {
@@ -40,7 +59,7 @@ fn main() {
         schedules: 1000,
         filter: None,
         trace: false,
-        strategy: "random".into(),
+        strategy: StrategyKind::Random,
         bound: 0,
     };
     let mut roots = Vec::new();
@@ -49,35 +68,27 @@ fn main() {
         match raw[i].as_str() {
             "-v" => args.verbose = true,
             "--trace" => args.trace = true,
-            "--seed" => {
-                i += 1;
-                args.seed = raw[i].parse().unwrap();
-            }
-            "--schedules" => {
-                i += 1;
-                args.schedules = raw[i].parse().unwrap();
-            }
-            "--strategy" => {
-                i += 1;
-                args.strategy = raw[i].clone();
-            }
-            "--bound" => {
-                i += 1;
-                args.bound = raw[i].parse().unwrap();
-            }
-            "--filter" => {
-                i += 1;
-                args.filter = Some(raw[i].clone());
-            }
+            "--seed" => args.seed = value(&raw, &mut i),
+            "--schedules" => args.schedules = value(&raw, &mut i),
+            "--strategy" => args.strategy = value(&raw, &mut i),
+            "--bound" => args.bound = value(&raw, &mut i),
+            "--filter" => args.filter = Some(value(&raw, &mut i)),
+            r if r.starts_with('-') => usage(),
             r => roots.push(r.to_string()),
         }
         i += 1;
+    }
+    if roots.is_empty() {
+        usage();
     }
     let mut stats = Stats::default();
     for root in &roots {
         find_tests(Path::new(root), &mut stats, &args);
     }
     println!("ok={} mismatched={} skipped={}", stats.ok, stats.mismatched, stats.skipped);
+    if stats.mismatched > 0 {
+        std::process::exit(1);
+    }
 }
 
 fn p_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -165,7 +176,7 @@ fn find_tests(dir: &Path, stats: &mut Stats, args: &Args) {
         max_unfair_steps: 1000,
         max_fair_steps: 1000,
         user_set_max_fair_steps: true,
-        strategy: args.strategy.clone(),
+        strategy: args.strategy,
         strategy_bound: args.bound,
         ..Default::default()
     };
@@ -203,7 +214,6 @@ fn find_tests(dir: &Path, stats: &mut Stats, args: &Args) {
     if args.verbose && elapsed > 5.0 {
         println!("SLOW {} {:.1}s", dir.display(), elapsed);
     }
-    let _ = args.verbose;
 }
 
 fn record(stats: &mut Stats, ok: bool, dir: &Path, category: &str, what: &str, detail: &str) {

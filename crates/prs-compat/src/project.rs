@@ -169,8 +169,10 @@ pub fn report_result(
             let msgs = a.messages(sm);
             let mut rest = msgs.as_slice();
             if a.thrown.is_some() {
-                write_error(host, &format!("[Error:] {}", rest[0]));
-                rest = &rest[1..];
+                if let Some((first, others)) = rest.split_first() {
+                    write_error(host, &format!("[Error:] {}", first));
+                    rest = others;
+                }
             }
             for (i, m) in rest.iter().enumerate() {
                 if i > 0 {

@@ -10,14 +10,15 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 use prs_sema::{
-    EventId, FunId, HandlerAction, InterfaceId, MachineId, MachineKind, ModuleInfo, ParamValue, Program, StateId,
-    Temperature, VarRole,
+    EventId, FunId, HandlerAction, InterfaceId, MachineId, ModuleInfo, ParamValue, Program, StateId, Temperature,
 };
 
 use crate::bytecode::{CodeBlock, ReceiveCase, Root};
 use crate::compile::Code;
+use crate::coverage::Coverage;
+use crate::javafmt::JavaFormatter;
 use crate::jsonlog::{payload_key, to_dict, Details, JsonLog};
-use crate::strategy::{OpInfo, ScheduleStep, ScheduleTrace, Strategy};
+use crate::strategy::{OpInfo, ScheduleStep, ScheduleTrace, Strategy, StrategyKind};
 use crate::timeline::{Timeline, TimelineConfig, VectorTime};
 use crate::value::{default_value, event_cs_full_name, event_cs_name, MachineRef, Value};
 
@@ -85,11 +86,23 @@ pub enum Transition {
 }
 
 impl Transition {
+    /// The transition's type in a state machine (`Transition.Type`).
     pub fn kind_name(&self) -> &'static str {
         match self {
             Transition::None => "None",
             Transition::Raise(_) => "RaiseEvent",
             Transition::Goto(_) => "GotoState",
+            Transition::Halt => "Halt",
+        }
+    }
+
+    /// The transition's type in a monitor, which names them differently
+    /// (`Monitor.Transition.Type`).
+    pub fn monitor_kind_name(&self) -> &'static str {
+        match self {
+            Transition::None => "None",
+            Transition::Raise(_) => "Raise",
+            Transition::Goto(_) => "Goto",
             Transition::Halt => "Halt",
         }
     }
@@ -163,23 +176,23 @@ pub enum Pending {
     /// Blocked in `receive`; the matching event is delivered via `Machine::received`.
     ReceiveWait {
         cases: Rc<[ReceiveCase]>,
-        exit: u32,
     },
     /// Found the event in the queue; continue after the `Receive` scheduling point.
     ReceiveFound {
         cases: Rc<[ReceiveCase]>,
-        exit: u32,
         event: Event,
     },
 }
 
+/// One active call. Its locals and operand stack live in [`Exec::values`].
 #[derive(Debug, Clone)]
 pub struct Frame {
     pub code: Rc<CodeBlock>,
     pub fun: FunId,
     pub pc: usize,
-    pub locals: Vec<Value>,
-    pub stack: Vec<Value>,
+    /// Index of the frame's first local in [`Exec::values`]. The `code.frame_size` locals
+    /// are followed by the operand stack, which ends where the next frame begins.
+    pub base: usize,
 }
 
 /// A `foreach` loop in progress, used to detect modification of the iterated variable.
@@ -194,6 +207,8 @@ pub struct ActiveIter {
 #[derive(Debug, Clone, Default)]
 pub struct Exec {
     pub frames: Vec<Frame>,
+    /// Locals and operand stacks of all frames, outermost first.
+    pub values: Vec<Value>,
     pub pending: Option<Pending>,
     /// Name of the action for diagnostics.
     pub action: String,
@@ -247,7 +262,7 @@ pub struct Config {
     pub liveness_enabled: bool,
     pub liveness_temperature_threshold: usize,
     pub fail_on_max_steps: bool,
-    pub strategy_name: String,
+    pub strategy: StrategyKind,
     /// Upper bound on the work (interpreted instructions, log lines weighted) an actor may do
     /// without reaching a scheduling point; 0 = unbounded. Upstream has no such bound and
     /// simply hangs on e.g. an endless raise/goto cycle.
@@ -263,10 +278,6 @@ pub struct Config {
     pub assembly_name: String,
     /// How schedules are abstracted into timelines.
     pub timeline: TimelineConfig,
-    /// Run spec monitors with the semantics of upstream's Java backend, which PObserve
-    /// uses: `MessageFormat` formatting, Java `toString()`, 32-bit floats, `with`
-    /// functions before exit actions, and unhandled events reported as exceptions.
-    pub java_semantics: bool,
 }
 
 impl Default for Config {
@@ -277,13 +288,12 @@ impl Default for Config {
             liveness_enabled: true,
             liveness_temperature_threshold: 0,
             fail_on_max_steps: false,
-            strategy_name: "random".into(),
+            strategy: StrategyKind::Random,
             max_work_per_step: DEFAULT_MAX_WORK_PER_STEP,
             strategy_description: None,
             logging: true,
             assembly_name: "PImplementation".into(),
             timeline: TimelineConfig::default(),
-            java_semantics: false,
         }
     }
 }
@@ -302,7 +312,7 @@ pub enum Actor {
 }
 
 /// Why execution stopped, as classified for PObserve (set when
-/// [`Config::java_semantics`] is on, or by an exception).
+/// [`Setup::java_semantics`] is on, or by an exception).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Failure {
     /// A failed `assert`; the message is `Assertion failure: <message>`.
@@ -333,15 +343,15 @@ pub const P_CHECKER_CORE: &str = "PCheckerCore";
 
 impl Exception {
     /// An exception with the source upstream reports for its type: collection errors come
-    /// from the base library, division by zero from the P runtime, the rest (null
-    /// dereferences and casts in generated code, foreign code) from the project.
+    /// from the base library, integer division errors from the P runtime (`PInt`), the rest
+    /// (null dereferences and casts in generated code, foreign code) from the project.
     pub fn new(ty: impl Into<std::borrow::Cow<'static, str>>, message: impl Into<String>) -> Exception {
         let ty = ty.into();
         let source = match ty.as_ref() {
             "System.Collections.Generic.KeyNotFoundException"
             | "System.ArgumentOutOfRangeException"
             | "System.ArgumentException" => Some(CORE_LIB),
-            "System.DivideByZeroException" => Some(P_CHECKER_CORE),
+            "System.DivideByZeroException" | "System.OverflowException" => Some(P_CHECKER_CORE),
             _ => None,
         };
         Exception { ty, message: message.into(), source }
@@ -353,68 +363,93 @@ impl Exception {
     }
 }
 
-pub struct Runtime<'p> {
-    pub prog: &'p Program,
-    pub code: &'p Code,
-    pub module: &'p ModuleInfo,
-    pub config: &'p Config,
-    pub globals: Vec<Value>,
-    pub machines: Vec<Machine>,
-    pub monitors: Vec<Monitor>,
-    pub ops: Vec<Operation>,
-    pub current: u64,
-    pub strategy: &'p mut dyn Strategy,
-    pub trace: ScheduleTrace,
-    pub log: Vec<String>,
-    pub timeline: Timeline,
-    pub bug: Option<String>,
-    pub stopped: bool,
-    pub fully_explored: bool,
-    /// The strategy cut the schedule short at an already explored state.
-    pub pruned: bool,
-    pub scheduled_steps: usize,
-    /// Work done since the last scheduling point (see [`Config::max_work_per_step`]).
-    pub step_work: u64,
-    /// The JSON trace, when enabled.
-    pub json: Option<JsonLog>,
-    /// The XML trace, when enabled.
-    pub xml: Option<crate::xmllog::XmlLog>,
-    /// The strategy description at the time the bug was found.
-    pub bug_strategy_description: Option<String>,
+/// What a run is given and records beyond its [`Config`]; everything is off by default.
+#[derive(Default)]
+pub struct Setup<'p> {
+    /// Values of the test case's global parameters (`param`).
+    pub assignment: Option<&'p prs_sema::ParamAssignment>,
     /// Implementations of foreign functions.
     pub foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
+    /// Time tracking (see `design/time/PROPOSAL.md`).
+    pub time: Option<crate::time::TimeOptions>,
+    /// Record the JSON trace.
+    pub json_trace: bool,
+    /// Record the XML trace, which names the test task by this id (`Task.CurrentId`).
+    pub xml_trace: Option<u64>,
+    /// Accumulate activity coverage.
+    pub coverage: Option<Coverage>,
+    /// Run spec monitors with the semantics of upstream's Java backend, which PObserve uses:
+    /// `MessageFormat` formatting and Java `toString()` (by this formatter), 32-bit floats,
+    /// `with` functions before exit actions, and unhandled events reported as exceptions.
+    pub java_semantics: Option<&'p JavaFormatter<'p>>,
+}
+
+pub struct Runtime<'p> {
+    pub(crate) prog: &'p Program,
+    pub(crate) code: &'p Code,
+    pub(crate) module: &'p ModuleInfo,
+    pub(crate) config: &'p Config,
+    pub(crate) globals: Vec<Value>,
+    pub(crate) machines: Vec<Machine>,
+    pub(crate) monitors: Vec<Monitor>,
+    pub(crate) ops: Vec<Operation>,
+    pub(crate) current: u64,
+    pub(crate) strategy: &'p mut dyn Strategy,
+    pub(crate) trace: ScheduleTrace,
+    pub(crate) log: Vec<String>,
+    pub(crate) timeline: Timeline,
+    pub(crate) bug: Option<String>,
+    stopped: bool,
+    fully_explored: bool,
+    /// The strategy cut the schedule short at an already explored state.
+    pruned: bool,
+    scheduled_steps: usize,
+    /// Work done since the last scheduling point (see [`Config::max_work_per_step`]).
+    pub(crate) step_work: u64,
+    /// The JSON trace, when enabled.
+    pub(crate) json: Option<JsonLog>,
+    /// The XML trace, when enabled.
+    pub(crate) xml: Option<crate::xmllog::XmlLog>,
+    /// The strategy description at the time the bug was found.
+    pub(crate) bug_strategy_description: Option<String>,
+    /// Implementations of foreign functions.
+    pub(crate) foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
     /// The monitors of the test and the interfaces each observes: the module's monitor map
     /// plus every scenario monitor, which upstream attaches to all tests.
-    pub monitor_map: Vec<(MachineId, Vec<InterfaceId>)>,
+    monitor_map: Vec<(MachineId, Vec<InterfaceId>)>,
     /// Progress of each attached scenario monitor in this schedule.
-    pub scenarios: Vec<ScenarioProgress>,
+    pub(crate) scenarios: Vec<ScenarioProgress>,
     /// Whether the text log is produced (see [`Config::logging`]).
-    pub logging: bool,
+    pub(crate) logging: bool,
     /// Trace position at which the step bound was hit, if it was.
-    pub bound_hit_at: Option<usize>,
-    /// Activity coverage being accumulated (enabled when set).
-    pub coverage: Option<crate::coverage::CoverageInfo>,
-    pub coverage_run: Option<crate::coverage::CoverageRun>,
-    pub coverage_tables: Option<Rc<crate::coverage::CoverageTables>>,
+    pub(crate) bound_hit_at: Option<usize>,
+    /// Activity coverage being accumulated, when enabled.
+    pub(crate) coverage: Option<Coverage>,
     /// Time tracking (see `design/time/PROPOSAL.md`); `None` when the test does not use it.
-    pub time: Option<Box<crate::time::TimeState>>,
+    time: Option<Box<crate::time::TimeState>>,
     /// Machine event handlers started (each runs on a fresh .NET task upstream).
-    pub handler_starts: u64,
+    pub(crate) handler_starts: u64,
     /// The first failure of this execution (see [`Failure`]).
-    pub failure: Option<Failure>,
+    pub(crate) failure: Option<Failure>,
+    /// See [`Setup::java_semantics`].
+    pub(crate) java: Option<&'p JavaFormatter<'p>>,
     next_op_id: u64,
     action_names: Vec<String>,
+    /// Scratch buffer for rendering `format` arguments, reused to avoid reallocating.
+    pub(crate) format_buf: String,
 }
 
 impl<'p> Runtime<'p> {
+    /// A runtime for one schedule of the test of `module`, scheduled by `strategy`.
     pub fn new(
         prog: &'p Program,
         code: &'p Code,
         module: &'p ModuleInfo,
         config: &'p Config,
         strategy: &'p mut dyn Strategy,
-        assignment: Option<&prs_sema::ParamAssignment>,
+        setup: Setup<'p>,
     ) -> Runtime<'p> {
+        let Setup { assignment, foreign, time, json_trace, xml_trace, coverage, java_semantics } = setup;
         let mut globals: Vec<Value> =
             prog.global_params.iter().map(|v| default_value(&prog.var(*v).ty, prog)).collect();
         if let Some(a) = assignment {
@@ -450,32 +485,44 @@ impl<'p> Runtime<'p> {
             pruned: false,
             scheduled_steps: 0,
             step_work: 0,
-            json: None,
-            xml: None,
+            json: json_trace.then(JsonLog::new),
+            xml: xml_trace.map(crate::xmllog::XmlLog::new),
             bug_strategy_description: None,
-            foreign: None,
+            foreign,
             monitor_map: monitor_map_with_scenarios(prog, module),
             scenarios: Vec::new(),
             logging: config.logging,
             bound_hit_at: None,
-            coverage: None,
-            coverage_run: None,
-            coverage_tables: None,
-            time: None,
+            coverage,
+            time: time.map(|o| Box::new(crate::time::TimeState::new(o))),
             handler_starts: 0,
             failure: None,
+            java: java_semantics,
             next_op_id: 0,
             action_names,
+            format_buf: String::new(),
         }
+    }
+
+    /// Whether spec monitors run with the semantics of upstream's Java backend (see
+    /// [`Setup::java_semantics`]).
+    pub fn java_semantics(&self) -> bool {
+        self.java.is_some()
     }
 
     pub fn fun_name(&self, f: FunId) -> &str {
         &self.action_names[f.idx()]
     }
 
-    pub fn log_line(&mut self, s: String) {
+    /// Adds a line to the text log; `line` runs only when the log is produced. The line
+    /// counts toward the work budget either way, so a logged replay of a schedule does the
+    /// same work as the original.
+    pub fn log(&mut self, line: impl FnOnce(&Self) -> String) {
         self.step_work += LOG_LINE_WORK;
-        self.log.push(s);
+        if self.logging {
+            let line = line(self);
+            self.log.push(line);
+        }
     }
 
     // ---- names ------------------------------------------------------------
@@ -588,16 +635,8 @@ impl<'p> Runtime<'p> {
     /// `OperationScheduler.NotifyAssertionFailure`.
     pub fn report_bug(&mut self, text: String) -> Stop {
         if self.bug.is_none() {
-            if self.logging {
-                self.log_line(format!("<ErrorLog> {}", text));
-            } else {
-                self.step_work += LOG_LINE_WORK;
-            }
-            if self.logging {
-                self.log_line(format!("<StrategyLog> Found bug using '{}' strategy.", self.config.strategy_name));
-            } else {
-                self.step_work += LOG_LINE_WORK;
-            }
+            self.log(|_| format!("<ErrorLog> {}", text));
+            self.log(|rt| format!("<StrategyLog> Found bug using '{}' strategy.", rt.config.strategy));
             let desc = self.config.strategy_description.clone().unwrap_or_else(|| self.strategy.description());
             self.bug_strategy_description = Some(desc.clone());
             if self.json_enabled() {
@@ -610,8 +649,8 @@ impl<'p> Runtime<'p> {
                 self.jlog(
                     "StrategyDescription",
                     Details {
-                        log: Some(format!("Found bug using '{}' strategy.{}", self.config.strategy_name, suffix)),
-                        strategy: Some(self.config.strategy_name.clone()),
+                        log: Some(format!("Found bug using '{}' strategy.{}", self.config.strategy, suffix)),
+                        strategy: Some(self.config.strategy.to_string()),
                         strategy_description: Some(desc.clone()),
                         ..Default::default()
                     },
@@ -620,7 +659,7 @@ impl<'p> Runtime<'p> {
             }
             if self.xml.is_some() {
                 self.xlog("AssertionFailure", &[], Some(&format!("<ErrorLog> {}", text)));
-                let strategy = self.config.strategy_name.clone();
+                let strategy = self.config.strategy.to_string();
                 self.xlog("Strategy", &[("strategy", &strategy)], Some(&desc));
             }
             self.failure.get_or_insert(Failure::Other(text.clone()));
@@ -642,11 +681,7 @@ impl<'p> Runtime<'p> {
                 self.machine_state_name(m),
                 short
             );
-            if self.logging {
-                self.log_line(format!("<ExceptionLog> {}", body));
-            } else {
-                self.step_work += LOG_LINE_WORK;
-            }
+            self.log(|_| format!("<ExceptionLog> {}", body));
             if self.json_enabled() {
                 let d = Details {
                     log: Some(body),
@@ -794,6 +829,11 @@ impl<'p> Runtime<'p> {
                 self.current = next;
                 Ok(())
             }
+            // the strategy cannot go on (a replay diverged): neither a deadlock nor the end
+            None if infos.iter().any(|o| o.enabled) => {
+                self.stopped = true;
+                Err(Stop)
+            }
             None => {
                 self.check_deadlock()?;
                 self.fully_explored = true;
@@ -830,17 +870,15 @@ impl<'p> Runtime<'p> {
         self.check_steps_bound()?;
         self.check_liveness_temperatures()?;
         let b = self.strategy.next_bool(max);
+        if self.strategy.diverged() {
+            self.stopped = true;
+            return Err(Stop);
+        }
         self.scheduled_steps = self.strategy.scheduled_steps();
         self.trace.steps.push(ScheduleStep::Bool(b));
-        if self.logging {
-            self.log_line(format!(
-                "<RandomLog> {} nondeterministically chose '{}'.",
-                caller,
-                if b { "True" } else { "False" }
-            ));
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+        self.log(|_| {
+            format!("<RandomLog> {} nondeterministically chose '{}'.", caller, if b { "True" } else { "False" })
+        });
         self.xml_random(if b { "True" } else { "False" }, caller);
         Ok(b)
     }
@@ -850,13 +888,13 @@ impl<'p> Runtime<'p> {
         self.check_steps_bound()?;
         self.check_liveness_temperatures()?;
         let i = self.strategy.next_int(max);
+        if self.strategy.diverged() {
+            self.stopped = true;
+            return Err(Stop);
+        }
         self.scheduled_steps = self.strategy.scheduled_steps();
         self.trace.steps.push(ScheduleStep::Int(i));
-        if self.logging {
-            self.log_line(format!("<RandomLog> {} nondeterministically chose '{}'.", caller, i));
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+        self.log(|_| format!("<RandomLog> {} nondeterministically chose '{}'.", caller, i));
         self.xml_random(&i.to_string(), caller);
         Ok(i)
     }
@@ -865,11 +903,7 @@ impl<'p> Runtime<'p> {
 
     /// Runs one schedule of the test whose main machine is `main`.
     pub fn run_test(&mut self, main: MachineId, test_name: &str) {
-        if self.logging {
-            self.log_line(format!("<TestLog> Running test '{}'.", test_name));
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+        self.log(|_| format!("<TestLog> Running test '{}'.", test_name));
         let task = self.new_op("Task(0)".into(), None);
         self.current = task;
         let r = (|| -> Result<(), Stop> {
@@ -881,11 +915,7 @@ impl<'p> Runtime<'p> {
             let (midx, _) = self.instantiate_machine(main, iface, &name, Value::Null, crate::time::Time::default());
             let creator = format!("task '{}'", 1);
             let mname = self.machines[midx].name.clone();
-            if self.logging {
-                self.log_line(format!("<CreateLog> {} was created by {}.", mname, creator));
-            } else {
-                self.step_work += LOG_LINE_WORK;
-            }
+            self.log(|_| format!("<CreateLog> {} was created by {}.", mname, creator));
             if self.json_enabled() {
                 let d = Details {
                     log: Some(format!("{} was created by {}.", mname, creator)),
@@ -1017,11 +1047,7 @@ impl<'p> Runtime<'p> {
         let (idx, _) = self.instantiate_machine(machine, iface, &name, payload, clock);
         let created = self.machines[idx].name.clone();
         let creator_name = self.machines[creator].name.clone();
-        if self.logging {
-            self.log_line(format!("<CreateLog> {} was created by {}.", created, creator_name));
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+        self.log(|_| format!("<CreateLog> {} was created by {}.", created, creator_name));
         if self.json_enabled() {
             let d = Details {
                 log: Some(format!("{} was created by {}.", created, creator_name)),
@@ -1108,24 +1134,17 @@ impl<'p> Runtime<'p> {
             event.vt = Some(Rc::new(self.machines[sender].vt.clone()));
         }
         if halted {
-            if self.logging {
-                self.log_line(format!(
+            self.log(|_| {
+                format!(
                     "<SendLog> '{}' in state '{}' sent event '{}' to '{}' which has halted.",
                     sender_name, sender_state, ev, target.name
-                ));
-            } else {
-                self.step_work += LOG_LINE_WORK;
-            }
+                )
+            });
             return;
         }
-        if self.logging {
-            self.log_line(format!(
-                "<SendLog> '{}' in state '{}' sent event '{}' to '{}'.",
-                sender_name, sender_state, ev, target.name
-            ));
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+        self.log(|_| {
+            format!("<SendLog> '{}' in state '{}' sent event '{}' to '{}'.", sender_name, sender_state, ev, target.name)
+        });
         let t = tidx.unwrap();
         if self.time.is_some() {
             event.stamp = Some(Rc::new(self.send_stamp(sender, t, event.id)));
@@ -1155,14 +1174,9 @@ impl<'p> Runtime<'p> {
                 let name = self.machines[t].name.clone();
                 let state = self.log_state_name(t);
                 let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
-                if self.logging {
-                    self.log_line(format!(
-                        "<ReceiveLog> '{}' dequeued event '{}' and unblocked in state '{}'.",
-                        name, ev, state
-                    ));
-                } else {
-                    self.step_work += LOG_LINE_WORK;
-                }
+                self.log(|_| {
+                    format!("<ReceiveLog> '{}' dequeued event '{}' and unblocked in state '{}'.", name, ev, state)
+                });
                 if self.json_enabled() {
                     let (payload, key) = self.jpayload(&e);
                     let d = Details {
@@ -1296,10 +1310,10 @@ impl<'p> Runtime<'p> {
                 Stage::Start(payload) => {
                     let e = Event { id: self.prog.null_event, payload, stamp: None, vt: None };
                     self.machines[m].stage = Stage::AfterStartEntry;
-                    self.enter_state(m, e)?;
+                    self.enter_state(m, e);
                 }
                 Stage::AfterStartEntry => {
-                    self.apply_transition(m)?;
+                    self.apply_transition(m);
                     if self.machines[m].status == MachineStatus::Halting {
                         self.machines[m].stage = Stage::Halt;
                     } else {
@@ -1352,14 +1366,9 @@ impl<'p> Runtime<'p> {
                         let e = Event { id: self.prog.null_event, payload: Value::Null, stamp: None, vt: None };
                         self.machines[m].stage = Stage::Handle(e);
                         self.cov_default(m);
-                        if self.logging {
-                            self.log_line(format!(
-                                "<DefaultLog> {} is executing the default handler in state '{}'.",
-                                name, state
-                            ));
-                        } else {
-                            self.step_work += LOG_LINE_WORK;
-                        }
+                        self.log(|_| {
+                            format!("<DefaultLog> {} is executing the default handler in state '{}'.", name, state)
+                        });
                         if self.json_enabled() {
                             let d = Details {
                                 log: Some(format!("{} is executing the default handler in state '{}'.", name, state)),
@@ -1383,11 +1392,7 @@ impl<'p> Runtime<'p> {
                     let state = self.log_state_name(m);
                     let ev =
                         if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
-                    if self.logging {
-                        self.log_line(format!("<DequeueLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state));
-                    } else {
-                        self.step_work += LOG_LINE_WORK;
-                    }
+                    self.log(|_| format!("<DequeueLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state));
                     if self.json_enabled() {
                         let (payload, key) = self.jpayload(&e);
                         let d = Details {
@@ -1428,7 +1433,7 @@ impl<'p> Runtime<'p> {
                     }
                     if e.id == GOTO_EVENT {
                         let target = self.machines[m].goto_target.take().expect("goto target");
-                        self.begin_goto(m, target, None, e)?;
+                        self.begin_goto(m, target, None, e);
                         continue;
                     }
                     let Some(state) = self.machines[m].state else {
@@ -1436,14 +1441,10 @@ impl<'p> Runtime<'p> {
                         let name = self.machines[m].name.clone();
                         let popped = self.machines[m].popped_from.take();
                         let from = self.state_name(popped);
-                        if self.logging {
-                            self.log_line(format!(
+                        self.log(|_| format!(
                             "<ExceptionLog> {} running action '' in state '{}' threw exception 'UnhandledEventException'.",
                             name, from
                         ));
-                        } else {
-                            self.step_work += LOG_LINE_WORK;
-                        }
                         if self.json_enabled() {
                             let d = Details {
                                 log: Some(format!(
@@ -1466,14 +1467,10 @@ impl<'p> Runtime<'p> {
                             Some(&unhandled_text),
                         );
                         if e.id == self.prog.halt_event {
-                            if self.logging {
-                                self.log_line(format!(
+                            self.log(|_| format!(
                                 "<ExceptionLog> {} running action '' in state '{}' chose to handle exception 'UnhandledEventException'.",
                                 name, from
                             ));
-                            } else {
-                                self.step_work += LOG_LINE_WORK;
-                            }
                             if self.json_enabled() {
                                 let d = Details {
                                     log: Some(format!(
@@ -1512,7 +1509,7 @@ impl<'p> Runtime<'p> {
                             self.start_action(m, f, &e);
                         }
                         Some(HandlerAction::Goto { target, with }) => {
-                            self.begin_goto(m, target, with, e)?;
+                            self.begin_goto(m, target, with, e);
                         }
                         Some(HandlerAction::Ignore) | Some(HandlerAction::Defer) => {
                             self.machines[m].stage = Stage::Loop;
@@ -1520,12 +1517,12 @@ impl<'p> Runtime<'p> {
                         None => {
                             // Unhandled: run the exit action, then pop the state.
                             self.machines[m].stage = Stage::AfterExit { e: e.clone(), then: ExitThen::Pop };
-                            self.exit_state(m, e)?;
+                            self.exit_state(m, e);
                         }
                     }
                 }
                 Stage::AfterAction(_e) => {
-                    self.apply_transition(m)?;
+                    self.apply_transition(m);
                     self.machines[m].stage = Stage::Loop;
                 }
                 Stage::AfterExit { e, then } => {
@@ -1558,16 +1555,14 @@ impl<'p> Runtime<'p> {
                             if self.machines[m].status == MachineStatus::Active {
                                 let name = self.machines[m].name.clone();
                                 let state = self.log_state_name(m);
-                                if self.logging {
-                                    self.log_line(format!(
+                                self.log(|rt| {
+                                    format!(
                                         "<PopLog> {} popped state {} due to unhandled event '{}'.",
                                         name,
                                         state,
-                                        self.event_name(e.id)
-                                    ));
-                                } else {
-                                    self.step_work += LOG_LINE_WORK;
-                                }
+                                        rt.event_name(e.id)
+                                    )
+                                });
                                 if self.json_enabled() {
                                     let d = Details {
                                         log: Some(format!(
@@ -1619,13 +1614,13 @@ impl<'p> Runtime<'p> {
                     if self.machines[m].status == MachineStatus::Active {
                         self.machines[m].state = Some(target);
                         self.machines[m].stage = Stage::AfterEntry(e.clone());
-                        self.enter_state(m, e)?;
+                        self.enter_state(m, e);
                     } else {
                         self.machines[m].stage = Stage::Halt;
                     }
                 }
                 Stage::AfterEntry(_e) => {
-                    self.apply_transition(m)?;
+                    self.apply_transition(m);
                     self.machines[m].stage = Stage::Loop;
                 }
                 Stage::Halt => {
@@ -1633,11 +1628,7 @@ impl<'p> Runtime<'p> {
                     self.machines[m].inbox.closed = true;
                     let n = self.machines[m].inbox.queue.len();
                     let name = self.machines[m].name.clone();
-                    if self.logging {
-                        self.log_line(format!("<HaltLog> {} halted with {} events in its inbox.", name, n));
-                    } else {
-                        self.step_work += LOG_LINE_WORK;
-                    }
+                    self.log(|_| format!("<HaltLog> {} halted with {} events in its inbox.", name, n));
                     if self.json_enabled() {
                         let d = Details {
                             log: Some(format!("{} halted with {} events in its inbox.", name, n)),
@@ -1687,29 +1678,27 @@ impl<'p> Runtime<'p> {
     }
 
     pub fn new_exec(&self, f: FunId, args: Vec<Value>) -> Exec {
-        let mut exec =
-            Exec { frames: Vec::new(), pending: None, action: self.fun_name(f).to_string(), iters: Vec::new() };
+        let mut exec = Exec { action: self.fun_name(f).to_string(), ..Exec::default() };
         if let Some(code) = self.code.get(f) {
-            exec.frames.push(make_frame(code.clone(), f, args));
+            // room for the locals and a typical operand stack and call depth
+            exec.values = Vec::with_capacity(code.frame_size as usize + 32);
+            let nargs = args.len();
+            exec.values.extend(args);
+            exec.push_frame(code.clone(), f, nargs);
         }
         exec
     }
 
-    fn enter_state(&mut self, m: usize, e: Event) -> Result<(), Stop> {
+    fn enter_state(&mut self, m: usize, e: Event) {
         let name = self.machines[m].name.clone();
         let state = self.log_state_name(m);
-        if self.logging {
-            self.log_line(format!("<StateLog> {} enters state '{}'.", name, state));
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+        self.log(|_| format!("<StateLog> {} enters state '{}'.", name, state));
         self.json_state_transition(m, true);
         if let Some(s) = self.machines[m].state {
             if let Some(entry) = self.prog.state(s).entry {
                 self.start_action(m, entry, &e);
             }
         }
-        Ok(())
     }
 
     fn json_state_transition(&mut self, m: usize, is_entry: bool) {
@@ -1736,37 +1725,30 @@ impl<'p> Runtime<'p> {
         self.jlog("StateTransition", d, true);
     }
 
-    fn exit_state(&mut self, m: usize, e: Event) -> Result<(), Stop> {
+    fn exit_state(&mut self, m: usize, e: Event) {
         let name = self.machines[m].name.clone();
         let state = self.log_state_name(m);
-        if self.logging {
-            self.log_line(format!("<StateLog> {} exits state '{}'.", name, state));
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+        self.log(|_| format!("<StateLog> {} exits state '{}'.", name, state));
         self.json_state_transition(m, false);
         if let Some(s) = self.machines[m].state {
             if let Some(exit) = self.prog.state(s).exit {
                 self.start_action(m, exit, &e);
             }
         }
-        Ok(())
     }
 
-    fn begin_goto(&mut self, m: usize, target: StateId, with: Option<FunId>, e: Event) -> Result<(), Stop> {
+    fn begin_goto(&mut self, m: usize, target: StateId, with: Option<FunId>, e: Event) {
         self.cov_goto(m, target);
         let name = self.machines[m].name.clone();
         let cur = self.log_state_name(m);
         let mname = self.prog.machine(self.machines[m].decl).cs_name.clone();
         let tname = self.prog.state(target).name.clone();
-        if self.logging {
-            self.log_line(format!(
+        self.log(|_| {
+            format!(
                 "<GotoLog> {} is transitioning from state '{}' to state 'PImplementation.{}.{}'.",
                 name, cur, mname, tname
-            ));
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+            )
+        });
         if self.json_enabled() {
             let short_cur = self.short_state(self.machines[m].state);
             let d = Details {
@@ -1787,7 +1769,7 @@ impl<'p> Runtime<'p> {
     }
 
     /// `ApplyEventHandlerTransitionAsync` for the pending transition.
-    fn apply_transition(&mut self, m: usize) -> Result<(), Stop> {
+    fn apply_transition(&mut self, m: usize) {
         let t = std::mem::replace(&mut self.machines[m].pending_transition, Transition::None);
         match t {
             Transition::None => {}
@@ -1796,11 +1778,7 @@ impl<'p> Runtime<'p> {
                 let name = self.machines[m].name.clone();
                 let state = self.log_state_name(m);
                 let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
-                if self.logging {
-                    self.log_line(format!("<RaiseLog> '{}' raised event '{}' in state '{}'.", name, ev, state));
-                } else {
-                    self.step_work += LOG_LINE_WORK;
-                }
+                self.log(|_| format!("<RaiseLog> '{}' raised event '{}' in state '{}'.", name, ev, state));
                 if self.json_enabled() {
                     let (payload, key) = self.jpayload(&e);
                     let st = self.short_state(self.machines[m].state);
@@ -1837,7 +1815,6 @@ impl<'p> Runtime<'p> {
                 self.machines[m].status = MachineStatus::Halting;
             }
         }
-        Ok(())
     }
 
     // ---- monitors ----------------------------------------------------------------------
@@ -1875,11 +1852,7 @@ impl<'p> Runtime<'p> {
                 pending_transition: Transition::None,
                 goto_payload: None,
             });
-            if self.logging {
-                self.log_line(format!("<CreateLog> {} was created.", self.monitor_full_name(idx)));
-            } else {
-                self.step_work += LOG_LINE_WORK;
-            }
+            self.log(|rt| format!("<CreateLog> {} was created.", rt.monitor_full_name(idx)));
             if self.json_enabled() {
                 let short = self.prog.machine(decl).cs_name.clone();
                 let d = Details {
@@ -1928,18 +1901,15 @@ impl<'p> Runtime<'p> {
             Some(Temperature::Cold) => "cold ",
             _ => "",
         };
-        if self.logging {
-            let text = format!(
+        self.log(|rt| {
+            format!(
                 "<MonitorLog> {} {} {}state '{}'.",
-                self.monitor_full_name(mon),
+                rt.monitor_full_name(mon),
                 if enters { "enters" } else { "exits" },
                 liveness,
-                self.state_name(s)
-            );
-            self.log_line(text);
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+                rt.state_name(s)
+            )
+        });
         let decl = self.monitors[mon].decl;
         if enters {
             if let (Some(st), Some(sc)) = (s, self.scenarios.iter_mut().find(|p| p.decl == decl)) {
@@ -1998,10 +1968,8 @@ impl<'p> Runtime<'p> {
         let exec = self.new_exec(f, vec![arg]);
         match self.run_exec(Actor::Monitor(mon), exec)? {
             ExecOutcome::Finished(_) | ExecOutcome::Unwound => Ok(()),
-            ExecOutcome::Yield(_, _) => {
-                // Monitors cannot block; treat as completed.
-                Ok(())
-            }
+            // creating machines, sending and receiving throw in a monitor
+            ExecOutcome::Yield(..) => unreachable!("monitors never reach a scheduling point"),
         }
     }
 
@@ -2037,7 +2005,7 @@ impl<'p> Runtime<'p> {
             let msg = format!(
                 "{} has performed a '{}' transition from an OnExit action.",
                 self.monitor_full_name(mon),
-                monitor_transition_name(&t)
+                t.monitor_kind_name()
             );
             return Err(self.report_bug(msg));
         }
@@ -2050,17 +2018,14 @@ impl<'p> Runtime<'p> {
             Transition::None | Transition::Halt => Ok(()),
             Transition::Raise(e) => {
                 self.cov_monitor_raise(mon, e.id);
-                if self.logging {
-                    let text = format!(
+                self.log(|rt| {
+                    format!(
                         "<MonitorLog> Monitor '{}' raised event '{}' in state '{}'.",
-                        self.prog.machine(self.monitors[mon].decl).cs_name,
-                        self.event_with_payload(&e),
-                        self.state_name(self.monitors[mon].state)
-                    );
-                    self.log_line(text);
-                } else {
-                    self.step_work += LOG_LINE_WORK;
-                }
+                        rt.prog.machine(rt.monitors[mon].decl).cs_name,
+                        rt.event_with_payload(&e),
+                        rt.state_name(rt.monitors[mon].state)
+                    )
+                });
                 if self.json_enabled() {
                     let (payload, key) = self.jpayload(&e);
                     let short = self.prog.machine(self.monitors[mon].decl).cs_name.clone();
@@ -2086,16 +2051,13 @@ impl<'p> Runtime<'p> {
             }
             Transition::Goto(target) => {
                 self.cov_monitor_raise(mon, GOTO_EVENT);
-                if self.logging {
-                    let text = format!(
+                self.log(|rt| {
+                    format!(
                         "<MonitorLog> Monitor '{}' raised event 'GotoStateEvent' in state '{}'.",
-                        self.prog.machine(self.monitors[mon].decl).cs_name,
-                        self.state_name(self.monitors[mon].state)
-                    );
-                    self.log_line(text);
-                } else {
-                    self.step_work += LOG_LINE_WORK;
-                }
+                        rt.prog.machine(rt.monitors[mon].decl).cs_name,
+                        rt.state_name(rt.monitors[mon].state)
+                    )
+                });
                 if self.json_enabled() {
                     let short = self.prog.machine(self.monitors[mon].decl).cs_name.clone();
                     let st = self.short_state(self.monitors[mon].state);
@@ -2124,7 +2086,7 @@ impl<'p> Runtime<'p> {
     }
 
     fn monitor_goto(&mut self, mon: usize, target: StateId, with: Option<FunId>, e: &Event) -> Result<(), Stop> {
-        if self.config.java_semantics {
+        if self.java_semantics() {
             // the generated handler is `{ with(p); gotoState(target); }`: the transition
             // function runs before the exit action
             if let Some(w) = with {
@@ -2146,17 +2108,14 @@ impl<'p> Runtime<'p> {
     pub fn monitor_event(&mut self, mon: usize, e: Event, sender_idx: Option<usize>) -> Result<(), Stop> {
         let sender: Option<Rc<str>> = sender_idx.map(|i| self.machines[i].name.clone());
         self.cov_monitor_process(mon, e.id, sender_idx);
-        if self.logging {
-            let text = format!(
+        self.log(|rt| {
+            format!(
                 "<MonitorLog> {} is processing event '{}' in state '{}'.",
-                self.prog.machine(self.monitors[mon].decl).cs_name,
-                self.event_with_payload(&e),
-                self.state_name(self.monitors[mon].state)
-            );
-            self.log_line(text);
-        } else {
-            self.step_work += LOG_LINE_WORK;
-        }
+                rt.prog.machine(rt.monitors[mon].decl).cs_name,
+                rt.event_with_payload(&e),
+                rt.state_name(rt.monitors[mon].state)
+            )
+        });
         if self.json_enabled() {
             let (payload, key) = self.jpayload(&e);
             let short = self.prog.machine(self.monitors[mon].decl).cs_name.clone();
@@ -2232,10 +2191,7 @@ impl<'p> Runtime<'p> {
         let (Some(ts), Some(stamp)) = (self.time.as_mut(), e.stamp.as_ref()) else { return };
         let clock = ts.join(&self.machines[m].clock, &stamp.at);
         self.machines[m].clock = clock;
-        if self.logging {
-            let line = format!("<TimeLog> '{}' clock is {} us.", self.machines[m].name, self.machines[m].clock);
-            self.log_line(line);
-        }
+        self.log(|rt| format!("<TimeLog> '{}' clock is {} us.", rt.machines[m].name, rt.machines[m].clock));
     }
 
     /// The window `[best, worst]` in which operation `op` would act if scheduled now
@@ -2458,12 +2414,6 @@ impl<'p> Runtime<'p> {
     }
 
     fn monitor_handle_event(&mut self, mon: usize, e: Event) -> Result<(), Stop> {
-        // Ignored (exact or wildcard) events are dropped.
-        if let Some(s) = self.monitors[mon].state {
-            if matches!(self.prog.state(s).handler_for(e.id).map(|h| &h.action), Some(HandlerAction::Ignore)) {
-                return Ok(());
-            }
-        }
         loop {
             let Some(s) = self.monitors[mon].state else {
                 let msg = format!(
@@ -2495,9 +2445,10 @@ impl<'p> Runtime<'p> {
                 Some(HandlerAction::Goto { target, with }) => {
                     return self.monitor_goto(mon, target, with, &e);
                 }
+                // ignored (exact or wildcard) events are dropped
                 Some(HandlerAction::Ignore) => return Ok(()),
                 // deferral is not supported by the Java backend: no handler is generated
-                Some(HandlerAction::Defer) | None if self.config.java_semantics => {
+                Some(HandlerAction::Defer) | None if self.java_semantics() => {
                     let state = self.state_name(Some(s));
                     let state = state.rsplit('.').next().unwrap_or(&state).to_string();
                     let event = self.prog.event(e.id).name.clone();
@@ -2514,21 +2465,31 @@ impl<'p> Runtime<'p> {
     }
 }
 
-fn monitor_transition_name(t: &Transition) -> &'static str {
-    match t {
-        Transition::None => "None",
-        Transition::Raise(_) => "Raise",
-        Transition::Goto(_) => "Goto",
-        Transition::Halt => "Halt",
+impl Exec {
+    /// Enters `code`, whose `nargs` arguments are on top of the operand stack.
+    pub fn push_frame(&mut self, code: Rc<CodeBlock>, fun: FunId, nargs: usize) {
+        let base = self.values.len() - nargs;
+        let size = code.frame_size as usize;
+        if code.params_in_order && nargs == code.param_slots.len() {
+            // the arguments already sit in their slots
+            self.values.resize(base + size, Value::Null);
+        } else {
+            let args = self.values.split_off(base);
+            self.values.resize(base + size, Value::Null);
+            for (slot, arg) in code.param_slots.iter().zip(args) {
+                self.values[base + *slot as usize] = arg;
+            }
+        }
+        self.frames.push(Frame { code, fun, pc: 0, base });
     }
-}
 
-pub fn make_frame(code: Rc<CodeBlock>, fun: FunId, args: Vec<Value>) -> Frame {
-    let mut locals = vec![Value::Null; code.frame_size as usize];
-    for (slot, arg) in code.param_slots.iter().zip(args) {
-        locals[*slot as usize] = arg;
+    /// The locals and the operand stack of frame `i`.
+    pub fn frame_values(&self, i: usize) -> (&[Value], &[Value]) {
+        let f = &self.frames[i];
+        let locals_end = f.base + f.code.frame_size as usize;
+        let end = self.frames.get(i + 1).map_or(self.values.len(), |next| next.base);
+        (&self.values[f.base..locals_end], &self.values[locals_end..end])
     }
-    Frame { code, fun, pc: 0, locals, stack: Vec::new() }
 }
 
 /// Outcome of running an action.
@@ -2541,15 +2502,6 @@ pub enum ExecOutcome {
 
 /// Pseudo event id used for the internal `GotoStateEvent`.
 pub const GOTO_EVENT: EventId = EventId(u32::MAX);
-
-/// Helper to query the role of a variable id (used by the interpreter).
-pub fn is_field(prog: &Program, v: prs_sema::VarId) -> bool {
-    prog.var(v).role == VarRole::Field
-}
-
-pub fn is_spec(prog: &Program, m: MachineId) -> bool {
-    prog.machine(m).kind != MachineKind::Impl
-}
 
 /// Progress of a scenario (coverage) monitor within one schedule.
 #[derive(Debug, Clone)]

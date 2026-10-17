@@ -12,7 +12,7 @@
 //! Upstream hashes states with .NET's per-process randomised hash codes, so its schedules
 //! are not reproducible from the seed; here they are.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use crate::strategy::{OpInfo, SharedRandom, Strategy};
 
@@ -26,7 +26,7 @@ const BASIC_ACTION_REWARD: f64 = -1.0;
 /// The Q values of one state, in insertion order (upstream enumerates a `Dictionary`).
 #[derive(Default)]
 struct QRow {
-    index: HashMap<u64, usize>,
+    index: FxHashMap<u64, usize>,
     entries: Vec<(u64, f64)>,
 }
 
@@ -48,18 +48,17 @@ impl QRow {
 }
 
 pub struct QLearningStrategy {
-    pub max_steps: usize,
-    pub steps: usize,
-    pub rng: SharedRandom,
-    q_table: HashMap<u64, QRow>,
+    max_steps: usize,
+    steps: usize,
+    rng: SharedRandom,
+    q_table: FxHashMap<u64, QRow>,
     /// (choice that led here, state) per step of the current schedule.
     path: Vec<(u64, u64)>,
-    frequencies: HashMap<u64, u64>,
+    frequencies: FxHashMap<u64, u64>,
     previous: u64,
     /// State of the last scheduling point and the choices made since.
     last_state: u64,
     choices_since: u64,
-    pub epochs: usize,
 }
 
 impl QLearningStrategy {
@@ -68,19 +67,13 @@ impl QLearningStrategy {
             max_steps,
             steps: 0,
             rng,
-            q_table: HashMap::new(),
+            q_table: FxHashMap::default(),
             path: Vec::new(),
-            frequencies: HashMap::new(),
+            frequencies: FxHashMap::default(),
             previous: 0,
             last_state: 0,
             choices_since: 0,
-            epochs: 0,
         }
-    }
-
-    /// Number of distinct states seen so far.
-    pub fn distinct_states(&self) -> usize {
-        self.frequencies.len()
     }
 
     fn capture(&mut self, state: u64) -> u64 {
@@ -192,7 +185,6 @@ impl Strategy for QLearningStrategy {
         self.previous = 0;
         self.last_state = 0;
         self.choices_since = 0;
-        self.epochs += 1;
         self.steps = 0;
         true
     }
@@ -212,10 +204,6 @@ impl Strategy for QLearningStrategy {
 
     fn description(&self) -> String {
         format!("rl[seed '{}']", self.rng.borrow().seed)
-    }
-
-    fn reset(&mut self) {
-        self.steps = 0;
     }
 
     fn wants_state_hash(&self) -> bool {

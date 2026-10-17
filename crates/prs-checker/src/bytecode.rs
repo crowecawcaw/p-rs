@@ -25,14 +25,6 @@ pub enum PathElem {
     MapKey,
 }
 
-/// Which collection kind a `Contains`, `Insert`, `Remove` or `Foreach` operates on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CollKind {
-    Seq,
-    Set,
-    Map,
-}
-
 #[derive(Debug, Clone)]
 pub struct ReceiveCase {
     pub event: EventId,
@@ -70,7 +62,7 @@ pub enum Op {
     Keys,
     Values,
     Sizeof,
-    Contains(CollKind),
+    Contains,
     /// Pushes a precomputed default value (values are copy-on-write, so sharing is safe).
     Default(crate::value::Value),
     /// `format(base, args)`; `types` are the static types of the arguments.
@@ -106,7 +98,6 @@ pub enum Op {
     Insert {
         root: Root,
         path: Rc<[PathElem]>,
-        kind: CollKind,
     },
     Add {
         root: Root,
@@ -115,7 +106,6 @@ pub enum Op {
     Remove {
         root: Root,
         path: Rc<[PathElem]>,
-        kind: CollKind,
     },
     Assert,
     Print,
@@ -139,12 +129,10 @@ pub enum Op {
     },
     Receive {
         cases: Rc<[ReceiveCase]>,
-        exit: u32,
     },
-    /// Pops the collection, stores an iterator in `iter_slot`.
+    /// Pops the collection (a sequence or set), stores an iterator in `iter_slot`.
     ForeachInit {
         iter_slot: u32,
-        kind: CollKind,
         root: Option<Root>,
     },
     /// Advances the iterator; jumps to `exit` when exhausted, else stores the item.
@@ -153,6 +141,87 @@ pub enum Op {
         item_slot: u32,
         exit: u32,
     },
+
+    // ---- specialized and fused instructions -------------------------------------
+    //
+    // Each stands for the sequence of the instructions above in its documentation, with the
+    // same effects and errors, and counts as that many units of work. Instructions that
+    // may fail come last in the sequence, or are checked in sequence order, so the work
+    // bound is reached at the same point.
+    /// `Store` of a whole field (an empty path).
+    StoreField(u32),
+    /// `Default(value); StoreLocal(slot)`.
+    StoreLocalConst {
+        slot: u32,
+        value: crate::value::Value,
+    },
+    /// `LoadLocal(slot); TupleGet(index)`.
+    LocalTupleGet {
+        slot: u32,
+        index: u32,
+    },
+    /// `LoadLocal(slot); Sizeof`.
+    LocalSizeof(u32),
+    /// `LoadLocal(slot); MapGet { java_null }`: the map is on the stack, the key in `slot`.
+    MapGetLocal {
+        slot: u32,
+        java_null: bool,
+    },
+    /// `Keys; Sizeof`.
+    KeysSizeof,
+    /// `Keys; Contains`.
+    KeysContains,
+    /// `Keys; LoadLocal(slot); SeqGet`: `keys(map)[i]`.
+    KeyAtLocal(u32),
+    /// `Bin(op)` of two `int` operands, or `rhs; Bin(op)` when the right operand is a
+    /// local or a literal. Falls back to `Bin` for other values.
+    IntBin {
+        op: BinOp,
+        rhs: Operand,
+    },
+    /// `IntBin { op, rhs }; JumpIfFalse(target)` for a comparison `op`.
+    IntCmpJumpIfFalse {
+        op: BinOp,
+        rhs: Operand,
+        target: u32,
+    },
+    /// `Dup; JumpIfFalse(target); Pop` (`&&`): jumps keeping a false operand, else pops it.
+    JumpIfFalseElsePop(u32),
+    /// `Dup; JumpIfTrue(target); Pop` (`||`, `==>`).
+    JumpIfTrueElsePop(u32),
+    /// `PushNull; Return`.
+    ReturnNull,
+    /// `Format`, as an argument of a call whose callee never reads that parameter (see
+    /// `compile::unread_params`): pops the arguments and pushes `null` instead of building
+    /// the string. Emitted only when `base` cannot fail to format with `nargs` arguments,
+    /// so the only effect the plain `Format` has is lost on a value nobody sees. In Java
+    /// semantics, whose formatting can fail on the values, it is `Format`.
+    UnreadFormat {
+        base: Rc<str>,
+        nargs: u32,
+        types: Rc<[PType]>,
+    },
+}
+
+/// The right operand of an [`Op::IntBin`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Operand {
+    /// On the operand stack, above the left operand.
+    Stack,
+    /// `LoadLocal(slot)`.
+    Local(u32),
+    /// `PushInt(value)`.
+    Int(i64),
+}
+
+impl Operand {
+    /// The units of work of the instruction that loads the operand.
+    pub fn work(self) -> u64 {
+        match self {
+            Operand::Stack => 0,
+            Operand::Local(_) | Operand::Int(_) => 1,
+        }
+    }
 }
 
 /// The compiled form of one root function.
@@ -163,4 +232,7 @@ pub struct CodeBlock {
     pub frame_size: u32,
     /// Slots the parameters occupy, in order.
     pub param_slots: Vec<u32>,
+    /// Whether parameter `i` occupies slot `i`, so arguments can stay where the caller
+    /// pushed them.
+    pub params_in_order: bool,
 }

@@ -8,7 +8,7 @@
 //! check of that key and is reported with the last events seen for it (the replay window).
 //!
 //! Specs run with the semantics of upstream's Java backend
-//! ([`Config::java_semantics`](crate::runtime::Config::java_semantics)), so messages read
+//! ([`Setup::java_semantics`](crate::runtime::Setup::java_semantics)), so messages read
 //! as PObserve's do. Like the rest of the crate this module does no I/O: inputs are passed
 //! as strings and time comes from a caller-supplied clock.
 
@@ -18,8 +18,8 @@ use std::rc::Rc;
 use prs_sema::{EventId, MachineId, ModuleInfo, PType, Program};
 
 use crate::compile::{compile_program, Code};
-use crate::javafmt;
-use crate::runtime::{Config, Event, Failure, Runtime};
+use crate::javafmt::{self, JavaFormatter};
+use crate::runtime::{Config, Event, Failure, Runtime, Setup};
 use crate::strategy::{OpInfo, Strategy};
 use crate::value::{NamedTuple, Value};
 
@@ -31,8 +31,9 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
+    /// `Instant.ofEpochSecond(secs, nanos)`, saturating where Java would throw.
     pub fn new(secs: i64, nanos: u32) -> Timestamp {
-        Timestamp { secs: secs + (nanos / 1_000_000_000) as i64, nanos: nanos % 1_000_000_000 }
+        Timestamp { secs: secs.saturating_add(i64::from(nanos / 1_000_000_000)), nanos: nanos % 1_000_000_000 }
     }
 
     /// `Instant.ofEpochMilli`.
@@ -40,9 +41,9 @@ impl Timestamp {
         Timestamp { secs: ms.div_euclid(1000), nanos: (ms.rem_euclid(1000) * 1_000_000) as u32 }
     }
 
-    /// `Instant.toEpochMilli`.
+    /// `Instant.toEpochMilli`, saturating where Java would throw.
     pub fn to_millis(&self) -> i64 {
-        self.secs * 1000 + (self.nanos / 1_000_000) as i64
+        self.secs.saturating_mul(1000).saturating_add(i64::from(self.nanos / 1_000_000))
     }
 
     /// `Instant.toString()`.
@@ -67,12 +68,12 @@ pub struct ObservedEvent {
 
 impl ObservedEvent {
     /// `PObserveEvent.toString()`.
-    pub fn to_java_string(&self, prog: &Program) -> String {
+    pub fn to_java_string(&self, spec: &Spec) -> String {
         format!(
             "PObserveEvent{{partitionKey='{}', timestamp={}, event={}, logLine='{}', customPayload={}}}",
             self.key,
             javafmt::instant_nanos9(self.timestamp.secs, self.timestamp.nanos),
-            javafmt::event_to_string(prog, self.event, &self.payload),
+            spec.java.event_to_string(self.event, &self.payload),
             self.log_line.as_deref().unwrap_or("null"),
             self.custom_payload.as_deref().unwrap_or("null"),
         )
@@ -95,7 +96,8 @@ pub trait Parser {
     }
 
     /// Parses one (trimmed) log entry. Entries that hold no event return no events; an
-    /// `Err` counts as a parser error for this entry only.
+    /// `Err` counts as a parser error for this entry only. As upstream, the report names the
+    /// entry, not the error message.
     fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String>;
 }
 
@@ -108,6 +110,7 @@ pub struct Spec<'p> {
     code: Code,
     module: ModuleInfo,
     config: Config,
+    java: JavaFormatter<'p>,
 }
 
 impl<'p> Spec<'p> {
@@ -123,7 +126,7 @@ impl<'p> Spec<'p> {
     }
 
     pub fn from_decl(prog: &'p Program, decl: MachineId) -> Spec<'p> {
-        let config = Config { logging: false, java_semantics: true, max_work_per_step: 0, ..Config::default() };
+        let config = Config { logging: false, max_work_per_step: 0, ..Config::default() };
         Spec {
             prog,
             decl,
@@ -131,6 +134,7 @@ impl<'p> Spec<'p> {
             code: compile_program(prog),
             module: ModuleInfo::default(),
             config,
+            java: JavaFormatter::new(prog),
         }
     }
 
@@ -422,7 +426,6 @@ impl Strategy for NoScheduling {
     fn description(&self) -> String {
         String::new()
     }
-    fn reset(&mut self) {}
 }
 
 /// Outcome of running the spec over one key's events.
@@ -483,7 +486,14 @@ impl<'p> Spec<'p> {
         log: &mut Vec<String>,
     ) -> KeyOutcome {
         let mut strategy = NoScheduling;
-        let mut rt = Runtime::new(self.prog, &self.code, &self.module, &self.config, &mut strategy, None);
+        let mut rt = Runtime::new(
+            self.prog,
+            &self.code,
+            &self.module,
+            &self.config,
+            &mut strategy,
+            Setup { java_semantics: Some(&self.java), ..Setup::default() },
+        );
         let mon = match rt.start_monitor(self.decl) {
             Ok(m) => m,
             Err(_) => return KeyOutcome::Fatal(self.failure_error(rt.failure.take(), None, log)),
@@ -506,7 +516,7 @@ impl<'p> Spec<'p> {
                     "Encountered an out of order event.\nEncountered an out of order event::\nTimestamp of last processed event: {}\nTimestamp of current event: {}\nError event details: {}",
                     prev.to_iso(),
                     ev.timestamp.to_iso(),
-                    ev.to_java_string(self.prog)
+                    ev.to_java_string(self)
                 );
                 return KeyOutcome::Error(ObserveError {
                     kind: ErrorKind::OutOfOrder,
@@ -616,9 +626,8 @@ impl<'p> Spec<'p> {
                     }
                     report.errors.push(err);
                 }
-                KeyOutcome::Fatal(mut err) => {
+                KeyOutcome::Fatal(err) => {
                     report.metrics.unknown_errors += 1;
-                    err.replay = None;
                     report.errors.push(err);
                     break;
                 }
@@ -628,9 +637,8 @@ impl<'p> Spec<'p> {
         // event metrics in the order of upstream's HashMap<String, EventMetrics>
         let names: Vec<Value> = self.observes().iter().map(|&e| Value::str(&self.prog.event(e).name)).collect();
         let mut seen = std::collections::HashSet::new();
-        for (name, e) in javafmt::hashmap_order(names.iter().zip(self.observes().iter())) {
+        for (_, e) in javafmt::hashmap_order(names.iter().zip(self.observes().iter())) {
             if seen.insert(*e) {
-                let _ = name;
                 if let Some(m) = metrics.remove(e) {
                     report.metrics.events.push(m);
                 }
@@ -679,5 +687,8 @@ mod tests {
         assert_eq!((t.secs, t.nanos), (-1, 999_000_000));
         assert_eq!(t.to_millis(), -1);
         assert_eq!(Timestamp::from_millis(1706894854333).to_millis(), 1706894854333);
+        assert_eq!(Timestamp::new(i64::MAX, 1_500_000_000), Timestamp { secs: i64::MAX, nanos: 500_000_000 });
+        assert_eq!(Timestamp::new(i64::MAX, 0).to_millis(), i64::MAX);
+        assert_eq!(Timestamp::new(i64::MIN, 0).to_millis(), i64::MIN);
     }
 }

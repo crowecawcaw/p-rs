@@ -7,9 +7,10 @@
   scripts/bench.py compare prs.json upstream.json
 
 `run` copies each project to a temp folder and runs `check` with a fixed test,
-schedule count and seed. prs has no compile step (`check` type-checks the
-sources itself); upstream P compiles each project once first, and that compile
-time is recorded separately. The seed fixes which
+schedule count and seed, with one worker (`--workers 1`, so that prs explores
+the schedules upstream does; `--workers N` measures N workers instead). prs has
+no compile step (`check` type-checks the sources itself); upstream P compiles
+each project once first, and that compile time is recorded separately. The seed fixes which
 schedules are explored, so between commits only the speed changes. For each
 workload it records the median wall-clock time of the check over --runs runs,
 the schedules explored, schedules per second (schedules / median time) and,
@@ -114,6 +115,8 @@ def run(opts):
                 if r.returncode != 0:
                     sys.exit(f"{project}: compile failed\n{r.stdout}{r.stderr}")
             args = ["check", "-tc", test, "-s", str(n), "--seed", str(SEED)]
+            if opts.tool != "upstream":
+                args += ["--workers", str(opts.workers)]
             times, schedules, bugs = [], None, None
             for i in range(opts.runs):
                 print(f"{name}: run {i + 1}/{opts.runs}", file=sys.stderr, flush=True)
@@ -157,6 +160,7 @@ def run(opts):
         "version": opts.version or "",
         "seed": SEED,
         "runs": opts.runs,
+        "workers": opts.workers if opts.tool != "upstream" else 1,
         "runner": {"os": platform.platform(), "cpu": cpu_model(), "cpus": os.cpu_count()},
         "total": {
             "check_s": round(sum(r["check_s"] for r in results), 4),
@@ -260,6 +264,8 @@ def main():
     r.add_argument("--commit", default="HEAD", help="commit the binary was built from (default HEAD)")
     r.add_argument("--out", required=True)
     r.add_argument("--runs", type=int, default=5)
+    r.add_argument("--workers", type=int, default=1,
+                   help="prs --workers (default 1: the schedules upstream explores, comparable with history)")
     r.add_argument("--instructions", action="store_true", help="also count instructions with cachegrind")
     r.add_argument("--only", nargs="*", help="run only workloads whose project name contains one of these")
     r.set_defaults(fn=run)

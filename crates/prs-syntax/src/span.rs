@@ -72,8 +72,9 @@ impl SourceFile {
             Err(i) => i - 1,
         };
         let line_start = self.line_starts[line] as usize;
-        // ANTLR columns count UTF-16 code units from zero; we count chars.
-        let col = self.text[line_start..(offset as usize).min(self.text.len())].chars().count();
+        // Upstream lexes a C# string, so ANTLR columns count UTF-16 code units.
+        let col: usize =
+            self.text[line_start..(offset as usize).min(self.text.len())].chars().map(char::len_utf16).sum();
         LineCol { line: line as u32 + 1, col: col as u32 + 1 }
     }
 
@@ -135,5 +136,18 @@ impl fmt::Display for Location {
             None => write!(f, "<no source>:{}:{}", self.line, self.col),
             Some(name) => write!(f, "{}:{}:{}", name, self.line, self.col),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn columns_count_utf16_code_units() {
+        let f = SourceFile::new("t.p", "é😀x\ny");
+        // `é` is one UTF-16 code unit and `😀` two, so `x` is at zero-based column 3.
+        assert_eq!(f.line_col(6), LineCol { line: 1, col: 4 });
+        assert_eq!(f.line_col(8), LineCol { line: 2, col: 1 });
     }
 }

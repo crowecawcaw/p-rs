@@ -114,3 +114,36 @@ fn missing_foreign_function_is_reported() {
     assert_eq!(r.report.num_bugs, 1);
     assert!(r.report.bug_reports[0].contains("System.NotImplementedException"), "{}", r.report.bug_reports[0]);
 }
+
+#[test]
+fn random_int_with_a_negative_maximum_throws() {
+    struct Negative;
+    impl ForeignFunctions for Negative {
+        fn call(
+            &self,
+            name: &str,
+            _owner: Option<&str>,
+            _args: &[Value],
+            cx: &mut ForeignCx,
+        ) -> Option<Result<Value, ForeignError>> {
+            (name == "Pick").then(|| cx.random_int(-1).map(|i| Value::Int(i as i64)))
+        }
+    }
+    let mut sm = prs_syntax::SourceMap::new();
+    sm.add(
+        "model.p",
+        "fun Pick(): int;
+         machine Main { start state S { entry { Pick(); } } }
+         test tc [main=Main]: { Main };"
+            .to_string(),
+    );
+    let a = prs_sema::compile(&sm, &prs_sema::Options::default()).unwrap_or_else(|_| panic!("compile"));
+    let tc = a.program.test_cases().into_iter().next().unwrap();
+    let checker = Checker::new(&a.program).with_foreign(Rc::new(Negative));
+    let r = checker.check(&tc, &CheckerOptions::default(), &mut Vec::<String>::new()).unwrap();
+    assert_eq!(r.report.num_bugs, 1);
+    let bug = &r.report.bug_reports[0];
+    assert!(bug.starts_with("Exception 'System.ArgumentOutOfRangeException' was thrown in Main(1)"), "{}", bug);
+    assert!(bug.contains("maxValue ('-1') must be a non-negative value."), "{}", bug);
+    assert!(bug.contains("from location 'System.Private.CoreLib'"), "{}", bug);
+}

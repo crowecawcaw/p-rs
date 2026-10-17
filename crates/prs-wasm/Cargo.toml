@@ -4,6 +4,8 @@ version.workspace = true
 publish = false
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 description = "WebAssembly build of the P tool: run `p check` in a browser or Node.js"
 
 [lib]

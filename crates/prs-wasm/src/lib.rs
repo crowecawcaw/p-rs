@@ -42,64 +42,14 @@ pub struct Response {
     pub files: BTreeMap<String, String>,
 }
 
+/// The embedder's clock.
 #[cfg(target_arch = "wasm32")]
-mod clock {
+fn now() -> f64 {
     #[link(wasm_import_module = "env")]
     extern "C" {
         fn prs_now() -> f64;
     }
-    pub fn now() -> f64 {
-        unsafe { prs_now() }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-mod clock {
-    pub fn now() -> f64 {
-        0.0
-    }
-}
-
-/// A [`MemHost`] whose clock reads the embedder's time.
-struct WasmHost(MemHost);
-
-impl Host for WasmHost {
-    fn write(&mut self, s: prs_compat::host::Stream, t: &str, c: Option<prs_compat::host::Color>) {
-        self.0.write(s, t, c)
-    }
-    fn cwd(&self) -> std::path::PathBuf {
-        self.0.cwd()
-    }
-    fn read_to_string(&self, p: &Path) -> std::io::Result<String> {
-        self.0.read_to_string(p)
-    }
-    fn write_file(&mut self, p: &Path, c: &str) -> std::io::Result<()> {
-        self.0.write_file(p, c)
-    }
-    fn is_file(&self, p: &Path) -> bool {
-        self.0.is_file(p)
-    }
-    fn is_dir(&self, p: &Path) -> bool {
-        self.0.is_dir(p)
-    }
-    fn read_dir(&self, p: &Path) -> std::io::Result<Vec<std::path::PathBuf>> {
-        self.0.read_dir(p)
-    }
-    fn create_dir_all(&mut self, p: &Path) -> std::io::Result<()> {
-        self.0.create_dir_all(p)
-    }
-    fn remove_dir_all(&mut self, p: &Path) -> std::io::Result<()> {
-        self.0.remove_dir_all(p)
-    }
-    fn rename(&mut self, a: &Path, b: &Path) -> std::io::Result<()> {
-        self.0.rename(a, b)
-    }
-    fn now(&self) -> f64 {
-        clock::now()
-    }
-    fn random_seed(&mut self) -> u32 {
-        self.0.random_seed()
-    }
+    unsafe { prs_now() }
 }
 
 /// Runs one request (usable natively too, e.g. for tests).
@@ -107,12 +57,16 @@ pub fn run(req: Request) -> Response {
     let cwd = req.cwd.unwrap_or_else(|| "/work".into());
     let mut mem = MemHost::new(&cwd);
     mem.seed = req.seed.unwrap_or(0);
-    for (path, text) in &req.files {
-        mem.add_file(path, text);
+    #[cfg(target_arch = "wasm32")]
+    {
+        mem.clock = now;
     }
-    let mut host = WasmHost(mem);
-    let exit_code = prs_compat::run(&req.args, &mut host);
-    let mem = host.0;
+    for (path, text) in &req.files {
+        if let Err(e) = mem.write_file(Path::new(path), text) {
+            return invalid_request(&format!("cannot add file {}: {}", path, e));
+        }
+    }
+    let exit_code = prs_compat::run(&req.args, &mut mem);
     let mut files = BTreeMap::new();
     for p in mem.files_under("/") {
         if let Ok(t) = mem.read_to_string(&p) {
@@ -122,16 +76,21 @@ pub fn run(req: Request) -> Response {
     Response { exit_code, stdout: mem.stdout, stderr: mem.stderr, files }
 }
 
+/// The response to a request that cannot be run: exit code 2 and the reason on stderr.
+fn invalid_request(reason: &str) -> Response {
+    Response {
+        exit_code: 2,
+        stdout: String::new(),
+        stderr: format!("invalid request: {}\n", reason),
+        files: BTreeMap::new(),
+    }
+}
+
 /// Runs a JSON request and returns the JSON response.
 pub fn run_json(input: &str) -> String {
     let resp = match serde_json::from_str::<Request>(input) {
         Ok(req) => run(req),
-        Err(e) => Response {
-            exit_code: 2,
-            stdout: String::new(),
-            stderr: format!("invalid request: {}\n", e),
-            files: BTreeMap::new(),
-        },
+        Err(e) => invalid_request(&e.to_string()),
     };
     serde_json::to_string(&resp).expect("serializable")
 }
@@ -193,5 +152,14 @@ mod tests {
         let trace = r.files.iter().find(|(k, _)| k.ends_with("_0_0.txt")).map(|(_, v)| v.clone()).unwrap();
         assert!(trace.contains("<ErrorLog> Assertion Failed: m.p:1:40 no"), "{}", trace);
         assert!(r.files.keys().any(|k| k.ends_with(".trace.json")));
+    }
+
+    #[test]
+    fn conflicting_files_are_an_invalid_request() {
+        let files =
+            BTreeMap::from([("/work/d".to_string(), String::new()), ("/work/d/f.p".to_string(), String::new())]);
+        let r = run(Request { args: vec!["check".into()], files, cwd: None, seed: None });
+        assert_eq!(r.exit_code, 2);
+        assert!(r.stderr.starts_with("invalid request: cannot add file /work/d/f.p: "), "{}", r.stderr);
     }
 }
