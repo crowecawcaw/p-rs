@@ -239,7 +239,7 @@ fn store_at(
         },
         PathElem::SeqIndex => match base {
             Value::Seq(s) => {
-                let i = key.map(|k| k.as_int()).unwrap_or(0);
+                let i = key.expect("sequence index").as_int();
                 if i < 0 || i as usize >= s.len() {
                     return Err(index_oor());
                 }
@@ -250,7 +250,7 @@ fn store_at(
         },
         PathElem::MapKey => match base {
             Value::Map(m) => {
-                Rc::make_mut(m).set(key.cloned().unwrap_or(Value::Null), rhs);
+                Rc::make_mut(m).set(key.expect("map key").clone(), rhs);
             }
             Value::Null => return Err(nre()),
             other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog)),
@@ -259,13 +259,15 @@ fn store_at(
     Ok(())
 }
 
+// The compiler balances the operand stack, so these never underflow.
+
 fn pop_n(stack: &mut Vec<Value>, n: usize) -> Vec<Value> {
-    let at = stack.len().saturating_sub(n);
+    let at = stack.len().checked_sub(n).expect("operand stack underflow");
     stack.split_off(at)
 }
 
 fn pop(stack: &mut Vec<Value>) -> Value {
-    stack.pop().unwrap_or(Value::Null)
+    stack.pop().expect("operand stack underflow")
 }
 
 /// Invalidates the enumerators of `foreach` loops over the variable just modified.
@@ -422,7 +424,7 @@ impl<'p> Runtime<'p> {
     }
 
     fn resume(&mut self, actor: Actor, exec: &mut Exec, p: Pending) -> Result<Flow, Fault> {
-        let Actor::Machine(m) = actor else { return Ok(Flow::Continue) };
+        let Actor::Machine(m) = actor else { unreachable!("monitors never reach a scheduling point") };
         match p {
             Pending::Create { machine, iface, payload } => {
                 let v = self.finish_create(m, machine, iface, payload);
@@ -436,12 +438,9 @@ impl<'p> Runtime<'p> {
                 Ok(Flow::Continue)
             }
             Pending::ReceiveWait { cases, exit } if self.timed() => self.do_receive(m, exec, cases, exit, true),
-            Pending::ReceiveWait { cases, exit } => {
-                let Some(e) = self.machines[m].received.take() else {
-                    // Spurious resume: keep waiting.
-                    exec.pending = Some(Pending::ReceiveWait { cases, exit });
-                    return Ok(Flow::Yield(SchedKind::Join));
-                };
+            Pending::ReceiveWait { cases, exit: _ } => {
+                // the operation is enabled again only by the event it waits for
+                let e = self.machines[m].received.take().expect("a blocked receive resumes with its event");
                 Ok(self.dispatch_receive(m, exec, &cases, e))
             }
             Pending::ReceiveFound { cases, exit: _, event } => Ok(self.dispatch_receive(m, exec, &cases, event)),
@@ -580,14 +579,14 @@ impl<'p> Runtime<'p> {
                 stack!().push(v);
             }
             Op::LoadGlobal(s) => {
-                let v = self.globals.get(s as usize).cloned().unwrap_or(Value::Null);
+                let v = self.globals[s as usize].clone();
                 stack!().push(v);
             }
             Op::Pop => {
                 pop(&mut stack!());
             }
             Op::Dup => {
-                let v = stack!().last().cloned().unwrap_or(Value::Null);
+                let v = stack!().last().expect("operand stack underflow").clone();
                 stack!().push(v);
             }
             Op::MakeTuple(n) => {
@@ -777,8 +776,7 @@ impl<'p> Runtime<'p> {
                 }
             }
             Op::Cast(ty) => {
-                let v = stack!().last().cloned().unwrap_or(Value::Null);
-                check_cast(&v, &ty, prog)?;
+                check_cast(stack!().last().expect("operand stack underflow"), &ty, prog)?;
             }
             Op::CoerceFloat => {
                 let v = pop(&mut stack!());

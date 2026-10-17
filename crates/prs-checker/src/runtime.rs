@@ -1930,10 +1930,8 @@ impl<'p> Runtime<'p> {
         let exec = self.new_exec(f, vec![arg]);
         match self.run_exec(Actor::Monitor(mon), exec)? {
             ExecOutcome::Finished(_) | ExecOutcome::Unwound => Ok(()),
-            ExecOutcome::Yield(_, _) => {
-                // Monitors cannot block; treat as completed.
-                Ok(())
-            }
+            // creating machines, sending and receiving throw in a monitor
+            ExecOutcome::Yield(..) => unreachable!("monitors never reach a scheduling point"),
         }
     }
 

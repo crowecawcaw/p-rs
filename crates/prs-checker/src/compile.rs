@@ -146,14 +146,13 @@ impl<'a> Compiler<'a> {
                 }
                 self.emit(Op::Return);
             }
+            // the type checker rejects `break` and `continue` outside a loop
             StmtKind::Break => {
                 let at = self.emit(Op::Jump(0));
-                if let Some(l) = self.loops.last_mut() {
-                    l.break_patches.push(at);
-                }
+                self.loops.last_mut().expect("break outside a loop").break_patches.push(at);
             }
             StmtKind::Continue => {
-                let target = self.loops.last().map(|l| l.continue_target).unwrap_or(0) as u32;
+                let target = self.loops.last().expect("continue outside a loop").continue_target as u32;
                 self.emit(Op::Jump(target));
             }
             StmtKind::Assign { lhs, rhs } => {
