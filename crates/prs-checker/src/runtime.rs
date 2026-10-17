@@ -333,15 +333,15 @@ pub const P_CHECKER_CORE: &str = "PCheckerCore";
 
 impl Exception {
     /// An exception with the source upstream reports for its type: collection errors come
-    /// from the base library, division by zero from the P runtime, the rest (null
-    /// dereferences and casts in generated code, foreign code) from the project.
+    /// from the base library, integer division errors from the P runtime (`PInt`), the rest
+    /// (null dereferences and casts in generated code, foreign code) from the project.
     pub fn new(ty: impl Into<std::borrow::Cow<'static, str>>, message: impl Into<String>) -> Exception {
         let ty = ty.into();
         let source = match ty.as_ref() {
             "System.Collections.Generic.KeyNotFoundException"
             | "System.ArgumentOutOfRangeException"
             | "System.ArgumentException" => Some(CORE_LIB),
-            "System.DivideByZeroException" => Some(P_CHECKER_CORE),
+            "System.DivideByZeroException" | "System.OverflowException" => Some(P_CHECKER_CORE),
             _ => None,
         };
         Exception { ty, message: message.into(), source }

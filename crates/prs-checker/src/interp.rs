@@ -85,6 +85,11 @@ fn div_zero() -> Exception {
     Exception::new("System.DivideByZeroException", "Attempted to divide by zero.")
 }
 
+/// `long.MinValue / -1` (and `% -1`), which .NET does not wrap.
+fn overflow() -> Exception {
+    Exception::new("System.OverflowException", "Arithmetic operation resulted in an overflow.")
+}
+
 fn modified() -> Exception {
     Exception::new(
         "System.InvalidOperationException",
@@ -290,20 +295,15 @@ fn arith(op: BinOp, a: Value, b: Value) -> Result<Value, Exception> {
             if *y == 0 {
                 return Err(div_zero());
             }
-            Int(x.wrapping_div(*y))
+            Int(x.checked_div(*y).ok_or_else(overflow)?)
         }
         (BinOp::Mod, Int(x), Int(y)) => {
             if *y == 0 {
                 return Err(div_zero());
             }
-            Int(x.wrapping_rem(*y))
+            Int(x.checked_rem(*y).ok_or_else(overflow)?)
         }
-        (BinOp::Add, Str(x), _) | (BinOp::Add, _, Str(x)) if matches!((&a, &b), (Str(_), Str(_))) => {
-            let _ = x;
-            let Str(y) = &b else { unreachable!() };
-            let Str(x) = &a else { unreachable!() };
-            Str(Rc::from(format!("{}{}", x, y)))
-        }
+        (BinOp::Add, Str(x), Str(y)) => Str(Rc::from(format!("{}{}", x, y))),
         (BinOp::Add, _, _) => Float(a.as_float() + b.as_float()),
         (BinOp::Sub, _, _) => Float(a.as_float() - b.as_float()),
         (BinOp::Mul, _, _) => Float(a.as_float() * b.as_float()),
@@ -1369,4 +1369,23 @@ fn foreign_missing(name: &str) -> Exception {
         "System.NotImplementedException",
         format!("foreign function '{}' has no implementation registered with the checker", name),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn integer_division_overflow_throws() {
+        for op in [BinOp::Div, BinOp::Mod] {
+            let e = arith(op, Value::Int(i64::MIN), Value::Int(-1)).unwrap_err();
+            assert_eq!(e.ty, "System.OverflowException");
+            assert_eq!(e.message, "Arithmetic operation resulted in an overflow.");
+            assert_eq!(e.source, Some(crate::runtime::P_CHECKER_CORE));
+        }
+        assert_eq!(arith(BinOp::Div, Value::Int(i64::MIN + 1), Value::Int(-1)).unwrap(), Value::Int(i64::MAX));
+        assert_eq!(arith(BinOp::Mod, Value::Int(-7), Value::Int(-1)).unwrap(), Value::Int(0));
+        // the other operations wrap, as unchecked C# arithmetic does
+        assert_eq!(arith(BinOp::Mul, Value::Int(i64::MIN), Value::Int(-1)).unwrap(), Value::Int(i64::MIN));
+    }
 }
