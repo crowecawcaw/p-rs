@@ -13,5 +13,4 @@ npm run build    # production build in dist/
 - Demo models come straight from the repository (`tests/upstream/Tutorial`,
   `design/time/RetryBudget`, `web/demos`); see `src/demos.ts`.
 - Projects are compiled with `p compile -pf <every .p file>`, so `.pproj` files are not used.
-- Share links hold the whole project, deflated, in the URL hash.
 - `.github/workflows/pages.yml` publishes `main` to GitHub Pages and maintainer PRs to `pr/<number>/`.

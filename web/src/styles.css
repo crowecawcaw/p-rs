@@ -111,8 +111,8 @@ input[type="number"] { width: 100%; }
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
 .logo {
-  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px;
-  background: var(--accent); color: var(--accent-fg); font-family: var(--mono); font-size: 15px;
+  display: inline-grid; place-items: center; height: 28px; padding: 0 8px; border-radius: 7px;
+  background: var(--accent); color: var(--accent-fg); font: 700 14px var(--mono); letter-spacing: -0.02em;
 }
 .demo-select { min-width: 0; max-width: 280px; font-weight: 600; }
 .spacer { flex: 1; }
@@ -181,6 +181,10 @@ button.diag {
   text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--bad) 40%, transparent);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; min-width: 0; flex: 1;
 }
+.bug-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); margin-left: 6px; vertical-align: 1px; }
+.goto-short { display: none; }
+.log-downloads { display: flex; align-items: center; gap: 4px; padding: 6px var(--g) 0; font-size: 13px; color: var(--muted); }
+.log-downloads .downloads { margin-left: 0; }
 .downloads { margin-left: auto; display: flex; gap: 2px; align-items: center; }
 .download { text-decoration: none; font-size: 12px; padding: 8px; min-height: 32px; display: inline-flex; align-items: center; border-radius: 6px; color: var(--muted); }
 .download:hover { color: var(--accent); background: var(--active-line); }
@@ -271,32 +275,48 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
 .legend svg { flex-shrink: 0; }
 .zoom-controls .zoom-level { font-size: 12px; min-width: 52px; font-variant-numeric: tabular-nums; color: var(--muted); }
 
-.toast {
-  position: fixed; bottom: 88px; left: 50%; transform: translateX(-50%); z-index: 20;
-  background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px;
-}
-
 @media (max-width: 900px) {
-  /* Phones: one column. The page scrolls; the trace and console scroll inside their panel. */
-  .app { height: auto; min-height: 100%; padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
-  body { font-size: 15px; }
+  /* Phones: an app-height column. Header, blurb and options on top; then tabs
+     (Files / Console / Trace / Log) sharing one panel; Check docked at the bottom. */
+  .app { height: 100vh; height: 100dvh; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  body { font-size: 15px; background: var(--panel); }
   button, .button, select, input { min-height: 44px; font-size: 16px; }
-  .top { height: auto; min-height: 56px; gap: 8px; padding: 8px var(--g); }
-  .top .ghost { min-height: 40px; padding: 0 10px; font-size: 15px; }
-  .brand { font-size: 17px; }
-  .demo-select { max-width: 320px; }
-  button.diag { font-size: 13px; }
+  .top { height: 56px; gap: 10px; padding: 0 calc(var(--g) - 6px) 0 var(--g); }
+  .brand-name { display: none; }
+  .demo-select { flex: 1; min-width: 0; max-width: none; }
+  .top .spacer { display: none; }
+  .top .ghost { min-height: 40px; padding: 0 8px; font-size: 15px; }
   .blurb { font-size: 14px; line-height: 1.5; }
   .blurb p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .blurb.open p { display: block; }
-  .blurb button.more { display: inline-flex; border: none; background: none; color: var(--accent); padding: 0 4px; min-height: 0; font-size: 14px; align-self: flex-end; }
-  .panes { grid-template-columns: minmax(0, 1fr); }
-  .editor-pane { border-right: none; border-bottom: 1px solid var(--border); height: 46vh; height: 46dvh; }
+  .blurb button.more { display: inline-flex; border: none; background: none; color: var(--accent); padding: 8px; margin: -8px -8px -8px 0; min-height: 0; font-size: 14px; align-self: flex-end; }
+
+  .panes { display: flex; flex-direction: column; }
+  .run-pane { display: contents; }
+  /* Navigation first: tabs (with the options toggle) right under the header. */
+  .out-head { order: 1; }
+  .controls { order: 2; padding: 0 var(--g); border-bottom: none; }
+  .controls.options-open { padding: 4px var(--g) 8px; border-bottom: 1px solid var(--border); }
+  .options summary { display: none; }
+  .out-tabs { padding-right: 4px; }
+  .out-tab.gear { margin-left: auto; color: var(--muted); padding: 0 10px; }
+  .out-tab.gear.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .gh-text { display: none; }
+  .top .gh { min-width: 44px; padding: 0; }
+  .status-line { padding-top: 8px; }
+  .goto-long { display: none; }
+  .goto-short { display: inline; }
+  .trace-error { display: flex; align-items: center; gap: 8px; }
+  .trace-error:not(.open) .trace-error-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trace-error button.link { flex-shrink: 0; white-space: nowrap; }
+  .editor-pane, .output { order: 3; flex: 1; min-height: 0; }
+  .editor-pane { border-right: none; }
+  .panes:not(.tab-files) .editor-pane { display: none; }
+  .panes.tab-files .output { display: none; }
+
   .file-tab, .out-tab { min-height: 44px; font-size: 14px; padding: 0 12px; }
   .file-tab .dir { display: none; }
-  .controls { padding: 12px var(--g); }
   .controls label { font-size: 13px; }
-  /* The run bar is pinned to the bottom of the screen. */
   .run-bar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
     padding: 10px var(--g) calc(10px + env(safe-area-inset-bottom));
@@ -305,49 +325,36 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
   }
   .run-bar .lbl { display: none; }
   .run-bar .run { min-height: 44px; }
-  .options summary { font-size: 14px; min-height: 32px; display: flex; align-items: center; }
-  .options summary .muted { overflow: hidden; text-overflow: ellipsis; margin-left: 4px; }
-  .options-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .options[open] { max-height: 45dvh; overflow: auto; }
+  .options-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-bottom: 8px; }
   .controls label.check { min-height: 44px; font-size: 15px; }
   .controls label.check input { width: 20px; height: 20px; }
-  .run-pane .output { height: calc(100vh - 170px); height: calc(100dvh - 170px - env(safe-area-inset-bottom)); flex: none; }
+  .status-line { flex-wrap: wrap; }
+  button.diag { font-size: 13px; flex-basis: 100%; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
   .trace-controls { gap: 4px; }
   .trace-controls .jump { display: none; }
   .trace-controls input[type="range"] { height: 32px; }
-  .trace-error { cursor: pointer; }
-  .trace-error:not(.open) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .trace-controls button { min-width: 40px; padding: 0 8px; }
+  .trace-controls button.primary { min-width: 60px; }
+  .trace-error { cursor: pointer; font-size: 13px; }
+  .trace-error button.link { padding: 10px 0 10px 8px; margin: -10px 0; }
   .zoom-controls { right: 8px; bottom: 8px; box-shadow: none; opacity: 0.94; }
   .zoom-controls button { min-height: 34px; height: 34px; min-width: 36px; font-size: 15px; }
   .zoom-controls .zoom-level { min-width: 46px; font-size: 12px; }
   .zoom-controls .key-toggle { font-size: 12px; padding: 0 10px; }
-  body { background: var(--panel); }
-  .console { white-space: pre; overflow-x: auto; word-break: normal; }
+  .console { white-space: pre; overflow-x: auto; word-break: normal; font-size: 12.5px; }
   .console .summary, .console.empty { white-space: pre-wrap; }
-  .trace-error button.link { padding: 10px 0 10px 8px; margin: -10px 0; }
-  .options summary { min-height: 40px; }
-  .blurb button.more { padding: 8px; margin: -8px -8px -8px 0; }
-  .status-line { flex-wrap: wrap; }
-  button.diag { flex-basis: 100%; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .trace-controls button { min-width: 40px; padding: 0 8px; }
-  .trace-controls button.primary { min-width: 60px; }
-  .trace-error { font-size: 13px; }
-  .console { font-size: 12.5px; }
   .editor { --editor-font: 12.5px; }
 }
 
-@media (max-width: 600px) {
-  .top { flex-wrap: wrap; }
-  .demo-select { order: 3; flex-basis: 100%; max-width: none; }
-}
-
-/* Landscape phones: keep Check docked but compact, and size the output so the
-   status stays visible above the trace. */
+/* Landscape phones: compact chrome so the panel keeps some height. */
 @media (max-width: 900px) and (max-height: 500px) {
   .app { padding-bottom: 56px; }
+  .top { height: 48px; }
+  .blurb { display: none; }
   .run-bar { padding: 6px var(--g); box-shadow: none; }
   .run-bar select, .run-bar .run { min-height: 40px; }
-  .run-pane .output { height: calc(100vh - 140px); height: calc(100dvh - 140px); }
-  .editor-pane { height: calc(100dvh - 60px); }
   .step-detail { display: none; }
   .trace-error:not(.open) { padding-top: 6px; padding-bottom: 6px; }
 }

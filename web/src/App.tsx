@@ -3,10 +3,10 @@ import { DEMOS, loadDemo, sortPaths, type Demo } from "./demos";
 import { PEditor } from "./editor/PEditor";
 import type { CheckResult, Diagnostic, Files } from "./protocol";
 import { Runner } from "./runner";
-import { decodeShare, encodeShare } from "./share";
 import { TraceView } from "./trace/TraceView";
 
-type Tab = "console" | "trace" | "log";
+/** Output tabs. "files" is the editor, which is a tab only on phones. */
+type Tab = "files" | "console" | "trace" | "log";
 
 const STRATEGIES: { label: string; args: string[] }[] = [
   { label: "random", args: [] },
@@ -18,7 +18,8 @@ const STRATEGIES: { label: string; args: string[] }[] = [
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 const splitArgs = (s: string) => s.split(/\s+/).filter(Boolean);
 const REPO = "https://github.com/crowecawcaw/p-rs";
-const WIDE = "(min-width: 901px)";
+const NARROW = "(max-width: 900px)";
+const TAB_LABEL: Record<Tab, string> = { files: "Files", console: "Console", trace: "Trace", log: "Log" };
 
 export function App() {
   const runner = useMemo(() => new Runner(), []);
@@ -38,9 +39,9 @@ export function App() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<CheckResult>();
   const [runError, setRunError] = useState<string>();
-  const [tab, setTab] = useState<Tab>("console");
+  const [narrow, setNarrow] = useState(() => matchMedia(NARROW).matches);
+  const [tab, setTab] = useState<Tab>(() => (matchMedia(NARROW).matches ? "files" : "console"));
   const [jump, setJump] = useState<{ line: number; nonce: number }>();
-  const [toast, setToast] = useState<string>();
   const [loaded, setLoaded] = useState(false);
   const edited = useRef(false);
   const [blurbOpen, setBlurbOpen] = useState(false);
@@ -59,7 +60,7 @@ export function App() {
     setStrategy(0);
     setResult(undefined);
     setRunError(undefined);
-    setTab("console");
+    setTab(matchMedia(NARROW).matches ? "files" : "console");
     edited.current = false;
   }, []);
 
@@ -74,25 +75,22 @@ export function App() {
     return () => ro.disconnect();
   }, [demo]);
 
-  // Initial load: a share link, ?demo=<id>, or the first demo.
+  // Phones show the editor as a tab; wider screens show it beside the output.
   useEffect(() => {
-    (async () => {
-      const shared = await decodeShare(location.hash);
-      if (shared) {
-        const d = DEMOS.find((x) => x.id === shared.demo);
-        if (d) setDemo(d);
-        setFiles(shared.files);
-        setOpen(shared.open && shared.files[shared.open] !== undefined ? shared.open : sortPaths(Object.keys(shared.files))[0]);
-        if (shared.testCase) setTestCase(shared.testCase);
-        if (shared.schedules) setSchedules(shared.schedules);
-        setExtraArgs(shared.extraArgs ?? "");
-        edited.current = true;
-      } else {
-        const id = new URLSearchParams(location.search).get("demo");
-        applyDemo(DEMOS.find((d) => d.id === id) ?? DEMOS[0]);
-      }
-      setLoaded(true);
-    })();
+    const mq = matchMedia(NARROW);
+    const on = () => {
+      setNarrow(mq.matches);
+      if (!mq.matches) setTab((t) => (t === "files" ? "console" : t));
+    };
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
+  // Initial load: ?demo=<id>, or the first demo.
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("demo");
+    applyDemo(DEMOS.find((d) => d.id === id) ?? DEMOS[0]);
+    setLoaded(true);
   }, [applyDemo]);
 
   // Compile shortly after each edit: diagnostics and the list of test cases.
@@ -137,8 +135,6 @@ export function App() {
       setResult(r);
       if (r.diagnostics.length) setDiagnostics(r.diagnostics);
       setTab(r.bug && r.traceJson ? "trace" : "console");
-      // Phones: the output is the last thing on the page; bring all of it into view.
-      if (!matchMedia(WIDE).matches) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
     } catch (e) {
       const msg = String((e as Error).message ?? e);
       setRunError(msg === "cancelled" ? "Stopped." : `The checker crashed: ${msg}`);
@@ -156,26 +152,10 @@ export function App() {
       if (!match) return;
       setOpen(match);
       setJump({ line, nonce: Date.now() });
+      if (matchMedia(NARROW).matches) setTab("files");
     },
     [files],
   );
-
-  const share = async () => {
-    const hash = await encodeShare({ demo: demo.id, files, open, testCase, schedules, extraArgs });
-    const url = `${location.origin}${location.pathname}${hash}`;
-    history.replaceState(null, "", hash);
-    try {
-      await navigator.clipboard.writeText(url);
-      flash("Link copied to clipboard");
-    } catch {
-      flash("Link is in the address bar");
-    }
-  };
-
-  const flash = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(undefined), 2200);
-  };
 
   const pickDemo = (id: string) => {
     if (edited.current && !confirm("Discard your edits and load another demo?")) return;
@@ -204,25 +184,45 @@ export function App() {
     ? "Checking…"
     : runError
       ? runError
-      : result
-        ? !result.ok
-          ? "Compile error"
-          : result.bug
+      : compileOk === false || (result && !result.ok)
+        ? "Compile error"
+        : result
+          ? result.bug
             ? "Bug found"
             : `No bugs in ${schedules} schedules`
-        : compileOk === false
-          ? "Compile error"
           : compileOk
             ? "Ready"
             : "Loading…";
-  const statusClass = running ? "" : result?.bug || compileOk === false || (result && !result.ok) ? "bad" : result?.ok ? "good" : "";
+  const statusClass = running ? "" : compileOk === false || result?.bug || (result && !result.ok) ? "bad" : result?.ok ? "good" : "";
+
+  const blurb = (
+    <div className={blurbOpen ? "blurb open" : "blurb"}>
+      <p ref={blurbRef}>{demo.blurb}</p>
+      {(blurbClamped || blurbOpen) && (
+        <button className="more" onClick={() => setBlurbOpen(!blurbOpen)}>
+          {blurbOpen ? "less" : "more"}
+        </button>
+      )}
+    </div>
+  );
+  const compileErr = !running && (compileOk === false || (result !== undefined && !result.ok)) && diagnostics.length > 0;
+  // Phones: the tabs carry the result (Trace dot, console verdict); show the row only for
+  // progress and errors.
+  const showStatus = narrow ? running || !!runError || compileErr : running || !!result || !!runError || compileOk === false;
+  const downloads = result?.schedule && !running && (
+    <span className="downloads">
+      <Download name={`${result.testCase}.schedule`} text={result.schedule} />
+      {result.traceText && <Download name={`${result.testCase}.txt`} text={result.traceText} />}
+      {result.traceJson && <Download name={`${result.testCase}.trace.json`} text={result.traceJson} />}
+    </span>
+  );
 
   return (
     <div className="app">
       <header className="top">
         <div className="brand">
-          <span className="logo">P</span>
-          <span>Playground</span>
+          <span className="logo">p-rs</span>
+          <span className="brand-name">Playground</span>
         </div>
         <select className="demo-select" value={demo.id} onChange={(e) => pickDemo(e.target.value)} aria-label="Demo">
           {DEMOS.map((d) => (
@@ -232,30 +232,19 @@ export function App() {
           ))}
         </select>
         <div className="spacer" />
-        <button className="ghost" onClick={share}>
-          Share
-        </button>
-        <a className="button ghost" href={REPO} target="_blank" rel="noreferrer">
-          GitHub
+        <a className="button ghost gh" href={REPO} target="_blank" rel="noreferrer" aria-label="GitHub">
+          <svg width="20" height="20" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+          <span className="gh-text">GitHub</span>
         </a>
       </header>
 
-      <div className={blurbOpen ? "blurb open" : "blurb"}>
-        <p ref={blurbRef}>
-          {demo.blurb}{" "}
-          <span className="muted">
-            Runs entirely in your browser: the <a href={REPO}>Rust P toolchain</a> compiled to WebAssembly.
-          </span>
-        </p>
-        {(blurbClamped || blurbOpen) && (
-          <button className="more" onClick={() => setBlurbOpen(!blurbOpen)}>
-            {blurbOpen ? "less" : "more"}
-          </button>
-        )}
-      </div>
+      {!narrow && blurb}
 
-      <main className="panes">
+      <main className={`panes tab-${tab}`}>
         <section className="pane editor-pane">
+          {narrow && blurb}
           <div className="file-tabs" role="tablist">
             {paths.map((p) => {
               const slash = p.lastIndexOf("/");
@@ -295,7 +284,7 @@ export function App() {
         </section>
 
         <section className="pane run-pane">
-          <div className="controls">
+          <div className={optionsOpen ? "controls options-open" : "controls"}>
             <div className="run-bar">
               <label className="tc">
                 <span className="lbl">Test case</span>
@@ -396,20 +385,38 @@ export function App() {
 
           <div className="out-head">
             <div className="out-tabs" role="tablist">
-              {(["console", "trace", "log"] as Tab[]).map((t) => (
+              {((narrow ? ["files", "console", "trace", "log"] : ["console", "trace", "log"]) as Tab[]).map((t) => (
                 <button
                   key={t}
                   role="tab"
                   aria-selected={tab === t}
                   className={tab === t ? "out-tab active" : "out-tab"}
                   onClick={() => setTab(t)}
-                  disabled={t !== "console" && !result?.traceJson}
+                  disabled={(t === "trace" || t === "log") && !result?.traceJson}
                 >
-                  {t === "console" ? "Console" : t === "trace" ? "Trace" : "Log"}
+                  {TAB_LABEL[t]}
+                  {t === "files" && diagnostics.length > 0 && <span className="badge">{diagnostics.length}</span>}
+                  {t === "trace" && result?.bug && <span className="bug-dot" aria-label="bug found" />}
                 </button>
               ))}
+              {narrow && (
+                <button
+                  className={optionsOpen ? "out-tab gear active" : "out-tab gear"}
+                  onClick={() => setOptionsOpen(!optionsOpen)}
+                  aria-expanded={optionsOpen}
+                  aria-label="Checker options"
+                  title="Checker options"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
+                    <circle cx="16" cy="6" r="2" />
+                    <circle cx="10" cy="12" r="2" />
+                    <circle cx="18" cy="18" r="2" />
+                  </svg>
+                </button>
+              )}
             </div>
-            {(running || result || runError || compileOk === false) && (
+            {showStatus && (
             <div className="status-line">
               <span className={`status ${statusClass}`}>{status}</span>
               {!running && (compileOk === false || (result && !result.ok)) && diagnostics[0] && (
@@ -417,14 +424,8 @@ export function App() {
                   {diagnostics[0].file}:{diagnostics[0].line} {diagnostics[0].message}
                 </button>
               )}
-              {result && !running && <span className="muted">{(result.millis / 1000).toFixed(2)} s</span>}
-              {result?.schedule && !running && (
-                <span className="downloads">
-                  <Download name={`${result.testCase}.schedule`} text={result.schedule} />
-                  {result.traceText && <Download name={`${result.testCase}.txt`} text={result.traceText} />}
-                  {result.traceJson && <Download name={`${result.testCase}.trace.json`} text={result.traceJson} />}
-                </span>
-              )}
+              {result && !running && !compileErr && <span className="muted">{(result.millis / 1000).toFixed(2)} s</span>}
+              {!narrow && downloads}
             </div>
             )}
           </div>
@@ -440,11 +441,11 @@ export function App() {
               />
             )}
             {tab === "trace" && result?.traceJson && <TraceView json={result.traceJson} onOpenLocation={openLocation} />}
+            {tab === "log" && narrow && downloads && <div className="log-downloads">Download {downloads}</div>}
             {tab === "log" && result?.traceText && <Console text={result.traceText} onOpenLocation={openLocation} />}
           </div>
         </section>
       </main>
-      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }

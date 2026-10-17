@@ -39,7 +39,9 @@ export function TraceView({ json, onOpenLocation }: Props) {
     <div className="trace">
       {trace.error && (
         <div className={bannerOpen ? "trace-error open" : "trace-error"} onClick={() => setBannerOpen(!bannerOpen)}>
-          <strong>Bug:</strong> {trace.error}
+          <span className="trace-error-text">
+            <strong>Bug:</strong> {trace.error}
+          </span>
           {loc && (
             <button
               className="link"
@@ -48,7 +50,8 @@ export function TraceView({ json, onOpenLocation }: Props) {
                 onOpenLocation(loc[1], Number(loc[2]));
               }}
             >
-              Go to {loc[1]}:{loc[2]}
+              <span className="goto-long">Go to {loc[1]}:{loc[2]}</span>
+              <span className="goto-short">line {loc[2]} →</span>
             </button>
           )}
         </div>
