@@ -2,8 +2,8 @@
 
 use crate::ast::*;
 use crate::span::{FileId, Span};
-use crate::token::{Token, TokenKind};
 use crate::token::TokenKind as T;
+use crate::token::{Token, TokenKind};
 
 /// A syntax error. `message` follows the ANTLR style used upstream
 /// (`mismatched input 'x' expecting 'y'`).
@@ -24,8 +24,24 @@ pub fn parse(file: FileId, text: &str) -> PResult<Program> {
 
 /// Tokens that can start a statement (`statement` in `PParser.g4`).
 const STMT_STARTS: &[TokenKind] = &[
-    T::LBrace, T::Assert, T::Assume, T::Print, T::Return, T::Break, T::Continue, T::Iden, T::While,
-    T::Foreach, T::If, T::New, T::Raise, T::Send, T::Announce, T::Goto, T::Receive, T::Semi,
+    T::LBrace,
+    T::Assert,
+    T::Assume,
+    T::Print,
+    T::Return,
+    T::Break,
+    T::Continue,
+    T::Iden,
+    T::While,
+    T::Foreach,
+    T::If,
+    T::New,
+    T::Raise,
+    T::Send,
+    T::Announce,
+    T::Goto,
+    T::Receive,
+    T::Semi,
 ];
 
 /// Appends the comments in `gap` (text between two tokens), which ANTLR keeps
@@ -532,7 +548,11 @@ impl<'a> Parser<'a> {
                 T::Sub => {
                     self.bump();
                     let n = self.expect(T::IntLiteral)?;
-                    v.push(SeqPrimitive::Int { negative: true, text: self.tok_text(n).to_string(), span: t.span.to(n.span) });
+                    v.push(SeqPrimitive::Int {
+                        negative: true,
+                        text: self.tok_text(n).to_string(),
+                        span: t.span.to(n.span),
+                    });
                 }
                 _ => return self.no_viable(),
             }
@@ -1249,7 +1269,11 @@ impl<'a> Parser<'a> {
                     self.bump();
                     let index = self.expr()?;
                     let end = self.expect(T::RBrack)?.span;
-                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end), inner: start.to(end) };
+                    e = Expr {
+                        kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) },
+                        span: start.to(end),
+                        inner: start.to(end),
+                    };
                 }
                 _ => break,
             }
@@ -1329,7 +1353,11 @@ impl<'a> Parser<'a> {
             self.bump();
             let rhs = self.binary(level + 1)?;
             let sp = lhs.span.to(rhs.span);
-            lhs = Expr { kind: ExprKind::Binary { op, op_span: t.span, lhs: Box::new(lhs), rhs: Box::new(rhs) }, span: sp, inner: sp };
+            lhs = Expr {
+                kind: ExprKind::Binary { op, op_span: t.span, lhs: Box::new(lhs), rhs: Box::new(rhs) },
+                span: sp,
+                inner: sp,
+            };
         }
         Ok(lhs)
     }
@@ -1394,13 +1422,21 @@ impl<'a> Parser<'a> {
                     self.bump();
                     let target = self.postfix()?;
                     let sp = start.to(target.span);
-                    e = Expr { kind: ExprKind::Targets { instance: Box::new(e), target: Box::new(target) }, span: sp, inner: sp };
+                    e = Expr {
+                        kind: ExprKind::Targets { instance: Box::new(e), target: Box::new(target) },
+                        span: sp,
+                        inner: sp,
+                    };
                 }
                 T::LBrack => {
                     self.bump();
                     let index = self.expr()?;
                     let end = self.expect(T::RBrack)?.span;
-                    e = Expr { kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) }, span: start.to(end), inner: start.to(end) };
+                    e = Expr {
+                        kind: ExprKind::Index { base: Box::new(e), index: Box::new(index) },
+                        span: start.to(end),
+                        inner: start.to(end),
+                    };
                 }
                 _ => break,
             }
@@ -1516,7 +1552,12 @@ impl<'a> Parser<'a> {
             }
             T::StringLiteral => {
                 self.bump();
-                ExprKind::Str { raw: self.tok_text(t).to_string(), raw_span: t.span, args: Vec::new(), is_format: false }
+                ExprKind::Str {
+                    raw: self.tok_text(t).to_string(),
+                    raw_span: t.span,
+                    args: Vec::new(),
+                    is_format: false,
+                }
             }
             T::Format => {
                 self.bump();
@@ -1589,7 +1630,8 @@ mod tests {
 
     #[test]
     fn parses_precedence() {
-        let p = parse(FileId(0), "machine M { start state S { entry { x = -a.0 * b + c as int < d && e || f; } } }").unwrap();
+        let p = parse(FileId(0), "machine M { start state S { entry { x = -a.0 * b + c as int < d && e || f; } } }")
+            .unwrap();
         let TopDecl::Machine(m) = &p.decls[0] else { panic!() };
         let StateItemKind::Entry(Handler::Anon(h)) = &m.states[0].items[0].kind else { panic!() };
         let StmtKind::Assign { rhs, .. } = &h.body.stmts[0].kind else { panic!() };
@@ -1608,8 +1650,12 @@ mod tests {
         let p = parse(FileId(0), "fun f() { x = (1,); y = (a=1, b=2.5); z = (1); w = .5; }").unwrap();
         let TopDecl::Fun(f) = &p.decls[0] else { panic!() };
         let b = f.body.as_ref().unwrap();
-        assert!(matches!(&b.stmts[0].kind, StmtKind::Assign { rhs, .. } if matches!(rhs.kind, ExprKind::UnnamedTuple(_))));
-        assert!(matches!(&b.stmts[1].kind, StmtKind::Assign { rhs, .. } if matches!(rhs.kind, ExprKind::NamedTuple(_))));
+        assert!(
+            matches!(&b.stmts[0].kind, StmtKind::Assign { rhs, .. } if matches!(rhs.kind, ExprKind::UnnamedTuple(_)))
+        );
+        assert!(
+            matches!(&b.stmts[1].kind, StmtKind::Assign { rhs, .. } if matches!(rhs.kind, ExprKind::NamedTuple(_)))
+        );
         assert!(matches!(&b.stmts[2].kind, StmtKind::Assign { rhs, .. } if matches!(rhs.kind, ExprKind::IntLit(_))));
         assert!(matches!(&b.stmts[3].kind, StmtKind::Assign { rhs, .. } if matches!(rhs.kind, ExprKind::FloatLit(_))));
     }

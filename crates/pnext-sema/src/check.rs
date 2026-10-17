@@ -261,7 +261,12 @@ impl<'a> Analyzer<'a> {
                         }
                     },
                     _ => {
-                        let d = self.e.type_mismatch_kinds(b.span, &b.ty, &[TypeKind::NamedTuple, TypeKind::Base], &self.prog);
+                        let d = self.e.type_mismatch_kinds(
+                            b.span,
+                            &b.ty,
+                            &[TypeKind::NamedTuple, TypeKind::Base],
+                            &self.prog,
+                        );
                         self.report(d)?;
                         Ok(err_expr(span))
                     }
@@ -278,7 +283,8 @@ impl<'a> Analyzer<'a> {
                     return Ok(err_expr(span));
                 };
                 let PType::Tuple(ts) = b.ty.canonicalize(&self.prog) else {
-                    let d = self.e.type_mismatch_kinds(b.span, &b.ty, &[TypeKind::Tuple, TypeKind::NamedTuple], &self.prog);
+                    let d =
+                        self.e.type_mismatch_kinds(b.span, &b.ty, &[TypeKind::Tuple, TypeKind::NamedTuple], &self.prog);
                     self.report(d)?;
                     return Ok(err_expr(span));
                 };
@@ -316,7 +322,8 @@ impl<'a> Analyzer<'a> {
                         Ok(expr(ExprKind::SetAccess { base: Box::new(b), index: Box::new(i) }, *el, span))
                     }
                     _ => {
-                        let d = self.e.type_mismatch_kinds(b.span, &b.ty, &[TypeKind::Sequence, TypeKind::Map], &self.prog);
+                        let d =
+                            self.e.type_mismatch_kinds(b.span, &b.ty, &[TypeKind::Sequence, TypeKind::Map], &self.prog);
                         self.report(d)?;
                         Ok(err_expr(span))
                     }
@@ -418,7 +425,8 @@ impl<'a> Analyzer<'a> {
                         if !PType::Int.is_assignable_from(&x.ty, &self.prog)
                             && !PType::Float.is_assignable_from(&x.ty, &self.prog)
                         {
-                            let d = self.e.type_mismatch(operand.span, &x.ty, &[&PType::Int, &PType::Float], &self.prog);
+                            let d =
+                                self.e.type_mismatch(operand.span, &x.ty, &[&PType::Int, &PType::Float], &self.prog);
                             self.report(d)?;
                             return Ok(err_expr(span));
                         }
@@ -535,7 +543,9 @@ impl<'a> Analyzer<'a> {
         }
         let prog = &self.prog;
         let both = |t: &PType| t.is_assignable_from(&l.ty, prog) && t.is_assignable_from(&r.ty, prog);
-        let bin = |op: BinOp, ty: PType, l: Expr, r: Expr| expr(ExprKind::Binary { op, lhs: Box::new(l), rhs: Box::new(r) }, ty, span);
+        let bin = |op: BinOp, ty: PType, l: Expr, r: Expr| {
+            expr(ExprKind::Binary { op, lhs: Box::new(l), rhs: Box::new(r) }, ty, span)
+        };
         match op {
             ast::BinOp::Add => {
                 if both(&PType::String) || both(&PType::Int) || both(&PType::Float) {
@@ -546,7 +556,13 @@ impl<'a> Analyzer<'a> {
                 self.report(d)?;
                 Ok(err_expr(span))
             }
-            ast::BinOp::Mul | ast::BinOp::Div | ast::BinOp::Sub | ast::BinOp::Lt | ast::BinOp::Gt | ast::BinOp::Ge | ast::BinOp::Le => {
+            ast::BinOp::Mul
+            | ast::BinOp::Div
+            | ast::BinOp::Sub
+            | ast::BinOp::Lt
+            | ast::BinOp::Gt
+            | ast::BinOp::Ge
+            | ast::BinOp::Le => {
                 if both(&PType::Int) || both(&PType::Float) || both(&PType::String) {
                     let (bop, ty) = match op {
                         ast::BinOp::Mul => (BinOp::Mul, l.ty.clone()),
@@ -578,7 +594,8 @@ impl<'a> Analyzer<'a> {
                     PType::Seq(e) => *e,
                     PType::Set(e) => *e,
                     _ => {
-                        let d = self.e.type_mismatch_kinds(r.span, &r.ty, &[TypeKind::Map, TypeKind::Sequence], &self.prog);
+                        let d =
+                            self.e.type_mismatch_kinds(r.span, &r.ty, &[TypeKind::Map, TypeKind::Sequence], &self.prog);
                         self.report(d)?;
                         return Ok(err_expr(span));
                     }
@@ -615,7 +632,14 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn check_cast(&mut self, ctx: Ctx, kind: ast::CastKind, inner: &ast::Expr, ty: &ast::Type, span: Span) -> Result<Expr, Fatal> {
+    fn check_cast(
+        &mut self,
+        ctx: Ctx,
+        kind: ast::CastKind,
+        inner: &ast::Expr,
+        ty: &ast::Type,
+        span: Span,
+    ) -> Result<Expr, Fatal> {
         let x = self.check_expr(ctx, inner)?;
         let old = x.ty.clone();
         let new = self.resolve_type(ty, ctx.scope)?;
@@ -634,7 +658,8 @@ impl<'a> Analyzer<'a> {
             }
             ast::CastKind::To => {
                 let new_is_perm = matches!(new, PType::Permission(_));
-                if !(new_is_perm || new.is_same_type_as(&PType::Int, prog) || new.is_same_type_as(&PType::Float, prog)) {
+                if !(new_is_perm || new.is_same_type_as(&PType::Int, prog) || new.is_same_type_as(&PType::Float, prog))
+                {
                     let d = self.e.illegal_type_in_coerce(span);
                     self.report(d)?;
                     return Ok(err_expr(span));
@@ -695,23 +720,21 @@ impl<'a> Analyzer<'a> {
     fn check_lvalue(&mut self, ctx: Ctx, e: &ast::Expr) -> Result<Expr, Fatal> {
         let span = e.span;
         match &e.kind {
-            ast::ExprKind::Name(n) => {
-                match self.scopes.lookup_var(ctx.scope, &n.name) {
-                    Some(v) => {
-                        let vd = &self.prog.var_decls[v.idx()];
-                        if vd.role == VarRole::GlobalParam {
-                            return Err(self.e.modify_global_param(span, &vd.name, vd.span));
-                        }
-                        let ty = vd.ty.clone();
-                        Ok(expr(ExprKind::Var(v), ty, span))
+            ast::ExprKind::Name(n) => match self.scopes.lookup_var(ctx.scope, &n.name) {
+                Some(v) => {
+                    let vd = &self.prog.var_decls[v.idx()];
+                    if vd.role == VarRole::GlobalParam {
+                        return Err(self.e.modify_global_param(span, &vd.name, vd.span));
                     }
-                    None => {
-                        let d = self.e.missing_declaration(span, "variable", &n.name);
-                        self.report(d)?;
-                        Ok(err_expr(span))
-                    }
+                    let ty = vd.ty.clone();
+                    Ok(expr(ExprKind::Var(v), ty, span))
                 }
-            }
+                None => {
+                    let d = self.e.missing_declaration(span, "variable", &n.name);
+                    self.report(d)?;
+                    Ok(err_expr(span))
+                }
+            },
             ast::ExprKind::NamedTupleAccess { base, field } => {
                 let b = self.check_lvalue(ctx, base)?;
                 if b.ty.is_error() {
@@ -773,7 +796,8 @@ impl<'a> Analyzer<'a> {
                         Ok(expr(ExprKind::SeqAccess { base: Box::new(b), index: Box::new(i) }, *el, span))
                     }
                     _ => {
-                        let d = self.e.type_mismatch_kinds(b.span, &b.ty, &[TypeKind::Sequence, TypeKind::Map], &self.prog);
+                        let d =
+                            self.e.type_mismatch_kinds(b.span, &b.ty, &[TypeKind::Sequence, TypeKind::Map], &self.prog);
                         self.report(d)?;
                         Ok(err_expr(span))
                     }
@@ -915,7 +939,8 @@ impl<'a> Analyzer<'a> {
                     PType::Seq(el) => (PType::Int, *el),
                     PType::Map(k, val) => (*k, *val),
                     _ => {
-                        let d = self.e.type_mismatch_kinds(l.span, &l.ty, &[TypeKind::Sequence, TypeKind::Map], &self.prog);
+                        let d =
+                            self.e.type_mismatch_kinds(l.span, &l.ty, &[TypeKind::Sequence, TypeKind::Map], &self.prog);
                         self.report(d)?;
                         return Ok(Self::stmt(StmtKind::Insert { lhs: l, index: i, value: v }, span));
                     }
@@ -941,7 +966,8 @@ impl<'a> Analyzer<'a> {
                         self.check_assignable(value.span, &el, &v.ty)?;
                     }
                     _ => {
-                        let d = self.e.type_mismatch_kinds(l.span, &l.ty, &[TypeKind::Sequence, TypeKind::Map], &self.prog);
+                        let d =
+                            self.e.type_mismatch_kinds(l.span, &l.ty, &[TypeKind::Sequence, TypeKind::Map], &self.prog);
                         self.report(d)?;
                     }
                 }
@@ -971,7 +997,12 @@ impl<'a> Analyzer<'a> {
                         PType::Set(el) => *el,
                         PType::Seq(el) => *el,
                         _ => {
-                            let d = self.e.type_mismatch_kinds(coll.span, &coll.ty, &[TypeKind::Set, TypeKind::Sequence], &self.prog);
+                            let d = self.e.type_mismatch_kinds(
+                                coll.span,
+                                &coll.ty,
+                                &[TypeKind::Set, TypeKind::Sequence],
+                                &self.prog,
+                            );
                             self.report(d)?;
                             PType::Error
                         }
@@ -980,7 +1011,8 @@ impl<'a> Analyzer<'a> {
                 let item_ty = self.prog.var_decls[var.idx()].ty.clone();
                 if !expected.is_error()
                     && !item_ty.is_error()
-                    && (!expected.is_same_type_as(&item_ty, &self.prog) || !expected.is_assignable_from(&item_ty, &self.prog))
+                    && (!expected.is_same_type_as(&item_ty, &self.prog)
+                        || !expected.is_assignable_from(&item_ty, &self.prog))
                 {
                     let d = self.e.type_mismatch(item.span, &item_ty, &[&expected], &self.prog);
                     self.report(d)?;
@@ -1120,8 +1152,10 @@ impl<'a> Analyzer<'a> {
                     return Ok(Self::stmt(StmtKind::Nop, span));
                 };
                 let entry = self.prog.states[st.idx()].entry;
-                let entry_params: Vec<VarId> = entry.map(|f| self.prog.funs[f.idx()].params.clone()).unwrap_or_default();
-                let expected_ty = entry_params.first().map(|v| self.prog.var_decls[v.idx()].ty.clone()).unwrap_or(PType::Null);
+                let entry_params: Vec<VarId> =
+                    entry.map(|f| self.prog.funs[f.idx()].params.clone()).unwrap_or_default();
+                let expected_ty =
+                    entry_params.first().map(|v| self.prog.var_decls[v.idx()].ty.clone()).unwrap_or(PType::Null);
                 let a = self.check_args(ctx, args)?;
                 if a.len() != entry_params.len() {
                     let d = self.e.incorrect_argument_count(span, a.len(), entry_params.len());

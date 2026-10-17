@@ -16,10 +16,8 @@ pub fn lex(file: FileId, text: &str) -> Result<Vec<Token>, LexError> {
     let mut tokens = Vec::new();
     let mut i = 0usize;
     let n = bytes.len();
-    let tok = |kind: TokenKind, start: usize, end: usize| Token {
-        kind,
-        span: Span::new(file, start as u32, end as u32),
-    };
+    let tok =
+        |kind: TokenKind, start: usize, end: usize| Token { kind, span: Span::new(file, start as u32, end as u32) };
     while i < n {
         let c = bytes[i];
         // whitespace

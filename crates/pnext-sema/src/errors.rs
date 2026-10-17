@@ -25,19 +25,31 @@ impl<'a> Errors<'a> {
     }
 
     pub fn duplicate_start_state(&self, span: Span, dup: &str, orig: &str, machine: &str) -> Diagnostic {
-        Diagnostic::new(span, format!("state '{}' tries to replace start state '{}' in machine '{}'", dup, orig, machine))
+        Diagnostic::new(
+            span,
+            format!("state '{}' tries to replace start state '{}' in machine '{}'", dup, orig, machine),
+        )
     }
 
     pub fn duplicate_event_action(&self, span: Span, existing: Span, state: &str) -> Diagnostic {
-        Diagnostic::new(span, format!("event handler in state '{}' duplicates handler at {}", state, self.loc(existing)))
+        Diagnostic::new(
+            span,
+            format!("event handler in state '{}' duplicates handler at {}", state, self.loc(existing)),
+        )
     }
 
     pub fn duplicate_state_exit(&self, span: Span, existing: Span, state: &str) -> Diagnostic {
-        Diagnostic::new(span, format!("exit handler in state '{}' duplicates exit handler at {}", state, self.loc(existing)))
+        Diagnostic::new(
+            span,
+            format!("exit handler in state '{}' duplicates exit handler at {}", state, self.loc(existing)),
+        )
     }
 
     pub fn duplicate_state_entry(&self, span: Span, existing: Span, state: &str) -> Diagnostic {
-        Diagnostic::new(span, format!("entry handler in state '{}' duplicates entry handler at {}", state, self.loc(existing)))
+        Diagnostic::new(
+            span,
+            format!("entry handler in state '{}' duplicates entry handler at {}", state, self.loc(existing)),
+        )
     }
 
     pub fn duplicate_declaration(&self, span: Span, dup: &str, existing: &str, existing_span: Span) -> Diagnostic {
@@ -47,7 +59,12 @@ impl<'a> Errors<'a> {
     pub fn redeclare_global_param(&self, span: Span, dup: &str, existing: &str, existing_span: Span) -> Diagnostic {
         Diagnostic::new(
             span,
-            format!("'{}' redeclares global param '{}' (originally declared at {})", dup, existing, self.loc(existing_span)),
+            format!(
+                "'{}' redeclares global param '{}' (originally declared at {})",
+                dup,
+                existing,
+                self.loc(existing_span)
+            ),
         )
     }
 
@@ -64,7 +81,10 @@ impl<'a> Errors<'a> {
     }
 
     pub fn incorrect_argument_count(&self, span: Span, actual: usize, expected: usize) -> Diagnostic {
-        Diagnostic::new(span, format!("goto, function or constructor call expected {} arguments, got {}", expected, actual))
+        Diagnostic::new(
+            span,
+            format!("goto, function or constructor call expected {} arguments, got {}", expected, actual),
+        )
     }
 
     pub fn missing_declaration(&self, span: Span, kind: &str, name: &str) -> Diagnostic {
@@ -86,14 +106,20 @@ impl<'a> Errors<'a> {
     pub fn illegal_interface_coerce(&self, span: Span, old: &str, new: &str, outlier: &str) -> Diagnostic {
         Diagnostic::new(
             span,
-            format!("illegal coerce: permissions of '{}' are not a superset of '{}' (e.g., event '{}')", old, new, outlier),
+            format!(
+                "illegal coerce: permissions of '{}' are not a superset of '{}' (e.g., event '{}')",
+                old, new, outlier
+            ),
         )
     }
 
     pub fn static_function_not_allowed_as_handler(&self, span: Span, name: &str) -> Diagnostic {
         Diagnostic::new(
             span,
-            format!("function '{}' cannot be used as a handler: global and foreign functions are not allowed as handlers", name),
+            format!(
+                "function '{}' cannot be used as a handler: global and foreign functions are not allowed as handlers",
+                name
+            ),
         )
     }
 
@@ -151,13 +177,19 @@ impl<'a> Errors<'a> {
     }
 
     pub fn more_than_one_parameter_for_handlers(&self, span: Span, count: usize) -> Diagnostic {
-        Diagnostic::new(span, format!("entry, exit, do, and goto handlers take at most 1 parameter; function expects {}", count))
+        Diagnostic::new(
+            span,
+            format!("entry, exit, do, and goto handlers take at most 1 parameter; function expects {}", count),
+        )
     }
 
     pub fn illegal_choose_sub_expr_type(&self, span: Span, t: &PType, prog: &Program) -> Diagnostic {
         Diagnostic::new(
             span,
-            format!("'choose' expects int (max value) or a collection (seq, set, or map); got type {}", t.original_repr(prog)),
+            format!(
+                "'choose' expects int (max value) or a collection (seq, set, or map); got type {}",
+                t.original_repr(prog)
+            ),
         )
     }
 
@@ -210,7 +242,10 @@ impl<'a> Errors<'a> {
     pub fn invalid_assert_event(&self, span: Span, monitor: &str, event: &str) -> Diagnostic {
         Diagnostic::new(
             span,
-            format!("invalid assert: event '{}' in observes set of '{}' is not in the sends set of the module", event, monitor),
+            format!(
+                "invalid assert: event '{}' in observes set of '{}' is not in the sends set of the module",
+                event, monitor
+            ),
         )
     }
 
@@ -290,7 +325,10 @@ impl<'a> Errors<'a> {
     }
 
     pub fn duplicate_bindings(&self, span: Span, name: &str) -> Diagnostic {
-        Diagnostic::new(span, format!("interface or machine '{}' is mentioned or bound multiple times in the module", name))
+        Diagnostic::new(
+            span,
+            format!("interface or machine '{}' is mentioned or bound multiple times in the module", name),
+        )
     }
 
     pub fn spec_observes_incomplete_warning(&self, span: Span, event: &str, machine: &str) -> String {

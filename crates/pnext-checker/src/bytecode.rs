@@ -64,7 +64,9 @@ pub enum Op {
     SetGet,
     /// `map[key]`. `java_null`: the value type is a Java reference type, so in Java semantics
     /// a missing key reads as null (`HashMap.get`) instead of failing.
-    MapGet { java_null: bool },
+    MapGet {
+        java_null: bool,
+    },
     Keys,
     Values,
     Sizeof,
@@ -72,7 +74,11 @@ pub enum Op {
     /// Pushes a precomputed default value (values are copy-on-write, so sharing is safe).
     Default(crate::value::Value),
     /// `format(base, args)`; `types` are the static types of the arguments.
-    Format { base: Rc<str>, nargs: u32, types: Rc<[PType]> },
+    Format {
+        base: Rc<str>,
+        nargs: u32,
+        types: Rc<[PType]>,
+    },
     Bin(BinOp),
     Neg,
     Not,
@@ -88,25 +94,65 @@ pub enum Op {
     ChooseSeq,
     ChooseSet,
     ChooseMap,
-    Call { fun: FunId, nargs: u32 },
+    Call {
+        fun: FunId,
+        nargs: u32,
+    },
     Return,
-    Store { root: Root, path: Rc<[PathElem]> },
-    Insert { root: Root, path: Rc<[PathElem]>, kind: CollKind },
-    Add { root: Root, path: Rc<[PathElem]> },
-    Remove { root: Root, path: Rc<[PathElem]>, kind: CollKind },
+    Store {
+        root: Root,
+        path: Rc<[PathElem]>,
+    },
+    Insert {
+        root: Root,
+        path: Rc<[PathElem]>,
+        kind: CollKind,
+    },
+    Add {
+        root: Root,
+        path: Rc<[PathElem]>,
+    },
+    Remove {
+        root: Root,
+        path: Rc<[PathElem]>,
+        kind: CollKind,
+    },
     Assert,
     Print,
-    Create { iface: InterfaceId, has_payload: bool },
+    Create {
+        iface: InterfaceId,
+        has_payload: bool,
+    },
     /// Pops payload (if any), event and target.
-    Send { has_payload: bool },
-    Raise { has_payload: bool },
-    Announce { has_payload: bool },
-    Goto { state: StateId, has_payload: bool },
-    Receive { cases: Rc<[ReceiveCase]>, exit: u32 },
+    Send {
+        has_payload: bool,
+    },
+    Raise {
+        has_payload: bool,
+    },
+    Announce {
+        has_payload: bool,
+    },
+    Goto {
+        state: StateId,
+        has_payload: bool,
+    },
+    Receive {
+        cases: Rc<[ReceiveCase]>,
+        exit: u32,
+    },
     /// Pops the collection, stores an iterator in `iter_slot`.
-    ForeachInit { iter_slot: u32, kind: CollKind, root: Option<Root> },
+    ForeachInit {
+        iter_slot: u32,
+        kind: CollKind,
+        root: Option<Root>,
+    },
     /// Advances the iterator; jumps to `exit` when exhausted, else stores the item.
-    ForeachNext { iter_slot: u32, item_slot: u32, exit: u32 },
+    ForeachNext {
+        iter_slot: u32,
+        item_slot: u32,
+        exit: u32,
+    },
 }
 
 /// The compiled form of one root function.

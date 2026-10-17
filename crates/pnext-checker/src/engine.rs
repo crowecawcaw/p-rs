@@ -11,8 +11,8 @@ use crate::compile::{compile_program, Code};
 use crate::random::RandomValueGenerator;
 use crate::runtime::{Config, Runtime};
 use crate::strategy::{
-    ComboStrategy, PctStrategy, ProbabilisticRandomStrategy, RandomStrategy, ReplayStrategy, ScheduleTrace, SharedRandom,
-    Strategy,
+    ComboStrategy, PctStrategy, ProbabilisticRandomStrategy, RandomStrategy, ReplayStrategy, ScheduleTrace,
+    SharedRandom, Strategy,
 };
 
 /// Options of a checking run (the subset of `CheckerConfiguration` that affects results).
@@ -180,11 +180,8 @@ impl TestReport {
             let names = self.sorted_scenarios();
             let covered: Vec<&&ScenarioCoverage> = names.iter().filter(|s| s.trigger_count > 0).collect();
             let gaps: Vec<&&ScenarioCoverage> = names.iter().filter(|s| s.trigger_count == 0).collect();
-            let gap_text = if gaps.is_empty() {
-                String::new()
-            } else {
-                format!(" ({} gap{})", gaps.len(), plural(gaps.len()))
-            };
+            let gap_text =
+                if gaps.is_empty() { String::new() } else { format!(" ({} gap{})", gaps.len(), plural(gaps.len())) };
             out.push_str(&format!(
                 "\n{} Scenario coverage: {}/{} scenarios covered{}",
                 sub,
@@ -207,12 +204,19 @@ impl TestReport {
             for s in gaps {
                 out.push_str(&format!("\n{}   [  GAP  ] {}: not covered", sub, s.name));
                 if s.total_states > 0 {
-                    out.push_str(&format!(" (best partial progress: {}/{} states)", s.max_states_reached, s.total_states));
+                    out.push_str(&format!(
+                        " (best partial progress: {}/{} states)",
+                        s.max_states_reached, s.total_states
+                    ));
                 }
             }
         }
         if total > 0 && self.num_bugs > 0 {
-            out.push_str(&format!("\n{} Found {} buggy schedules.", sub, percent(self.num_bugs as f64 * 100.0 / total as f64)));
+            out.push_str(&format!(
+                "\n{} Found {} buggy schedules.",
+                sub,
+                percent(self.num_bugs as f64 * 100.0 / total as f64)
+            ));
         }
         if let Some(avg) = self.total_fair_steps.checked_div(self.explored_fair_schedules) {
             out.push_str(&format!(
@@ -391,9 +395,7 @@ impl<'p> Checker<'p> {
 
     /// Node/event tables for activity coverage (built on first use).
     pub fn coverage_tables(&self) -> Rc<crate::coverage::CoverageTables> {
-        self.coverage_tables
-            .get_or_init(|| Rc::new(crate::coverage::CoverageTables::new(self.prog)))
-            .clone()
+        self.coverage_tables.get_or_init(|| Rc::new(crate::coverage::CoverageTables::new(self.prog))).clone()
     }
 
     /// The `.coverage.txt` report of a run's activity coverage.
@@ -535,7 +537,8 @@ impl<'p> Checker<'p> {
             return Err("exhaustive search (PEx mode) does not support time tracking yet".into());
         }
         let seed_opt = match opts.strategy.as_str() {
-            "random" | "pct" | "pos" | "feedbackpct" | "feedbackpos" | "fairpct" | "probabilistic" | "rl" | "random-dfs" => {
+            "random" | "pct" | "pos" | "feedbackpct" | "feedbackpos" | "fairpct" | "probabilistic" | "rl"
+            | "random-dfs" => {
                 format!(" (seed:{})", opts.seed)
             }
             _ => String::new(),
@@ -672,7 +675,8 @@ impl<'p> Checker<'p> {
                     trace.liveness_temperature_threshold = Some(config.liveness_temperature_threshold);
                     trace.test_name = if opts.record_test_name { Some(tc.name.clone()) } else { None };
                     trace.time = time.as_ref().map(|t| t.schedule_header());
-                    trace.latency = time.as_ref().and_then(|t| t.profile.as_ref()).map(|p| p.entries()).unwrap_or_default();
+                    trace.latency =
+                        time.as_ref().and_then(|t| t.profile.as_ref()).map(|p| p.entries()).unwrap_or_default();
                     result.schedule_trace = Some(trace.to_text());
                     first_bug = Some(BugSchedule {
                         trace,
@@ -691,7 +695,8 @@ impl<'p> Checker<'p> {
                     result.coverage = rt.coverage.take();
                 }
             }
-            if is_replay || (!opts.full_exploration && result.report.num_bugs > 0) || !strategy.prepare_next_iteration() {
+            if is_replay || (!opts.full_exploration && result.report.num_bugs > 0) || !strategy.prepare_next_iteration()
+            {
                 break;
             }
             if opts.incremental_seed {
@@ -700,11 +705,21 @@ impl<'p> Checker<'p> {
             }
             i += 1;
         }
-        result.exhaustive = strategy.exhaustive_stats().map(|s| crate::exhaustive::SearchStats { depth_bound_hits, ..s });
+        result.exhaustive =
+            strategy.exhaustive_stats().map(|s| crate::exhaustive::SearchStats { depth_bound_hits, ..s });
         result.verbose_json_trace = verbose_json.map(|v| crate::jsonlog::Json::Arr(v).to_pretty());
         if let Some(bug) = first_bug {
-            let (log, json, xml) =
-                self.logged_replay(tc, main, module, assignment, &config, &bug, opts.json_trace, opts.xml_trace, time.as_ref());
+            let (log, json, xml) = self.logged_replay(
+                tc,
+                main,
+                module,
+                assignment,
+                &config,
+                &bug,
+                opts.json_trace,
+                opts.xml_trace,
+                time.as_ref(),
+            );
             if !opts.verbose {
                 // `ReadableTrace`: the runtime log followed by the report so far
                 let mut text = log.join("\n");

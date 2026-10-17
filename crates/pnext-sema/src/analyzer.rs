@@ -91,7 +91,14 @@ impl<'a> Analyzer<'a> {
         VarId(self.prog.var_decls.len() as u32 - 1)
     }
 
-    pub fn new_fun(&mut self, name: &str, owner: Option<MachineId>, scope: ScopeId, src: FunSrc<'a>, span: Span) -> FunId {
+    pub fn new_fun(
+        &mut self,
+        name: &str,
+        owner: Option<MachineId>,
+        scope: ScopeId,
+        src: FunSrc<'a>,
+        span: Span,
+    ) -> FunId {
         self.prog.funs.push(FunDecl {
             name: name.to_string(),
             owner,

@@ -17,7 +17,9 @@ fn main() {
             acts.extend(st.entry.map(|f| p.fun(f).action_name()));
             for h in &st.handlers {
                 match h.action {
-                    HandlerAction::Do(f) | HandlerAction::Goto { with: Some(f), .. } => acts.push(p.fun(f).action_name()),
+                    HandlerAction::Do(f) | HandlerAction::Goto { with: Some(f), .. } => {
+                        acts.push(p.fun(f).action_name())
+                    }
                     _ => {}
                 }
             }

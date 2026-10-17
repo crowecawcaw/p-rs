@@ -455,8 +455,11 @@ pub fn coverage_report(prog: &Program, tables: &CoverageTables, info: &CoverageI
         out.push('\n');
     };
     header(&mut out, format!("Total event coverage: {}%", percent(total - total_uncovered, total)));
-    let mut machines: Vec<(String, MachineId, bool)> =
-        info.declared.iter().map(|(d, mon)| (format!("PImplementation.{}", prog.machine(*d).cs_name), *d, *mon)).collect();
+    let mut machines: Vec<(String, MachineId, bool)> = info
+        .declared
+        .iter()
+        .map(|(d, mon)| (format!("PImplementation.{}", prog.machine(*d).cs_name), *d, *mon))
+        .collect();
     machines.sort_by(|a, b| culture_order(&a.0, &b.0));
     for (full, decl, monitor) in machines {
         header(&mut out, format!("{}: {}", if monitor { "Monitor" } else { "StateMachine" }, after_dot(&full)));

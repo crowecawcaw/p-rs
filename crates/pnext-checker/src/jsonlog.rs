@@ -203,8 +203,11 @@ impl Details {
         if let Some(v) = &self.target {
             f.push(("target".into(), Json::str(v.clone())));
         }
-        for (k, v) in [("isTargetHalted", self.is_target_halted), ("isEntry", self.is_entry), ("isInHotState", self.is_in_hot_state)]
-        {
+        for (k, v) in [
+            ("isTargetHalted", self.is_target_halted),
+            ("isEntry", self.is_entry),
+            ("isInHotState", self.is_in_hot_state),
+        ] {
             if let Some(b) = v {
                 f.push((k.into(), Json::Bool(b)));
             }
@@ -215,7 +218,11 @@ impl Details {
         if let Some(v) = &self.event_types {
             f.push(("eventTypes".into(), Json::Arr(v.iter().map(|s| Json::str(s.clone())).collect())));
         }
-        for (k, v) in [("monitor", &self.monitor), ("strategy", &self.strategy), ("strategyDescription", &self.strategy_description)] {
+        for (k, v) in [
+            ("monitor", &self.monitor),
+            ("strategy", &self.strategy),
+            ("strategyDescription", &self.strategy_description),
+        ] {
             if let Some(v) = v {
                 f.push((k.into(), Json::str(v.clone())));
             }
@@ -274,7 +281,12 @@ impl VectorClocks {
         }
         match ty {
             "SendEvent" => {
-                let general = format!("_{}:_{}:_{}", d.target.as_deref().unwrap_or(""), d.event.as_deref().unwrap_or(""), d.payload_key);
+                let general = format!(
+                    "_{}:_{}:_{}",
+                    d.target.as_deref().unwrap_or(""),
+                    d.event.as_deref().unwrap_or(""),
+                    d.payload_key
+                );
                 let counts = self.send_counts.entry(general.clone()).or_insert((-1, 0));
                 counts.0 += 1;
                 let id = format!("{}:_{}", general, counts.0);

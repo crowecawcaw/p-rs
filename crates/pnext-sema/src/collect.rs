@@ -53,7 +53,11 @@ impl<'a> Analyzer<'a> {
                 }
                 ast::TopDecl::EventSet { name, span, .. } => {
                     self.check_conflict(g, &name.name, *span, &[Namespace::EventSets, Namespace::Interfaces])?;
-                    self.prog.event_sets.push(EventSetDecl { name: name.name.clone(), events: Vec::new(), span: *span });
+                    self.prog.event_sets.push(EventSetDecl {
+                        name: name.name.clone(),
+                        events: Vec::new(),
+                        span: *span,
+                    });
                     let id = EventSetId(self.prog.event_sets.len() as u32 - 1);
                     self.scopes.get_mut(g).event_sets.insert(name.name.clone(), id);
                 }
@@ -98,7 +102,12 @@ impl<'a> Analyzer<'a> {
                     let id = EnumId(self.prog.enums.len() as u32 - 1);
                     self.scopes.get_mut(g).enums.insert(name.name.clone(), id);
                     for (i, el) in elems.iter().enumerate() {
-                        self.check_conflict(g, &el.name.name, el.name.span, &[Namespace::EnumElems, Namespace::Events])?;
+                        self.check_conflict(
+                            g,
+                            &el.name.name,
+                            el.name.span,
+                            &[Namespace::EnumElems, Namespace::Events],
+                        )?;
                         self.prog.enums[id.idx()].elems.push(EnumElemDecl {
                             name: el.name.name.clone(),
                             value: 0,
@@ -464,8 +473,9 @@ impl<'a> Analyzer<'a> {
                     for (i, el) in elems.iter().enumerate() {
                         let value = match &el.value {
                             None => i as i64,
-                            Some((text, span)) => parse_int_literal(text)
-                                .ok_or_else(|| self.e.value_out_of_range(*span, "int"))?,
+                            Some((text, span)) => {
+                                parse_int_literal(text).ok_or_else(|| self.e.value_out_of_range(*span, "int"))?
+                            }
                         };
                         self.prog.enums[id.idx()].elems[i].value = value;
                     }
@@ -516,7 +526,12 @@ impl<'a> Analyzer<'a> {
         Ok(())
     }
 
-    fn declare_machine(&mut self, mid: MachineId, m: &'a ast::MachineDecl, cursor: &mut FunCursor) -> Result<(), Fatal> {
+    fn declare_machine(
+        &mut self,
+        mid: MachineId,
+        m: &'a ast::MachineDecl,
+        cursor: &mut FunCursor,
+    ) -> Result<(), Fatal> {
         let g = self.scopes.global();
         let ms = self.machine_scopes[mid.idx()];
         match m.kind {
@@ -597,7 +612,9 @@ impl<'a> Analyzer<'a> {
             ast::Handler::Anon(a) => self.create_anon_fun(mid, a),
             ast::Handler::Named(n) => {
                 let ms = self.machine_scopes[mid.idx()];
-                self.scopes.lookup_fun(ms, &n.name).ok_or_else(|| self.e.missing_declaration(n.span, "function", &n.name))
+                self.scopes
+                    .lookup_fun(ms, &n.name)
+                    .ok_or_else(|| self.e.missing_declaration(n.span, "function", &n.name))
             }
         }
     }
@@ -703,7 +720,13 @@ impl<'a> Analyzer<'a> {
         Ok(())
     }
 
-    fn add_handlers(&mut self, sid: StateId, actions: Vec<EventHandler>, is_spec: bool, mname: &str) -> Result<(), Fatal> {
+    fn add_handlers(
+        &mut self,
+        sid: StateId,
+        actions: Vec<EventHandler>,
+        is_spec: bool,
+        mname: &str,
+    ) -> Result<(), Fatal> {
         for a in actions {
             if let Some(existing) = self.prog.states[sid.idx()].handler_for(a.event) {
                 let sname = self.prog.states[sid.idx()].name.clone();

@@ -15,10 +15,8 @@ use pnext_compat::host::{Host, MemHost};
 
 /// Runs whose unknown-error messages differ: upstream's Java `NullPointerException` message
 /// names a variable of the generated Java code (`"TMP_tmp2_12" is null`).
-const KNOWN_MESSAGE_DIFFERENCES: &[&str] = &[
-    "test_case_7_log_11_1_happy_unsorted.sorted",
-    "test_case_7_log_12_2_happy_unsorted.sorted",
-];
+const KNOWN_MESSAGE_DIFFERENCES: &[&str] =
+    &["test_case_7_log_11_1_happy_unsorted.sorted", "test_case_7_log_12_2_happy_unsorted.sorted"];
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/upstream/PObserve")
@@ -39,22 +37,14 @@ fn add_tree(h: &mut MemHost, from: &Path, to: &str) {
     let mut all = Vec::new();
     files(from, &mut all);
     for f in all {
-        let rel = f
-            .strip_prefix(from)
-            .unwrap()
-            .to_string_lossy()
-            .replace('\\', "/");
+        let rel = f.strip_prefix(from).unwrap().to_string_lossy().replace('\\', "/");
         h.add_file(&format!("{}/{}", to, rel), &fs::read_to_string(&f).unwrap());
     }
 }
 
 fn params(case: &str) -> BTreeMap<String, String> {
-    let text =
-        fs::read_to_string(root().join(format!("params/test_case_{}_params.txt", case))).unwrap();
-    text.lines()
-        .filter_map(|l| l.split_once(':'))
-        .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
-        .collect()
+    let text = fs::read_to_string(root().join(format!("params/test_case_{}_params.txt", case))).unwrap();
+    text.lines().filter_map(|l| l.split_once(':')).map(|(k, v)| (k.trim().to_string(), v.trim().to_string())).collect()
 }
 
 fn strip_ansi(s: &str) -> String {
@@ -109,10 +99,7 @@ fn normalize_console(text: &str, outdir: &str) -> String {
             !(l.starts_with("  ")
                 && ["outputDir", "supplierJars", "pproj", "pfiles"]
                     .iter()
-                    .any(|k| {
-                        t.strip_prefix(k)
-                            .is_some_and(|r| r.trim_start().starts_with('='))
-                    }))
+                    .any(|k| t.strip_prefix(k).is_some_and(|r| r.trim_start().starts_with('='))))
         })
         .map(mask_total_time)
         .collect();
@@ -130,22 +117,10 @@ fn normalize_console(text: &str, outdir: &str) -> String {
         return text;
     }
     let body = &head[first..last + rule.len()];
-    let mut blocks: Vec<String> = body
-        .split(rule)
-        .filter(|b| !b.trim().is_empty())
-        .map(mask_error_numbers)
-        .collect();
+    let mut blocks: Vec<String> = body.split(rule).filter(|b| !b.trim().is_empty()).map(mask_error_numbers).collect();
     blocks.sort();
-    let joined: String = blocks
-        .iter()
-        .map(|b| format!("{}{}{}", rule, b, rule))
-        .collect();
-    format!(
-        "{}{}{}",
-        &text[..first],
-        joined,
-        &text[first + body.len()..]
-    )
+    let joined: String = blocks.iter().map(|b| format!("{}{}{}", rule, b, rule)).collect();
+    format!("{}{}{}", &text[..first], joined, &text[first + body.len()..])
 }
 
 fn normalize_file(name: &str, text: &str) -> String {
@@ -193,11 +168,7 @@ fn outputs(h: &MemHost, dir: &str) -> BTreeMap<String, String> {
 
 fn renumber(mut map: BTreeMap<String, String>) -> BTreeMap<String, String> {
     for prefix in ["UnknownError_", "ParserError_"] {
-        let keys: Vec<String> = map
-            .keys()
-            .filter(|k| k.starts_with(prefix))
-            .cloned()
-            .collect();
+        let keys: Vec<String> = map.keys().filter(|k| k.starts_with(prefix)).cloned().collect();
         let mut group: Vec<String> = keys.iter().map(|k| map.remove(k).unwrap()).collect();
         group.sort();
         for (i, v) in group.into_iter().enumerate() {
@@ -220,18 +191,10 @@ fn matches_upstream_pobserve_goldens() {
         }
     }
     cases.sort();
-    assert!(
-        cases.len() >= 90,
-        "expected goldens under {}",
-        root.display()
-    );
+    assert!(cases.len() >= 90, "expected goldens under {}", root.display());
     let mut failures = Vec::new();
     for exp in &cases {
-        let rel = exp
-            .strip_prefix(root.join("expected"))
-            .unwrap()
-            .to_string_lossy()
-            .replace('\\', "/");
+        let rel = exp.strip_prefix(root.join("expected")).unwrap().to_string_lossy().replace('\\', "/");
         let label = exp.file_name().unwrap().to_string_lossy().to_string();
         let (log_rel, sorted) = match rel.strip_suffix(".sorted") {
             Some(r) => (r.to_string(), true),
@@ -246,10 +209,7 @@ fn matches_upstream_pobserve_goldens() {
         if log_src.is_dir() {
             add_tree(&mut h, &log_src, &format!("/work/logs/{}", log_rel));
         } else {
-            h.add_file(
-                &format!("/work/logs/{}", log_rel),
-                &fs::read_to_string(&log_src).unwrap(),
-            );
+            h.add_file(&format!("/work/logs/{}", log_rel), &fs::read_to_string(&log_src).unwrap());
         }
         let log = format!("/work/logs/{}", log_rel);
         let mut args: Vec<String> = [
@@ -273,11 +233,7 @@ fn matches_upstream_pobserve_goldens() {
         let code = pnext_compat::observe::run_with(&args, &mut h, support::pobserve_parsers::all());
 
         let mut problems = Vec::new();
-        let want_code: i32 = fs::read_to_string(exp.join("exit_code"))
-            .unwrap()
-            .trim()
-            .parse()
-            .unwrap();
+        let want_code: i32 = fs::read_to_string(exp.join("exit_code")).unwrap().trim().parse().unwrap();
         if code != want_code {
             problems.push(format!("exit code {} (upstream {})", code, want_code));
         }

@@ -42,7 +42,14 @@ pub trait Strategy {
     /// Feedback from a finished schedule (`IFeedbackGuidedStrategy.ObserveRunningResults`):
     /// its abstract timeline and timeline MinHash, the states each scenario reached and the
     /// scenarios it satisfied.
-    fn observe_timeline(&mut self, _timeline: &str, _minhash: &[i32], _reached: &[(String, usize)], _satisfied: &[String]) {}
+    fn observe_timeline(
+        &mut self,
+        _timeline: &str,
+        _minhash: &[i32],
+        _reached: &[(String, usize)],
+        _satisfied: &[String],
+    ) {
+    }
     /// Whether [`Strategy::observe_timeline`] is used (avoids computing MinHashes otherwise).
     fn wants_feedback(&self) -> bool {
         false
@@ -497,7 +504,8 @@ impl Strategy for ReplayStrategy {
             ScheduleStep::Operation(id) => {
                 let id = *id;
                 if !enabled.contains(&id) {
-                    self.error = Some("Trace is not reproducible: cannot detect id '".to_string() + &id.to_string() + "'.");
+                    self.error =
+                        Some("Trace is not reproducible: cannot detect id '".to_string() + &id.to_string() + "'.");
                     return None;
                 }
                 self.index += 1;

@@ -172,18 +172,12 @@ fn canonical(ty: &PType, prog: &Program) -> String {
         PType::Set(t) => format!("set[{}]", canonical(t, prog)),
         PType::Map(k, v) => format!("map[{},{}]", canonical(k, prog), canonical(v, prog)),
         PType::Tuple(ts) => {
-            let fs: Vec<String> = ts
-                .iter()
-                .enumerate()
-                .map(|(i, t)| format!("arg_{}:{}", i, canonical(t, prog)))
-                .collect();
+            let fs: Vec<String> =
+                ts.iter().enumerate().map(|(i, t)| format!("arg_{}:{}", i, canonical(t, prog))).collect();
             format!("({})", fs.join(","))
         }
         PType::NamedTuple(fs) => {
-            let fs: Vec<String> = fs
-                .iter()
-                .map(|(n, t)| format!("{}:{}", n, canonical(t, prog)))
-                .collect();
+            let fs: Vec<String> = fs.iter().map(|(n, t)| format!("{}:{}", n, canonical(t, prog))).collect();
             format!("({})", fs.join(","))
         }
         PType::Permission(o) => match o {
@@ -207,17 +201,11 @@ fn collect_tuples(ty: &PType, prog: &Program, out: &mut Vec<(String, Vec<String>
         }
         PType::Tuple(ts) => {
             ts.iter().for_each(|t| collect_tuples(t, prog, out));
-            out.push((
-                canonical(ty, prog),
-                (0..ts.len()).map(|i| format!("arg_{}", i)).collect(),
-            ));
+            out.push((canonical(ty, prog), (0..ts.len()).map(|i| format!("arg_{}", i)).collect()));
         }
         PType::NamedTuple(fs) => {
             fs.iter().for_each(|(_, t)| collect_tuples(t, prog, out));
-            out.push((
-                canonical(ty, prog),
-                fs.iter().map(|(n, _)| n.clone()).collect(),
-            ));
+            out.push((canonical(ty, prog), fs.iter().map(|(n, _)| n.clone()).collect()));
         }
         _ => {}
     }
@@ -233,23 +221,9 @@ fn tuple_names(prog: &Program) -> &std::collections::HashMap<String, String> {
         let mut tuples = Vec::new();
         let mut global: Vec<(pnext_syntax::Span, &PType)> = Vec::new();
         global.extend(prog.typedefs.iter().map(|t| (t.span, &t.ty)));
-        global.extend(
-            prog.events
-                .iter()
-                .filter(|e| !e.is_builtin())
-                .map(|e| (e.span, &e.payload)),
-        );
-        global.extend(
-            prog.interfaces
-                .iter()
-                .filter(|i| i.implicit_for.is_none())
-                .map(|i| (i.span, &i.payload)),
-        );
-        global.extend(
-            prog.global_params
-                .iter()
-                .map(|v| (prog.var(*v).span, &prog.var(*v).ty)),
-        );
+        global.extend(prog.events.iter().filter(|e| !e.is_builtin()).map(|e| (e.span, &e.payload)));
+        global.extend(prog.interfaces.iter().filter(|i| i.implicit_for.is_none()).map(|i| (i.span, &i.payload)));
+        global.extend(prog.global_params.iter().map(|v| (prog.var(*v).span, &prog.var(*v).ty)));
         global.sort_by_key(|(s, _)| (s.file, s.start));
         for (_, t) in global {
             collect_tuples(t, prog, &mut tuples);
@@ -263,11 +237,7 @@ fn tuple_names(prog: &Program) -> &std::collections::HashMap<String, String> {
                 collect_tuples(&prog.var(*v).ty, prog, out);
             }
         };
-        for f in prog
-            .funs
-            .iter()
-            .filter(|f| f.owner.is_none() && f.parent.is_none())
-        {
+        for f in prog.funs.iter().filter(|f| f.owner.is_none() && f.parent.is_none()) {
             fun_tuples(f, &mut tuples);
         }
         for m in prog.machines.iter() {
@@ -430,7 +400,9 @@ pub fn event_to_string(prog: &Program, e: EventId, payload: &Value) -> String {
 /// `toString()`.
 pub fn format_arg(v: &Value, ty: &PType, prog: &Program) -> String {
     match v {
-        Value::Int(i) if !matches!(resolve(ty, prog), PType::Enum(_)) => group_digits(&i.unsigned_abs().to_string(), *i < 0),
+        Value::Int(i) if !matches!(resolve(ty, prog), PType::Enum(_)) => {
+            group_digits(&i.unsigned_abs().to_string(), *i < 0)
+        }
         Value::Machine(m) => group_digits(&m.id.to_string(), false),
         Value::Float(f) => number_format_float(*f as f32),
         _ => to_string(v, ty, prog),
@@ -603,7 +575,12 @@ pub fn float_to_string(f: f32) -> String {
     if f.is_infinite() {
         return if f > 0.0 { "Infinity".into() } else { "-Infinity".into() };
     }
-    java_decimal(&format!("{:e}", f), f == 0.0, f.is_sign_negative(), (f.abs() as f64) >= 1e-3 && (f.abs() as f64) < 1e7)
+    java_decimal(
+        &format!("{:e}", f),
+        f == 0.0,
+        f.is_sign_negative(),
+        (f.abs() as f64) >= 1e-3 && (f.abs() as f64) < 1e7,
+    )
 }
 
 /// `Double.toString(d)`.
@@ -733,7 +710,10 @@ mod tests {
         assert_eq!(n(&["accountId", "amount", "rId"]), "PTuple_accnt_amnt_rId");
         assert_eq!(n(&["status", "accountId", "balance", "rId"]), "PTuple_stts_accnt_blnc_rId");
         assert_eq!(n(&["client", "lockId", "rId"]), "PTuple_clnt_lock_rId");
-        assert_eq!(n(&["timestamp", "key", "node1Count", "node2Count", "totalValues"]), "PTuple_tmstm_key_nd1cn_nd2cn_ttlvl");
+        assert_eq!(
+            n(&["timestamp", "key", "node1Count", "node2Count", "totalValues"]),
+            "PTuple_tmstm_key_nd1cn_nd2cn_ttlvl"
+        );
         assert_eq!(n(&["first", "second"]), "PTuple_first_scnd");
         assert_eq!(n(&["arg_0", "arg_1"]), "PTuple_arg_0_arg_1");
     }
@@ -741,11 +721,17 @@ mod tests {
     #[test]
     fn hashmap_order_matches_java() {
         let keys = [Value::Int(3), Value::Int(1), Value::Int(17), Value::Int(-2)];
-        let order: Vec<i64> = hashmap_order(keys.iter().map(|k| (k, ()))).into_iter().map(|(k, _)| k.as_int()).collect();
+        let order: Vec<i64> =
+            hashmap_order(keys.iter().map(|k| (k, ()))).into_iter().map(|(k, _)| k.as_int()).collect();
         assert_eq!(order, vec![1, 17, -2, 3]);
         let keys = [Value::str("b"), Value::str("a"), Value::str("zz"), Value::str("hello")];
-        let order: Vec<String> =
-            hashmap_order(keys.iter().map(|k| (k, ()))).into_iter().map(|(k, _)| match k { Value::Str(s) => s.to_string(), _ => unreachable!() }).collect();
+        let order: Vec<String> = hashmap_order(keys.iter().map(|k| (k, ())))
+            .into_iter()
+            .map(|(k, _)| match k {
+                Value::Str(s) => s.to_string(),
+                _ => unreachable!(),
+            })
+            .collect();
         assert_eq!(order, vec!["zz", "a", "b", "hello"]);
     }
 

@@ -220,7 +220,9 @@ impl Timeline {
 
     fn causal_tokens(&self, prefix: &str, out: &mut Vec<String>) {
         for (co, a, b) in &self.orders {
-            out.push(format!("{}{}{}{}{}", prefix, if *co { "co" } else { "hb" }, S, self.label(*a), S) + self.label(*b));
+            out.push(
+                format!("{}{}{}{}{}", prefix, if *co { "co" } else { "hb" }, S, self.label(*a), S) + self.label(*b),
+            );
         }
     }
 
@@ -243,7 +245,15 @@ impl Timeline {
         match self.config.repr {
             TimelineRepr::Pairwise => {
                 for (r, p, l) in &self.pairs {
-                    v.push(format!("{}{}{}{}{}{}", self.receivers[*r as usize], S, self.label(*p), S, self.label(*l), S));
+                    v.push(format!(
+                        "{}{}{}{}{}{}",
+                        self.receivers[*r as usize],
+                        S,
+                        self.label(*p),
+                        S,
+                        self.label(*l),
+                        S
+                    ));
                 }
             }
             TimelineRepr::KGram => self.kgram_tokens("", &mut v),
@@ -277,7 +287,10 @@ mod tests {
         t.record("A(1)", "x", None);
         t.record("A(1)", "y", None);
         t.record("A(1)", "x", None);
-        assert_eq!(t.tokens(), vec!["A(1)\u{1f}x\u{1f}x\u{1f}", "A(1)\u{1f}x\u{1f}y\u{1f}", "A(1)\u{1f}y\u{1f}x\u{1f}"]);
+        assert_eq!(
+            t.tokens(),
+            vec!["A(1)\u{1f}x\u{1f}x\u{1f}", "A(1)\u{1f}x\u{1f}y\u{1f}", "A(1)\u{1f}y\u{1f}x\u{1f}"]
+        );
     }
 
     #[test]
@@ -302,10 +315,7 @@ mod tests {
         b.merge(&a);
         t.record("B(2)", "x", Some(Rc::new(b)));
         t.record("C(3)", "a", Some(Rc::new(VectorTime::new(3))));
-        assert_eq!(
-            t.tokens(),
-            vec!["co\u{1f}a\u{1f}y", "hb\u{1f}a\u{1f}x", "hb\u{1f}y\u{1f}x"]
-        );
+        assert_eq!(t.tokens(), vec!["co\u{1f}a\u{1f}y", "hb\u{1f}a\u{1f}x", "hb\u{1f}y\u{1f}x"]);
     }
 
     #[test]

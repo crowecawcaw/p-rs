@@ -27,7 +27,13 @@ pub fn parser() -> ArgParser {
     p.group("commandline", "Compiling P files directly through commandline");
     p.add(Some("commandline"), "pfiles", Some("pf"), "List of P files to compile", DataType::Str).multi();
     p.add(Some("commandline"), "projname", Some("pn"), "Project name for the compiled output", DataType::Str);
-    p.add(Some("commandline"), "outdir", Some("o"), "Dump output to directory (absolute or relative path)", DataType::Str);
+    p.add(
+        Some("commandline"),
+        "outdir",
+        Some("o"),
+        "Dump output to directory (absolute or relative path)",
+        DataType::Str,
+    );
     p.add(
         None,
         "mode",
@@ -47,8 +53,14 @@ pub fn parser() -> ArgParser {
     );
     p.group("pverifier", "PVerifier options");
     p.add(Some("pverifier"), "timeout", Some("t"), "Set SMT solver timeout in seconds", DataType::Int).hidden();
-    p.add(Some("pverifier"), "no-event-handler-checks", Some("nch"), "Do not check that all events are handled", DataType::Bool)
-        .hidden();
+    p.add(
+        Some("pverifier"),
+        "no-event-handler-checks",
+        Some("nch"),
+        "Do not check that all events are handled",
+        DataType::Bool,
+    )
+    .hidden();
     p.add(Some("pverifier"), "proof-blocks", Some("pb"), "List of proof blocks to check", DataType::Str).multi();
     p.add(Some("pverifier"), "check-only", Some("co"), "Check only the specified machine", DataType::Str).hidden();
     p.add(Some("pverifier"), "jobs", Some("j"), "Number of parallel processes to use", DataType::Int).hidden();
@@ -353,7 +365,10 @@ pub fn compile(cfg: &CompilerConfig, host: &mut dyn Host) -> i32 {
         if !matches!(b, Backend::PChecker | Backend::PEx) {
             write_error(
                 host,
-                &format!("[NotImplementedError:] The {} backend is not supported by pnext; use the PChecker backend.", b.name()),
+                &format!(
+                    "[NotImplementedError:] The {} backend is not supported by pnext; use the PChecker backend.",
+                    b.name()
+                ),
             );
             return 1;
         }

@@ -2,9 +2,7 @@
 
 use std::rc::Rc;
 
-use pnext_sema::{
-    BinOp, Expr, ExprKind, FunDecl, FunId, PType, Program, Stmt, StmtKind, UnOp, VarId, VarRole,
-};
+use pnext_sema::{BinOp, Expr, ExprKind, FunDecl, FunId, PType, Program, Stmt, StmtKind, UnOp, VarId, VarRole};
 
 use crate::bytecode::{CodeBlock, CollKind, Op, PathElem, ReceiveCase, Root};
 
@@ -424,7 +422,8 @@ impl<'a> Compiler<'a> {
                     ty = &self.prog.typedefs[id.idx()].ty;
                 }
                 // Java keeps int, bool, float and machines as primitives (unboxing null throws)
-                let java_null = !matches!(ty, PType::Int | PType::Bool | PType::Float | PType::Machine | PType::Permission(_));
+                let java_null =
+                    !matches!(ty, PType::Int | PType::Bool | PType::Float | PType::Machine | PType::Permission(_));
                 self.emit(Op::MapGet { java_null });
             }
             ExprKind::Keys(b) => {

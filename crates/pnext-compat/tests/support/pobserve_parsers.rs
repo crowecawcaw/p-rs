@@ -36,7 +36,9 @@ fn split<'a>(s: &'a str, sep: &str) -> Vec<&'a str> {
 }
 
 fn get<'a>(parts: &[&'a str], i: usize) -> Result<&'a str, String> {
-    parts.get(i).copied().ok_or_else(|| format!("java.lang.ArrayIndexOutOfBoundsException: Index {} out of bounds for length {}", i, parts.len()))
+    parts.get(i).copied().ok_or_else(|| {
+        format!("java.lang.ArrayIndexOutOfBoundsException: Index {} out of bounds for length {}", i, parts.len())
+    })
 }
 
 /// `Long.parseLong`.
@@ -46,7 +48,9 @@ fn parse_long(s: &str) -> Result<i64, String> {
 
 /// `Integer.parseInt`.
 fn parse_int(s: &str) -> Result<i64, String> {
-    s.parse::<i32>().map(|v| v as i64).map_err(|_| format!("java.lang.NumberFormatException: For input string: \"{}\"", s))
+    s.parse::<i32>()
+        .map(|v| v as i64)
+        .map_err(|_| format!("java.lang.NumberFormatException: For input string: \"{}\"", s))
 }
 
 /// `Math.round(Double.parseDouble(s))`.
@@ -109,7 +113,14 @@ fn npe() -> String {
     "java.lang.NullPointerException".into()
 }
 
-fn event(spec: &Spec, key: String, ms: i64, name: &str, values: Vec<Value>, line: &str) -> Result<ObservedEvent, String> {
+fn event(
+    spec: &Spec,
+    key: String,
+    ms: i64,
+    name: &str,
+    values: Vec<Value>,
+    line: &str,
+) -> Result<ObservedEvent, String> {
     spec.tuple_event(key, Timestamp::from_millis(ms), name, values, Some(line))
 }
 
@@ -162,13 +173,25 @@ impl Parser for TestCase2Parser {
                 _ => None,
             };
             let ev = match message_type.ok_or_else(npe)? {
-                "REQUEST" => event(spec, account.to_string(), time, "eWithDrawReq", vec![Value::Int(account), Value::Int(amount), Value::Int(rid)], line)?,
+                "REQUEST" => event(
+                    spec,
+                    account.to_string(),
+                    time,
+                    "eWithDrawReq",
+                    vec![Value::Int(account), Value::Int(amount), Value::Int(rid)],
+                    line,
+                )?,
                 "RESPONSE" => event(
                     spec,
                     account.to_string(),
                     time,
                     "eWithDrawResp",
-                    vec![enum_or_null(spec, "tWithDrawRespStatus", status), Value::Int(account), Value::Int(amount), Value::Int(rid)],
+                    vec![
+                        enum_or_null(spec, "tWithDrawRespStatus", status),
+                        Value::Int(account),
+                        Value::Int(amount),
+                        Value::Int(rid),
+                    ],
                     line,
                 )?,
                 _ => return Ok(vec![]),
@@ -194,7 +217,13 @@ impl Parser for TestCase2Parser {
             let payload = Value::Map(Rc::new(bank));
             keys.into_iter()
                 .map(|k| {
-                    spec.event(k.to_string(), Timestamp::from_millis(time), "eSpec_BankBalanceIsAlwaysCorrect_Init", payload.clone(), Some(line))
+                    spec.event(
+                        k.to_string(),
+                        Timestamp::from_millis(time),
+                        "eSpec_BankBalanceIsAlwaysCorrect_Init",
+                        payload.clone(),
+                        Some(line),
+                    )
                 })
                 .collect()
         } else {
@@ -237,7 +266,9 @@ impl Parser for TestCase3Parser {
         let ev = match message_type {
             "REQUEST" => match transaction_type {
                 "LOCK" => Some(event(spec, lock.to_string(), time, "eLockReq", ints(&[client, lock, rid]), line)?),
-                "RELEASE" => Some(event(spec, lock.to_string(), time, "eReleaseReq", ints(&[client, lock, rid]), line)?),
+                "RELEASE" => {
+                    Some(event(spec, lock.to_string(), time, "eReleaseReq", ints(&[client, lock, rid]), line)?)
+                }
                 _ => None,
             },
             "RESPONSE" => {
@@ -260,7 +291,13 @@ impl Parser for TestCase3Parser {
                     "FAIL" => Some(err),
                     _ => None,
                 };
-                let values = vec![enum_or_null(spec, ty, status), Value::Int(client), Value::Int(lock), lock_status, Value::Int(rid)];
+                let values = vec![
+                    enum_or_null(spec, ty, status),
+                    Value::Int(client),
+                    Value::Int(lock),
+                    lock_status,
+                    Value::Int(rid),
+                ];
                 Some(event(spec, lock.to_string(), time, name, values, line)?)
             }
             _ => None,
@@ -319,7 +356,14 @@ impl Parser for TestCase6Parser {
             event(spec, key.to_string(), ts, "eConfigReceivedDualNodesBinary", v, line)?
         } else if line.starts_with("finished") {
             let (ts, key) = (parse_long(f(1)?)?, parse_long(f(2)?)?);
-            event(spec, key.to_string(), ts, "eEntriesFinishedDualNodesBinary", vec![Value::Int(ts), Value::Int(key)], line)?
+            event(
+                spec,
+                key.to_string(),
+                ts,
+                "eEntriesFinishedDualNodesBinary",
+                vec![Value::Int(ts), Value::Int(key)],
+                line,
+            )?
         } else {
             let (ts, key) = (parse_long(f(0)?)?, parse_long(f(1)?)?);
             let (node, value) = (parse_int(f(2)?)?, parse_int(f(3)?)?);
@@ -348,7 +392,14 @@ impl Parser for TestCase7Parser {
             let num = parse_int(f(2)?)?;
             let status = f(3)?;
             let name = if status == "start" { "eEventStartEventPairs" } else { "eEventEndEventPairs" };
-            event(spec, key.to_string(), ts, name, vec![Value::Int(ts), Value::Int(key), Value::Int(num), Value::str(status)], line)?
+            event(
+                spec,
+                key.to_string(),
+                ts,
+                name,
+                vec![Value::Int(ts), Value::Int(key), Value::Int(num), Value::str(status)],
+                line,
+            )?
         };
         Ok(vec![ev])
     }

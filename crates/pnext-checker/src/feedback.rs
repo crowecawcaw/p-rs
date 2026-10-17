@@ -46,7 +46,8 @@ impl<T: Copy> RandomChoices<T> {
         let n = self.data.len() as i64;
         let mean_count = (n / 3).min(mean_count).max(1);
         let mean_size = (n / 3).min(mean_size).max(1);
-        let mut out = RandomChoices { random: self.random.clone(), pos: 0, data: self.data.clone(), generate: self.generate };
+        let mut out =
+            RandomChoices { random: self.random.clone(), pos: 0, data: self.data.clone(), generate: self.generate };
         let r = self.random.borrow_mut().next_double();
         let mut mutations = sample_geometric((1.0f32 / mean_count as f32) as f64, r);
         while mutations > 0 {

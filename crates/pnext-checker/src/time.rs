@@ -404,7 +404,10 @@ impl ProfileSet {
                     raw.insert(p.clone(), Vec::new());
                     Section::Profile(p)
                 } else {
-                    return Err(format!("line {}: unknown section '[{}]' (expected [profile.<name>] or [tests])", ln, h));
+                    return Err(format!(
+                        "line {}: unknown section '[{}]' (expected [profile.<name>] or [tests])",
+                        ln, h
+                    ));
                 };
                 continue;
             }
@@ -530,7 +533,8 @@ fn split_pair(line: &str) -> Option<(String, String)> {
 
 fn is_ident(s: &str) -> bool {
     let mut cs = s.chars();
-    matches!(cs.next(), Some(c) if c.is_ascii_alphabetic() || c == '_') && cs.all(|c| c.is_ascii_alphanumeric() || c == '_')
+    matches!(cs.next(), Some(c) if c.is_ascii_alphabetic() || c == '_')
+        && cs.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 /// `"5ms"`, `"1ms..2ms"`, `"250us"`, `"2s"`, `"0"`.

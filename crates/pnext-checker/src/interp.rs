@@ -54,7 +54,10 @@ fn index_oor() -> Exception {
 }
 
 fn insert_oor() -> Exception {
-    Exception::new("System.ArgumentOutOfRangeException", "Index must be within the bounds of the List. (Parameter 'index')")
+    Exception::new(
+        "System.ArgumentOutOfRangeException",
+        "Index must be within the bounds of the List. (Parameter 'index')",
+    )
 }
 
 fn element_at_oor() -> Exception {
@@ -72,7 +75,10 @@ fn key_not_found(key: &str) -> Exception {
 }
 
 fn duplicate_key(key: &str) -> Exception {
-    Exception::new("System.ArgumentException", format!("An item with the same key has already been added. Key: {}", key))
+    Exception::new(
+        "System.ArgumentException",
+        format!("An item with the same key has already been added. Key: {}", key),
+    )
 }
 
 fn div_zero() -> Exception {
@@ -208,7 +214,13 @@ fn navigate<'a>(
 }
 
 /// Performs the final store of an assignment through the last path element.
-fn store_at(base: &mut Value, last: &PathElem, key: Option<&Value>, rhs: Value, prog: &Program) -> Result<(), Exception> {
+fn store_at(
+    base: &mut Value,
+    last: &PathElem,
+    key: Option<&Value>,
+    rhs: Value,
+    prog: &Program,
+) -> Result<(), Exception> {
     match last {
         PathElem::TupleField(i) => match base {
             Value::Tuple(t) => {
@@ -331,9 +343,15 @@ impl<'p> Runtime<'p> {
                     const TY: &str = "PChecker.Runtime.Exceptions.PNonStandardReturnException";
                     let text = format!("{}: Exception of type '{}' was thrown.", TY, TY);
                     let (id, state) = (self.machines[m].name.to_string(), self.machine_state_name(m));
-                    let attrs = [("id", id.as_str()), ("state", state.as_str()), ("action", exec.action.as_str()), ("type", TY)];
+                    let attrs = [
+                        ("id", id.as_str()),
+                        ("state", state.as_str()),
+                        ("action", exec.action.as_str()),
+                        ("type", TY),
+                    ];
                     self.xlog("ExceptionThrown", &attrs, Some(&text));
-                    let handled: Vec<_> = attrs.iter().copied().filter(|(k, v)| *k != "state" || !v.is_empty()).collect();
+                    let handled: Vec<_> =
+                        attrs.iter().copied().filter(|(k, v)| *k != "state" || !v.is_empty()).collect();
                     self.xlog("ExceptionHandled", &handled, Some(&text));
                 }
                 Ok(ExecOutcome::Unwound)
@@ -626,7 +644,9 @@ impl<'p> Runtime<'p> {
                 let key = pop(&mut stack!());
                 let base = pop(&mut stack!());
                 let v = match &base {
-                    Value::Map(m) if java_null && self.config.java_semantics => m.get(&key).cloned().unwrap_or(Value::Null),
+                    Value::Map(m) if java_null && self.config.java_semantics => {
+                        m.get(&key).cloned().unwrap_or(Value::Null)
+                    }
                     Value::Map(m) => m.get(&key).cloned().ok_or_else(|| key_not_found(&key.to_display(prog)))?,
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
@@ -636,7 +656,9 @@ impl<'p> Runtime<'p> {
             Op::Keys => {
                 let base = pop(&mut stack!());
                 let v = match &base {
-                    Value::Map(m) if self.config.java_semantics => Value::Seq(Rc::new(crate::javafmt::map_keys_in_java_order(m))),
+                    Value::Map(m) if self.config.java_semantics => {
+                        Value::Seq(Rc::new(crate::javafmt::map_keys_in_java_order(m)))
+                    }
                     Value::Map(m) => Value::Seq(Rc::new(m.keys().cloned().collect())),
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
@@ -646,7 +668,9 @@ impl<'p> Runtime<'p> {
             Op::Values => {
                 let base = pop(&mut stack!());
                 let v = match &base {
-                    Value::Map(m) if self.config.java_semantics => Value::Seq(Rc::new(crate::javafmt::map_values_in_java_order(m))),
+                    Value::Map(m) if self.config.java_semantics => {
+                        Value::Seq(Rc::new(crate::javafmt::map_values_in_java_order(m)))
+                    }
                     Value::Map(m) => Value::Seq(Rc::new(m.values().cloned().collect())),
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
@@ -966,7 +990,11 @@ impl<'p> Runtime<'p> {
             Op::Print => {
                 let msg = pop(&mut stack!());
                 let text = msg.to_display(prog);
-                if self.logging { self.log_line(format!("<PrintLog> {}", text)); } else { self.step_work += crate::runtime::LOG_LINE_WORK; }
+                if self.logging {
+                    self.log_line(format!("<PrintLog> {}", text));
+                } else {
+                    self.step_work += crate::runtime::LOG_LINE_WORK;
+                }
                 if self.json_enabled() {
                     self.jlog("Print", crate::jsonlog::Details { log: Some(text), ..Default::default() }, false);
                 }
@@ -974,7 +1002,9 @@ impl<'p> Runtime<'p> {
             Op::Create { iface, has_payload } => {
                 let payload = if has_payload { pop(&mut stack!()) } else { Value::Null };
                 let Actor::Machine(m) = actor else {
-                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot create machines").from_source(crate::runtime::P_CHECKER_CORE).into());
+                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot create machines")
+                        .from_source(crate::runtime::P_CHECKER_CORE)
+                        .into());
                 };
                 let creator_iface = self.machines[m].iface;
                 let created = self.module.link(creator_iface, iface).unwrap_or(iface);
@@ -988,7 +1018,10 @@ impl<'p> Runtime<'p> {
                     return Err(self.report_bug(msg).into());
                 }
                 let Some(machine) = self.module.machine_for(created) else {
-                    let msg = format!("interface I_{} is not bound to a machine in this module", prog.interface(created).name);
+                    let msg = format!(
+                        "interface I_{} is not bound to a machine in this module",
+                        prog.interface(created).name
+                    );
                     return Err(self.report_bug(msg).into());
                 };
                 exec.pending = Some(Pending::Create { machine, iface: created, payload });
@@ -999,7 +1032,9 @@ impl<'p> Runtime<'p> {
                 let event = pop(&mut stack!());
                 let target = pop(&mut stack!());
                 let Actor::Machine(m) = actor else {
-                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot send events").from_source(crate::runtime::P_CHECKER_CORE).into());
+                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot send events")
+                        .from_source(crate::runtime::P_CHECKER_CORE)
+                        .into());
                 };
                 let name = self.machines[m].name.clone();
                 let state = self.machine_state_name(m);
@@ -1081,7 +1116,9 @@ impl<'p> Runtime<'p> {
                 let payload = if has_payload { pop(&mut stack!()) } else { Value::Null };
                 let event = pop(&mut stack!());
                 let Actor::Machine(m) = actor else {
-                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot announce events").from_source(crate::runtime::P_CHECKER_CORE).into());
+                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot announce events")
+                        .from_source(crate::runtime::P_CHECKER_CORE)
+                        .into());
                 };
                 let ev_id = match &event {
                     Value::Event(e) => *e,
@@ -1101,16 +1138,16 @@ impl<'p> Runtime<'p> {
                     format!(" with payload {}", payload.to_escaped(prog))
                 };
                 if self.logging {
-            let text = format!(
-                    "<AnnounceLog> '{}' announced event '{}'{}.",
-                    self.machines[m].name,
-                    self.event_name(ev_id),
-                    ptext
-                );
-            self.log_line(text);
-        } else {
-            self.step_work += crate::runtime::LOG_LINE_WORK;
-        }
+                    let text = format!(
+                        "<AnnounceLog> '{}' announced event '{}'{}.",
+                        self.machines[m].name,
+                        self.event_name(ev_id),
+                        ptext
+                    );
+                    self.log_line(text);
+                } else {
+                    self.step_work += crate::runtime::LOG_LINE_WORK;
+                }
                 if self.json_enabled() {
                     let name = self.machines[m].name.to_string();
                     let ename = self.event_name(ev_id).to_string();
@@ -1146,7 +1183,9 @@ impl<'p> Runtime<'p> {
             }
             Op::Receive { cases, exit } => {
                 let Actor::Machine(m) = actor else {
-                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot receive events").from_source(crate::runtime::P_CHECKER_CORE).into());
+                    return Err(Exception::new("System.InvalidOperationException", "monitors cannot receive events")
+                        .from_source(crate::runtime::P_CHECKER_CORE)
+                        .into());
                 };
                 return self.do_receive(m, exec, cases, exit, false);
             }
@@ -1221,7 +1260,11 @@ impl<'p> Runtime<'p> {
         if let Some(i) = found {
             let e = self.machines[m].inbox.queue.remove(i).unwrap();
             let ev = if self.logging || self.json_enabled() { self.event_with_payload(&e) } else { String::new() };
-            if self.logging { self.log_line(format!("<ReceiveLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state)); } else { self.step_work += crate::runtime::LOG_LINE_WORK; }
+            if self.logging {
+                self.log_line(format!("<ReceiveLog> '{}' dequeued event '{}' in state '{}'.", name, ev, state));
+            } else {
+                self.step_work += crate::runtime::LOG_LINE_WORK;
+            }
             if self.json_enabled() {
                 let (payload, key) = self.jpayload(&e);
                 let d = crate::jsonlog::Details {
@@ -1238,7 +1281,11 @@ impl<'p> Runtime<'p> {
             }
             if self.xml.is_some() {
                 let ev = self.xml_event(e.id);
-                self.xlog("Receive", &[("id", &name), ("state", &state), ("event", &ev), ("wasBlocked", "False")], None);
+                self.xlog(
+                    "Receive",
+                    &[("id", &name), ("state", &state), ("event", &ev), ("wasBlocked", "False")],
+                    None,
+                );
             }
             self.cov_receive(m, e.id);
             if timed {
@@ -1254,13 +1301,20 @@ impl<'p> Runtime<'p> {
         } else {
             wait_event_names(&names)
         };
-        if self.logging { self.log_line(format!(
-            "<ReceiveLog> {} is waiting to dequeue an event of type {} in state '{}'.",
-            name, event_names, state
-        )); } else { self.step_work += crate::runtime::LOG_LINE_WORK; }
+        if self.logging {
+            self.log_line(format!(
+                "<ReceiveLog> {} is waiting to dequeue an event of type {} in state '{}'.",
+                name, event_names, state
+            ));
+        } else {
+            self.step_work += crate::runtime::LOG_LINE_WORK;
+        }
         if self.json_enabled() {
             let d = crate::jsonlog::Details {
-                log: Some(format!("{} is waiting to dequeue an event of type {} in state '{}'.", name, event_names, state)),
+                log: Some(format!(
+                    "{} is waiting to dequeue an event of type {} in state '{}'.",
+                    name, event_names, state
+                )),
                 id: Some(name.to_string()),
                 event_types: Some(names.clone()),
                 ..Default::default()

@@ -252,7 +252,11 @@ pub fn split_entries(text: &str, delimiter: &str) -> Vec<String> {
     };
     let entries: Vec<String> = if delim == "\n" {
         lines()
-    } else if delim.len() >= 2 && delim.starts_with('\n') && delim.ends_with('\n') && !delim[1..delim.len() - 1].contains('\n') {
+    } else if delim.len() >= 2
+        && delim.starts_with('\n')
+        && delim.ends_with('\n')
+        && !delim[1..delim.len() - 1].contains('\n')
+    {
         let marker = &delim[1..delim.len() - 1];
         let mut v = Vec::new();
         let mut buf = String::new();
@@ -453,9 +457,12 @@ impl<'p> Spec<'p> {
             Some(Failure::Exception(ty, m)) => {
                 ObserveError { kind: ErrorKind::Unknown, detail: format!("{}: {}", ty, m), message: m, replay }
             }
-            Some(Failure::Other(m)) => {
-                ObserveError { kind: ErrorKind::Unknown, detail: format!("java.lang.RuntimeException: {}", m), message: m, replay }
-            }
+            Some(Failure::Other(m)) => ObserveError {
+                kind: ErrorKind::Unknown,
+                detail: format!("java.lang.RuntimeException: {}", m),
+                message: m,
+                replay,
+            },
             None => ObserveError {
                 kind: ErrorKind::Unknown,
                 message: "null".into(),
@@ -567,11 +574,8 @@ impl<'p> Spec<'p> {
             }
             per_file.push(evs);
         }
-        let all: Vec<ObservedEvent> = if opts.assume_sorted {
-            merge_sorted(per_file)
-        } else {
-            per_file.into_iter().flatten().collect()
-        };
+        let all: Vec<ObservedEvent> =
+            if opts.assume_sorted { merge_sorted(per_file) } else { per_file.into_iter().flatten().collect() };
 
         // partition by key
         let mut order: Vec<String> = Vec::new();
@@ -584,11 +588,13 @@ impl<'p> Spec<'p> {
         }
         report.metrics.partition_keys = order.len() as u64;
         let key_values: Vec<Value> = order.iter().map(|k| Value::str(k)).collect();
-        let key_order: Vec<String> =
-            javafmt::hashmap_order(key_values.iter().map(|k| (k, ()))).into_iter().map(|(k, _)| match k {
+        let key_order: Vec<String> = javafmt::hashmap_order(key_values.iter().map(|k| (k, ())))
+            .into_iter()
+            .map(|(k, _)| match k {
                 Value::Str(s) => s.to_string(),
                 _ => unreachable!(),
-            }).collect();
+            })
+            .collect();
 
         let mut metrics: HashMap<EventId, EventMetrics> = self
             .observes()

@@ -20,7 +20,12 @@ pub enum RMod {
     HideEvents(Vec<EventId>, Box<RMod>, Span),
     HideInterfaces(Vec<InterfaceId>, Box<RMod>, Span),
     Assert(Vec<MachineId>, Box<RMod>, Span),
-    Rename { new: InterfaceId, old: InterfaceId, module: Box<RMod>, span: Span },
+    Rename {
+        new: InterfaceId,
+        old: InterfaceId,
+        module: Box<RMod>,
+        span: Span,
+    },
 }
 
 impl RMod {
@@ -146,7 +151,12 @@ impl<'a> Analyzer<'a> {
                 let Some(oi) = self.scopes.lookup_interface(g, &old.name) else {
                     return Err(self.e.missing_declaration(old.span, "interface", &old.name));
                 };
-                RMod::Rename { new: ni, old: oi, module: Box::new(self.resolve_mod_expr(module, depth + 1)?), span: e.span }
+                RMod::Rename {
+                    new: ni,
+                    old: oi,
+                    module: Box::new(self.resolve_mod_expr(module, depth + 1)?),
+                    span: e.span,
+                }
             }
             ast::ModExprKind::Assert { monitors, module } => {
                 let mut mons = Vec::new();
@@ -258,7 +268,13 @@ impl<'a> Analyzer<'a> {
         Ok(info)
     }
 
-    fn info_rename(&mut self, new: InterfaceId, old: InterfaceId, inner: &RMod, span: Span) -> Result<ModuleInfo, Fatal> {
+    fn info_rename(
+        &mut self,
+        new: InterfaceId,
+        old: InterfaceId,
+        inner: &RMod,
+        span: Span,
+    ) -> Result<ModuleInfo, Fatal> {
         let comp = self.module_info(inner)?;
         let nr = self.prog.interface_receives(new);
         let or = self.prog.interface_receives(old);
@@ -266,7 +282,8 @@ impl<'a> Analyzer<'a> {
             let msg = format!("{} and {} must have the same receive set", self.iface_name(new), self.iface_name(old));
             return Err(self.e.invalid_rename(span, &msg));
         }
-        let bound_or_created = |i: InterfaceId| comp.creates.contains(&i) || comp.interface_def.iter().any(|(k, _)| *k == i);
+        let bound_or_created =
+            |i: InterfaceId| comp.creates.contains(&i) || comp.interface_def.iter().any(|(k, _)| *k == i);
         if !bound_or_created(old) {
             let msg = format!(
                 "{} must belong to either created interfaces or bounded interfaces of the module",
@@ -676,13 +693,8 @@ impl<'a> Analyzer<'a> {
         let g = self.scopes.global();
         let mut specs = Vec::new();
         for (b, (ty, values, span)) in params.iter().zip(parsed) {
-            let var = self
-                .scopes
-                .get(g)
-                .var_list
-                .iter()
-                .copied()
-                .find(|v| self.prog.var_decls[v.idx()].name == b.name.name);
+            let var =
+                self.scopes.get(g).var_list.iter().copied().find(|v| self.prog.var_decls[v.idx()].name == b.name.name);
             let Some(var) = var else {
                 return Err(self.e.undeclared_global_param(params_span, &b.name.name));
             };
@@ -927,7 +939,11 @@ impl<'a> Analyzer<'a> {
                 let msg = format!("LHS test module is not closed with respect to created interfaces; interface {} is created but not implemented inside the module", self.iface_name(i));
                 return Err(self.e.not_closed(span, &msg));
             }
-            if !linfo.interface_def.iter().any(|(_, m)| self.prog.machines[m.idx()].name == main && !self.prog.machines[m.idx()].is_spec()) {
+            if !linfo
+                .interface_def
+                .iter()
+                .any(|(_, m)| self.prog.machines[m.idx()].name == main && !self.prog.machines[m.idx()].is_spec())
+            {
                 let msg = format!("machine {} does not exist in the LHS test module", main);
                 return Err(self.e.no_main(span, &msg));
             }
@@ -935,7 +951,11 @@ impl<'a> Analyzer<'a> {
                 let msg = format!("RHS test module is not closed with respect to created interfaces; interface {} is created but not implemented inside the module", self.iface_name(i));
                 return Err(self.e.not_closed(span, &msg));
             }
-            if !rinfo.interface_def.iter().any(|(_, m)| self.prog.machines[m.idx()].name == main && !self.prog.machines[m.idx()].is_spec()) {
+            if !rinfo
+                .interface_def
+                .iter()
+                .any(|(_, m)| self.prog.machines[m.idx()].name == main && !self.prog.machines[m.idx()].is_spec())
+            {
                 let msg = format!("machine {} does not exist in the RHS test module", main);
                 return Err(self.e.no_main(span, &msg));
             }
@@ -981,9 +1001,8 @@ fn greedy_coverage(universe: &[usize], assignments: &[Vec<usize>], twise: usize)
             (a, covered)
         })
         .collect();
-    let mut obligations: Vec<usize> = (0..vectors.len())
-        .filter(|v| coverage.iter().any(|(_, c)| c.contains(v)))
-        .collect();
+    let mut obligations: Vec<usize> =
+        (0..vectors.len()).filter(|v| coverage.iter().any(|(_, c)| c.contains(v))).collect();
     let mut result = Vec::new();
     while !obligations.is_empty() {
         let mut best = 0usize;

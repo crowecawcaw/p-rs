@@ -43,12 +43,19 @@ fn find_tests(dir: &Path, stats: &mut Stats, verbose: bool) {
         return;
     }
     // a test directory is one whose ancestor is a category directory
-    let category = dir
-        .ancestors()
-        .skip(1)
-        .find_map(|a| a.file_name().and_then(|n| n.to_str()).filter(|n| matches!(*n, "Correct" | "DynamicError" | "StaticError")).map(|s| s.to_string()));
+    let category = dir.ancestors().skip(1).find_map(|a| {
+        a.file_name()
+            .and_then(|n| n.to_str())
+            .filter(|n| matches!(*n, "Correct" | "DynamicError" | "StaticError"))
+            .map(|s| s.to_string())
+    });
     let is_test_dir = category.is_some()
-        && dir.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()).map(|n| matches!(n, "Correct" | "DynamicError" | "StaticError")).unwrap_or(false);
+        && dir
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .map(|n| matches!(n, "Correct" | "DynamicError" | "StaticError"))
+            .unwrap_or(false);
     if !is_test_dir {
         let mut entries: Vec<_> = std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().path()).collect();
         entries.sort();
@@ -72,9 +79,17 @@ fn find_tests(dir: &Path, stats: &mut Stats, verbose: bool) {
             vec![format!("[Parser Error:] [{}] parse error: {}", sm.file(*file).base_name, message)]
         }
         Err(pnext_sema::CompileError::NotSupported { file, line, col, keyword }) => {
-            vec![format!("[NotSupportedError:] {} (line {}:{}): \"{}\" keyword is only supported by PVerifier backend.", sm.file(*file).name, line, col, keyword)]
+            vec![format!(
+                "[NotSupportedError:] {} (line {}:{}): \"{}\" keyword is only supported by PVerifier backend.",
+                sm.file(*file).name,
+                line,
+                col,
+                keyword
+            )]
         }
-        Err(pnext_sema::CompileError::Analysis(a)) => a.messages(&sm).iter().map(|m| format!("[Error:] {}", m)).collect(),
+        Err(pnext_sema::CompileError::Analysis(a)) => {
+            a.messages(&sm).iter().map(|m| format!("[Error:] {}", m)).collect()
+        }
     };
     if failed == expect_fail {
         stats.ok += 1;

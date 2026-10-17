@@ -293,26 +293,77 @@ pub struct Stmt {
 pub enum StmtKind {
     Block(Block),
     /// `message` is the full assertion message including the source location prefix.
-    Assert { cond: Expr, message: Expr },
-    Assume { cond: Expr, message: Expr },
+    Assert {
+        cond: Expr,
+        message: Expr,
+    },
+    Assume {
+        cond: Expr,
+        message: Expr,
+    },
     Print(Expr),
     Return(Option<Expr>),
     Break,
     Continue,
-    Assign { lhs: Expr, rhs: Expr },
-    Insert { lhs: Expr, index: Expr, value: Expr },
-    Add { lhs: Expr, value: Expr },
-    Remove { lhs: Expr, value: Expr },
-    While { cond: Expr, body: Box<Stmt> },
-    Foreach { item: VarId, collection: Expr, body: Box<Stmt> },
-    If { cond: Expr, then_branch: Box<Stmt>, else_branch: Box<Stmt> },
-    Ctor { interface: InterfaceId, payload: Option<Expr> },
-    FunCall { fun: FunId, args: Vec<Expr> },
-    Raise { event: Expr, payload: Option<Expr> },
-    Send { target: Expr, event: Expr, payload: Option<Expr> },
-    Announce { event: Expr, payload: Option<Expr> },
-    Goto { state: StateId, payload: Option<Expr> },
-    Receive { cases: Vec<(EventId, FunId)> },
+    Assign {
+        lhs: Expr,
+        rhs: Expr,
+    },
+    Insert {
+        lhs: Expr,
+        index: Expr,
+        value: Expr,
+    },
+    Add {
+        lhs: Expr,
+        value: Expr,
+    },
+    Remove {
+        lhs: Expr,
+        value: Expr,
+    },
+    While {
+        cond: Expr,
+        body: Box<Stmt>,
+    },
+    Foreach {
+        item: VarId,
+        collection: Expr,
+        body: Box<Stmt>,
+    },
+    If {
+        cond: Expr,
+        then_branch: Box<Stmt>,
+        else_branch: Box<Stmt>,
+    },
+    Ctor {
+        interface: InterfaceId,
+        payload: Option<Expr>,
+    },
+    FunCall {
+        fun: FunId,
+        args: Vec<Expr>,
+    },
+    Raise {
+        event: Expr,
+        payload: Option<Expr>,
+    },
+    Send {
+        target: Expr,
+        event: Expr,
+        payload: Option<Expr>,
+    },
+    Announce {
+        event: Expr,
+        payload: Option<Expr>,
+    },
+    Goto {
+        state: StateId,
+        payload: Option<Expr>,
+    },
+    Receive {
+        cases: Vec<(EventId, FunId)>,
+    },
     Nop,
 }
 
@@ -358,27 +409,61 @@ pub enum ExprKind {
     BoolLit(bool),
     NullLit,
     /// `base` is a .NET composite format string; `{0}`..`{n}` refer to `args`.
-    Str { base: String, args: Vec<Expr> },
+    Str {
+        base: String,
+        args: Vec<Expr>,
+    },
     Nondet,
     FairNondet,
     This,
     Tuple(Vec<Expr>),
     NamedTuple(Vec<Expr>),
-    TupleAccess { base: Box<Expr>, index: u32 },
-    NamedTupleAccess { base: Box<Expr>, index: u32 },
-    SeqAccess { base: Box<Expr>, index: Box<Expr> },
-    SetAccess { base: Box<Expr>, index: Box<Expr> },
-    MapAccess { base: Box<Expr>, key: Box<Expr> },
+    TupleAccess {
+        base: Box<Expr>,
+        index: u32,
+    },
+    NamedTupleAccess {
+        base: Box<Expr>,
+        index: u32,
+    },
+    SeqAccess {
+        base: Box<Expr>,
+        index: Box<Expr>,
+    },
+    SetAccess {
+        base: Box<Expr>,
+        index: Box<Expr>,
+    },
+    MapAccess {
+        base: Box<Expr>,
+        key: Box<Expr>,
+    },
     Keys(Box<Expr>),
     Values(Box<Expr>),
     Sizeof(Box<Expr>),
     Default,
-    Ctor { interface: InterfaceId, payload: Option<Box<Expr>> },
-    FunCall { fun: FunId, args: Vec<Expr> },
-    Unary { op: UnOp, operand: Box<Expr> },
-    Binary { op: BinOp, lhs: Box<Expr>, rhs: Box<Expr> },
+    Ctor {
+        interface: InterfaceId,
+        payload: Option<Box<Expr>>,
+    },
+    FunCall {
+        fun: FunId,
+        args: Vec<Expr>,
+    },
+    Unary {
+        op: UnOp,
+        operand: Box<Expr>,
+    },
+    Binary {
+        op: BinOp,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
     /// `item in collection`
-    Contains { item: Box<Expr>, collection: Box<Expr> },
+    Contains {
+        item: Box<Expr>,
+        collection: Box<Expr>,
+    },
     /// `e as T` (checked at runtime)
     Cast(Box<Expr>),
     /// `e to T` (numeric or permission coercion)
@@ -453,7 +538,13 @@ impl TestDecl {
                 let mangled = match val {
                     ParamValue::Int(i) if *i < 0 => format!("neg{}", i.unsigned_abs()),
                     ParamValue::Int(i) => i.to_string(),
-                    ParamValue::Bool(b) => if *b { "true".into() } else { "false".into() },
+                    ParamValue::Bool(b) => {
+                        if *b {
+                            "true".into()
+                        } else {
+                            "false".into()
+                        }
+                    }
                 };
                 format!("{}_{}", name, mangled)
             })
@@ -525,10 +616,8 @@ impl Program {
 
     /// All declared events plus `halt` (the universal event set), sorted by name.
     pub fn universal_events(&self) -> Vec<EventId> {
-        let mut v: Vec<EventId> = (0..self.events.len() as u32)
-            .map(EventId)
-            .filter(|e| !self.events[e.idx()].is_null())
-            .collect();
+        let mut v: Vec<EventId> =
+            (0..self.events.len() as u32).map(EventId).filter(|e| !self.events[e.idx()].is_null()).collect();
         v.sort_by(|a, b| self.events[a.idx()].name.cmp(&self.events[b.idx()].name));
         v
     }

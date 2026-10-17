@@ -70,11 +70,16 @@ fn main() {
         }
         i += 1;
     }
-    let mut dirs: Vec<_> = std::fs::read_dir(&root).unwrap().map(|e| e.unwrap().path()).filter(|p| p.is_dir()).collect();
+    let mut dirs: Vec<_> =
+        std::fs::read_dir(&root).unwrap().map(|e| e.unwrap().path()).filter(|p| p.is_dir()).collect();
     dirs.sort();
     let mut errors = 0;
     for dir in dirs {
-        let Some(pproj) = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).find(|p| p.extension().map(|x| x == "pproj").unwrap_or(false)) else {
+        let Some(pproj) = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .find(|p| p.extension().map(|x| x == "pproj").unwrap_or(false))
+        else {
             continue;
         };
         let mut files = Vec::new();
@@ -110,9 +115,22 @@ fn main() {
                         }
                     }
                     errors += 1;
-                    println!("{} {}: BUG after {} schedules [{:.1}s] {}", dir.display(), tc.name, res.report.explored_fair_schedules + res.report.explored_unfair_schedules, secs, res.report.bug_reports[0].lines().next().unwrap_or(""));
+                    println!(
+                        "{} {}: BUG after {} schedules [{:.1}s] {}",
+                        dir.display(),
+                        tc.name,
+                        res.report.explored_fair_schedules + res.report.explored_unfair_schedules,
+                        secs,
+                        res.report.bug_reports[0].lines().next().unwrap_or("")
+                    );
                 }
-                Ok(res) => println!("{} {}: ok, {} timelines [{:.1}s]", dir.display(), tc.name, res.report.timelines.len(), secs),
+                Ok(res) => println!(
+                    "{} {}: ok, {} timelines [{:.1}s]",
+                    dir.display(),
+                    tc.name,
+                    res.report.timelines.len(),
+                    secs
+                ),
                 Err(e) => {
                     errors += 1;
                     println!("{} {}: engine error {}", dir.display(), tc.name, e);

@@ -758,8 +758,10 @@ pub fn format_composite(base: &str, args: &[String]) -> Result<String, String> {
         }
         pos += 1;
         let Some(arg) = args.get(index) else {
-            return Err("Index (zero based) must be greater than or equal to zero and less than the size of the argument list."
-                .to_string());
+            return Err(
+                "Index (zero based) must be greater than or equal to zero and less than the size of the argument list."
+                    .to_string(),
+            );
         };
         let n = arg.chars().count();
         let pad = width.saturating_sub(n);
@@ -809,7 +811,8 @@ mod tests {
     #[test]
     fn composite_errors() {
         // messages and offsets observed from .NET 8 `String.Format` with no arguments
-        let index = "Index (zero based) must be greater than or equal to zero and less than the size of the argument list.";
+        let index =
+            "Index (zero based) must be greater than or equal to zero and less than the size of the argument list.";
         let cases: &[(&str, &str)] = &[
             ("a{b", "2. Expected an ASCII digit."),
             ("a}b", "2. Unexpected closing brace without a corresponding opening brace."),
@@ -834,9 +837,26 @@ mod tests {
         ];
         for (b, e) in cases {
             let msg = format_composite(b, &[]).unwrap_err();
-            assert_eq!(msg, format!("Input string was not in a correct format. Failure to parse near offset {}", e), "{}", b);
+            assert_eq!(
+                msg,
+                format!("Input string was not in a correct format. Failure to parse near offset {}", e),
+                "{}",
+                b
+            );
         }
-        for b in ["{0}", "{0 }", "{1000000}", "{0,-5}", "{0:x}}", "{0, 5}", "{0:a}b}", "{00}", "{0:}", "{0,5:x}", "{0,1000000}"] {
+        for b in [
+            "{0}",
+            "{0 }",
+            "{1000000}",
+            "{0,-5}",
+            "{0:x}}",
+            "{0, 5}",
+            "{0:a}b}",
+            "{00}",
+            "{0:}",
+            "{0,5:x}",
+            "{0,1000000}",
+        ] {
             assert_eq!(format_composite(b, &[]).unwrap_err(), index, "{}", b);
         }
     }

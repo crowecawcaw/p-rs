@@ -145,16 +145,16 @@ impl<'a> Analyzer<'a> {
     }
 
     fn validate_payload_to_target(&self, span: Span, payload: &PType, target: FunId) -> Result<(), Fatal> {
-        let params: Vec<PType> = self.prog.funs[target.idx()]
-            .params
-            .iter()
-            .map(|v| self.prog.var_decls[v.idx()].ty.clone())
-            .collect();
+        let params: Vec<PType> =
+            self.prog.funs[target.idx()].params.iter().map(|v| self.prog.var_decls[v.idx()].ty.clone()).collect();
         if params.is_empty() {
             return Ok(());
         }
         if params.len() > 1 {
-            return Err(self.e.internal_error(span, "Target function cannot have multiple parameters (report this to the P developers)"));
+            return Err(self.e.internal_error(
+                span,
+                "Target function cannot have multiple parameters (report this to the P developers)",
+            ));
         }
         let p = &params[0];
         if p.is_assignable_from(payload, &self.prog) {
@@ -211,7 +211,9 @@ impl<'a> Analyzer<'a> {
                 };
                 if let Some(f) = f {
                     if is_static(f) {
-                        return Err(self.e.static_function_not_allowed_as_handler(h.span, &self.prog.funs[f.idx()].name));
+                        return Err(self
+                            .e
+                            .static_function_not_allowed_as_handler(h.span, &self.prog.funs[f.idx()].name));
                     }
                 }
             }
@@ -243,7 +245,9 @@ impl<'a> Analyzer<'a> {
                 self.surely_returns(then_branch) && self.surely_returns(else_branch)
             }
             StmtKind::Return(_) | StmtKind::Goto { .. } | StmtKind::Raise { .. } => true,
-            StmtKind::Assert { cond, .. } | StmtKind::Assume { cond, .. } => matches!(cond.kind, ExprKind::BoolLit(false)),
+            StmtKind::Assert { cond, .. } | StmtKind::Assume { cond, .. } => {
+                matches!(cond.kind, ExprKind::BoolLit(false))
+            }
             StmtKind::Receive { cases } => cases.iter().all(|(_, f)| {
                 self.prog.funs[f.idx()].body.as_ref().map(|b| self.surely_returns_block(b)).unwrap_or(false)
             }),
