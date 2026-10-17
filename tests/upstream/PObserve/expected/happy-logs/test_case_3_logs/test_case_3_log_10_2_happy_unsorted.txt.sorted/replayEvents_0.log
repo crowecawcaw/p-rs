@@ -1,0 +1,10 @@
+errorKey=0
+errorTimeStamp=1706870091421
+errorMessage=Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-02-02T10:34:51.428Z
+Timestamp of current event: 2024-02-02T10:34:51.421Z
+Error event details: PObserveEvent{partitionKey='0', timestamp=2024-02-02T10:34:51.421000000Z, event=eLockReq[PTuple_clnt_lock_rId[clientId=1, lockId=0, rId=1]], logLine='2024-02-02 10:34:51.421.306356748795500 [Test worker] INFO  StructuredLogger - : MessageType=REQUEST, ClientID=1, LockID=0, TransactionType=LOCK, TransactionID=1, Result=null, LockStatus=null, Message=null', customPayload=null}
+replayEvents=
+PObserveEvent{partitionKey='0', timestamp=2024-02-02T10:34:51.428000000Z, event=eReleaseResp[PTuple_stts_clnt_lock_lckst_rId_1[status=RELEASE_ERROR, clientId=1, lockId=0, lockStatus=FREE, rId=3]], logLine='2024-02-02 10:34:51.428.306356755798083 [Test worker] INFO  StructuredLogger - : MessageType=RESPONSE, ClientID=1, LockID=0, TransactionType=RELEASE, TransactionID=3, Result=FAIL, LockStatus=FREE, Message=null', customPayload=null}
+PObserveEvent{partitionKey='0', timestamp=2024-02-02T10:34:51.421000000Z, event=eLockReq[PTuple_clnt_lock_rId[clientId=1, lockId=0, rId=1]], logLine='2024-02-02 10:34:51.421.306356748795500 [Test worker] INFO  StructuredLogger - : MessageType=REQUEST, ClientID=1, LockID=0, TransactionType=LOCK, TransactionID=1, Result=null, LockStatus=null, Message=null', customPayload=null}

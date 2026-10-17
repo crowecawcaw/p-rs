@@ -1,0 +1,41 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase7Parser
+  specificationName    = EventPairs
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+Failed with an unknown exception:: Cannot invoke "java.util.HashMap.containsKey(Object)" because "TMP_tmp2_12" is null
+Please report this issue to the P team
+.. writing error log into file <out>/UnknownError_N.txt
+Exception details can be found in:
+	<out>/UnknownError_N.txt
+-------------------------------------
+-------------------------------------
+PObserve Event Out of Order Exception::
+Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-01-31T18:34:40.917Z
+Timestamp of current event: 2024-01-31T18:34:40.904Z
+Error event details: PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:34:40.904000000Z, event=eEventStartEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080904, key=1, eventNumber=3, status=start]], logLine='1706726080904, 1, 3, start', customPayload=null}
+.. writing error log into file <out>/replayEvents_1.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+12                       1                        0                        2                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+1                        0                        1                             1                      
+
+
+PObserve run completed with 2 error(s)
+Run details and replay event logs can be found in <out>

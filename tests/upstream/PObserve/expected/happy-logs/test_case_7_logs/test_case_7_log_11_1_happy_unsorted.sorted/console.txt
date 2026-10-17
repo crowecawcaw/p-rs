@@ -1,0 +1,32 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase7Parser
+  specificationName    = EventPairs
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+Failed with an unknown exception:: Cannot invoke "java.util.HashMap.containsKey(Object)" because "TMP_tmp2_12" is null
+Please report this issue to the P team
+.. writing error log into file <out>/UnknownError_N.txt
+Exception details can be found in:
+	<out>/UnknownError_N.txt
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+11                       0                        0                        1                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+1                        0                        0                             1                      
+
+
+PObserve run completed with 1 error(s)
+Run details and replay event logs can be found in <out>

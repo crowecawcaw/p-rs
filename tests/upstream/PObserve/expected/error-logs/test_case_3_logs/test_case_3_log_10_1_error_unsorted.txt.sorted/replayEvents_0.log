@@ -1,0 +1,5 @@
+errorKey=0
+errorTimeStamp=1706870069680
+errorMessage=Assertion failure: pSpecs/test_case_3.p:44:9 Expect success lock lockId: 0 in lock response, but received failed lock
+replayEvents=
+PObserveEvent{partitionKey='0', timestamp=2024-02-02T10:34:29.680000000Z, event=eLockResp[PTuple_stts_clnt_lock_lckst_rId[status=LOCK_ERROR, clientId=0, lockId=0, lockStatus=LOCKED, rId=4]], logLine='2024-02-02 10:34:29.680.306335008198125 [Test worker] INFO  StructuredLogger - : MessageType=RESPONSE, ClientID=0, LockID=0, TransactionType=LOCK, TransactionID=4, Result=FAIL, LockStatus=LOCKED, Message=null', customPayload=null}

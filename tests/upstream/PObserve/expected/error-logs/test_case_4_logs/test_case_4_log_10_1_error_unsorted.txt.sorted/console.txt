@@ -1,0 +1,34 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase4Parser
+  specificationName    = IncreasingInts
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Event Out of Order Exception::
+Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-01-24T20:57:11.845Z
+Timestamp of current event: 2024-01-24T20:57:11.837Z
+Error event details: PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.837000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831837, key=1, value=128]], logLine='1706129831837, 1, 128', customPayload=null}
+.. writing error log into file <out>/replayEvents_1.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+10                       4                        0                        1                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        0                        1                             0                      
+
+
+PObserve run completed with 1 error(s)
+Run details and replay event logs can be found in <out>

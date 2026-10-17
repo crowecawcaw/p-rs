@@ -1,0 +1,5 @@
+errorKey=0
+errorTimeStamp=1706870091428
+errorMessage=Assertion failure: pSpecs/test_case_3.p:59:9 Lock 0 in the release request has not been acquired yet, should have returned release error. rId: 3
+replayEvents=
+PObserveEvent{partitionKey='0', timestamp=2024-02-02T10:34:51.428000000Z, event=eReleaseResp[PTuple_stts_clnt_lock_lckst_rId_1[status=RELEASE_SUCCESS, clientId=1, lockId=0, lockStatus=FREE, rId=3]], logLine='2024-02-02 10:34:51.428.306356755798083 [Test worker] INFO  StructuredLogger - : MessageType=RESPONSE, ClientID=1, LockID=0, TransactionType=RELEASE, TransactionID=3, Result=SUCCESS, LockStatus=FREE, Message=null', customPayload=null}

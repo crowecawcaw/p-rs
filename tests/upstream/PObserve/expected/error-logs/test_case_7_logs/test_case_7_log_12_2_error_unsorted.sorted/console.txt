@@ -1,0 +1,39 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase7Parser
+  specificationName    = EventPairs
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Event Out of Order Exception::
+Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-01-31T18:34:40.910Z
+Timestamp of current event: 2024-01-31T18:34:40.907Z
+Error event details: PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.907000000Z, event=eEventEndEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080907, key=2, eventNumber=2, status=end]], logLine='1706726080907, 2, 2, end', customPayload=null}
+.. writing error log into file <out>/replayEvents_2.log
+-------------------------------------
+-------------------------------------
+PObserve Spec Violation::
+Assertion failure: pSpecs/test_case_7.p:50:17 For key 1, event 3 has not ended. Current status: start
+.. writing error log into file <out>/replayEvents_1.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+12                       2                        0                        2                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        1                        1                             0                      
+
+
+PObserve run completed with 2 error(s)
+Run details and replay event logs can be found in <out>

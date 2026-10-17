@@ -1,0 +1,6 @@
+errorKey=1
+errorTimeStamp=1706726080914
+errorMessage=Assertion failure: pSpecs/test_case_7.p:30:17 Invalid start status for key 1, event 3. Current status: start
+replayEvents=
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:34:40.904000000Z, event=eEventStartEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080904, key=1, eventNumber=3, status=start]], logLine='1706726080904, 1, 3, start', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:34:40.914000000Z, event=eEventStartEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080914, key=1, eventNumber=3, status=start]], logLine='1706726080914, 1, 3, start', customPayload=null}

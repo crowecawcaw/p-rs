@@ -1,0 +1,34 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase3Parser
+  specificationName    = CheckLockReleaseCorrectness
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Event Out of Order Exception::
+Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-02-02T10:34:29.680Z
+Timestamp of current event: 2024-02-02T10:34:29.675Z
+Error event details: PObserveEvent{partitionKey='0', timestamp=2024-02-02T10:34:29.675000000Z, event=eLockReq[PTuple_clnt_lock_rId[clientId=0, lockId=0, rId=2]], logLine='2024-02-02 10:34:29.675.306335002833625 [Test worker] INFO  StructuredLogger - : MessageType=REQUEST, ClientID=0, LockID=0, TransactionType=LOCK, TransactionID=2, Result=null, LockStatus=null, Message=null', customPayload=null}
+.. writing error log into file <out>/replayEvents_0.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+10                       2                        0                        1                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        0                        1                             0                      
+
+
+PObserve run completed with 1 error(s)
+Run details and replay event logs can be found in <out>

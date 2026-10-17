@@ -1,0 +1,6 @@
+errorKey=1
+errorTimeStamp=1706726080917
+errorMessage=Assertion failure: pSpecs/test_case_7.p:50:17 For key 1, event 3 has not ended. Current status: start
+replayEvents=
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:34:40.904000000Z, event=eEventStartEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080904, key=1, eventNumber=3, status=start]], logLine='1706726080904, 1, 3, start', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:34:40.917000000Z, event=eEntriesFinishedEventPairs[PTuple_tmstm_key[timestamp=1706726080917, key=1]], logLine='1706726080917, 1, finished', customPayload=null}

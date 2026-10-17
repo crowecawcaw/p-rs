@@ -11,8 +11,8 @@ scheduler, with the same bug-finding semantics as the upstream checker.
 |---|---|
 | `pnext-syntax` | Lexer, parser and AST. |
 | `pnext-sema` | Name resolution, type checking, machine and module-system rules; produces a typed program. Diagnostics match upstream's. |
-| `pnext-checker` | Values, bytecode interpreter, scheduling strategies (random, pct, fairpct, probabilistic, pos, feedback, feedbackpct, feedbackpos, rl, replay), exhaustive search (PEx mode), safety and liveness monitors, deadlock detection, text/JSON traces, foreign functions. |
-| `pnext-compat` | Drop-in compatibility with the upstream `p` tool: `p compile` / `p check` / `p merge-scenario-coverage` options, help, `.pproj` files, console output, output folders, trace files and exit codes. Runs against a pluggable host (native or in-memory). |
+| `pnext-checker` | Values, bytecode interpreter, scheduling strategies (random, pct, fairpct, probabilistic, pos, feedback, feedbackpct, feedbackpos, rl, replay), exhaustive search (PEx mode), safety and liveness monitors, deadlock detection, text/JSON traces, foreign functions, runtime monitoring of event logs (`observe`). |
+| `pnext-compat` | Drop-in compatibility with the upstream `p` tool: `p compile` / `p check` / `p merge-scenario-coverage` options, `p observe` as a drop-in for PObserve, help, `.pproj` files, console output, output folders, trace files and exit codes. Runs against a pluggable host (native or in-memory). |
 | `pnext-cli` | The `p` binary. |
 | `pnext-wasm` | WebAssembly module plus a JavaScript wrapper to run `p` in a browser or Node.js. |
 
@@ -55,6 +55,40 @@ end; time tracking is not supported in this mode yet.
 choices leading to program states it has seen less often. Runs are reproducible from
 `--seed`.
 
+## Checking logs: `p observe`
+
+`p observe` is [PObserve](https://github.com/p-org/P/tree/master/Src/PObserve): it
+checks events recorded by a running system against the spec monitors of a P project.
+
+```sh
+cd MyProject                            # a folder with a .pproj file
+p observe --spec BankBalanceCorrect -l logs/            # JSON lines, see below
+p observe --spec BankBalanceCorrect -l trace.json -i JSON   # a P JSON trace
+p observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log --keys 7 9
+```
+
+Options, console output, `PObserve-<date>/` output (replay logs, `ParserError_N.txt`,
+`UnknownError_N.txt`, `PObserveMetrics.txt`) and exit codes (0 ok, 1 command line,
+2 spec violation, 3 internal error, 4 parser errors only) follow upstream. The difference
+is where the spec comes from: there is no `p compile --mode pobserve` and no `--jars`.
+The P sources are type-checked in memory, from the `.pproj` in the current folder,
+`-pp/--pproj <file>` or `-pf/--pfiles <files>`.
+
+Parsers turn log entries into events. Two are built in:
+
+* `JsonLines` (default for `-i TEXT`): one JSON object per line,
+  `{"key": "7", "timestamp": 1700000000000, "event": "eWithDraw", "payload": {...}}`.
+  The timestamp is epoch milliseconds or ISO-8601; payloads are matched against the
+  event's payload type. `-pc '{"key": "ctx.account", "event": "type"}'` remaps the
+  fields (dotted paths).
+* `PTrace` (default for `-i JSON`): the `.trace.json` of `p check`, checking its sends
+  and announcements.
+
+Other log formats need a parser in Rust: implement `pnext_checker::observe::Parser` and
+run `pnext_compat::observe::run_with(args, host, parsers)` (see
+`crates/pnext-cli/examples/observe_regression.rs`, which ports upstream's regression
+parsers).
+
 ## Using the library
 
 ```rust
@@ -67,6 +101,9 @@ let opts = pnext_checker::engine::CheckerOptions { iterations: 1000, seed: 42, .
 let result = checker.check(&tc, &opts, &mut Vec::<String>::new())?;
 println!("{} bug(s)", result.report.num_bugs);
 ```
+
+Logs are checked with `pnext_checker::observe::Spec::new(&program, "MySpec")?.observe(...)`,
+which takes the log entries, a `Parser` and `ObserveOptions` and returns a `Report`.
 
 Foreign types and functions are supplied in Rust through
 `pnext_checker::foreign::ForeignFunctions` (see `crates/pnext-checker/tests/foreign.rs`,
@@ -95,6 +132,12 @@ system; the module is about 1 MB (about 320 KB gzipped).
   mirrors upstream's tutorial CI and reports the same three failing test cases.
 * Traces: the readable and JSON traces contain upstream's golden files
   (`tests/upstream/CorrectLogs`), checked in `crates/pnext-compat/tests/cli.rs`.
+* `p observe`: `scripts/compare-pobserve.py` runs upstream PObserve and `p observe` on
+  all 96 logs of upstream's PObserve regression suite, with and without
+  `--assumeInputsAreSorted`. All 192 runs give the same exit code, and 186 give identical
+  console output and output files. The other 6 differ only in a null-pointer message (see
+  below). The small logs and upstream's outputs for them are vendored in
+  `tests/upstream/PObserve` and checked in `crates/pnext-compat/tests/observe_upstream.rs`.
 
 ## Known differences from upstream
 
@@ -108,3 +151,9 @@ system; the module is about 1 MB (about 320 KB gzipped).
   (upstream hangs).
 * File enumeration order is sorted (upstream uses the OS order), and elapsed time and
   memory figures naturally differ.
+* `p observe`: specs come from P sources, not jars (no `--jars`), and parsers are written
+  in Rust. Event filters (`--filters`), socket mode and `SERIALIZEDEVENTS` input are not
+  supported and are reported as command-line errors. Java stack frames are omitted from
+  `UnknownError_N.txt`. Java's message for a null dereference names a variable of the
+  generated Java code (`because "TMP_tmp2_12" is null`). That name cannot be reproduced,
+  so `p observe` reports a null dereference with its own message.
