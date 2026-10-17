@@ -13,42 +13,37 @@ pub struct Project {
     /// Input files (P and foreign), absolute, in discovery order.
     pub input_files: Vec<PathBuf>,
     pub project_root: PathBuf,
-    pub dependencies: Vec<PathBuf>,
     /// `<pobserve-package>`: Java package of the PObserve backend's generated classes.
     pub pobserve_package: Option<String>,
 }
 
+/// The elements of a project file prs reads.
 struct Doc {
     path: PathBuf,
-    text: String,
+    /// `<ProjectName>` texts.
+    project_names: Vec<String>,
+    /// `<InputFiles><PFile>` texts.
+    input_files: Vec<String>,
+    /// `<IncludeProject>` texts.
+    include_projects: Vec<String>,
+    pobserve_package: Option<String>,
 }
 
 impl Doc {
     fn load(host: &dyn Host, path: &Path) -> Result<Doc, String> {
         let text = host.read_to_string(path).map_err(|e| e.to_string())?;
-        roxmltree::Document::parse(&text).map_err(|e| format!("malformed XML: {}", e))?;
-        Ok(Doc { path: path.to_path_buf(), text })
-    }
-
-    fn with<R>(&self, f: impl FnOnce(roxmltree::Node) -> R) -> R {
-        let d = roxmltree::Document::parse(&self.text).expect("validated");
-        f(d.root_element())
-    }
-
-    /// Text of each direct child element named `name`.
-    fn elements(&self, name: &str) -> Vec<String> {
-        self.with(|root| root.children().filter(|c| c.has_tag_name(name)).map(|c| element_value(&c)).collect())
-    }
-
-    /// Text of each `child` element under each `parent` element.
-    fn nested(&self, parent: &str, child: &str) -> Vec<String> {
-        self.with(|root| {
-            root.children()
-                .filter(|c| c.has_tag_name(parent))
-                .flat_map(|p| {
-                    p.children().filter(|c| c.has_tag_name(child)).map(|c| element_value(&c)).collect::<Vec<_>>()
-                })
-                .collect()
+        let xml = roxmltree::Document::parse(&text).map_err(|e| format!("malformed XML: {}", e))?;
+        let root = xml.root_element();
+        let children = |name: &'static str| root.children().filter(move |c| c.has_tag_name(name));
+        let texts = |name| children(name).map(|c| element_value(&c)).collect::<Vec<_>>();
+        Ok(Doc {
+            path: path.to_path_buf(),
+            project_names: texts("ProjectName"),
+            input_files: children("InputFiles")
+                .flat_map(|p| p.children().filter(|c| c.has_tag_name("PFile")).map(|c| element_value(&c)))
+                .collect(),
+            include_projects: texts("IncludeProject"),
+            pobserve_package: texts("pobserve-package").into_iter().next(),
         })
     }
 }
@@ -95,8 +90,8 @@ fn legal_foreign_file(host: &dyn Host, file: &str) -> Option<PathBuf> {
 }
 
 /// Recursive file listing in .NET `Directory.GetFiles(..., RecurseSubdirectories)` order:
-/// a directory's files first, then its subdirectories breadth-first. Hidden entries skipped
-/// when `skip_hidden`.
+/// a directory's files first, then its subdirectories breadth-first, at most `max_depth`
+/// levels below `dir`.
 pub fn list_files(host: &dyn Host, dir: &Path, max_depth: Option<usize>, out: &mut Vec<PathBuf>) {
     let mut queue = std::collections::VecDeque::new();
     queue.push_back((dir.to_path_buf(), 0usize));
@@ -150,18 +145,16 @@ fn parse_inner(host: &mut dyn Host, project_file: &str) -> Result<Project, Err2>
     }
     host.out_line("----------------------------------------");
     host.out_line(&format!("==== Loading project file: {}", project_file));
+    let doc = Doc::load(host, &full).map_err(ParseErr)?;
     let mut inputs = Vec::new();
-    let mut deps = Vec::new();
-    all_dependencies(host, &full, &mut inputs, &mut deps)?;
+    all_dependencies(host, &doc, &mut inputs, &mut Vec::new())?;
     if inputs.is_empty() {
         return Err(Err2::Exit(report_and_exit(
             host,
             "At least one .p file must be provided as input files, no input files found after parsing the project file",
         )));
     }
-    let doc = Doc::load(host, &full).map_err(ParseErr)?;
-    let names = doc.elements("ProjectName");
-    let Some(name) = names.first().cloned() else {
+    let Some(name) = doc.project_names.first().cloned() else {
         return Err(Err2::Parse(format!("Missing project name in {}", full.display())));
     };
     if !is_legal_project_name(&name) {
@@ -172,8 +165,7 @@ fn parse_inner(host: &mut dyn Host, project_file: &str) -> Result<Project, Err2>
         name,
         input_files: inputs,
         project_root: full.parent().map(Path::to_path_buf).unwrap_or_default(),
-        dependencies: deps,
-        pobserve_package: doc.elements("pobserve-package").first().cloned(),
+        pobserve_package: doc.pobserve_package,
     })
 }
 
@@ -183,20 +175,20 @@ fn push_unique(v: &mut Vec<PathBuf>, p: PathBuf) {
     }
 }
 
-/// `GetAllProjectDependencies`.
+/// `GetAllProjectDependencies`: collects the input files of `doc` and the projects it
+/// includes; `deps` holds the directories of the projects already included.
 fn all_dependencies(
     host: &mut dyn Host,
-    project: &Path,
+    doc: &Doc,
     inputs: &mut Vec<PathBuf>,
     deps: &mut Vec<PathBuf>,
 ) -> Result<(), Err2> {
-    let doc = Doc::load(host, project).map_err(ParseErr)?;
-    for f in read_all_input_files(host, &doc) {
+    for f in read_all_input_files(host, doc) {
         push_unique(inputs, f);
     }
-    for dep in doc.elements("IncludeProject") {
+    for dep in &doc.include_projects {
         // upstream resolves included projects against the current directory
-        let (ok, full) = legal_pproj(host, &dep);
+        let (ok, full) = legal_pproj(host, dep);
         if !ok {
             return Err(Err2::Parse(format!(
                 "Illegal P project file name {} or file {} not found",
@@ -210,7 +202,8 @@ fn all_dependencies(
             continue;
         }
         deps.push(dir);
-        all_dependencies(host, &full, inputs, deps)?;
+        let dep_doc = Doc::load(host, &full).map_err(ParseErr)?;
+        all_dependencies(host, &dep_doc, inputs, deps)?;
     }
     Ok(())
 }
@@ -219,8 +212,8 @@ fn all_dependencies(
 fn read_all_input_files(host: &mut dyn Host, doc: &Doc) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let base = doc.path.parent().map(Path::to_path_buf).unwrap_or_default();
-    for entry in doc.nested("InputFiles", "PFile") {
-        let combined = base.join(&entry);
+    for entry in &doc.input_files {
+        let combined = base.join(entry);
         let mut candidates = Vec::new();
         if host.is_dir(&combined) {
             let mut files = Vec::new();

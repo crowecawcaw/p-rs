@@ -83,6 +83,11 @@ See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 * Files are enumerated in sorted order; elapsed time and memory figures differ.
 * An action that runs forever without reaching a scheduling point is reported as a bug
   (upstream hangs).
+* `prs check` exits with 1 if any of the test cases matching `--testcase` finds a bug
+  (upstream: the last one's exit code), `--timeout 0` disables the timeout (upstream
+  explores forever) and `--liveness-temperature-threshold` is honored (upstream fails).
+* `prs merge-scenario-coverage --help` prints its usage (upstream looks for a directory
+  named `--help`).
 * `prs observe` reports a null dereference with its own message.
 * Foreign functions and log parsers are written in Rust, not C# or Java.
 

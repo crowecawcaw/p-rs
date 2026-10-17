@@ -194,6 +194,16 @@ fn in_history_dir(p: &Path) -> bool {
 
 /// `p merge-scenario-coverage [directory]`.
 pub fn run_merge(args: &[String], host: &mut dyn Host) -> i32 {
+    // upstream has no help and looks for a directory named `--help`
+    if matches!(args.first().map(String::as_str), Some("-h" | "--help")) {
+        host.out_line("usage: p merge-scenario-coverage [directory]");
+        host.out_line("");
+        host.out_line(&format!(
+            "Merges the scenario coverage reports (*{}) under the directory, recursively, into one report. The directory defaults to the current one.",
+            FILE_SUFFIX
+        ));
+        return 0;
+    }
     let dir = args.first().cloned().unwrap_or_else(|| host.cwd().to_string_lossy().to_string());
     let full = full_path(&host.cwd(), Path::new(&dir));
     if !host.is_dir(&full) {

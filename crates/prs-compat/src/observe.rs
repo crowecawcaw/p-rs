@@ -22,9 +22,8 @@ use prs_checker::value::{MachineRef, NamedTuple, SlotMap, SlotSet, Value};
 use prs_sema::{MachineKind, PType, Program};
 use serde_json::Value as Json;
 
-use crate::host::{full_path, relative_path, Color, Host, HostExt, Stream};
-use crate::pproj;
-use crate::project::{SourceFile, Sources};
+use crate::host::{full_path, Color, Host, HostExt, Stream};
+use crate::{pproj, project, write_output, Exit};
 
 /// `PObserveExitStatus`.
 pub const EXIT_SUCCESS: i32 = 0;
@@ -138,8 +137,11 @@ pub fn run_with(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parse
     for l in &report.log {
         host.out_colored_line(l, Color::Red);
     }
-    emit_report(host, prog, &report, &out_abs);
-    emit_metrics(host, &report.metrics, &out_abs);
+    if let Err(Exit(code)) =
+        emit_report(host, prog, &report, &out_abs).and_then(|()| emit_metrics(host, &report.metrics, &out_abs))
+    {
+        return code;
+    }
     let n = report.error_count();
     if n > 0 {
         host.out_colored_line(&format!("PObserve run completed with {} error(s)", n), Color::Red);
@@ -634,8 +636,14 @@ impl Host for Quiet<'_> {
     fn now(&self) -> f64 {
         self.inner.now()
     }
+    fn max_memory_gb(&self) -> f64 {
+        self.inner.max_memory_gb()
+    }
     fn random_seed(&mut self) -> u32 {
         self.inner.random_seed()
+    }
+    fn unix_time(&self) -> f64 {
+        self.inner.unix_time()
     }
 }
 
@@ -643,7 +651,7 @@ impl Host for Quiet<'_> {
 fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, String> {
     let mut quiet = Quiet { inner: host, errors: String::new() };
     let cwd = quiet.cwd();
-    let mut project_name = "generatedOutput".to_string();
+    let mut project_name = project::DEFAULT_NAME.to_string();
     let mut package = None;
     let (files, root, option, value): (Vec<PathBuf>, PathBuf, &'static str, String) = if !cfg.pfiles.is_empty() {
         let mut files = Vec::new();
@@ -678,16 +686,11 @@ fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, Stri
             proj.input_files.into_iter().filter(|f| f.to_string_lossy().to_lowercase().ends_with(".p")).collect();
         (files, proj.project_root, "pproj", file)
     };
-    let mut sources = Vec::new();
-    for f in &files {
-        let text = quiet.read_to_string(f).map_err(|e| format!("{}: {}", f.display(), e))?;
-        sources.push(SourceFile { path: f.to_string_lossy().to_string(), name: relative_path(&root, f), text });
-    }
-    let art = Sources { project_name: project_name.clone(), files: sources };
+    let art = project::read(&quiet, &project_name, &files, &root)?;
     let sm = art.source_map();
     let r = prs_sema::compile(&sm, &prs_sema::Options::default());
     let host = quiet.inner;
-    if !crate::project::report_result(host, &art, &sm, &r) {
+    if !project::report_result(host, &art, &sm, &r) {
         return Err("The P specification does not type-check.".into());
     }
     let program = r.map(|a| a.program).map_err(|_| "The P specification does not type-check.".to_string())?;
@@ -768,13 +771,13 @@ fn replay_file_name(key: &str) -> String {
 }
 
 /// `TrackErrors.emitErrorsReport`.
-fn emit_report(host: &mut dyn Host, prog: &Program, report: &Report, out: &str) {
+fn emit_report(host: &mut dyn Host, prog: &Program, report: &Report, out: &str) -> Result<(), Exit> {
     const RULE: &str = "-------------------------------------";
     if report.errors.is_empty() {
         host.out_line(RULE);
         host.out_line("Success! No bugs found.");
         host.out_line(RULE);
-        return;
+        return Ok(());
     }
     let (mut parser_n, mut unknown_n) = (0, 0);
     for e in &report.errors {
@@ -782,40 +785,42 @@ fn emit_report(host: &mut dyn Host, prog: &Program, report: &Report, out: &str) 
         match e.kind {
             ErrorKind::SpecViolation => {
                 host.out_colored_line(&format!("PObserve Spec Violation::\n{}", e.message), Color::Red);
-                write_replay(host, prog, e, out);
+                write_replay(host, prog, e, out)?;
             }
             ErrorKind::OutOfOrder => {
                 host.out_colored_line("PObserve Event Out of Order Exception::", Color::Red);
                 host.out_colored_line(&e.message, Color::Red);
-                write_replay(host, prog, e, out);
+                write_replay(host, prog, e, out)?;
             }
             ErrorKind::Parser => {
                 host.out_colored_line("PObserve Parser Exception::", Color::Red);
                 host.out_colored_line(&format!("Exception occurred while parsing log line: {}", e.message), Color::Red);
-                write_exception(host, e, &join(out, &format!("ParserError_{}.txt", parser_n)));
+                write_exception(host, e, &join(out, &format!("ParserError_{}.txt", parser_n)))?;
                 parser_n += 1;
             }
             ErrorKind::Unknown => {
                 host.out_colored_line(&format!("Failed with an unknown exception:: {}", e.message), Color::Red);
                 host.out_colored_line("Please report this issue to the P team", Color::Red);
-                write_exception(host, e, &join(out, &format!("UnknownError_{}.txt", unknown_n)));
+                write_exception(host, e, &join(out, &format!("UnknownError_{}.txt", unknown_n)))?;
                 unknown_n += 1;
             }
         }
         host.out_line(RULE);
     }
+    Ok(())
 }
 
-fn write_exception(host: &mut dyn Host, e: &ObserveError, path: &str) {
+fn write_exception(host: &mut dyn Host, e: &ObserveError, path: &str) -> Result<(), Exit> {
     host.out_line(&format!(".. writing error log into file {}", path));
     // upstream prints the Java stack trace; there is none here
     let text = format!("errorMessage={}\n\nerrorLogLine=\n{}", e.detail, e.message);
-    let _ = host.write_file(Path::new(path), &text);
+    write_output(host, path, &text)?;
     host.out_line(&format!("Exception details can be found in:\n\t{}", path));
+    Ok(())
 }
 
-fn write_replay(host: &mut dyn Host, prog: &Program, e: &ObserveError, out: &str) {
-    let Some(r) = &e.replay else { return };
+fn write_replay(host: &mut dyn Host, prog: &Program, e: &ObserveError, out: &str) -> Result<(), Exit> {
+    let Some(r) = &e.replay else { return Ok(()) };
     let path = join(out, &replay_file_name(&r.key));
     host.out_line(&format!(".. writing error log into file {}", path));
     let mut text = format!(
@@ -826,11 +831,11 @@ fn write_replay(host: &mut dyn Host, prog: &Program, e: &ObserveError, out: &str
         text.push_str(&ev.to_java_string(prog));
         text.push('\n');
     }
-    let _ = host.write_file(Path::new(&path), &text);
+    write_output(host, &path, &text)
 }
 
 /// `PObserveMetrics.outputMetricsSummary`.
-fn emit_metrics(host: &mut dyn Host, m: &Metrics, out: &str) {
+fn emit_metrics(host: &mut dyn Host, m: &Metrics, out: &str) -> Result<(), Exit> {
     let mut s = String::new();
     let minutes = m.elapsed_ms as f32 / 60000f32;
     s.push_str(&format!("\nTotal time taken = {} min\n", javafmt::float_to_string(minutes)));
@@ -878,7 +883,7 @@ fn emit_metrics(host: &mut dyn Host, m: &Metrics, out: &str) {
             e.max_ms
         ));
     }
-    let _ = host.write_file(Path::new(&join(out, "PObserveMetrics.txt")), &f);
+    write_output(host, &join(out, "PObserveMetrics.txt"), &f)
 }
 
 /// `String.format("%f", float)`: six decimals, rounded half-up from the float's decimal form.
