@@ -30,7 +30,7 @@ fn long_hash(v: i64) -> i32 {
 }
 
 /// `String.hashCode` (over UTF-16 code units).
-pub fn string_hash(s: &str) -> i32 {
+fn string_hash(s: &str) -> i32 {
     let mut h: i32 = 0;
     for u in s.encode_utf16() {
         h = h.wrapping_mul(31).wrapping_add(u as i32);
@@ -40,7 +40,7 @@ pub fn string_hash(s: &str) -> i32 {
 
 /// `hashCode()` of the Java object a value maps to. Enum constants hash by identity in
 /// Java (different on every run); their ordinal value stands in for it.
-pub fn java_hash(v: &Value) -> i32 {
+fn java_hash(v: &Value) -> i32 {
     match v {
         Value::Null => 0,
         Value::Bool(b) => {
@@ -467,11 +467,8 @@ fn number_format_float(f: f32) -> String {
     while frac_str.ends_with('0') {
         frac_str.pop();
     }
-    let is_zero = int_str == "0" && frac_str.is_empty();
-    let mut out = group_digits(int_str, d < 0.0 && !is_zero);
-    if d.is_sign_negative() && is_zero && d != 0.0 {
-        out = format!("-{}", out);
-    }
+    // negative values keep their sign even when they round to zero, as does -0.0
+    let mut out = group_digits(int_str, d.is_sign_negative());
     if !frac_str.is_empty() {
         out.push('.');
         out.push_str(&frac_str);
@@ -540,10 +537,8 @@ pub fn message_format(pattern: &str, args: &[String]) -> Result<String, String> 
             if !closed {
                 return Err("Unmatched braces in the pattern.".into());
             }
-            let index_text = segments[0].trim();
-            let index: i64 = match index_text.parse::<i64>() {
-                Ok(n) if !index_text.starts_with('+') => n,
-                _ => return Err(format!("can't parse argument number: {}", segments[0])),
+            let Some(index) = parse_java_int(&segments[0]) else {
+                return Err(format!("can't parse argument number: {}", segments[0]));
             };
             if index < 0 {
                 return Err(format!("negative argument number: {}", index));
@@ -559,6 +554,28 @@ pub fn message_format(pattern: &str, args: &[String]) -> Result<String, String> 
         i += 1;
     }
     Ok(out)
+}
+
+/// `Integer.parseInt(s)` for ASCII digits: an optional sign, then digits, within `int` range.
+fn parse_java_int(s: &str) -> Option<i32> {
+    let (negative, digits) = match s.as_bytes().first()? {
+        b'-' => (true, &s[1..]),
+        b'+' => (false, &s[1..]),
+        _ => (false, s),
+    };
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    // accumulate negatively so that `i32::MIN` parses
+    let mut n: i32 = 0;
+    for b in digits.bytes() {
+        n = n.checked_mul(10)?.checked_sub(i32::from(b - b'0'))?;
+    }
+    if negative {
+        Some(n)
+    } else {
+        n.checked_neg()
+    }
 }
 
 // ---- Float.toString / Double.toString ----------------------------------------------------
@@ -577,17 +594,6 @@ pub fn float_to_string(f: f32) -> String {
         f.is_sign_negative(),
         (f.abs() as f64) >= 1e-3 && (f.abs() as f64) < 1e7,
     )
-}
-
-/// `Double.toString(d)`.
-pub fn double_to_string(d: f64) -> String {
-    if d.is_nan() {
-        return "NaN".into();
-    }
-    if d.is_infinite() {
-        return if d > 0.0 { "Infinity".into() } else { "-Infinity".into() };
-    }
-    java_decimal(&format!("{:e}", d), d == 0.0, d.is_sign_negative(), d.abs() >= 1e-3 && d.abs() < 1e7)
 }
 
 /// Renders Rust's shortest scientific representation (`1.2345e7`) in Java's style.
@@ -674,8 +680,8 @@ mod tests {
         assert_eq!(float_to_string(0.001), "0.001");
         assert_eq!(float_to_string(3.8333333E-4), "3.8333333E-4");
         assert_eq!(float_to_string(5.0E-4), "5.0E-4");
-        assert_eq!(double_to_string(1e7), "1.0E7");
-        assert_eq!(double_to_string(9999999.0), "9999999.0");
+        assert_eq!(float_to_string(1e7), "1.0E7");
+        assert_eq!(float_to_string(9999999.0), "9999999.0");
     }
 
     #[test]
@@ -685,6 +691,8 @@ mod tests {
         assert_eq!(number_format_float(2.0), "2");
         assert_eq!(number_format_float(1.0005), "1");
         assert_eq!(number_format_float(0.0), "0");
+        assert_eq!(number_format_float(-0.0), "-0");
+        assert_eq!(number_format_float(-0.0001), "-0");
         assert_eq!(number_format_float(-1234567.0), "-1,234,567");
         assert_eq!(group_digits("1234567", false), "1,234,567");
         assert_eq!(group_digits("123", true), "-123");
@@ -698,6 +706,24 @@ mod tests {
         assert_eq!(message_format("{0} and {0}", &a(&["2"])).unwrap(), "2 and 2");
         assert!(message_format("{0", &a(&["x"])).is_err());
         assert_eq!(message_format("{x}", &a(&["x"])).unwrap_err(), "can't parse argument number: x");
+    }
+
+    #[test]
+    fn message_format_parses_indices_like_integer_parse_int() {
+        // Results from `MessageFormat.format` on JDK 21.
+        let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let args = a(&["A", "B"]);
+        assert_eq!(message_format("{ 0 }", &args).unwrap_err(), "can't parse argument number:  0 ");
+        assert_eq!(message_format("{0 }", &args).unwrap_err(), "can't parse argument number: 0 ");
+        assert_eq!(message_format("{+1}", &args).unwrap(), "B");
+        assert_eq!(message_format("{-0}", &args).unwrap(), "A");
+        assert_eq!(message_format("{00}", &args).unwrap(), "A");
+        assert_eq!(message_format("{0, }", &args).unwrap(), "A");
+        assert_eq!(message_format("{-1}", &args).unwrap_err(), "negative argument number: -1");
+        assert_eq!(message_format("{3000000000}", &args).unwrap_err(), "can't parse argument number: 3000000000");
+        assert_eq!(parse_java_int("-2147483648"), Some(i32::MIN));
+        assert_eq!(parse_java_int("2147483648"), None);
+        assert_eq!(parse_java_int("+"), None);
     }
 
     #[test]

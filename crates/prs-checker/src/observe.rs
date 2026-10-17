@@ -31,8 +31,9 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
+    /// `Instant.ofEpochSecond(secs, nanos)`, saturating where Java would throw.
     pub fn new(secs: i64, nanos: u32) -> Timestamp {
-        Timestamp { secs: secs + (nanos / 1_000_000_000) as i64, nanos: nanos % 1_000_000_000 }
+        Timestamp { secs: secs.saturating_add(i64::from(nanos / 1_000_000_000)), nanos: nanos % 1_000_000_000 }
     }
 
     /// `Instant.ofEpochMilli`.
@@ -40,9 +41,9 @@ impl Timestamp {
         Timestamp { secs: ms.div_euclid(1000), nanos: (ms.rem_euclid(1000) * 1_000_000) as u32 }
     }
 
-    /// `Instant.toEpochMilli`.
+    /// `Instant.toEpochMilli`, saturating where Java would throw.
     pub fn to_millis(&self) -> i64 {
-        self.secs * 1000 + (self.nanos / 1_000_000) as i64
+        self.secs.saturating_mul(1000).saturating_add(i64::from(self.nanos / 1_000_000))
     }
 
     /// `Instant.toString()`.
@@ -95,7 +96,8 @@ pub trait Parser {
     }
 
     /// Parses one (trimmed) log entry. Entries that hold no event return no events; an
-    /// `Err` counts as a parser error for this entry only.
+    /// `Err` counts as a parser error for this entry only. As upstream, the report names the
+    /// entry, not the error message.
     fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String>;
 }
 
@@ -616,9 +618,8 @@ impl<'p> Spec<'p> {
                     }
                     report.errors.push(err);
                 }
-                KeyOutcome::Fatal(mut err) => {
+                KeyOutcome::Fatal(err) => {
                     report.metrics.unknown_errors += 1;
-                    err.replay = None;
                     report.errors.push(err);
                     break;
                 }
@@ -628,9 +629,8 @@ impl<'p> Spec<'p> {
         // event metrics in the order of upstream's HashMap<String, EventMetrics>
         let names: Vec<Value> = self.observes().iter().map(|&e| Value::str(&self.prog.event(e).name)).collect();
         let mut seen = std::collections::HashSet::new();
-        for (name, e) in javafmt::hashmap_order(names.iter().zip(self.observes().iter())) {
+        for (_, e) in javafmt::hashmap_order(names.iter().zip(self.observes().iter())) {
             if seen.insert(*e) {
-                let _ = name;
                 if let Some(m) = metrics.remove(e) {
                     report.metrics.events.push(m);
                 }
@@ -679,5 +679,8 @@ mod tests {
         assert_eq!((t.secs, t.nanos), (-1, 999_000_000));
         assert_eq!(t.to_millis(), -1);
         assert_eq!(Timestamp::from_millis(1706894854333).to_millis(), 1706894854333);
+        assert_eq!(Timestamp::new(i64::MAX, 1_500_000_000), Timestamp { secs: i64::MAX, nanos: 500_000_000 });
+        assert_eq!(Timestamp::new(i64::MAX, 0).to_millis(), i64::MAX);
+        assert_eq!(Timestamp::new(i64::MIN, 0).to_millis(), i64::MIN);
     }
 }

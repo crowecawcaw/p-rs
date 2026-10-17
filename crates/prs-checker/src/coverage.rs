@@ -81,11 +81,6 @@ pub struct CoverageInfo {
     pub links: HashSet<(u32, u32)>,
 }
 
-/// Interned event key: `EventId` values, plus the goto pseudo event.
-fn event_key(e: EventId) -> u32 {
-    e.0
-}
-
 /// Who put an entry in a graph-builder inbox (`EventInfo.Name/Type`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Sender {
@@ -115,6 +110,11 @@ pub struct CoverageRun {
 impl Runtime<'_> {
     fn cov_on(&self) -> bool {
         self.coverage.is_some()
+    }
+
+    /// The naming tables, which the engine installs together with the coverage.
+    fn cov_tables(&self) -> &CoverageTables {
+        self.coverage_tables.as_deref().expect("coverage tables are set while coverage is on")
     }
 
     fn mstate_node(&self, m: usize) -> Option<u32> {
@@ -164,7 +164,7 @@ impl Runtime<'_> {
             return;
         }
         let Some(state) = self.mstate_node(sender) else { return };
-        let ev = event_key(e);
+        let ev = e.0;
         if let Some(c) = self.coverage.as_mut() {
             c.sent.insert((state, ev));
         }
@@ -178,7 +178,7 @@ impl Runtime<'_> {
             return;
         }
         let Some(state) = self.mstate_node(m) else { return };
-        let ev = event_key(e);
+        let ev = e.0;
         if let Some(c) = self.coverage.as_mut() {
             c.sent.insert((state, ev));
         }
@@ -191,7 +191,7 @@ impl Runtime<'_> {
         if !self.cov_on() {
             return;
         }
-        let ev = event_key(e);
+        let ev = e.0;
         if let Some(run) = self.coverage_run.as_mut() {
             run.dequeued = Some(ev);
         }
@@ -208,7 +208,7 @@ impl Runtime<'_> {
         if !self.cov_on() {
             return;
         }
-        let ev = event_key(self.prog.null_event);
+        let ev = self.prog.null_event.0;
         if let Some(run) = self.coverage_run.as_mut() {
             run.dequeued = Some(ev);
         }
@@ -233,7 +233,7 @@ impl Runtime<'_> {
         if !self.cov_on() {
             return;
         }
-        let ev = event_key(e);
+        let ev = e.0;
         let decl = self.machines[m].decl;
         if let Some(run) = self.coverage_run.as_mut() {
             run.dequeued = Some(ev);
@@ -282,7 +282,7 @@ impl Runtime<'_> {
         }
         let Some(state) = self.mstate_node(m) else { return };
         self.cov_event_handled(state);
-        let t = self.coverage_tables.as_ref().map(|t| t.plain(target)).unwrap_or(0);
+        let t = self.cov_tables().plain(target);
         self.cov_link_transition(m, state, Some(t));
     }
 
@@ -292,7 +292,7 @@ impl Runtime<'_> {
             return;
         }
         let Some(state) = self.mstate_node(m) else { return };
-        let ev = event_key(e);
+        let ev = e.0;
         if let Some(c) = self.coverage.as_mut() {
             c.received.insert((state, ev));
         }
@@ -303,7 +303,7 @@ impl Runtime<'_> {
             Some(inbox.remove(i))
         });
         if let Some(info) = found {
-            let target = self.coverage_tables.as_ref().map(|t| t.receive_target[decl.idx()]).unwrap_or(state);
+            let target = self.cov_tables().receive_target[decl.idx()];
             self.cov_link(info.state, target);
         }
     }
@@ -318,9 +318,8 @@ impl Runtime<'_> {
             return;
         }
         let Some(s) = self.mon_state(mon) else { return };
-        let Some(tables) = self.coverage_tables.as_ref() else { return };
-        let state = tables.plain(s);
-        let ev = event_key(e);
+        let state = self.cov_tables().plain(s);
+        let ev = e.0;
         if let Some(c) = self.coverage.as_mut() {
             c.received.insert((state, ev));
         }
@@ -337,7 +336,7 @@ impl Runtime<'_> {
             return;
         }
         let Some(s) = self.mon_state(mon) else { return };
-        let Some(target) = self.coverage_tables.as_ref().map(|t| t.tempered(s)) else { return };
+        let target = self.cov_tables().tempered(s);
         let decl = self.monitors[mon].decl;
         let popped = self.coverage_run.as_mut().and_then(|r| r.inbox.get_mut(&decl).and_then(|i| i.pop()));
         if let Some(e) = popped {
@@ -351,8 +350,8 @@ impl Runtime<'_> {
             return;
         }
         let Some(s) = self.mon_state(mon) else { return };
-        let Some(state) = self.coverage_tables.as_ref().map(|t| t.plain(s)) else { return };
-        let ev = event_key(e);
+        let state = self.cov_tables().plain(s);
+        let ev = e.0;
         if let Some(c) = self.coverage.as_mut() {
             c.sent.insert((state, ev));
         }
@@ -366,7 +365,7 @@ impl Runtime<'_> {
             return;
         }
         let Some(s) = self.mon_state(mon) else { return };
-        let Some(target) = self.coverage_tables.as_ref().map(|t| t.tempered(s)) else { return };
+        let target = self.cov_tables().tempered(s);
         let decl = self.monitors[mon].decl;
         let popped = self.coverage_run.as_mut().and_then(|r| r.inbox.get_mut(&decl).and_then(|i| i.pop()));
         if let Some(e) = popped {
@@ -433,7 +432,7 @@ pub fn coverage_report(prog: &Program, tables: &CoverageTables, info: &CoverageI
                 .handlers
                 .iter()
                 .filter(|h| matches!(h.action, HandlerAction::Do(_) | HandlerAction::Goto { .. }))
-                .map(|h| event_key(h.event))
+                .map(|h| h.event.0)
                 .collect();
             if !evs.is_empty() {
                 registered.push((*decl, tables.plain(*s), evs));
@@ -441,9 +440,7 @@ pub fn coverage_report(prog: &Program, tables: &CoverageTables, info: &CoverageI
         }
     }
     let uncovered = |state: u32, evs: &[u32]| -> Vec<u32> {
-        let mut v: Vec<u32> = evs.iter().copied().filter(|e| !info.received.contains(&(state, *e))).collect();
-        v.dedup();
-        v
+        evs.iter().copied().filter(|e| !info.received.contains(&(state, *e))).collect::<Vec<u32>>()
     };
     let total: usize = registered.iter().map(|(_, _, e)| e.len()).sum();
     let total_uncovered: usize = registered.iter().map(|(_, s, e)| uncovered(*s, e).len()).sum();
