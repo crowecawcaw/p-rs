@@ -10,14 +10,11 @@ const HEADER_H = 44;
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 2.5;
 /** Machine lanes cycle through this many hues (--lane-0 … in styles.css). */
-const HUES = 8;
+const HUES = 6;
 
 const laneXFor = (W: number) => (i: number) => i * W + W / 2;
 const rowY = (i: number) => TOP + i * ROW_H + ROW_H / 2;
 const clamp = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
-
-/** Where along a message arrow its label sits: nearer the sender, clear of the receiver's next state. */
-const LABEL_AT = 0.4;
 
 /** Approximate advance of one 12px monospace character. */
 const CH = 7.2;
@@ -46,7 +43,8 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   const [W] = useState(() => (matchMedia("(max-width: 600px)").matches ? LANE_W_NARROW : LANE_W));
   const laneX = laneXFor(W);
   const width = Math.max(lanes.length, 1) * W;
-  const height = TOP * 2 + steps.length * ROW_H;
+  // Extra room at the bottom so the last rows can scroll clear of the zoom controls.
+  const height = TOP * 2 + steps.length * ROW_H + 48;
   const scroller = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [legend, setLegend] = useState(false);
@@ -56,6 +54,13 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   const color = useMemo(() => {
     let n = 0;
     return lanes.map((l) => (l.monitor ? "var(--spec)" : `var(--lane-${n++ % HUES})`));
+  }, [lanes]);
+
+  // Machine ids like "(3)" are only needed to tell apart machines of the same type.
+  const dupNames = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const l of lanes) seen.set(baseName(l.id), (seen.get(baseName(l.id)) ?? 0) + 1);
+    return new Set([...seen].filter(([, n]) => n > 1).map(([k]) => k));
   }, [lanes]);
 
   // Where each lane's lifeline starts: its creation step (monitors: the top).
@@ -207,7 +212,7 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
                 rx={15}
                 className={l.monitor ? "lane-head monitor" : "lane-head"}
               />
-              <LaneLabel id={l.id} monitor={l.monitor} w={W} />
+              <LaneLabel id={l.id} monitor={l.monitor} w={W} showId={dupNames.has(baseName(l.id))} />
             </g>
           ))}
         </svg>
@@ -292,7 +297,7 @@ function Row({ i, s, W, width, cursor, color, onSelect }: {
         <>
           <line x1={x} y1={y} x2={x2 - dir * 5} y2={y2} className={s.peer === undefined ? "msg pending" : "msg"} />
           <path d={head(x, y, x2 - dir * 5, y2)} className="arrowhead" />
-          <MsgLabel x={x + (x2 - x) * LABEL_AT} y={y + (y2 - y) * LABEL_AT - 7} anchor="middle" event={s.label} payload={s.payload} max={Math.max(Math.abs(x2 - x) - 16, 90)} />
+          <MsgLabel x={x + dir * 10} y={y - 6} anchor={dir > 0 ? "start" : "end"} event={s.label} payload={s.payload} max={Math.max(Math.abs(x2 - x) - 20, 90)} />
         </>
       );
       break;
@@ -301,11 +306,12 @@ function Row({ i, s, W, width, cursor, color, onSelect }: {
       body = <circle cx={x} cy={y} r={4} className="dot" />;
       break;
     case "state": {
-      const w = Math.min(W - 16, 18 + s.label.length * CH);
+      const w = Math.min(W - 8, 18 + s.label.length * CH);
+      const cx = Math.min(Math.max(x, w / 2 + 2), width - w / 2 - 2);
       body = (
         <>
-          <rect x={x - w / 2} y={y - 10} width={w} height={20} rx={10} className={s.hot ? "state hot" : "state"} />
-          <text x={x} y={y} dy="0.35em" textAnchor="middle" className="state-label">{clip(s.label, W - 24)}</text>
+          <rect x={cx - w / 2} y={y - 10} width={w} height={20} rx={10} className={s.hot ? "state hot" : "state"} />
+          <text x={cx} y={y} dy="0.35em" textAnchor="middle" className="state-label">{clip(s.label, W - 16)}</text>
         </>
       );
       break;
@@ -334,9 +340,12 @@ function Row({ i, s, W, width, cursor, color, onSelect }: {
       break;
     case "print":
       body = (
-        <text x={10} y={y} dy="0.35em" className="print-label">
-          {clip(`print: ${s.label}`, width - 20)}
-        </text>
+        <>
+          <rect x={6} y={y - 9} width={Math.min(width - 12, 8 + clip(`print: ${s.label}`, width - 20).length * CH)} height={18} rx={4} className="label-bg" />
+          <text x={10} y={y} dy="0.35em" className="print-label">
+            {clip(`print: ${s.label}`, width - 20)}
+          </text>
+        </>
       );
       break;
     case "error":
@@ -365,9 +374,11 @@ function shortError(e: string) {
 }
 
 /** "Client(3)" -> name "Client" and a muted "(3)". */
-function LaneLabel({ id, monitor, w }: { id: string; monitor: boolean; w: number }) {
+const baseName = (id: string) => id.replace(/\(\d+\)$/, "");
+
+function LaneLabel({ id, monitor, w, showId }: { id: string; monitor: boolean; w: number; showId: boolean }) {
   const m = /^(.*?)(\(\d+\))?$/.exec(id)!;
-  const n = m[2] ?? "";
+  const n = showId ? (m[2] ?? "") : "";
   return (
     <text textAnchor="middle" dy="0.35em" className="lane-label">
       <title>{monitor ? `spec ${id}` : id}</title>
@@ -379,13 +390,13 @@ function LaneLabel({ id, monitor, w }: { id: string; monitor: boolean; w: number
 
 /** Event name plus a muted payload, on a soft background so lines stay visible. */
 function MsgLabel({ x, y, anchor, event, payload, max }: {
-  x: number; y: number; anchor: "start" | "middle"; event: string; payload: unknown; max: number;
+  x: number; y: number; anchor: "start" | "middle" | "end"; event: string; payload: unknown; max: number;
 }) {
   const ev = clip(event, max);
   const room = max - ev.length * CH - 6;
   const pl = payload !== undefined && room > 30 ? clip(formatPayload(payload), room) : "";
   const w = (ev.length + (pl ? pl.length + 1 : 0)) * CH + 8;
-  const left = anchor === "middle" ? x - w / 2 : x - 4;
+  const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w + 4 : x - 4;
   return (
     <>
       <rect x={left} y={y - 11} width={w} height={15} rx={4} className="label-bg" />

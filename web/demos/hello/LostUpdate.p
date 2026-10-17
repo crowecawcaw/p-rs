@@ -1,20 +1,23 @@
-/*********************************************************
- * Welcome to the P playground!
- *
- * P models a system as state machines that talk by
- * sending events. The checker runs the model many
- * times, trying different orderings of those events,
- * and reports any schedule that breaks an assertion.
- *
- * This model has a classic race: two clients
- * increment a shared counter with a read followed by
- * a write. Press Check to find the interleaving that
- * loses an update, then step through the trace.
- *
- * Try fixing it: replace the read/write pair with a
- * single eIncrement event that the Counter handles
- * atomically, and check again.
- *********************************************************/
+/*
+  Welcome to the P playground!
+
+  P models a system as state machines
+  that talk by sending events. The
+  checker runs the model many times,
+  trying different event orderings,
+  and reports any schedule that breaks
+  an assertion.
+
+  Here two clients increment a shared
+  counter with a read, then a write.
+  Press Check to find the interleaving
+  that loses an update, then step
+  through the trace.
+
+  To fix it, replace the read/write
+  pair with one eIncrement event that
+  the Counter handles atomically.
+*/
 
 event eRead: Client;          // ask the counter for its value
 event eValue: int;            // the counter's reply

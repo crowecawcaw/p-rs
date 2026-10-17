@@ -30,6 +30,8 @@ const theme = EditorView.theme({
   ".cm-cursor": { borderLeftColor: "var(--fg)" },
   ".cm-tooltip": { backgroundColor: "var(--panel)", color: "var(--fg)", border: "1px solid var(--border)" },
   ".cm-flashLine": { backgroundColor: "var(--flash)" },
+  // Wrapped lines hang under the first so soft-wrapped code still reads as code.
+  "&.cm-lineWrapping .cm-line": { paddingLeft: "calc(2ch + 6px)", textIndent: "-2ch" },
 });
 
 interface Props {

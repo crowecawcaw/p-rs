@@ -325,6 +325,9 @@ export function App() {
             </div>
             <details className="options" open={optionsOpen} onToggle={(e) => setOptionsOpen((e.target as HTMLDetailsElement).open)}>
               <summary>
+                <svg className="chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M3 1.5 L6.5 5 L3 8.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
                 Options
                 <span className="muted">
                   {" "}· {schedules} schedules · {STRATEGIES[strategy].label}
@@ -370,7 +373,7 @@ export function App() {
                   <input type="checkbox" checked={fixedSeed} onChange={(e) => setFixedSeed(e.target.checked)} />
                   Keep seed
                 </label>
-                <label className="span2">
+                <label className="span-all">
                   Extra flags
                   <input
                     value={extraArgs}
@@ -400,6 +403,7 @@ export function App() {
                 </button>
               ))}
             </div>
+            {(running || result || runError || compileOk === false) && (
             <div className="status-line">
               <span className={`status ${statusClass}`}>{status}</span>
               {!running && (compileOk === false || (result && !result.ok)) && diagnostics[0] && (
@@ -416,6 +420,7 @@ export function App() {
                 </span>
               )}
             </div>
+            )}
           </div>
 
           <div className="output">

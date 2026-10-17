@@ -15,6 +15,7 @@ export function TraceView({ json, onOpenLocation }: Props) {
   const last = trace.steps.length - 1;
   const [cursor, setCursor] = useState(last);
   const [playing, setPlaying] = useState(false);
+  const [bannerOpen, setBannerOpen] = useState(false);
 
   useEffect(() => {
     setCursor(last);
@@ -37,17 +38,23 @@ export function TraceView({ json, onOpenLocation }: Props) {
   return (
     <div className="trace">
       {trace.error && (
-        <div className="trace-error">
+        <div className={bannerOpen ? "trace-error open" : "trace-error"} onClick={() => setBannerOpen(!bannerOpen)}>
           <strong>Bug:</strong> {trace.error}
           {loc && (
-            <button className="link" onClick={() => onOpenLocation(loc[1], Number(loc[2]))}>
+            <button
+              className="link"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenLocation(loc[1], Number(loc[2]));
+              }}
+            >
               Go to {loc[1]}:{loc[2]}
             </button>
           )}
         </div>
       )}
       <div className="trace-controls">
-        <button onClick={() => { setPlaying(false); setCursor(0); }} title="First step" aria-label="First step">⏮</button>
+        <button onClick={() => { setPlaying(false); setCursor(0); }} title="First step" aria-label="First step" className="jump">⏮</button>
         <button onClick={() => setCursor((c) => Math.max(c - 1, 0))} title="Previous step" aria-label="Previous step">◀</button>
         <button
           className="primary"
@@ -60,7 +67,7 @@ export function TraceView({ json, onOpenLocation }: Props) {
           {playing ? "Pause" : "Play"}
         </button>
         <button onClick={() => setCursor((c) => Math.min(c + 1, last))} title="Next step" aria-label="Next step">▶</button>
-        <button onClick={() => { setPlaying(false); setCursor(last); }} title="Last step" aria-label="Last step">⏭</button>
+        <button onClick={() => { setPlaying(false); setCursor(last); }} title="Last step" aria-label="Last step" className="jump">⏭</button>
         <input
           type="range"
           min={0}
