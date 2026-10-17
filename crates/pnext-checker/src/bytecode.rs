@@ -62,7 +62,9 @@ pub enum Op {
     TupleGet(u32),
     SeqGet,
     SetGet,
-    MapGet,
+    /// `map[key]`. `java_null`: the value type is a Java reference type, so in Java semantics
+    /// a missing key reads as null (`HashMap.get`) instead of failing.
+    MapGet { java_null: bool },
     Keys,
     Values,
     Sizeof,

@@ -489,6 +489,8 @@ pub struct Program {
     /// Ids of the built-in `null` and `halt` events.
     pub null_event: EventId,
     pub halt_event: EventId,
+    /// Cache for backends that derive names from the program (filled on first use).
+    pub java_tuple_names: std::sync::OnceLock<std::collections::HashMap<String, String>>,
 }
 
 impl Program {

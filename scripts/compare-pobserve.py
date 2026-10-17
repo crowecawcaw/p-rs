@@ -62,9 +62,10 @@ def normalize_file(name, text):
         text = re.sub(r"Total time taken = \S+ min", "Total time taken = <t> min", text)
         out = []
         for l in text.split("\n"):
-            m = re.match(r"^(\S+ +\d+  )(\S+ +)(\S+ *)$", l)
-            if m and not l.startswith("Total"):
-                l = m.group(1) + "<avg>  <max>"
+            # per-event rows: name, verified count, avg time, max time
+            m = re.match(r"^([A-Za-z_]\S* +\d+) +[\d.]+ +\d+ *$", l)
+            if m:
+                l = m.group(1) + " <avg> <max>"
             out.append(l)
         return "\n".join(out)
     if name.startswith(("UnknownError", "ParserError")):

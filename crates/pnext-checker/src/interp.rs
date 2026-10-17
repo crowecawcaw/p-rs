@@ -622,10 +622,11 @@ impl<'p> Runtime<'p> {
                 };
                 stack!().push(v);
             }
-            Op::MapGet => {
+            Op::MapGet { java_null } => {
                 let key = pop(&mut stack!());
                 let base = pop(&mut stack!());
                 let v = match &base {
+                    Value::Map(m) if java_null && self.config.java_semantics => m.get(&key).cloned().unwrap_or(Value::Null),
                     Value::Map(m) => m.get(&key).cloned().ok_or_else(|| key_not_found(&key.to_display(prog)))?,
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),

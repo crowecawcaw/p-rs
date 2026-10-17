@@ -148,11 +148,163 @@ fn abbreviate_tuple_name(name: &str) -> String {
     s.chars().take(5).collect::<String>().to_lowercase()
 }
 
-/// The generated class of a named tuple type (`NameManager.NameForNamedTuple`, without the
-/// suffix upstream adds when two tuple types abbreviate to the same name).
+/// The abbreviated class name of a named tuple type, before uniquification.
 pub fn tuple_class_name<'a>(names: impl Iterator<Item = &'a str>) -> String {
     let parts: Vec<String> = names.map(abbreviate_tuple_name).collect();
     format!("PTuple_{}", parts.join("_"))
+}
+
+/// `PLanguageType.CanonicalRepresentation`: what makes two tuple types the same Java class.
+fn canonical(ty: &PType, prog: &Program) -> String {
+    match resolve(ty, prog) {
+        PType::Bool => "bool".into(),
+        PType::Int => "int".into(),
+        PType::Float => "float".into(),
+        PType::String => "string".into(),
+        PType::Event => "event".into(),
+        PType::Machine => "machine".into(),
+        PType::Any => "any".into(),
+        PType::Null => "null".into(),
+        PType::Data => "data".into(),
+        PType::Error => "<error>".into(),
+        PType::Enum(id) => prog.enums[id.idx()].name.clone(),
+        PType::Seq(t) => format!("seq[{}]", canonical(t, prog)),
+        PType::Set(t) => format!("set[{}]", canonical(t, prog)),
+        PType::Map(k, v) => format!("map[{},{}]", canonical(k, prog), canonical(v, prog)),
+        PType::Tuple(ts) => {
+            let fs: Vec<String> = ts
+                .iter()
+                .enumerate()
+                .map(|(i, t)| format!("arg_{}:{}", i, canonical(t, prog)))
+                .collect();
+            format!("({})", fs.join(","))
+        }
+        PType::NamedTuple(fs) => {
+            let fs: Vec<String> = fs
+                .iter()
+                .map(|(n, t)| format!("{}:{}", n, canonical(t, prog)))
+                .collect();
+            format!("({})", fs.join(","))
+        }
+        PType::Permission(o) => match o {
+            pnext_sema::PermissionOrigin::Machine(m) => prog.machines[m.idx()].name.clone(),
+            pnext_sema::PermissionOrigin::Interface(i) => prog.interfaces[i.idx()].name.clone(),
+            pnext_sema::PermissionOrigin::EventSet(e) => prog.event_sets[e.idx()].name.clone(),
+        },
+        PType::Foreign(n) => n.clone(),
+        PType::TypeDef(_) => unreachable!(),
+    }
+}
+
+/// Tuple types in the order upstream's type resolver registers them in a scope: inner tuples
+/// before the tuple containing them. A typedef name refers to an already resolved type.
+fn collect_tuples(ty: &PType, prog: &Program, out: &mut Vec<(String, Vec<String>)>) {
+    match ty {
+        PType::Seq(t) | PType::Set(t) => collect_tuples(t, prog, out),
+        PType::Map(k, v) => {
+            collect_tuples(k, prog, out);
+            collect_tuples(v, prog, out);
+        }
+        PType::Tuple(ts) => {
+            ts.iter().for_each(|t| collect_tuples(t, prog, out));
+            out.push((
+                canonical(ty, prog),
+                (0..ts.len()).map(|i| format!("arg_{}", i)).collect(),
+            ));
+        }
+        PType::NamedTuple(fs) => {
+            fs.iter().for_each(|(_, t)| collect_tuples(t, prog, out));
+            out.push((
+                canonical(ty, prog),
+                fs.iter().map(|(n, _)| n.clone()).collect(),
+            ));
+        }
+        _ => {}
+    }
+}
+
+/// Generated class names of the program's tuple types (`NameManager.NameForNamedTuple`):
+/// the abbreviated name, plus `_1`, `_2`, ... for later distinct types that abbreviate to the
+/// same name. Upstream names them in the order `TypesGenerator` declares them: tuples of the
+/// global scope (typedefs, events, interfaces, in source order), then of global functions,
+/// then of each machine (its fields, then its functions).
+fn tuple_names(prog: &Program) -> &std::collections::HashMap<String, String> {
+    prog.java_tuple_names.get_or_init(|| {
+        let mut tuples = Vec::new();
+        let mut global: Vec<(pnext_syntax::Span, &PType)> = Vec::new();
+        global.extend(prog.typedefs.iter().map(|t| (t.span, &t.ty)));
+        global.extend(
+            prog.events
+                .iter()
+                .filter(|e| !e.is_builtin())
+                .map(|e| (e.span, &e.payload)),
+        );
+        global.extend(
+            prog.interfaces
+                .iter()
+                .filter(|i| i.implicit_for.is_none())
+                .map(|i| (i.span, &i.payload)),
+        );
+        global.extend(
+            prog.global_params
+                .iter()
+                .map(|v| (prog.var(*v).span, &prog.var(*v).ty)),
+        );
+        global.sort_by_key(|(s, _)| (s.file, s.start));
+        for (_, t) in global {
+            collect_tuples(t, prog, &mut tuples);
+        }
+        let fun_tuples = |f: &pnext_sema::FunDecl, out: &mut Vec<(String, Vec<String>)>| {
+            for v in f.params.iter() {
+                collect_tuples(&prog.var(*v).ty, prog, out);
+            }
+            collect_tuples(&f.ret, prog, out);
+            for v in f.locals.iter() {
+                collect_tuples(&prog.var(*v).ty, prog, out);
+            }
+        };
+        for f in prog
+            .funs
+            .iter()
+            .filter(|f| f.owner.is_none() && f.parent.is_none())
+        {
+            fun_tuples(f, &mut tuples);
+        }
+        for m in prog.machines.iter() {
+            for v in m.fields.iter() {
+                collect_tuples(&prog.var(*v).ty, prog, &mut tuples);
+            }
+            for f in m.methods.iter() {
+                fun_tuples(prog.fun(*f), &mut tuples);
+            }
+        }
+        // NameManagerBase.UniquifyName
+        let mut usages: std::collections::HashMap<String, usize> = Default::default();
+        let mut names = std::collections::HashMap::new();
+        for (canon, fields) in tuples {
+            if names.contains_key(&canon) {
+                continue;
+            }
+            let base = tuple_class_name(fields.iter().map(|n| n.as_str()));
+            let mut name = base.clone();
+            while let Some(n) = usages.get_mut(&name) {
+                let used = *n;
+                *n += 1;
+                name = format!("{}_{}", base, used);
+            }
+            usages.insert(name.clone(), 1);
+            names.insert(canon, name);
+        }
+        names
+    })
+}
+
+/// The generated Java class of the tuple type `ty` with field names `names`.
+fn tuple_class<'a>(ty: &PType, prog: &Program, names: impl Iterator<Item = &'a str>) -> String {
+    match tuple_names(prog).get(&canonical(ty, prog)) {
+        Some(n) => n.clone(),
+        None => tuple_class_name(names),
+    }
 }
 
 // ---- toString ---------------------------------------------------------------------------
@@ -217,7 +369,7 @@ fn write_value(out: &mut String, v: &Value, ty: &PType, prog: &Program) {
                 PType::NamedTuple(fs) => fs.iter().map(|(_, t)| t.clone()).collect(),
                 _ => vec![PType::Any; t.values.len()],
             };
-            out.push_str(&tuple_class_name(t.names.iter().map(|n| n.as_str())));
+            out.push_str(&tuple_class(ty, prog, t.names.iter().map(|n| n.as_str())));
             out.push('[');
             for (i, (n, v)) in t.names.iter().zip(t.values.iter()).enumerate() {
                 if i > 0 {
@@ -236,7 +388,7 @@ fn write_value(out: &mut String, v: &Value, ty: &PType, prog: &Program) {
                 _ => vec![PType::Any; t.len()],
             };
             let names: Vec<String> = (0..t.len()).map(|i| format!("arg_{}", i)).collect();
-            out.push_str(&tuple_class_name(names.iter().map(|n| n.as_str())));
+            out.push_str(&tuple_class(ty, prog, names.iter().map(|n| n.as_str())));
             out.push('[');
             for (i, v) in t.iter().enumerate() {
                 if i > 0 {
