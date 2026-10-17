@@ -106,4 +106,13 @@ benchmarks, and [AGENTS.md](AGENTS.md) for the commands to run before sending a 
 
 ## License
 
-MIT.
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
+[MIT license](LICENSE-MIT), at your option.
+
+Parts of p-rs, including the tests vendored in `tests/upstream`, are derived from
+[P](https://github.com/p-org/P) and remain under
+[P's MIT license](tests/upstream/LICENSE.txt) (Copyright (c) 2015 P Developers).
+
+Unless you explicitly state otherwise, any contribution you submit for inclusion in
+this project, as defined in the Apache-2.0 license, is dual licensed as above, without
+any additional terms or conditions.
