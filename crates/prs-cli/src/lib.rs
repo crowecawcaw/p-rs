@@ -4,7 +4,7 @@ use std::io::{self, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use prs_compat::host::{Color, Host, Stream};
+use prs_compat::host::{Color, Host, Job, Stream, Threads};
 
 pub struct NativeHost {
     start: Instant,
@@ -108,6 +108,20 @@ impl Host for NativeHost {
     fn unix_time(&self) -> f64 {
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
     }
+
+    fn threads(&self) -> Option<Threads> {
+        Some(Threads { available: std::thread::available_parallelism().map_or(1, |n| n.get()), run: run_threads })
+    }
+}
+
+/// [`Threads::run`] on OS threads.
+pub fn run_threads<'a>(jobs: Vec<Job<'a>>, main: &mut (dyn FnMut() + 'a)) {
+    std::thread::scope(|s| {
+        for job in jobs {
+            s.spawn(job);
+        }
+        main();
+    });
 }
 
 impl NativeHost {

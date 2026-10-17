@@ -1,12 +1,15 @@
 //! `p check` (`PCheckerOptions`, `Checker.Run`, `TestingProcess`, `TestingEngine` I/O).
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
+use std::time::Duration;
 
-use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Output};
+use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Exploration, Output, WorkerPool};
 use prs_checker::strategy::{ScheduleTrace, StrategyKind};
 
 use crate::argparse::{ArgParser, DataType, ParseError};
-use crate::host::{full_path, Color, Host, HostExt, Stream};
+use crate::host::{full_path, Color, Host, HostExt, Job, Stream, Threads};
 use crate::project::{self, Sources};
 use crate::{format_0_00, report_and_exit, write_output, Exit};
 
@@ -47,6 +50,13 @@ pub fn parser() -> ArgParser {
     p.group("explore", "Systematic exploration options");
     p.add(e, "iterations", Some("i"), "Number of schedules to explore", DataType::UInt).hidden();
     p.add(e, "schedules", Some("s"), "Number of schedules to explore", DataType::UInt);
+    p.add(
+        e,
+        "workers",
+        None,
+        "Number of workers exploring schedules in parallel (prs extension; default: one per CPU core). The feedback and rl strategies, PEx mode, --verbose and --replay use one worker. With more than one, a given --seed explores different schedules than upstream P; use 1 for the same schedules",
+        DataType::UInt,
+    );
     p.add(
         e,
         "max-steps",
@@ -219,6 +229,8 @@ pub struct CheckConfig {
     pub strategy: StrategyKind,
     pub strategy_bound: usize,
     pub iterations: usize,
+    /// `--workers`; `None` = one per CPU core.
+    pub workers: Option<usize>,
     /// `--schedules` (or `--timeout`) was given.
     pub user_set_iterations: bool,
     pub seed: Option<u32>,
@@ -240,7 +252,7 @@ pub struct CheckConfig {
     pub latency_profile: Option<String>,
     pub timed: bool,
     /// The parsed `--latency` file.
-    pub latency: Option<std::rc::Rc<prs_checker::time::ProfileSet>>,
+    pub latency: Option<std::sync::Arc<prs_checker::time::ProfileSet>>,
 }
 
 impl CheckConfig {
@@ -258,6 +270,7 @@ impl CheckConfig {
             strategy: StrategyKind::Random,
             strategy_bound: 0,
             iterations: 1,
+            workers: None,
             user_set_iterations: false,
             seed: None,
             full_exploration: false,
@@ -393,6 +406,10 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
                 cfg.iterations = uint() as usize;
                 cfg.user_set_iterations = true;
             }
+            "workers" => match uint() {
+                0 => return Err(checker_report_and_exit(host, "The option '--workers' needs at least 1 worker.")),
+                n => cfg.workers = Some(n as usize),
+            },
             "explore" => cfg.full_exploration = true,
             "max-steps" => {
                 let vals = v.as_ref().map(|v| v.as_uint_list()).unwrap_or_default();
@@ -431,7 +448,7 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             Err(e) => return Err(report_and_exit(host, &format!("Cannot read latency file '{}': {}", file, e))),
         };
         match prs_checker::time::ProfileSet::parse(&text) {
-            Ok(set) => cfg.latency = Some(std::rc::Rc::new(set)),
+            Ok(set) => cfg.latency = Some(std::sync::Arc::new(set)),
             Err(e) => return Err(report_and_exit(host, &format!("Latency file '{}': {}", file, e))),
         }
     }
@@ -556,7 +573,7 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
         let mut opts = engine_options(&cfg, 0);
         opts.replay = Some(trace);
         let start = host.now();
-        let res = run_engine(host, &loaded, &tc, &opts, None)?;
+        let res = run_engine(host, &loaded, &tc, &opts, None, Some(1))?;
         // `ReplayStrategy` reports a schedule it cannot follow with `Error.ReportAndExit`
         if let Some(e) = &res.replay_error {
             return Err(report_and_exit(host, e));
@@ -690,34 +707,112 @@ impl Output for ConsoleOut<'_> {
     }
 }
 
+/// Runs the engine on `tc` with up to `workers` workers (`None` = one per CPU core).
 fn run_engine(
     host: &mut dyn Host,
     loaded: &Loaded,
     tc: &prs_sema::TestCase,
     opts: &CheckerOptions,
     deadline: Option<f64>,
+    workers: Option<usize>,
 ) -> Result<CheckResult, Exit> {
-    let checker = Checker::new(&loaded.analysis.program);
-    let mut out = ConsoleOut { host, deadline };
+    let prog = &loaded.analysis.program;
+    let checker = Checker::new(prog);
     let opts = &CheckerOptions { assembly_name: loaded.sources.project_name.clone(), ..opts.clone() };
-    match checker.check(tc, opts, &mut out) {
-        Ok(r) => Ok(r),
-        Err(e) => Err(report_and_exit(host, &e)),
+    // a host without threads runs one worker
+    let threads = host.threads();
+    let requested = threads.map_or(1, |t| workers.unwrap_or(t.available));
+    let workers = WorkerPool::workers_for(opts, requested);
+    let mut out = ConsoleOut { host, deadline };
+    let result = match threads {
+        Some(threads) if workers > 1 => run_workers(&checker, tc, opts, &WorkerPool::new(workers), threads, &mut out),
+        _ => checker.check(tc, opts, &mut out),
+    };
+    result.map_err(|e| report_and_exit(host, &e))
+}
+
+/// A worker's output, sent to the thread that writes the console.
+enum Message {
+    Line(String),
+    Error(String),
+    Done(usize, Box<Result<Exploration, String>>),
+}
+
+struct WorkerOut<'a> {
+    tx: mpsc::Sender<Message>,
+    timed_out: &'a AtomicBool,
+}
+
+impl Output for WorkerOut<'_> {
+    fn line(&mut self, s: &str) {
+        let _ = self.tx.send(Message::Line(s.to_string()));
     }
+    fn error(&mut self, s: &str) {
+        let _ = self.tx.send(Message::Error(s.to_string()));
+    }
+    fn cancelled(&mut self) -> bool {
+        self.timed_out.load(Ordering::Relaxed)
+    }
+}
+
+/// Explores `tc` with the workers of `pool`, each on its own thread with its own
+/// `Checker`; this thread writes their output and watches the deadline.
+fn run_workers(
+    checker: &Checker,
+    tc: &prs_sema::TestCase,
+    opts: &CheckerOptions,
+    pool: &WorkerPool,
+    threads: Threads,
+    out: &mut ConsoleOut,
+) -> Result<CheckResult, String> {
+    checker.announce(tc, opts, out)?;
+    out.line(&format!("... Checker is using {} workers.", pool.count()));
+    let prog = checker.prog;
+    let timed_out = AtomicBool::new(false);
+    let (tx, rx) = mpsc::channel();
+    let jobs: Vec<Job<'_>> = (0..pool.count())
+        .map(|index| {
+            let tx = tx.clone();
+            let timed_out = &timed_out;
+            Box::new(move || {
+                let checker = Checker::new(prog);
+                let mut out = WorkerOut { tx, timed_out };
+                let part = checker.explore(tc, opts, pool, index, &mut out);
+                let _ = out.tx.send(Message::Done(index, Box::new(part)));
+            }) as Job<'_>
+        })
+        .collect();
+    drop(tx);
+    let mut parts: Vec<Option<Result<Exploration, String>>> = (0..pool.count()).map(|_| None).collect();
+    let mut main = || loop {
+        match rx.recv_timeout(Duration::from_millis(20)) {
+            Ok(Message::Line(s)) => out.line(&s),
+            Ok(Message::Error(s)) => out.error(&s),
+            Ok(Message::Done(index, part)) => parts[index] = Some(*part),
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+        if !timed_out.load(Ordering::Relaxed) && out.cancelled() {
+            timed_out.store(true, Ordering::Relaxed);
+        }
+    };
+    (threads.run)(jobs, &mut main);
+    let parts = parts.into_iter().map(|p| p.expect("every worker reports")).collect::<Result<Vec<_>, String>>()?;
+    Ok(checker.finish(tc, opts, parts))
 }
 
 /// `TestingProcess.Run` for one test case; returns the exit code it sets.
 fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> Result<i32, Exit> {
     let process_start = host.now();
     let seed = match cfg.seed {
-        Some(s) => s, // + 673 * TestingProcessId (always 0)
+        Some(s) => s, // + 673 * TestingProcessId: see `WorkerPool::worker_options`
         None => host.random_seed(),
     };
     let tc = select_test_case(host, loaded, &cfg.test_case_name)?;
     let opts = engine_options(cfg, seed);
     let engine_start = host.now();
     let deadline = cfg.timeout.map(|t| engine_start + f64::from(t));
-    let res = run_engine(host, loaded, &tc, &opts, deadline)?;
+    let res = run_engine(host, loaded, &tc, &opts, deadline, cfg.workers)?;
     let engine_elapsed = host.now() - engine_start;
     if res.cancelled {
         host.out_line("... Checker timed out.");

@@ -82,6 +82,20 @@ pub struct CoverageInfo {
     pub links: HashSet<(u32, u32)>,
 }
 
+impl CoverageInfo {
+    /// Adds the coverage of another worker's schedules (`CoverageInfo.Merge`).
+    pub fn merge(&mut self, other: CoverageInfo) {
+        for d in other.declared {
+            if !self.declared.contains(&d) {
+                self.declared.push(d);
+            }
+        }
+        self.received.extend(other.received);
+        self.sent.extend(other.sent);
+        self.links.extend(other.links);
+    }
+}
+
 /// Who put an entry in a graph-builder inbox (`EventInfo.Name/Type`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Sender {

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Compares `p check` of the upstream P tool and prs on the same project, test case,
 # schedule count and seed: console output (minus paths and timings) and the trace files.
+# prs runs one worker (`--workers 1`), the only way it explores the schedules upstream does.
 #
 #   UPSTREAM_P="dotnet /path/to/P/Bld/Drops/Release/Binaries/net8.0/p.dll" \
 #   PRS_BIN=target/release/prs \
@@ -29,7 +30,7 @@ normalize() {
 }
 
 (cd "$work/up/$name"; $UPSTREAM_P compile >compile.txt 2>&1; $UPSTREAM_P check -tc "$tc" -s "$n" --seed "$seed" "$@" >out.txt 2>&1 || true)
-(cd "$work/prs/$name"; "$PRS_BIN" check -tc "$tc" -s "$n" --seed "$seed" "$@" >out.txt 2>&1 || true)
+(cd "$work/prs/$name"; "$PRS_BIN" check -tc "$tc" -s "$n" --seed "$seed" --workers 1 "$@" >out.txt 2>&1 || true)
 work_up="$work/up/$name"; work_prs="$work/prs/$name"
 
 status=0

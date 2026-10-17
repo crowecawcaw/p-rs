@@ -35,10 +35,18 @@ prs check -tc tcMyTest -s 1000               # 1000 random schedules
 prs check -tc tcMyTest --replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
 prs check -pf model.p -tc tcMyTest           # .p files instead of a .pproj
 prs check --mode pex -tc tcMyTest            # exhaustive search
+prs check -tc tcMyTest -s 1000 --workers 1   # the schedules upstream explores for a --seed
 ```
 
 `prs check` type-checks the sources itself and reports errors as `p compile` does.
 Bugs are written to `PCheckerOutput/` as upstream writes them.
+
+`prs check` explores schedules on one worker thread per CPU core (`--workers N` sets
+the number). The schedule count is split between the workers, each with its own seed;
+the first bug stops them all, and its `.schedule` file replays it as usual. The
+`random`, `pct`, `fairpct`, `probabilistic` and `pos` strategies use workers; the
+feedback strategies and `rl` (which learn from earlier schedules), PEx mode, `--replay`
+and `--verbose` run one worker.
 
 PEx mode (`--mode pex`) explores every scheduling choice and every `$` / `choose`
 value by depth-first search, skipping states it has already seen. Its report says
@@ -79,6 +87,9 @@ See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 **Functional** (same result, details differ):
 
 * Findings may be reported in a different order.
+* With more than one worker (`--workers`, by default one per CPU core), a given `--seed`
+  explores different schedules than upstream, and which bug is reported can vary from run
+  to run. `--workers 1` explores exactly upstream's schedules.
 * Source discovery is logged differently, since there is no compiled output to find.
 * Files are enumerated in sorted order; elapsed time and memory figures differ.
 * An action that runs forever without reaching a scheduling point is reported as a bug

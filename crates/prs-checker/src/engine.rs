@@ -4,6 +4,8 @@
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use prs_sema::{Program, TestCase};
 
@@ -64,7 +66,7 @@ pub struct CheckerOptions {
     /// the model's own code.
     pub assembly_name: String,
     /// Latency profiles (`--latency`); see `design/time/PROPOSAL.md`.
-    pub latency: Option<Rc<crate::time::ProfileSet>>,
+    pub latency: Option<Arc<crate::time::ProfileSet>>,
     /// `--latency-profile`: the profile to use instead of the `[tests]` entry.
     pub latency_profile: Option<String>,
     /// `--timed`: time-aware scheduling.
@@ -152,6 +154,33 @@ impl TestReport {
         }
         self.scenarios.push(ScenarioCoverage { name: name.to_string(), ..Default::default() });
         self.scenarios.last_mut().unwrap()
+    }
+
+    /// Adds the statistics of another worker's schedules.
+    pub fn merge(&mut self, other: TestReport) {
+        self.num_bugs += other.num_bugs;
+        self.bug_reports.extend(other.bug_reports);
+        self.explored_fair_schedules += other.explored_fair_schedules;
+        self.explored_unfair_schedules += other.explored_unfair_schedules;
+        self.total_fair_steps += other.total_fair_steps;
+        self.min_fair_steps = match (self.min_fair_steps, other.min_fair_steps) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        self.max_fair_steps = self.max_fair_steps.max(other.max_fair_steps);
+        self.max_fair_steps_hit_in_fair += other.max_fair_steps_hit_in_fair;
+        self.max_unfair_steps_hit_in_fair += other.max_unfair_steps_hit_in_fair;
+        self.max_unfair_steps_hit_in_unfair += other.max_unfair_steps_hit_in_unfair;
+        self.timelines.extend(other.timelines);
+        for s in other.scenarios {
+            let cov = self.scenario(&s.name);
+            cov.trigger_count += s.trigger_count;
+            cov.satisfying_timelines.extend(s.satisfying_timelines);
+            cov.max_states_reached = cov.max_states_reached.max(s.max_states_reached);
+            if s.total_states > 0 {
+                cov.total_states = s.total_states;
+            }
+        }
     }
 
     /// Scenarios sorted the way upstream lists them.
@@ -363,17 +392,106 @@ fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn S
     })
 }
 
-/// `ShouldPrintIteration`.
-struct PrintGuard(usize);
+/// `ShouldPrintIteration`: schedules 1-10, then every 10th up to 100, every 100th up to
+/// 1000, and so on.
+fn should_print(schedule: usize) -> bool {
+    let digits = schedule.to_string().len() - 1;
+    schedule.is_multiple_of(10usize.pow(digits as u32))
+}
 
-impl PrintGuard {
-    fn should_print(&mut self, schedule: usize) -> bool {
-        if schedule > self.0 * 10 {
-            let digits = schedule.to_string().len() - 1;
-            self.0 = 10usize.pow(digits as u32);
+/// Workers exploring one test case together, each on its own thread with its own
+/// [`Checker`]: their shared state. A worker runs [`Checker::explore`] with its share of the
+/// schedules and its own seed ([`WorkerPool::worker_options`]); [`Checker::finish`] merges
+/// what the workers explored. The first bug found stops every worker before its next
+/// schedule (unless `--explore` is given).
+///
+/// Worker 0 keeps the run's seed, so a pool of one worker explores exactly what
+/// [`Checker::check`] does.
+#[derive(Debug)]
+pub struct WorkerPool {
+    count: usize,
+    /// A worker found the bug that ends the run.
+    stop: AtomicBool,
+    /// The worker whose bug is reported (`usize::MAX` = none yet).
+    winner: AtomicUsize,
+    /// Schedules started by all workers (numbers the progress lines).
+    started: AtomicUsize,
+    /// Buggy schedules found by all workers (numbers the `--explore` bug lines).
+    bugs: AtomicUsize,
+}
+
+impl WorkerPool {
+    pub fn new(count: usize) -> WorkerPool {
+        WorkerPool {
+            count: count.max(1),
+            stop: AtomicBool::new(false),
+            winner: AtomicUsize::new(usize::MAX),
+            started: AtomicUsize::new(0),
+            bugs: AtomicUsize::new(0),
         }
-        schedule.is_multiple_of(self.0)
     }
+
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    /// How many workers a run with `opts` can use when `requested` are asked for: one for
+    /// strategies that learn across schedules (feedback, rl), exhaustive search, replays
+    /// and verbose runs (which stream every schedule's log); otherwise at most one per
+    /// schedule.
+    pub fn workers_for(opts: &CheckerOptions, requested: usize) -> usize {
+        if !opts.strategy.explores_independently() || opts.replay.is_some() || opts.verbose || opts.log_every_schedule {
+            return 1;
+        }
+        match opts.iterations {
+            0 => requested.max(1),
+            n => requested.clamp(1, n),
+        }
+    }
+
+    /// The options of worker `index`: its share of the schedules (0 = unbounded, as for
+    /// the run) and its seed. Worker 0 keeps the seed; worker `w` uses `seed + 673 * w`,
+    /// as upstream's `TestingProcess` derives a seed from its process id.
+    pub fn worker_options(&self, index: usize, opts: &CheckerOptions) -> CheckerOptions {
+        let n = self.count;
+        let iterations = match opts.iterations {
+            0 => 0,
+            s => s / n + usize::from(index < s % n),
+        };
+        let seed = opts.seed.wrapping_add(673u32.wrapping_mul(index as u32));
+        CheckerOptions { seed, iterations, ..opts.clone() }
+    }
+
+    /// Whether another worker found the bug that ends the run.
+    fn stopped(&self) -> bool {
+        self.stop.load(Ordering::Relaxed)
+    }
+
+    /// Records that worker `index` found a bug; true if it is the one reported.
+    fn claim(&self, index: usize, full_exploration: bool) -> bool {
+        if !full_exploration {
+            self.stop.store(true, Ordering::Relaxed);
+        }
+        self.winner.compare_exchange(usize::MAX, index, Ordering::AcqRel, Ordering::Acquire).is_ok()
+    }
+}
+
+/// What one worker explored ([`Checker::explore`]).
+pub struct Exploration {
+    result: CheckResult,
+    first_bug: Option<BugSchedule>,
+    /// This worker's bug is the one reported.
+    won: bool,
+    time: Option<crate::time::TimeOptions>,
+}
+
+/// What every schedule of a test case needs, resolved once per worker.
+struct Prepared<'p> {
+    module: &'p prs_sema::ModuleInfo,
+    main: prs_sema::MachineId,
+    assignment: Option<&'p prs_sema::ParamAssignment>,
+    time: Option<crate::time::TimeOptions>,
+    config: Config,
 }
 
 /// A compiled program ready to be checked.
@@ -505,14 +623,30 @@ impl<'p> Checker<'p> {
 
     /// Runs one test case (`TestingEngine.Run`).
     pub fn check(&self, tc: &TestCase, opts: &CheckerOptions, out: &mut dyn Output) -> Result<CheckResult, String> {
+        self.announce(tc, opts, out)?;
+        let pool = WorkerPool::new(1);
+        let part = self.explore(tc, opts, &pool, 0, out)?;
+        Ok(self.finish(tc, opts, vec![part]))
+    }
+
+    /// Checks that `tc` can run with `opts` and prints which strategy explores it: the
+    /// start of [`Checker::check`], done once for all workers.
+    pub fn announce(&self, tc: &TestCase, opts: &CheckerOptions, out: &mut dyn Output) -> Result<(), String> {
+        self.prepare(tc, opts)?;
+        let seed_opt = if opts.strategy.reports_seed() { format!(" (seed:{})", opts.seed) } else { String::new() };
+        out.line(&format!("... Checker is using '{}' strategy{}.", opts.strategy, seed_opt));
+        Ok(())
+    }
+
+    fn prepare(&self, tc: &TestCase, opts: &CheckerOptions) -> Result<Prepared<'p>, String> {
         let prog = self.prog;
         let (module, main) = prog.test_case_module(tc);
         let Some(main) = main else {
             return Err(format!("test case '{}' has no main machine", tc.name));
         };
         let assignment = prog.test_case_assignment(tc);
-        let rng: SharedRandom = Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed)));
-        let mut strategy = build_strategy(opts, &rng)?;
+        // reports a replay without a schedule before anything else
+        build_strategy(opts, &Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed))))?;
         let is_replay = opts.strategy == StrategyKind::Replay;
         // a replay takes its time settings from the schedule file
         let time = match opts.replay.as_ref().filter(|_| is_replay).and_then(|t| t.time.as_ref().map(|h| (h, t))) {
@@ -533,42 +667,53 @@ impl<'p> Checker<'p> {
         if time.is_some() && opts.strategy.is_exhaustive() {
             return Err("exhaustive search (PEx mode) does not support time tracking yet".into());
         }
-        let seed_opt = if opts.strategy.reports_seed() { format!(" (seed:{})", opts.seed) } else { String::new() };
-        out.line(&format!("... Checker is using '{}' strategy{}.", opts.strategy, seed_opt));
+        Ok(Prepared { module, main, assignment, time, config: run_config(opts) })
+    }
 
-        let config = Config {
-            max_unfair_steps: opts.max_unfair_steps,
-            max_fair_steps: opts.max_fair_steps,
-            liveness_enabled: true,
-            liveness_temperature_threshold: opts.effective_liveness_threshold(),
-            fail_on_max_steps: opts.fail_on_max_steps,
-            strategy: opts.strategy,
-            max_work_per_step: opts.max_work_per_step,
-            strategy_description: None,
-            // buggy schedules are replayed with logging on afterwards
-            logging: is_replay || opts.verbose || opts.log_every_schedule,
-            assembly_name: opts.assembly_name.clone(),
-            timeline: opts.timeline,
-        };
+    /// Explores worker `index`'s share of the schedules of `tc` (see [`WorkerPool`]);
+    /// `opts` are the options of the whole run. Stops early when `out` is cancelled or
+    /// another worker of `pool` finds a bug.
+    pub fn explore(
+        &self,
+        tc: &TestCase,
+        opts: &CheckerOptions,
+        pool: &WorkerPool,
+        index: usize,
+        out: &mut dyn Output,
+    ) -> Result<Exploration, String> {
+        // a worker of a pool larger than the schedule count may have none to explore
+        let worker_opts = pool.worker_options(index, opts);
+        let idle = opts.iterations > 0 && worker_opts.iterations == 0;
+        let opts = &worker_opts;
+        let prog = self.prog;
+        let Prepared { module, main, assignment, time, config } = self.prepare(tc, opts)?;
+        let rng: SharedRandom = Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed)));
+        let mut strategy = build_strategy(opts, &rng)?;
+        let is_replay = opts.strategy == StrategyKind::Replay;
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };
-        let mut guard = PrintGuard(1);
         let max_iterations = if is_replay { 1 } else { opts.iterations };
         let mut i = 0usize;
         let mut first_bug: Option<BugSchedule> = None;
+        let mut won = false;
         // `Task.Id`s are handed out in order: one for the engine, then per schedule one for
         // the test task and one per machine event handler run
         let mut tasks_used = 1u64;
         let coverage_tables = opts.activity_coverage.then(|| self.coverage_tables());
         let mut verbose_json = (opts.verbose && opts.json_trace && !is_replay).then(Vec::new);
         let mut depth_bound_hits = 0usize;
-        while max_iterations == 0 || i < max_iterations {
+        while !idle && (max_iterations == 0 || i < max_iterations) {
             if out.cancelled() {
                 result.cancelled = true;
                 break;
             }
-            if !is_replay && guard.should_print(i + 1) {
-                out.line(&format!("..... Schedule #{}", i + 1));
+            if pool.stopped() {
+                break;
+            }
+            // the schedule's number among those of all workers
+            let schedule = pool.started.fetch_add(1, Ordering::Relaxed) + 1;
+            if !is_replay && should_print(schedule) {
+                out.line(&format!("..... Schedule #{}", schedule));
             }
             let bug_found;
             {
@@ -660,6 +805,7 @@ impl<'p> Checker<'p> {
                     result.replay_error = Some(e);
                 }
                 if bug_found && !is_replay && result.schedule_trace.is_none() {
+                    won = pool.claim(index, opts.full_exploration);
                     let mut trace = rt.trace.clone();
                     trace.is_fair = fair;
                     trace.liveness_temperature_threshold = Some(config.liveness_temperature_threshold);
@@ -678,7 +824,8 @@ impl<'p> Checker<'p> {
                     });
                 }
                 if bug_found && !is_replay && opts.full_exploration {
-                    out.line(&format!("..... Schedule #{} triggered bug #{} [task-0]", i + 1, result.report.num_bugs));
+                    let n = pool.bugs.fetch_add(1, Ordering::Relaxed) + 1;
+                    out.line(&format!("..... Schedule #{} triggered bug #{} [task-{}]", schedule, n, index));
                 }
                 result.last_log = std::mem::take(&mut rt.log);
                 if let Some(c) = rt.coverage.take() {
@@ -698,31 +845,93 @@ impl<'p> Checker<'p> {
         result.exhaustive =
             strategy.exhaustive_stats().map(|s| crate::exhaustive::SearchStats { depth_bound_hits, ..s });
         result.verbose_json_trace = verbose_json.map(|v| crate::jsonlog::Json::Arr(v).to_pretty());
-        if let Some(bug) = first_bug {
-            let (log, json, xml) = self.logged_replay(
-                tc,
-                main,
-                module,
-                assignment,
-                &config,
-                &bug,
-                opts.json_trace,
-                opts.xml_trace,
-                time.as_ref(),
-            );
-            if !opts.verbose {
-                // `ReadableTrace`: the runtime log followed by the report so far
-                let mut text = log.join("\n");
-                text.push('\n');
-                text.push_str(&bug.report_text);
-                result.readable_trace = Some(text);
-            }
-            result.json_trace = json;
-            result.xml_trace = xml;
-            if !config.logging {
-                result.last_log = log;
-            }
-        }
-        Ok(result)
+        Ok(Exploration { result, first_bug, won, time })
     }
+
+    /// Merges what the workers explored (see [`WorkerPool`]) and replays the reported bug
+    /// with logging on to produce its traces: the end of [`Checker::check`].
+    pub fn finish(&self, tc: &TestCase, opts: &CheckerOptions, parts: Vec<Exploration>) -> CheckResult {
+        let several = parts.len() > 1;
+        let Exploration { mut result, first_bug, time, .. } = merge(parts);
+        let Some(mut bug) = first_bug else { return result };
+        if several {
+            // the report of all workers, not only the one that found the bug
+            bug.report_text = result.report.text(opts, "<StrategyLog>");
+        }
+        let prog = self.prog;
+        let (module, main) = prog.test_case_module(tc);
+        let main = main.expect("a test case with a buggy schedule has a main machine");
+        let assignment = prog.test_case_assignment(tc);
+        let config = run_config(opts);
+        let (log, json, xml) = self.logged_replay(
+            tc,
+            main,
+            module,
+            assignment,
+            &config,
+            &bug,
+            opts.json_trace,
+            opts.xml_trace,
+            time.as_ref(),
+        );
+        if !opts.verbose {
+            // `ReadableTrace`: the runtime log followed by the report so far
+            let mut text = log.join("\n");
+            text.push('\n');
+            text.push_str(&bug.report_text);
+            result.readable_trace = Some(text);
+        }
+        result.json_trace = json;
+        result.xml_trace = xml;
+        if !config.logging {
+            result.last_log = log;
+        }
+        result
+    }
+}
+
+/// The runtime configuration of a run with `opts`.
+fn run_config(opts: &CheckerOptions) -> Config {
+    Config {
+        max_unfair_steps: opts.max_unfair_steps,
+        max_fair_steps: opts.max_fair_steps,
+        liveness_enabled: true,
+        liveness_temperature_threshold: opts.effective_liveness_threshold(),
+        fail_on_max_steps: opts.fail_on_max_steps,
+        strategy: opts.strategy,
+        max_work_per_step: opts.max_work_per_step,
+        strategy_description: None,
+        // buggy schedules are replayed with logging on afterwards
+        logging: opts.strategy == StrategyKind::Replay || opts.verbose || opts.log_every_schedule,
+        assembly_name: opts.assembly_name.clone(),
+        timeline: opts.timeline,
+    }
+}
+
+/// Merges the workers' explorations: the statistics and coverage of all of them; the bug,
+/// traces, logs and strategy description of the worker whose bug is reported (else of
+/// worker 0).
+fn merge(parts: Vec<Exploration>) -> Exploration {
+    let mut parts = parts;
+    // the reporting worker first, so that its bug report comes first
+    if let Some(w) = parts.iter().position(|p| p.won) {
+        let winner = parts.remove(w);
+        parts.insert(0, winner);
+    }
+    let mut parts = parts.into_iter();
+    let mut merged = parts.next().expect("at least one worker");
+    let result = &mut merged.result;
+    for p in parts {
+        let r = p.result;
+        result.report.merge(r.report);
+        result.cancelled |= r.cancelled;
+        result.coverage = match (result.coverage.take(), r.coverage) {
+            (Some(mut a), Some(b)) => {
+                a.merge(b);
+                Some(a)
+            }
+            (a, b) => a.or(b),
+        };
+    }
+    merged
 }

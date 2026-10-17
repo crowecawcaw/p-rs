@@ -48,6 +48,24 @@ pub trait Host {
     fn random_seed(&mut self) -> u32;
     /// Seconds since the Unix epoch (wall-clock time, for timestamped names), or 0 if unknown.
     fn unix_time(&self) -> f64;
+    /// Threads for checking schedules in parallel; `None` (the default) when the host has
+    /// none, and `prs check` then runs a single worker.
+    fn threads(&self) -> Option<Threads> {
+        None
+    }
+}
+
+/// Work for a thread of [`Threads::run`].
+pub type Job<'a> = Box<dyn FnOnce() + Send + 'a>;
+
+/// A host's threads (see [`Host::threads`]).
+#[derive(Debug, Clone, Copy)]
+pub struct Threads {
+    /// How many workers `prs check` uses by default (one per CPU core).
+    pub available: usize,
+    /// Runs each job on its own thread and `main` on the calling thread; returns once all
+    /// have finished.
+    pub run: for<'a> fn(jobs: Vec<Job<'a>>, main: &mut (dyn FnMut() + 'a)),
 }
 
 /// Convenience console helpers.
@@ -130,6 +148,8 @@ pub struct MemHost {
     pub clock: fn() -> f64,
     /// [`Host::random_seed`].
     pub seed: u32,
+    /// [`Host::threads`]; `None` by default.
+    pub threads: Option<Threads>,
 }
 
 impl Default for MemHost {
@@ -147,6 +167,7 @@ impl MemHost {
             stderr: String::new(),
             clock: || 0.0,
             seed: 0,
+            threads: None,
         };
         h.create_dir_all(Path::new(cwd)).expect("an empty file system has no files in the way");
         h
@@ -295,5 +316,9 @@ impl Host for MemHost {
 
     fn unix_time(&self) -> f64 {
         0.0
+    }
+
+    fn threads(&self) -> Option<Threads> {
+        self.threads
     }
 }
