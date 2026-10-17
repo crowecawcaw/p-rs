@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatPayload, type Step, type Trace } from "./model";
 
+/** Lane width: narrower on phones so a small model fits the screen. */
 const LANE_W = 150;
+const LANE_W_NARROW = 112;
 const ROW_H = 28;
 const TOP = 10;
 const HEADER_H = 44;
@@ -10,12 +12,15 @@ const MAX_ZOOM = 2.5;
 /** Machine lanes cycle through this many hues (--lane-0 … in styles.css). */
 const HUES = 6;
 
-const laneX = (i: number) => i * LANE_W + LANE_W / 2;
+const laneXFor = (W: number) => (i: number) => i * W + W / 2;
 const rowY = (i: number) => TOP + i * ROW_H + ROW_H / 2;
 const clamp = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
+/** Approximate advance of one 12px monospace character. */
+const CH = 7.2;
+
 function clip(s: string, px: number) {
-  const n = Math.max(4, Math.floor(px / 6.6));
+  const n = Math.max(4, Math.floor(px / CH));
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
@@ -35,10 +40,13 @@ interface Props {
 /** A message sequence chart of a bug trace: one lane per machine or spec. Zoomable. */
 export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   const { lanes, steps } = trace;
-  const width = Math.max(lanes.length, 1) * LANE_W;
+  const [W] = useState(() => (matchMedia("(max-width: 600px)").matches ? LANE_W_NARROW : LANE_W));
+  const laneX = laneXFor(W);
+  const width = Math.max(lanes.length, 1) * W;
   const height = TOP * 2 + steps.length * ROW_H;
   const scroller = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
+  const [legend, setLegend] = useState(false);
   // Content point to keep under the screen point after a zoom.
   const anchor = useRef<{ cx: number; cy: number; sx: number; sy: number } | null>(null);
 
@@ -175,14 +183,14 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
           {lanes.map((l, i) => (
             <g key={l.id} transform={`translate(${laneX(i)},${HEADER_H / 2})`} style={{ "--c": color[i] } as React.CSSProperties}>
               <rect
-                x={-LANE_W / 2 + 8}
+                x={-W / 2 + 8}
                 y={-15}
-                width={LANE_W - 16}
+                width={W - 16}
                 height={30}
                 rx={15}
                 className={l.monitor ? "lane-head monitor" : "lane-head"}
               />
-              <LaneLabel id={l.id} monitor={l.monitor} />
+              <LaneLabel id={l.id} monitor={l.monitor} w={W} />
             </g>
           ))}
         </svg>
@@ -199,11 +207,15 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
             />
           ))}
           {steps.map((s, i) => (
-            <Row key={i} i={i} s={s} width={width} cursor={cursor} color={color} onSelect={onSelect} />
+            <Row key={i} i={i} s={s} W={W} width={width} cursor={cursor} color={color} onSelect={onSelect} />
           ))}
         </svg>
       </div>
+      {legend && <Legend onClose={() => setLegend(false)} />}
       <div className="zoom-controls" role="group" aria-label="Zoom">
+        <button className="key-toggle" onClick={() => setLegend(!legend)} aria-expanded={legend}>
+          Key
+        </button>
         <button onClick={() => zoomTo(zoom / 1.25)} aria-label="Zoom out" disabled={zoom <= MIN_ZOOM}>
           −
         </button>
@@ -218,9 +230,10 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   );
 }
 
-function Row({ i, s, width, cursor, color, onSelect }: {
-  i: number; s: Step; width: number; cursor: number; color: string[]; onSelect: (i: number) => void;
+function Row({ i, s, W, width, cursor, color, onSelect }: {
+  i: number; s: Step; W: number; width: number; cursor: number; color: string[]; onSelect: (i: number) => void;
 }) {
+  const laneX = laneXFor(W);
   const y = rowY(i);
   const future = i > cursor;
   const selected = i === cursor;
@@ -271,11 +284,11 @@ function Row({ i, s, width, cursor, color, onSelect }: {
       body = <circle cx={x} cy={y} r={4} className="dot" />;
       break;
     case "state": {
-      const w = Math.min(LANE_W - 16, 18 + s.label.length * 6.6);
+      const w = Math.min(W - 16, 18 + s.label.length * CH);
       body = (
         <>
           <rect x={x - w / 2} y={y - 10} width={w} height={20} rx={10} className={s.hot ? "state hot" : "state"} />
-          <text x={x} y={y} dy="0.35em" textAnchor="middle" className="state-label">{clip(s.label, LANE_W - 24)}</text>
+          <text x={x} y={y} dy="0.35em" textAnchor="middle" className="state-label">{clip(s.label, W - 24)}</text>
         </>
       );
       break;
@@ -286,7 +299,7 @@ function Row({ i, s, width, cursor, color, onSelect }: {
         <>
           {from !== undefined && <line x1={from} y1={y} x2={x} y2={y} className="observe" />}
           <rect x={x - 5} y={y - 5} width={10} height={10} rx={2} transform={`rotate(45 ${x} ${y})`} className="diamond" />
-          <text x={x + 11} y={y - 6} className="msg-label">{clip(s.label, LANE_W - 20)}</text>
+          <text x={x + 11} y={y - 6} className="msg-label">{clip(s.label, W - 20)}</text>
         </>
       );
       break;
@@ -298,7 +311,7 @@ function Row({ i, s, width, cursor, color, onSelect }: {
       body = (
         <>
           <rect x={x - 4} y={y - 4} width={8} height={8} rx={2} className="dot" />
-          <text x={x + 9} y={y} dy="0.35em" className="note-label">{clip(s.label, LANE_W - 20)}</text>
+          <text x={x + 9} y={y} dy="0.35em" className="note-label">{clip(s.label, W - 20)}</text>
         </>
       );
       break;
@@ -312,7 +325,7 @@ function Row({ i, s, width, cursor, color, onSelect }: {
     case "error":
       body = (
         <>
-          <rect x={4} y={y - 12} width={Math.min(width - 8, 24 + shortError(s.label).length * 7.2)} height={24} rx={12} className="error-bar" />
+          <rect x={4} y={y - 12} width={Math.min(width - 8, 24 + shortError(s.label).length * 7.8)} height={24} rx={12} className="error-bar" />
           <text x={16} y={y} dy="0.35em" className="error-label">{shortError(s.label)}</text>
         </>
       );
@@ -335,13 +348,13 @@ function shortError(e: string) {
 }
 
 /** "Client(3)" -> name "Client" and a muted "(3)". */
-function LaneLabel({ id, monitor }: { id: string; monitor: boolean }) {
+function LaneLabel({ id, monitor, w }: { id: string; monitor: boolean; w: number }) {
   const m = /^(.*?)(\(\d+\))?$/.exec(id)!;
   const n = m[2] ?? "";
   return (
     <text textAnchor="middle" dy="0.35em" className="lane-label">
       <title>{monitor ? `spec ${id}` : id}</title>
-      {clip(m[1], LANE_W - 28 - n.length * 7)}
+      {clip(m[1], w - 28 - n.length * CH)}
       {n && <tspan className="lane-id">{n}</tspan>}
     </text>
   );
@@ -352,17 +365,75 @@ function MsgLabel({ x, y, anchor, event, payload, max }: {
   x: number; y: number; anchor: "start" | "middle"; event: string; payload: unknown; max: number;
 }) {
   const ev = clip(event, max);
-  const room = max - ev.length * 6.6 - 6;
+  const room = max - ev.length * CH - 6;
   const pl = payload !== undefined && room > 30 ? clip(formatPayload(payload), room) : "";
-  const w = (ev.length + (pl ? pl.length + 1 : 0)) * 6.6 + 8;
+  const w = (ev.length + (pl ? pl.length + 1 : 0)) * CH + 8;
   const left = anchor === "middle" ? x - w / 2 : x - 4;
   return (
     <>
-      <rect x={left} y={y - 9} width={w} height={13} rx={4} className="label-bg" />
+      <rect x={left} y={y - 11} width={w} height={15} rx={4} className="label-bg" />
       <text x={x} y={y} textAnchor={anchor} className="msg-label">
         <tspan className="ev">{ev}</tspan>
         {pl && <tspan className="payload"> {pl}</tspan>}
       </text>
     </>
+  );
+}
+
+/** What the marks mean. Text, not just color. */
+function Legend({ onClose }: { onClose: () => void }) {
+  const row = (icon: React.ReactNode, text: string) => (
+    <li>
+      <svg width="40" height="18" viewBox="0 0 40 18" aria-hidden="true">
+        {icon}
+      </svg>
+      <span>{text}</span>
+    </li>
+  );
+  return (
+    <div className="legend" role="dialog" aria-label="Diagram key">
+      <div className="legend-head">
+        <strong>Key</strong>
+        <button className="ghost" onClick={onClose} aria-label="Close key">
+          ✕
+        </button>
+      </div>
+      <ul>
+        {row(
+          <>
+            <line x1="4" y1="9" x2="30" y2="9" className="msg" style={{ "--c": "var(--lane-0)" } as React.CSSProperties} />
+            <path d={head(4, 9, 34, 9)} className="arrowhead" style={{ "--c": "var(--lane-0)" } as React.CSSProperties} />
+          </>,
+          "Message, in the sender's color; it ends where the receiver handles it",
+        )}
+        {row(
+          <>
+            <line x1="4" y1="9" x2="30" y2="9" className="msg pending" style={{ "--c": "var(--lane-0)" } as React.CSSProperties} />
+            <path d={head(4, 9, 34, 9)} className="arrowhead" style={{ "--c": "var(--lane-0)" } as React.CSSProperties} />
+          </>,
+          "Sent but never handled",
+        )}
+        {row(
+          <>
+            <line x1="4" y1="9" x2="30" y2="9" className="msg create" />
+            <path d={head(4, 9, 34, 9)} className="arrowhead create" />
+          </>,
+          "Created a machine",
+        )}
+        {row(
+          <rect x="4" y="2" width="32" height="14" rx="7" className="state" style={{ "--c": "var(--lane-1)" } as React.CSSProperties} />,
+          "Entered a state",
+        )}
+        {row(<rect x="4" y="2" width="32" height="14" rx="7" className="state hot" />, "Spec in a hot state (must leave it eventually)")}
+        {row(
+          <>
+            <line x1="4" y1="9" x2="26" y2="9" className="observe" />
+            <rect x="26" y="4" width="10" height="10" rx="2" transform="rotate(45 31 9)" className="diamond" />
+          </>,
+          "Spec observed an event",
+        )}
+        {row(<rect x="4" y="3" width="32" height="12" rx="6" className="error-bar" />, "Where the bug was detected")}
+      </ul>
+    </div>
   );
 }

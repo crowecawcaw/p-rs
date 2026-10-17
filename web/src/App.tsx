@@ -44,6 +44,8 @@ export function App() {
   const [loaded, setLoaded] = useState(false);
   const edited = useRef(false);
   const [blurbOpen, setBlurbOpen] = useState(false);
+  const [blurbClamped, setBlurbClamped] = useState(false);
+  const blurbRef = useRef<HTMLParagraphElement>(null);
   const [optionsOpen, setOptionsOpen] = useState(() => matchMedia(WIDE).matches);
 
   const applyDemo = useCallback((d: Demo) => {
@@ -60,6 +62,17 @@ export function App() {
     setTab("console");
     edited.current = false;
   }, []);
+
+  // Offer "more" only when the phone layout actually cuts the blurb off.
+  useEffect(() => {
+    const el = blurbRef.current;
+    if (!el) return;
+    const measure = () => setBlurbClamped(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [demo]);
 
   // Initial load: a share link, ?demo=<id>, or the first demo.
   useEffect(() => {
@@ -228,15 +241,17 @@ export function App() {
       </header>
 
       <div className={blurbOpen ? "blurb open" : "blurb"}>
-        <p>
+        <p ref={blurbRef}>
           {demo.blurb}{" "}
           <span className="muted">
             Runs entirely in your browser: the <a href={REPO}>Rust P toolchain</a> compiled to WebAssembly.
           </span>
         </p>
-        <button className="more" onClick={() => setBlurbOpen(!blurbOpen)}>
-          {blurbOpen ? "less" : "more"}
-        </button>
+        {(blurbClamped || blurbOpen) && (
+          <button className="more" onClick={() => setBlurbOpen(!blurbOpen)}>
+            {blurbOpen ? "less" : "more"}
+          </button>
+        )}
       </div>
 
       <main className="panes">
@@ -387,6 +402,11 @@ export function App() {
             </div>
             <div className="status-line">
               <span className={`status ${statusClass}`}>{status}</span>
+              {!running && (compileOk === false || (result && !result.ok)) && diagnostics[0] && (
+                <button className="diag" onClick={() => openLocation(diagnostics[0].file, diagnostics[0].line)}>
+                  {diagnostics[0].file}:{diagnostics[0].line} {diagnostics[0].message}
+                </button>
+              )}
               {result && !running && <span className="muted">{(result.millis / 1000).toFixed(2)} s</span>}
               {result?.schedule && !running && (
                 <span className="downloads">
