@@ -107,10 +107,12 @@ fn type_errors_are_reported() {
 }
 
 #[test]
-fn compile_is_not_a_command() {
+fn compile_is_a_no_op() {
     let mut h = MemHost::new("/w");
-    assert_eq!(run(&mut h, &["compile"]), 1);
-    assert!(h.stderr.contains("There is no `compile` command"), "{}", h.stderr);
+    h.add_file("m.p", "machine M { start state S { } }");
+    assert_eq!(run(&mut h, &["compile", "-pf", "m.p"]), 0);
+    assert!(h.stdout.contains("Warning: `compile` does nothing"), "{}", h.stdout);
+    assert_eq!(h.files_under("/w").len(), 1, "compile wrote files");
     assert_eq!(run(&mut h, &["check", "out/PChecker/net8.0/X.dll"]), 1);
     assert!(h.stderr.contains("there is no compiled file"), "{}", h.stderr);
 }

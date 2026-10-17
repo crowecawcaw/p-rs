@@ -205,7 +205,8 @@ python3 scripts/bench.py report --current bench.json --history old.jsonl
 **Out of scope**:
 
 * `p compile` and compiled output (`PGenerated/`, `.dll`, jars). `prs check` and
-  `prs observe` read P sources directly; `OutputDir` and `Target` in `.pproj` files are
+  `prs observe` read P sources directly. `prs compile` is accepted for compatibility
+  but does nothing: it prints a warning and exits 0; `OutputDir` and `Target` in `.pproj` files are
   ignored.
 * .NET stack frames (in exception reports and `ExceptionThrown` / `ExceptionHandled`
   trace elements) and Java stack frames (in `UnknownError_N.txt`): prs does not use .NET

@@ -51,31 +51,36 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
             print_command_help(host);
             0
         }
-        Some(cmd) => match cmd.as_str() {
-            "compile" => report_and_exit(
-                host,
-                "There is no `compile` command: prs checks P sources directly. Run `p check` (it reads the *.pproj or *.p files).",
-            )
-            .0,
-            "check" => check::run(&args[1..], host),
-            "merge-scenario-coverage" => scenario::run_merge(&args[1..], host),
-            "version" | "-v" | "-version" | "--version" => {
-                host.out_line(&format!("P version {}", VERSION));
-                0
-            }
-            "help" | "-h" | "--help" => {
-                print_command_help(host);
-                0
-            }
-            _ => {
-                host.out_colored_line(
+        Some(cmd) => {
+            match cmd.as_str() {
+                // Accepted so scripts running `p compile && p check` keep working
+                "compile" => {
+                    host.out_colored_line(
+                    "Warning: `compile` does nothing and exists only for compatibility; prs checks P sources directly. Run `p check` (it reads the *.pproj or *.p files).",
+                    Color::Yellow,
+                );
+                    0
+                }
+                "check" => check::run(&args[1..], host),
+                "merge-scenario-coverage" => scenario::run_merge(&args[1..], host),
+                "version" | "-v" | "-version" | "--version" => {
+                    host.out_line(&format!("P version {}", VERSION));
+                    0
+                }
+                "help" | "-h" | "--help" => {
+                    print_command_help(host);
+                    0
+                }
+                _ => {
+                    host.out_colored_line(
                     &format!("Expected (check | observe | merge-scenario-coverage) as the command input but received `{}`", args[0]),
                     Color::Red,
                 );
-                print_command_help(host);
-                0
+                    print_command_help(host);
+                    0
+                }
             }
-        },
+        }
     };
     host.out_line("~~ [PTool]: Thanks for using P! ~~");
     code
