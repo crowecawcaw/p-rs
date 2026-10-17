@@ -13,16 +13,13 @@ use crate::random::RandomValueGenerator;
 use crate::runtime::{Config, Runtime, Setup};
 use crate::strategy::{
     ComboStrategy, PctStrategy, ProbabilisticRandomStrategy, RandomStrategy, ReplayStrategy, ScheduleTrace,
-    SharedRandom, Strategy,
+    SharedRandom, Strategy, StrategyKind,
 };
 
 /// Options of a checking run (the subset of `CheckerConfiguration` that affects results).
 #[derive(Debug, Clone)]
 pub struct CheckerOptions {
-    /// `random`, `pct`, `fairpct`, `probabilistic`, `pos`, `feedback`, `feedbackpct`,
-    /// `feedbackpos`, `rl`, `replay`, or for an exhaustive search (PEx mode) `dfs` and
-    /// `random-dfs` (alternatives tried in a random order).
-    pub strategy: String,
+    pub strategy: StrategyKind,
     /// Seed of the random value generator (`--seed`). Must be given: the core crate has no
     /// source of entropy.
     pub seed: u32,
@@ -40,7 +37,7 @@ pub struct CheckerOptions {
     /// Keep exploring after the first bug (`--explore`).
     pub full_exploration: bool,
     pub incremental_seed: bool,
-    /// The schedule to replay when `strategy == "replay"`.
+    /// The schedule to replay with [`StrategyKind::Replay`].
     pub replay: Option<ScheduleTrace>,
     /// See [`Config::max_work_per_step`](crate::runtime::Config::max_work_per_step).
     pub max_work_per_step: u64,
@@ -77,7 +74,7 @@ pub struct CheckerOptions {
 impl Default for CheckerOptions {
     fn default() -> Self {
         CheckerOptions {
-            strategy: "random".into(),
+            strategy: StrategyKind::Random,
             seed: 0,
             iterations: 1,
             max_unfair_steps: 10000,
@@ -329,39 +326,40 @@ pub struct CheckResult {
 }
 
 fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn Strategy>, String> {
-    Ok(match opts.strategy.as_str() {
-        "random" => Box::new(RandomStrategy::new(opts.max_fair_steps, rng.clone())),
-        "pct" => Box::new(PctStrategy::new(opts.max_unfair_steps, opts.strategy_bound, rng.clone())),
-        "fairpct" => Box::new(ComboStrategy::new(
+    use crate::feedback::{
+        ControlledRandom, FeedbackGuidedStrategy, PctScheduler, PosScheduler, RandomScheduler, Scheduler, Source,
+    };
+    let feedback = |scheduler: Box<dyn Scheduler>| {
+        Box::new(FeedbackGuidedStrategy::new(opts.max_unfair_steps, opts.seed, scheduler))
+    };
+    let controlled = || Source::Controlled(ControlledRandom::new(opts.seed));
+    Ok(match opts.strategy {
+        StrategyKind::Random => Box::new(RandomStrategy::new(opts.max_fair_steps, rng.clone())),
+        StrategyKind::Pct => Box::new(PctStrategy::new(opts.max_unfair_steps, opts.strategy_bound, rng.clone())),
+        StrategyKind::FairPct => Box::new(ComboStrategy::new(
             Box::new(PctStrategy::new(opts.max_unfair_steps, opts.strategy_bound, rng.clone())),
             Box::new(RandomStrategy::new(opts.max_fair_steps, rng.clone())),
         )),
-        "probabilistic" => {
+        StrategyKind::Probabilistic => {
             Box::new(ProbabilisticRandomStrategy::new(opts.max_fair_steps, opts.strategy_bound, rng.clone()))
         }
-        "pos" => Box::new(crate::feedback::ScheduleAndInputStrategy::new(
+        StrategyKind::Pos => Box::new(crate::feedback::ScheduleAndInputStrategy::new(
             opts.max_unfair_steps,
             rng.clone(),
-            Box::new(crate::feedback::PosScheduler::new(crate::feedback::Source::Shared(rng.clone()))),
+            Box::new(PosScheduler::new(Source::Shared(rng.clone()))),
         )),
-        "feedback" | "feedbackpct" | "feedbackpos" => {
-            use crate::feedback::{ControlledRandom, PctScheduler, PosScheduler, RandomScheduler, Source};
-            let src = Source::Controlled(ControlledRandom::new(opts.seed));
-            let scheduler: Box<dyn crate::feedback::Scheduler> = match opts.strategy.as_str() {
-                "feedback" => Box::new(RandomScheduler::new(src)),
-                "feedbackpct" => Box::new(PctScheduler::new(opts.strategy_bound, 0, src)),
-                _ => Box::new(PosScheduler::new(src)),
-            };
-            Box::new(crate::feedback::FeedbackGuidedStrategy::new(opts.max_unfair_steps, opts.seed, scheduler))
+        StrategyKind::Feedback => feedback(Box::new(RandomScheduler::new(controlled()))),
+        StrategyKind::FeedbackPct => feedback(Box::new(PctScheduler::new(opts.strategy_bound, 0, controlled()))),
+        StrategyKind::FeedbackPos => feedback(Box::new(PosScheduler::new(controlled()))),
+        StrategyKind::Rl => Box::new(crate::rl::QLearningStrategy::new(opts.max_unfair_steps, rng.clone())),
+        StrategyKind::Dfs => Box::new(crate::exhaustive::ExhaustiveStrategy::new(opts.max_unfair_steps, None)),
+        StrategyKind::RandomDfs => {
+            Box::new(crate::exhaustive::ExhaustiveStrategy::new(opts.max_unfair_steps, Some(rng.clone())))
         }
-        "rl" => Box::new(crate::rl::QLearningStrategy::new(opts.max_unfair_steps, rng.clone())),
-        "dfs" => Box::new(crate::exhaustive::ExhaustiveStrategy::new(opts.max_unfair_steps, None)),
-        "random-dfs" => Box::new(crate::exhaustive::ExhaustiveStrategy::new(opts.max_unfair_steps, Some(rng.clone()))),
-        "replay" => match &opts.replay {
+        StrategyKind::Replay => match &opts.replay {
             Some(t) => Box::new(ReplayStrategy::new(t.clone())),
             None => return Err("replay strategy needs a schedule".into()),
         },
-        other => return Err(format!("unknown scheduling strategy '{}'", other)),
     })
 }
 
@@ -515,7 +513,7 @@ impl<'p> Checker<'p> {
         let assignment = prog.test_case_assignment(tc);
         let rng: SharedRandom = Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed)));
         let mut strategy = build_strategy(opts, &rng)?;
-        let is_replay = opts.strategy == "replay";
+        let is_replay = opts.strategy == StrategyKind::Replay;
         // a replay takes its time settings from the schedule file
         let time = match opts.replay.as_ref().filter(|_| is_replay).and_then(|t| t.time.as_ref().map(|h| (h, t))) {
             Some((header, t)) => {
@@ -532,16 +530,10 @@ impl<'p> Checker<'p> {
             }
             None => self.time_options(tc, opts)?,
         };
-        if time.is_some() && matches!(opts.strategy.as_str(), "dfs" | "random-dfs") {
+        if time.is_some() && opts.strategy.is_exhaustive() {
             return Err("exhaustive search (PEx mode) does not support time tracking yet".into());
         }
-        let seed_opt = match opts.strategy.as_str() {
-            "random" | "pct" | "pos" | "feedbackpct" | "feedbackpos" | "fairpct" | "probabilistic" | "rl"
-            | "random-dfs" => {
-                format!(" (seed:{})", opts.seed)
-            }
-            _ => String::new(),
-        };
+        let seed_opt = if opts.strategy.reports_seed() { format!(" (seed:{})", opts.seed) } else { String::new() };
         out.line(&format!("... Checker is using '{}' strategy{}.", opts.strategy, seed_opt));
 
         let config = Config {
@@ -550,7 +542,7 @@ impl<'p> Checker<'p> {
             liveness_enabled: true,
             liveness_temperature_threshold: opts.effective_liveness_threshold(),
             fail_on_max_steps: opts.fail_on_max_steps,
-            strategy_name: opts.strategy.clone(),
+            strategy: opts.strategy,
             max_work_per_step: opts.max_work_per_step,
             strategy_description: None,
             // buggy schedules are replayed with logging on afterwards

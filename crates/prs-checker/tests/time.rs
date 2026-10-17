@@ -5,7 +5,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use prs_checker::engine::{CheckResult, Checker, CheckerOptions};
-use prs_checker::strategy::ScheduleTrace;
+use prs_checker::strategy::{ScheduleTrace, StrategyKind};
 use prs_checker::time::ProfileSet;
 
 const TIME_DECLS: &str = "
@@ -84,7 +84,7 @@ fn replay_takes_time_settings_from_the_schedule() {
     // no latency file and no --timed needed; other time options are ignored
     for (latency, latency_profile) in [(None, None), (Some(profiles.clone()), Some("cross-region".to_string()))] {
         let replay = CheckerOptions {
-            strategy: "replay".into(),
+            strategy: StrategyKind::Replay,
             replay: Some(trace.clone()),
             latency,
             latency_profile,
@@ -311,7 +311,7 @@ fn timed_delivery_explores_overlapping_arrivals() {
         assert_eq!(r.report.num_bugs, 1, "{} timed", test);
         let text = r.schedule_trace.unwrap();
         let replay = CheckerOptions {
-            strategy: "replay".into(),
+            strategy: StrategyKind::Replay,
             replay: Some(ScheduleTrace::parse(&text).unwrap()),
             ..Default::default()
         };

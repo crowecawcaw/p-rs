@@ -9,6 +9,93 @@ use std::rc::Rc;
 
 use crate::random::RandomValueGenerator;
 
+/// A scheduling strategy, named as upstream names it (`CheckerConfiguration.SchedulingStrategy`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StrategyKind {
+    #[default]
+    Random,
+    Pct,
+    FairPct,
+    Probabilistic,
+    Pos,
+    Feedback,
+    FeedbackPct,
+    FeedbackPos,
+    /// Q-learning (`rl`).
+    Rl,
+    /// Replay of a recorded schedule.
+    Replay,
+    /// Exhaustive search (PEx mode), trying the alternatives in order.
+    Dfs,
+    /// Exhaustive search (PEx mode), trying the alternatives in a random order.
+    RandomDfs,
+}
+
+impl StrategyKind {
+    const ALL: [StrategyKind; 12] = [
+        StrategyKind::Random,
+        StrategyKind::Pct,
+        StrategyKind::FairPct,
+        StrategyKind::Probabilistic,
+        StrategyKind::Pos,
+        StrategyKind::Feedback,
+        StrategyKind::FeedbackPct,
+        StrategyKind::FeedbackPos,
+        StrategyKind::Rl,
+        StrategyKind::Replay,
+        StrategyKind::Dfs,
+        StrategyKind::RandomDfs,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            StrategyKind::Random => "random",
+            StrategyKind::Pct => "pct",
+            StrategyKind::FairPct => "fairpct",
+            StrategyKind::Probabilistic => "probabilistic",
+            StrategyKind::Pos => "pos",
+            StrategyKind::Feedback => "feedback",
+            StrategyKind::FeedbackPct => "feedbackpct",
+            StrategyKind::FeedbackPos => "feedbackpos",
+            StrategyKind::Rl => "rl",
+            StrategyKind::Replay => "replay",
+            StrategyKind::Dfs => "dfs",
+            StrategyKind::RandomDfs => "random-dfs",
+        }
+    }
+
+    /// Whether the checker reports the seed with the strategy (`... Checker is using
+    /// 'pct' strategy (seed:7).`).
+    pub fn reports_seed(self) -> bool {
+        // `feedback` draws from the seed too but has always been reported without it,
+        // unlike `feedbackpct` and `feedbackpos`; nothing vendored from upstream shows
+        // what upstream prints for it, so the output is kept as it is.
+        !matches!(self, StrategyKind::Feedback | StrategyKind::Replay | StrategyKind::Dfs)
+    }
+
+    /// Whether this is an exhaustive search (PEx mode).
+    pub fn is_exhaustive(self) -> bool {
+        matches!(self, StrategyKind::Dfs | StrategyKind::RandomDfs)
+    }
+}
+
+impl std::fmt::Display for StrategyKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl std::str::FromStr for StrategyKind {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<StrategyKind, String> {
+        StrategyKind::ALL
+            .into_iter()
+            .find(|k| k.name() == s)
+            .ok_or_else(|| format!("unknown scheduling strategy '{}'", s))
+    }
+}
+
 /// Identity and status of a schedulable operation as seen by a strategy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OpInfo {
@@ -559,5 +646,18 @@ impl Strategy for ReplayStrategy {
     }
     fn diverged(&self) -> bool {
         self.error.is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::StrategyKind;
+
+    #[test]
+    fn strategy_names_round_trip() {
+        for k in StrategyKind::ALL {
+            assert_eq!(k.to_string().parse(), Ok(k));
+        }
+        assert!("astar".parse::<StrategyKind>().is_err());
     }
 }

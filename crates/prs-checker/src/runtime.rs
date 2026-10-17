@@ -17,7 +17,7 @@ use crate::bytecode::{CodeBlock, ReceiveCase, Root};
 use crate::compile::Code;
 use crate::coverage::Coverage;
 use crate::jsonlog::{payload_key, to_dict, Details, JsonLog};
-use crate::strategy::{OpInfo, ScheduleStep, ScheduleTrace, Strategy};
+use crate::strategy::{OpInfo, ScheduleStep, ScheduleTrace, Strategy, StrategyKind};
 use crate::timeline::{Timeline, TimelineConfig, VectorTime};
 use crate::value::{default_value, event_cs_full_name, event_cs_name, MachineRef, Value};
 
@@ -257,7 +257,7 @@ pub struct Config {
     pub liveness_enabled: bool,
     pub liveness_temperature_threshold: usize,
     pub fail_on_max_steps: bool,
-    pub strategy_name: String,
+    pub strategy: StrategyKind,
     /// Upper bound on the work (interpreted instructions, log lines weighted) an actor may do
     /// without reaching a scheduling point; 0 = unbounded. Upstream has no such bound and
     /// simply hangs on e.g. an endless raise/goto cycle.
@@ -287,7 +287,7 @@ impl Default for Config {
             liveness_enabled: true,
             liveness_temperature_threshold: 0,
             fail_on_max_steps: false,
-            strategy_name: "random".into(),
+            strategy: StrategyKind::Random,
             max_work_per_step: DEFAULT_MAX_WORK_PER_STEP,
             strategy_description: None,
             logging: true,
@@ -623,7 +623,7 @@ impl<'p> Runtime<'p> {
     pub fn report_bug(&mut self, text: String) -> Stop {
         if self.bug.is_none() {
             self.log(|_| format!("<ErrorLog> {}", text));
-            self.log(|rt| format!("<StrategyLog> Found bug using '{}' strategy.", rt.config.strategy_name));
+            self.log(|rt| format!("<StrategyLog> Found bug using '{}' strategy.", rt.config.strategy));
             let desc = self.config.strategy_description.clone().unwrap_or_else(|| self.strategy.description());
             self.bug_strategy_description = Some(desc.clone());
             if self.json_enabled() {
@@ -636,8 +636,8 @@ impl<'p> Runtime<'p> {
                 self.jlog(
                     "StrategyDescription",
                     Details {
-                        log: Some(format!("Found bug using '{}' strategy.{}", self.config.strategy_name, suffix)),
-                        strategy: Some(self.config.strategy_name.clone()),
+                        log: Some(format!("Found bug using '{}' strategy.{}", self.config.strategy, suffix)),
+                        strategy: Some(self.config.strategy.to_string()),
                         strategy_description: Some(desc.clone()),
                         ..Default::default()
                     },
@@ -646,7 +646,7 @@ impl<'p> Runtime<'p> {
             }
             if self.xml.is_some() {
                 self.xlog("AssertionFailure", &[], Some(&format!("<ErrorLog> {}", text)));
-                let strategy = self.config.strategy_name.clone();
+                let strategy = self.config.strategy.to_string();
                 self.xlog("Strategy", &[("strategy", &strategy)], Some(&desc));
             }
             self.failure.get_or_insert(Failure::Other(text.clone()));

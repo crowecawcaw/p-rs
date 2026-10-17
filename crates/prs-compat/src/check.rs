@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Output};
-use prs_checker::strategy::ScheduleTrace;
+use prs_checker::strategy::{ScheduleTrace, StrategyKind};
 
 use crate::argparse::{ArgParser, DataType, ParseError};
 use crate::host::{full_path, Color, Host, HostExt, Stream};
@@ -216,7 +216,7 @@ pub struct CheckConfig {
     pub mode: Mode,
     pub test_case_name: String,
     pub list_test_cases: bool,
-    pub strategy: String,
+    pub strategy: StrategyKind,
     pub strategy_bound: usize,
     pub iterations: usize,
     /// `--schedules` (or `--timeout`) was given.
@@ -255,7 +255,7 @@ impl CheckConfig {
             mode: Mode::BugFinding,
             test_case_name: String::new(),
             list_test_cases: false,
-            strategy: "random".into(),
+            strategy: StrategyKind::Random,
             strategy_bound: 0,
             iterations: 1,
             user_set_iterations: false,
@@ -356,23 +356,27 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             "testcase" => cfg.test_case_name = string(),
             "list-tests" => cfg.list_test_cases = true,
             "seed" => cfg.seed = Some(uint()),
-            "sch-random" | "sch-pos" | "sch-feedbackpos" | "sch-feedback" => {
-                cfg.strategy = a.long_name[4..].to_string()
-            }
-            "sch-probabilistic" | "sch-pct" | "sch-fairpct" | "sch-feedbackpct" => {
-                cfg.strategy = a.long_name[4..].to_string();
-                cfg.strategy_bound = uint() as usize;
-            }
-            "sch-rl" => cfg.strategy = "rl".into(),
+            "sch-random" => cfg.strategy = StrategyKind::Random,
+            "sch-pos" => cfg.strategy = StrategyKind::Pos,
+            "sch-feedback" => cfg.strategy = StrategyKind::Feedback,
+            "sch-feedbackpos" => cfg.strategy = StrategyKind::FeedbackPos,
+            "sch-rl" => cfg.strategy = StrategyKind::Rl,
+            "sch-probabilistic" => (cfg.strategy, cfg.strategy_bound) = (StrategyKind::Probabilistic, uint() as usize),
+            "sch-pct" => (cfg.strategy, cfg.strategy_bound) = (StrategyKind::Pct, uint() as usize),
+            "sch-fairpct" => (cfg.strategy, cfg.strategy_bound) = (StrategyKind::FairPct, uint() as usize),
+            "sch-feedbackpct" => (cfg.strategy, cfg.strategy_bound) = (StrategyKind::FeedbackPct, uint() as usize),
             "sch-pex" => {
-                let s = string();
-                if s == "astar" {
-                    return Err(checker_report_and_exit(
-                        host,
-                        "The 'astar' scheduling strategy is not supported by prs.",
-                    ));
+                cfg.strategy = match string().as_str() {
+                    "random" => StrategyKind::Random,
+                    "dfs" => StrategyKind::Dfs,
+                    "astar" => {
+                        return Err(checker_report_and_exit(
+                            host,
+                            "The 'astar' scheduling strategy is not supported by prs.",
+                        ))
+                    }
+                    other => unreachable!("--sch-pex does not allow '{}'", other),
                 }
-                cfg.strategy = s;
             }
             "replay" => {
                 let f = string();
@@ -383,7 +387,7 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
                     ));
                 }
                 cfg.schedule_file = Some(f);
-                cfg.strategy = "replay".into();
+                cfg.strategy = StrategyKind::Replay;
             }
             "iterations" | "schedules" => {
                 cfg.iterations = uint() as usize;
@@ -434,9 +438,9 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
     // PEx mode searches exhaustively: `--sch-pex dfs` in order, otherwise (`random`, the
     // default) trying the alternatives at each choice point in a random order, with no
     // schedule limit unless one is given
-    if cfg.mode == Mode::PEx && cfg.strategy != "replay" {
-        if cfg.strategy != "dfs" {
-            cfg.strategy = "random-dfs".into();
+    if cfg.mode == Mode::PEx && cfg.strategy != StrategyKind::Replay {
+        if cfg.strategy != StrategyKind::Dfs {
+            cfg.strategy = StrategyKind::RandomDfs;
         }
         if !cfg.user_set_iterations {
             cfg.iterations = 0;
@@ -483,7 +487,7 @@ fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) -> Result<()
     if host.is_dir(&abs(&older)) {
         host.remove_dir_all(&abs(&older)).map_err(|e| fail(host, &older, e))?;
     }
-    if cfg.strategy != "replay" {
+    if cfg.strategy != StrategyKind::Replay {
         for h in (0..MAX_HISTORY - 1).rev() {
             let newer = history(h);
             if host.is_dir(&abs(&newer)) {
@@ -641,7 +645,7 @@ fn select_test_case(host: &mut dyn Host, loaded: &Loaded, name: &str) -> Result<
 
 fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
     CheckerOptions {
-        strategy: cfg.strategy.clone(),
+        strategy: cfg.strategy,
         seed,
         iterations: cfg.iterations,
         max_unfair_steps: cfg.max_unfair_steps,

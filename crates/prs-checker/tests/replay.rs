@@ -7,7 +7,7 @@ use std::rc::Rc;
 use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Output};
 use prs_checker::random::RandomValueGenerator;
 use prs_checker::runtime::{Config, Runtime, Setup};
-use prs_checker::strategy::{OpInfo, RandomStrategy, ScheduleStep, ScheduleTrace, Strategy};
+use prs_checker::strategy::{OpInfo, RandomStrategy, ScheduleStep, ScheduleTrace, Strategy, StrategyKind};
 
 struct Quiet;
 impl Output for Quiet {
@@ -28,7 +28,7 @@ fn check(src: &str, opts: &CheckerOptions) -> CheckResult {
 }
 
 fn replay(src: &str, trace: ScheduleTrace) -> CheckResult {
-    check(src, &CheckerOptions { strategy: "replay".into(), replay: Some(trace), ..Default::default() })
+    check(src, &CheckerOptions { strategy: StrategyKind::Replay, replay: Some(trace), ..Default::default() })
 }
 
 /// The schedule of the first bug `src` has.

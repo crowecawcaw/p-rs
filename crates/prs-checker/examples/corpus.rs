@@ -12,6 +12,7 @@ use std::str::FromStr;
 use std::time::Instant;
 
 use prs_checker::engine::{Checker, CheckerOptions, Output};
+use prs_checker::strategy::StrategyKind;
 
 struct Quiet;
 impl Output for Quiet {
@@ -32,7 +33,7 @@ struct Args {
     schedules: usize,
     filter: Option<String>,
     trace: bool,
-    strategy: String,
+    strategy: StrategyKind,
     bound: usize,
 }
 
@@ -58,7 +59,7 @@ fn main() {
         schedules: 1000,
         filter: None,
         trace: false,
-        strategy: "random".into(),
+        strategy: StrategyKind::Random,
         bound: 0,
     };
     let mut roots = Vec::new();
@@ -175,7 +176,7 @@ fn find_tests(dir: &Path, stats: &mut Stats, args: &Args) {
         max_unfair_steps: 1000,
         max_fair_steps: 1000,
         user_set_max_fair_steps: true,
-        strategy: args.strategy.clone(),
+        strategy: args.strategy,
         strategy_bound: args.bound,
         ..Default::default()
     };
