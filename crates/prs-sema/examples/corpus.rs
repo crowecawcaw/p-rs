@@ -87,9 +87,7 @@ fn find_tests(dir: &Path, stats: &mut Stats, verbose: bool) {
                 keyword
             )]
         }
-        Err(prs_sema::CompileError::Analysis(a)) => {
-            a.messages(&sm).iter().map(|m| format!("[Error:] {}", m)).collect()
-        }
+        Err(prs_sema::CompileError::Analysis(a)) => a.messages(&sm).iter().map(|m| format!("[Error:] {}", m)).collect(),
     };
     if failed == expect_fail {
         stats.ok += 1;
