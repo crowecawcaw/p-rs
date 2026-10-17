@@ -18,6 +18,7 @@ const STRATEGIES: { label: string; args: string[] }[] = [
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 const splitArgs = (s: string) => s.split(/\s+/).filter(Boolean);
 const REPO = "https://github.com/crowecawcaw/p-rs";
+const WIDE = "(min-width: 901px)";
 
 export function App() {
   const runner = useMemo(() => new Runner(), []);
@@ -42,6 +43,8 @@ export function App() {
   const [toast, setToast] = useState<string>();
   const [loaded, setLoaded] = useState(false);
   const edited = useRef(false);
+  const [blurbOpen, setBlurbOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(() => matchMedia(WIDE).matches);
 
   const applyDemo = useCallback((d: Demo) => {
     const f = loadDemo(d);
@@ -121,6 +124,8 @@ export function App() {
       setResult(r);
       if (r.diagnostics.length) setDiagnostics(r.diagnostics);
       setTab(r.bug && r.traceJson ? "trace" : "console");
+      // Phones: the output is the last thing on the page; bring all of it into view.
+      if (!matchMedia(WIDE).matches) window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
     } catch (e) {
       const msg = String((e as Error).message ?? e);
       setRunError(msg === "cancelled" ? "Stopped." : `The checker crashed: ${msg}`);
@@ -190,7 +195,7 @@ export function App() {
         ? !result.ok
           ? "Compile error"
           : result.bug
-            ? `Bug found in ${result.testCase}`
+            ? "Bug found"
             : `No bugs in ${schedules} schedules`
         : compileOk === false
           ? "Compile error"
@@ -214,18 +219,25 @@ export function App() {
           ))}
         </select>
         <div className="spacer" />
-        <button onClick={share}>Share</button>
+        <button className="ghost" onClick={share}>
+          Share
+        </button>
         <a className="button ghost" href={REPO} target="_blank" rel="noreferrer">
           GitHub
         </a>
       </header>
 
-      <p className="blurb">
-        {demo.blurb}{" "}
-        <span className="muted">
-          Runs entirely in your browser: the <a href={REPO}>Rust P toolchain</a> compiled to WebAssembly.
-        </span>
-      </p>
+      <div className={blurbOpen ? "blurb open" : "blurb"}>
+        <p>
+          {demo.blurb}{" "}
+          <span className="muted">
+            Runs entirely in your browser: the <a href={REPO}>Rust P toolchain</a> compiled to WebAssembly.
+          </span>
+        </p>
+        <button className="more" onClick={() => setBlurbOpen(!blurbOpen)}>
+          {blurbOpen ? "less" : "more"}
+        </button>
+      </div>
 
       <main className="panes">
         <section className="pane editor-pane">
@@ -269,96 +281,121 @@ export function App() {
 
         <section className="pane run-pane">
           <div className="controls">
-            <label>
-              Test case
-              <select value={testCase} onChange={(e) => setTestCase(e.target.value)} disabled={!tests.length}>
-                {tests.length === 0 && <option value={testCase}>{testCase || "—"}</option>}
-                {tests.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="narrow">
-              Schedules
-              <input
-                type="number"
-                min={1}
-                max={1_000_000}
-                value={schedules}
-                onChange={(e) => setSchedules(Math.max(1, Number(e.target.value) || 1))}
-              />
-            </label>
-            <label>
-              Strategy
-              <select value={strategy} onChange={(e) => setStrategy(Number(e.target.value))}>
-                {STRATEGIES.map((s, i) => (
-                  <option key={s.label} value={i}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="narrow">
-              Seed
-              <input
-                type="number"
-                value={seed}
-                onChange={(e) => {
-                  setSeed(Number(e.target.value) || 0);
-                  setFixedSeed(true);
-                }}
-              />
-            </label>
-            <label className="check">
-              <input type="checkbox" checked={fixedSeed} onChange={(e) => setFixedSeed(e.target.checked)} />
-              Keep seed
-            </label>
-            <label className="wide">
-              Extra flags
-              <input
-                value={extraArgs}
-                placeholder="e.g. --timed --max-steps 500"
-                onChange={(e) => setExtraArgs(e.target.value)}
-                spellCheck={false}
-              />
-            </label>
-            <div className="run-buttons">
+            <div className="run-bar">
+              <label className="tc">
+                <span className="lbl">Test case</span>
+                <select
+                  value={testCase}
+                  onChange={(e) => setTestCase(e.target.value)}
+                  disabled={!tests.length}
+                  aria-label="Test case"
+                >
+                  {tests.length === 0 && <option value={testCase}>{testCase || "—"}</option>}
+                  {tests.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
               {running ? (
-                <button className="danger" onClick={() => runner.cancel()}>
+                <button className="danger run" onClick={() => runner.cancel()}>
                   Stop
                 </button>
               ) : (
-                <button className="primary" onClick={check} disabled={!testCase || compileOk === false} title="Ctrl/⌘+Enter">
+                <button className="primary run" onClick={check} disabled={!testCase || compileOk === false} title="Ctrl/⌘+Enter">
                   Check
                 </button>
               )}
-              <span className={`status ${statusClass}`}>{status}</span>
-              {result && !running && <span className="muted">{(result.millis / 1000).toFixed(2)} s</span>}
             </div>
+            <details className="options" open={optionsOpen} onToggle={(e) => setOptionsOpen((e.target as HTMLDetailsElement).open)}>
+              <summary>
+                Options
+                <span className="muted">
+                  {" "}· {schedules} schedules · {STRATEGIES[strategy].label}
+                  {fixedSeed ? ` · seed ${seed}` : ""}
+                  {extraArgs.trim() ? ` · ${extraArgs.trim()}` : ""}
+                </span>
+              </summary>
+              <div className="options-grid">
+                <label>
+                  Schedules
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={1_000_000}
+                    value={schedules}
+                    onChange={(e) => setSchedules(Math.max(1, Number(e.target.value) || 1))}
+                  />
+                </label>
+                <label>
+                  Strategy
+                  <select value={strategy} onChange={(e) => setStrategy(Number(e.target.value))}>
+                    {STRATEGIES.map((s, i) => (
+                      <option key={s.label} value={i}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Seed
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={seed}
+                    onChange={(e) => {
+                      setSeed(Number(e.target.value) || 0);
+                      setFixedSeed(true);
+                    }}
+                  />
+                </label>
+                <label className="check">
+                  <input type="checkbox" checked={fixedSeed} onChange={(e) => setFixedSeed(e.target.checked)} />
+                  Keep seed
+                </label>
+                <label className="span2">
+                  Extra flags
+                  <input
+                    value={extraArgs}
+                    placeholder="e.g. --timed --max-steps 500"
+                    onChange={(e) => setExtraArgs(e.target.value)}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                  />
+                </label>
+              </div>
+            </details>
           </div>
 
-          <div className="out-tabs" role="tablist">
-            {(["console", "trace", "log"] as Tab[]).map((t) => (
-              <button
-                key={t}
-                role="tab"
-                aria-selected={tab === t}
-                className={tab === t ? "out-tab active" : "out-tab"}
-                onClick={() => setTab(t)}
-                disabled={t !== "console" && !result?.traceJson}
-              >
-                {t === "console" ? "Console" : t === "trace" ? "Trace" : "Log"}
-              </button>
-            ))}
-            {result?.schedule && (
-              <div className="downloads">
-                <Download name={`${result.testCase}.schedule`} text={result.schedule} />
-                {result.traceText && <Download name={`${result.testCase}.txt`} text={result.traceText} />}
-                {result.traceJson && <Download name={`${result.testCase}.trace.json`} text={result.traceJson} />}
-              </div>
-            )}
+          <div className="out-head">
+            <div className="out-tabs" role="tablist">
+              {(["console", "trace", "log"] as Tab[]).map((t) => (
+                <button
+                  key={t}
+                  role="tab"
+                  aria-selected={tab === t}
+                  className={tab === t ? "out-tab active" : "out-tab"}
+                  onClick={() => setTab(t)}
+                  disabled={t !== "console" && !result?.traceJson}
+                >
+                  {t === "console" ? "Console" : t === "trace" ? "Trace" : "Log"}
+                </button>
+              ))}
+            </div>
+            <div className="status-line">
+              <span className={`status ${statusClass}`}>{status}</span>
+              {result && !running && <span className="muted">{(result.millis / 1000).toFixed(2)} s</span>}
+              {result?.schedule && !running && (
+                <span className="downloads">
+                  <Download name={`${result.testCase}.schedule`} text={result.schedule} />
+                  {result.traceText && <Download name={`${result.testCase}.txt`} text={result.traceText} />}
+                  {result.traceJson && <Download name={`${result.testCase}.trace.json`} text={result.traceJson} />}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="output">
@@ -422,7 +459,7 @@ function Download({ name, text }: { name: string; text: string }) {
   useEffect(() => () => URL.revokeObjectURL(href), [href]);
   return (
     <a className="download" href={href} download={name} title={`Download ${name}`}>
-      {name.slice(name.indexOf(".") + 1)}
+      ⤓ {name.slice(name.indexOf(".") + 1)}
     </a>
   );
 }

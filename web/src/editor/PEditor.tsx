@@ -22,7 +22,7 @@ const highlight = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  "&": { height: "100%", fontSize: "13px", backgroundColor: "var(--editor-bg)", color: "var(--fg)" },
+  "&": { height: "100%", fontSize: "var(--editor-font, 13px)", backgroundColor: "var(--editor-bg)", color: "var(--fg)" },
   ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "1.5" },
   ".cm-gutters": { backgroundColor: "var(--editor-bg)", color: "var(--muted)", border: "none" },
   ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "var(--active-line)" },
@@ -57,6 +57,7 @@ export function PEditor({ path, value, diagnostics, jump, onChange, onRun }: Pro
       indentWithTab,
     ]),
     pLanguage,
+    EditorView.lineWrapping,
     syntaxHighlighting(highlight),
     theme,
     lintGutter(),

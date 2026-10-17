@@ -74,7 +74,7 @@ export function TraceView({ json, onOpenLocation }: Props) {
         </span>
       </div>
       <SequenceDiagram trace={trace} cursor={cursor} onSelect={(i) => { setPlaying(false); setCursor(i); }} />
-      {step && (
+      {step && step.kind !== "error" && (
         <div className="step-detail">
           <div>{step.log}</div>
           {step.payload !== undefined && <pre>{JSON.stringify(step.payload, null, 2)}</pre>}
