@@ -319,7 +319,13 @@ export function App() {
                 </button>
               ) : (
                 <button className="primary run" onClick={check} disabled={!testCase || compileOk === false} title="Ctrl/⌘+Enter">
-                  Check
+                  {compileOk !== false
+                    ? "Check"
+                    : diagnostics.length === 1
+                      ? "Fix 1 error"
+                      : diagnostics.length
+                        ? `Fix ${diagnostics.length} errors`
+                        : "Fix errors"}
                 </button>
               )}
             </div>

@@ -8,6 +8,8 @@ const ROW_H = 30;
 const TOP = 10;
 const HEADER_H = 44;
 const MIN_ZOOM = 0.35;
+/** Height kept clear at the bottom for the floating Key/zoom controls. */
+const PILL_H = 56;
 const MAX_ZOOM = 2.5;
 /** Machine lanes cycle through this many hues (--lane-0 … in styles.css). */
 const HUES = 6;
@@ -44,7 +46,7 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   const laneX = laneXFor(W);
   const width = Math.max(lanes.length, 1) * W;
   // Extra room at the bottom so the last rows can scroll clear of the zoom controls.
-  const height = TOP * 2 + steps.length * ROW_H + 48;
+  const height = TOP * 2 + steps.length * ROW_H + PILL_H + 16;
   const scroller = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [legend, setLegend] = useState(false);
@@ -169,7 +171,7 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
     const top = head + (rowY(cursor) - ROW_H) * zoomRef.current;
     const bottom = head + (rowY(cursor) + ROW_H) * zoomRef.current;
     if (top < el.scrollTop + head) el.scrollTop = top - head;
-    else if (bottom > el.scrollTop + el.clientHeight) el.scrollTop = bottom - el.clientHeight;
+    else if (bottom > el.scrollTop + el.clientHeight - PILL_H) el.scrollTop = bottom - el.clientHeight + PILL_H;
     // Sideways too: bring the step's lanes (sender and receiver) into view.
     const st = steps[cursor];
     if (!st) return;
@@ -178,12 +180,18 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
     );
     if (!involved.length) return;
     const z = zoomRef.current;
-    const left = (Math.min(...involved) * W) * z;
-    const right = (Math.max(...involved) + 1) * W * z;
+    let left = Math.min(...involved) * W * z;
+    let right = (Math.max(...involved) + 1) * W * z;
+    if (st.kind === "error") {
+      // The bug chip is wider than a lane: bring the whole chip into view.
+      const chip = errorChip(st.label, laneXFor(W)(involved[0]), width);
+      left = (chip.left - 8) * z;
+      right = (chip.left + chip.w + 8) * z;
+    }
     if (right - left > el.clientWidth) el.scrollLeft = (left + right) / 2 - el.clientWidth / 2;
     else if (left < el.scrollLeft) el.scrollLeft = left;
     else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
-  }, [cursor, steps, W]);
+  }, [cursor, steps, W, width]);
 
   return (
     <div className="seq-wrap">
@@ -348,14 +356,16 @@ function Row({ i, s, W, width, cursor, color, onSelect }: {
         </>
       );
       break;
-    case "error":
+    case "error": {
+      const { left: errLeft, w: errW } = errorChip(s.label, s.lane !== undefined ? x : undefined, width);
       body = (
         <>
-          <rect x={4} y={y - 12} width={Math.min(width - 8, 24 + shortError(s.label).length * 7.8)} height={24} rx={12} className="error-bar" />
-          <text x={16} y={y} dy="0.35em" className="error-label">{shortError(s.label)}</text>
+          <rect x={errLeft} y={y - 12} width={errW} height={24} rx={12} className="error-bar" />
+          <text x={errLeft + 12} y={y} dy="0.35em" className="error-label">{shortError(s.label)}</text>
         </>
       );
       break;
+    }
   }
   return (
     <g className={cls} data-row={i} onClick={() => onSelect(i)} style={{ "--c": c } as React.CSSProperties}>
@@ -365,6 +375,13 @@ function Row({ i, s, W, width, cursor, color, onSelect }: {
       {body}
     </g>
   );
+}
+
+/** The bug chip: starts at the lane where the bug happened, kept inside the diagram. */
+function errorChip(label: string, laneCenter: number | undefined, width: number) {
+  const w = Math.min(width - 8, 24 + shortError(label).length * 7.8);
+  const left = Math.max(4, Math.min(laneCenter !== undefined ? laneCenter - 16 : 4, width - w - 4));
+  return { left, w };
 }
 
 /** "Assertion Failed: file.p:1:2 message" -> "✕ Assertion Failed"; the full text is in the banner. */
@@ -379,10 +396,15 @@ const baseName = (id: string) => id.replace(/\(\d+\)$/, "");
 function LaneLabel({ id, monitor, w, showId }: { id: string; monitor: boolean; w: number; showId: boolean }) {
   const m = /^(.*?)(\(\d+\))?$/.exec(id)!;
   const n = showId ? (m[2] ?? "") : "";
+  // Shrink long names (down to ~10px) before truncating, so "Participant(2)" and
+  // "Participant(3)" stay distinguishable on narrow lanes.
+  const room = w - 14;
+  const need = (m[1].length + n.length) * CH;
+  const scale = Math.max(0.82, Math.min(1, room / need));
   return (
-    <text textAnchor="middle" dy="0.35em" className="lane-label">
+    <text textAnchor="middle" dy="0.35em" className="lane-label" style={scale < 1 ? { fontSize: `${(12 * scale).toFixed(1)}px` } : undefined}>
       <title>{monitor ? `spec ${id}` : id}</title>
-      {clip(m[1], w - 16 - n.length * CH)}
+      {clip(m[1], room / scale - n.length * CH)}
       {n && <tspan className="lane-id">{n}</tspan>}
     </text>
   );

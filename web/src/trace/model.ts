@@ -151,10 +151,17 @@ export function parseTrace(json: string): Trace {
       case "Halt":
         steps.push({ kind: "halt", lane: lane(str(d.id)), label: "halt", log });
         break;
-      case "AssertionFailure":
+      case "AssertionFailure": {
         error = str(d.error) ?? log;
-        steps.push({ kind: "error", label: error, log });
+        // Put the bug on the machine it names (e.g. "Client(7) is waiting…"), else on
+        // whoever acted last.
+        const named = [...laneIndex.keys()]
+          .filter((id) => error!.includes(id))
+          .sort((a, b) => b.length - a.length)[0];
+        const lastActor = [...steps].reverse().find((st) => st.lane !== undefined)?.lane;
+        steps.push({ kind: "error", lane: named !== undefined ? laneIndex.get(named) : lastActor, label: error, log });
         break;
+      }
       case "StrategyDescription":
         strategy = str(d.strategyDescription);
         break;
