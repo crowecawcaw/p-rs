@@ -149,8 +149,8 @@ system; the module is about 1 MB (about 320 KB gzipped).
 ## Benchmarks
 
 `scripts/bench.py` runs `prs check` on six tutorial tests with fixed schedule counts and
-seed, and records total check time, schedules per second, compile time and (with
-`--instructions`, via Valgrind) instructions executed:
+seed, and records total check time, schedules per second and (with `--instructions`,
+via Valgrind) instructions executed:
 
 ```sh
 cargo build --release -p prs-cli

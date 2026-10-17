@@ -252,10 +252,10 @@
     document.getElementById("latest-sub").textContent =
       `${latest.commit.slice(0, 7)} · ${latest.date.slice(0, 10)} · ${latest.message} · ${latest.runner.cpu}`;
     table(document.getElementById("latest-table"),
-      ["workload", "schedules", "time", "schedules/s", "compile", "instructions"],
+      ["workload", "schedules", "time", "schedules/s", "instructions"],
       [...latest.results, { name: "total", ...latest.total }].map((r) => [
         r.name, String(r.schedules), fmtTime(r.check_s), fmtNum(r.schedules_per_s),
-        fmtTime(r.compile_s), r.instructions ? r.instructions.toLocaleString() : "",
+        r.instructions ? r.instructions.toLocaleString() : "",
       ]));
     document.getElementById("latest").hidden = false;
 
@@ -264,14 +264,14 @@
       const ur = Object.fromEntries(u.upstream.results.map((r) => [r.name, r]));
       document.getElementById("upstream-sub").textContent =
         `prs ${u.prs.version || u.prs.commit.slice(0, 7)} vs P ${u.upstream.version}, ${u.prs.date.slice(0, 10)}. ` +
-        "Same runner, tests, schedule counts and seed. Speedup = P time / prs time.";
+        "Same runner, tests, schedule counts and seed. Speedup = P time / prs time. prs type-checks inside check; P compiles first.";
       const rows = u.prs.results.filter((r) => ur[r.name]).map((r) => [r, ur[r.name]]);
       rows.push([{ name: "total", ...u.prs.total }, u.upstream.total]);
       table(document.getElementById("upstream-table"),
-        ["workload", "schedules", "prs time", "P time", "speedup", "prs schedules/s", "P schedules/s", "prs compile", "P compile"],
+        ["workload", "schedules", "prs time", "P time", "speedup", "prs schedules/s", "P schedules/s", "P compile"],
         rows.map(([p, q]) => [
           p.name, String(p.schedules), fmtTime(p.check_s), fmtTime(q.check_s), `${(q.check_s / p.check_s).toFixed(1)}×`,
-          fmtNum(p.schedules_per_s), fmtNum(q.schedules_per_s), fmtTime(p.compile_s), fmtTime(q.compile_s),
+          fmtNum(p.schedules_per_s), fmtNum(q.schedules_per_s), fmtTime(q.compile_s),
         ]));
       document.getElementById("upstream").hidden = false;
     }
