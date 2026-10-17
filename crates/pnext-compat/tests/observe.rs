@@ -27,7 +27,8 @@ spec NeverOverdrawn observes eDeposit, eWithdraw, eClose {
 }
 "#;
 
-const PPROJ: &str = "<Project><ProjectName>Bank</ProjectName><InputFiles><PFile>./PSpec/</PFile></InputFiles></Project>";
+const PPROJ: &str =
+    "<Project><ProjectName>Bank</ProjectName><InputFiles><PFile>./PSpec/</PFile></InputFiles></Project>";
 
 fn host() -> MemHost {
     let mut h = MemHost::new("/work");
@@ -44,7 +45,10 @@ fn run(h: &mut MemHost, args: &[&str]) -> i32 {
 }
 
 fn line(key: &str, ts: i64, event: &str, account: i64, amount: i64) -> String {
-    format!(r#"{{"key": "{}", "timestamp": {}, "event": "{}", "payload": {{"account": {}, "amount": {}}}}}"#, key, ts, event, account, amount)
+    format!(
+        r#"{{"key": "{}", "timestamp": {}, "event": "{}", "payload": {{"account": {}, "amount": {}}}}}"#,
+        key, ts, event, account, amount
+    )
 }
 
 fn read(h: &MemHost, p: &str) -> String {
@@ -54,7 +58,8 @@ fn read(h: &MemHost, p: &str) -> String {
 #[test]
 fn clean_logs_pass() {
     let mut h = host();
-    let log = [line("a", 1, "eDeposit", 1, 10), line("b", 2, "eDeposit", 2, 5), line("a", 3, "eWithdraw", 1, 10)].join("\n");
+    let log =
+        [line("a", 1, "eDeposit", 1, 10), line("b", 2, "eDeposit", 2, 5), line("a", 3, "eWithdraw", 1, 10)].join("\n");
     h.add_file("logs/run.log", &log);
     let code = run(&mut h, &["--spec", "NeverOverdrawn", "-l", "logs", "-o", "out"]);
     assert_eq!(code, 0, "{}", h.stdout);
@@ -73,11 +78,23 @@ Success! No bugs found.
 -------------------------------------
 ";
     assert!(h.stdout.starts_with(expected_head), "{}", h.stdout);
-    assert!(h.stdout.contains("3                        3                        2                        2"), "{}", h.stdout);
-    assert!(h.stdout.ends_with("PObserve run completed with 0 error(s)\nRun details can be found in /work/out\n"), "{}", h.stdout);
+    assert!(
+        h.stdout.contains("3                        3                        2                        2"),
+        "{}",
+        h.stdout
+    );
+    assert!(
+        h.stdout.ends_with("PObserve run completed with 0 error(s)\nRun details can be found in /work/out\n"),
+        "{}",
+        h.stdout
+    );
     let metrics = read(&h, "out/PObserveMetrics.txt");
     assert!(metrics.contains("Event Type"), "{}", metrics);
-    assert!(metrics.contains("eDeposit                        2                     0.000000              0"), "{}", metrics);
+    assert!(
+        metrics.contains("eDeposit                        2                     0.000000              0"),
+        "{}",
+        metrics
+    );
 }
 
 #[test]
@@ -94,9 +111,15 @@ fn violations_are_reported_per_key_with_replay_logs() {
     h.add_file("run.log", &log);
     let code = run(&mut h, &["--spec", "NeverOverdrawn", "-l", "run.log", "-o", "out", "--replaySize", "1"]);
     assert_eq!(code, 2, "{}", h.stdout);
-    assert!(h.stdout.contains("Parser Exception::\nException occurred while parsing log line: not json\n"), "{}", h.stdout);
     assert!(
-        h.stdout.contains("PObserve Spec Violation::\nAssertion failure: PSpec/Bank.p:14:7 account 1 overdrawn: balance -10\n"),
+        h.stdout.contains("Parser Exception::\nException occurred while parsing log line: not json\n"),
+        "{}",
+        h.stdout
+    );
+    assert!(
+        h.stdout.contains(
+            "PObserve Spec Violation::\nAssertion failure: PSpec/Bank.p:14:7 account 1 overdrawn: balance -10\n"
+        ),
         "{}",
         h.stdout
     );
@@ -123,16 +146,34 @@ fn parser_errors_alone_exit_with_4() {
 #[test]
 fn unhandled_events_and_out_of_order_inputs_are_internal_errors() {
     let mut h = host();
-    h.add_file("run.log", &[r#"{"key":"k","timestamp":1,"event":"eClose","payload":7}"#.to_string(), line("k", 2, "eDeposit", 1, 1)].join("\n"));
+    h.add_file(
+        "run.log",
+        &[r#"{"key":"k","timestamp":1,"event":"eClose","payload":7}"#.to_string(), line("k", 2, "eDeposit", 1, 1)]
+            .join("\n"),
+    );
     assert_eq!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "run.log", "-o", "out"]), 3, "{}", h.stdout);
     assert!(h.stdout.contains("prt.State[Closed] missing event handler for eDeposit\n"), "{}", h.stdout);
-    assert!(h.stdout.contains("Failed with an unknown exception:: null\nPlease report this issue to the P team\n"), "{}", h.stdout);
+    assert!(
+        h.stdout.contains("Failed with an unknown exception:: null\nPlease report this issue to the P team\n"),
+        "{}",
+        h.stdout
+    );
     let unknown = read(&h, "out/UnknownError_0.txt");
-    assert!(unknown.starts_with("errorMessage=prt.State prt.State[Closed] has no handler for class Bank.pobserve.PEvents$eDeposit"), "{}", unknown);
+    assert!(
+        unknown.starts_with(
+            "errorMessage=prt.State prt.State[Closed] has no handler for class Bank.pobserve.PEvents$eDeposit"
+        ),
+        "{}",
+        unknown
+    );
 
     h.add_file("run.log", &[line("k", 2, "eDeposit", 1, 1), line("k", 1, "eDeposit", 1, 1)].join("\n"));
     assert_eq!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "run.log", "-o", "out2", "--assumeInputsAreSorted"]), 3);
-    assert!(h.stdout.contains("PObserve Event Out of Order Exception::\nEncountered an out of order event.\n"), "{}", h.stdout);
+    assert!(
+        h.stdout.contains("PObserve Event Out of Order Exception::\nEncountered an out of order event.\n"),
+        "{}",
+        h.stdout
+    );
     assert!(h.stdout.contains("Timestamp of last processed event: 1970-01-01T00:00:00.002Z\n"), "{}", h.stdout);
 }
 
@@ -176,11 +217,20 @@ fn command_line_errors() {
     let usage = |h: &MemHost| h.stdout.contains("Usage: p observe [options]");
     let cases: &[(&[&str], &str)] = &[
         (&["-l", "run.log"], "The following option is required: [--spec]"),
-        (&["--spec", "NeverOverdrawn", "--jars", "x.jar"], "Was passed main parameter '--jars' but no main parameter was defined in your arg class"),
+        (
+            &["--spec", "NeverOverdrawn", "--jars", "x.jar"],
+            "Was passed main parameter '--jars' but no main parameter was defined in your arg class",
+        ),
         (&["--spec", "Bad.Name"], "The specified class name spec (Bad.Name) is invalid."),
-        (&["--spec", "NeverOverdrawn"], "No log files specified. Please provide log file or directory with --logs parameter."),
+        (
+            &["--spec", "NeverOverdrawn"],
+            "No log files specified. Please provide log file or directory with --logs parameter.",
+        ),
         (&["--spec", "NeverOverdrawn", "-l", "nope"], "The specified log location(nope) does not exist."),
-        (&["--spec", "NeverOverdrawn", "-l", "run.log", "--replaySize", "0"], "The specified replaySize (0) is not valid (Must be an integer > 0)"),
+        (
+            &["--spec", "NeverOverdrawn", "-l", "run.log", "--replaySize", "0"],
+            "The specified replaySize (0) is not valid (Must be an integer > 0)",
+        ),
         (&["--spec", "NeverOverdrawn", "-l", "run.log", "-ik", "xml"], "The specified input kind (xml) is not valid."),
         (&["--spec", "NeverOverdrawn", "-l", "run.log", "--keys"], "Expected a value after parameter --keys"),
         (&["--spec", "Missing", "-l", "run.log"], "SPECIFICATION_SUPPLIER not found in the specified jar."),
@@ -218,13 +268,20 @@ fn custom_parsers_plug_in() {
         fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
             let f: Vec<&str> = entry.split(',').collect();
             let n = |i: usize| f[i].trim().parse::<i64>().map_err(|e| e.to_string());
-            let ev = spec.tuple_event(f[1], Timestamp::from_millis(n(0)?), f[2], vec![Value::Int(n(3)?), Value::Int(n(4)?)], Some(entry))?;
+            let ev = spec.tuple_event(
+                f[1],
+                Timestamp::from_millis(n(0)?),
+                f[2],
+                vec![Value::Int(n(3)?), Value::Int(n(4)?)],
+                Some(entry),
+            )?;
             Ok(vec![ev])
         }
     }
     let mut h = host();
     h.add_file("run.csv", "1,k,eDeposit,1,5\n2,k,eWithdraw,1,6");
-    let args: Vec<String> = ["--spec", "NeverOverdrawn", "-l", "run.csv", "-o", "out"].iter().map(|s| s.to_string()).collect();
+    let args: Vec<String> =
+        ["--spec", "NeverOverdrawn", "-l", "run.csv", "-o", "out"].iter().map(|s| s.to_string()).collect();
     let code = pnext_compat::observe::run_with(&args, &mut h, vec![Box::new(Csv)]);
     assert_eq!(code, 2, "{}", h.stdout);
     assert!(h.stdout.contains("account 1 overdrawn: balance -1"), "{}", h.stdout);

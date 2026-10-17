@@ -408,7 +408,13 @@ fn parse_value(def: &Argument, value: &str) -> Result<Value, ParseError> {
     if !def.allowed_values.is_empty() {
         let s = match &v {
             Value::Str(s) => s.to_lowercase(),
-            Value::Bool(b) => if *b { "true".into() } else { "false".into() },
+            Value::Bool(b) => {
+                if *b {
+                    "true".into()
+                } else {
+                    "false".into()
+                }
+            }
             Value::Int(i) => i.to_string(),
             Value::UInt(i) => i.to_string(),
             Value::Double(d) => d.to_string(),

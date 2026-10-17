@@ -1,39 +1,51 @@
-# Publishing p-rs
+# Releasing p-rs
 
-The `Publish p-rs` workflow uses crates.io trusted publishing. No crates.io API
-token needs to be stored in GitHub secrets.
+Releases are cut by the manually triggered **Release** workflow
+(`.github/workflows/release.yml`). Nothing publishes on a tag push.
 
-The crates.io configuration for `p-rs` trusts:
+## Cut a release
 
-- Repository: `crowecawcaw/p-rs`
-- Workflow: `release.yml`
-- GitHub environment: `release`
+Actions → **Release** → Run workflow, on `main`, and pick a level:
 
-The environment allows the `main` branch and tags matching `v*`.
+| level   | effect                                        |
+| ------- | --------------------------------------------- |
+| patch   | 0.0.1 → 0.0.2                                  |
+| minor   | 0.0.1 → 0.1.0                                  |
+| major   | 0.0.1 → 1.0.0                                  |
+| release | publish the version already in `Cargo.toml`    |
 
-## Release a version
+Or from a terminal: `gh workflow run release.yml --ref main -f level=patch`.
 
-1. Update the version in `crates/p-rs/Cargo.toml` and refresh `Cargo.lock`.
-2. Commit those changes to `main` and push them.
-3. Create and push a matching version tag, for example:
+The workflow:
 
-   ```sh
-   git tag v0.0.2
-   git push origin v0.0.2
-   ```
+1. **Preflight**: fmt, clippy, tests and `cargo publish --dry-run` on `main`.
+2. **Bump and tag**: bumps `crates/p-rs/Cargo.toml` and `Cargo.lock`, commits
+   `Release p-rs vX.Y.Z` to `main`, tags `vX.Y.Z` and pushes both atomically.
+   If `main` moved since the run started, the push fails and nothing is published.
+3. **Publish**: publishes `p-rs` to crates.io. A version already on crates.io is
+   skipped, so a run that failed after tagging can be finished with `level=release`.
+4. **GitHub release**: creates the release for the tag. Claude writes the notes
+   from the merged PRs' descriptions, following `.github/release-notes-prompt.md`.
+   If that fails (for example an expired token), the release gets GitHub's
+   generated notes instead and the run still succeeds.
 
-The workflow checks that the tag matches the package version and points to a
-commit in `main`, verifies the package, obtains a short-lived crates.io token,
-and publishes only `p-rs`. The authentication action revokes its token afterward.
+## Fix a release's notes
 
-## Check the configuration without publishing
+Actions → **Update release notes** → enter the tag. It regenerates the notes with
+Claude and replaces them on the release. Tick *dry run* to only print them.
 
-Run `Publish p-rs` manually from the Actions tab on `main`, or use:
+Only the `p-rs` crate is published. The `pnext-*` crates are not.
 
-```sh
-gh workflow run release.yml --ref main
-```
+## Requirements
 
-Manual runs verify the package and the OIDC token exchange without uploading a
-new version. Version `0.0.1` was already published during initial setup; do not
-push its tag as a new release.
+- The `github-actions[bot]` must be able to push to `main`. If `main` gets branch
+  protection, allow GitHub Actions to bypass it (or the bump step will fail).
+- crates.io trusted publishing for `p-rs` trusts:
+  - Repository: `crowecawcaw/p-rs`
+  - Workflow: `release.yml`
+  - Environment: `release`
+
+  The `release` environment must allow the `main` branch. No crates.io token is
+  stored in GitHub; the auth action gets a short-lived token and revokes it after.
+- The `CLAUDE_CODE_OAUTH_TOKEN` repository secret, for release notes. Create it
+  with `claude setup-token`; it lasts about a year.

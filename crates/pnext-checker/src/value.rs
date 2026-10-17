@@ -28,8 +28,9 @@ pub struct NamedTuple {
     pub values: Vec<Value>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Value {
+    #[default]
     Null,
     Bool(bool),
     /// Integers and enum values (`PInt`).
@@ -45,12 +46,6 @@ pub enum Value {
     Map(Rc<SlotMap>),
     /// A value of a foreign type.
     Foreign(Rc<dyn crate::foreign::ForeignValue>),
-}
-
-impl Default for Value {
-    fn default() -> Value {
-        Value::Null
-    }
 }
 
 /// `PValues.SafeEquals`.
@@ -221,10 +216,13 @@ impl SlotSet {
     }
 }
 
+/// One [`SlotMap`] slot: a key-value pair, or `None` for a freed slot.
+pub type MapSlot = Option<(Value, Value)>;
+
 /// A map with .NET `Dictionary<K,V>` enumeration order (see [`SlotSet`]).
 #[derive(Debug, Clone, Default)]
 pub struct SlotMap {
-    slots: Vec<Option<(Value, Value)>>,
+    slots: Vec<MapSlot>,
     index: HashMap<Value, usize>,
     free: Vec<usize>,
     /// Insertion stamp of each slot (for Java's `HashMap` bucket order).
@@ -319,7 +317,7 @@ impl SlotMap {
     }
 
     /// See [`SlotSet::layout`].
-    pub fn layout(&self) -> (&[Option<(Value, Value)>], &[usize]) {
+    pub fn layout(&self) -> (&[MapSlot], &[usize]) {
         (&self.slots, &self.free)
     }
 
@@ -619,7 +617,7 @@ pub fn format_double(f: f64) -> String {
     let digits = digits.trim_end_matches('0');
     let digits = if digits.is_empty() { "0" } else { digits };
     let neg = if f < 0.0 { "-" } else { "" };
-    if exp >= 15 || exp < -4 {
+    if !(-4..15).contains(&exp) {
         let mut m = String::new();
         m.push_str(&digits[..1]);
         if digits.len() > 1 {
@@ -763,17 +761,19 @@ pub fn format_composite(base: &str, args: &[String]) -> Result<String, String> {
         }
         pos += 1;
         let Some(arg) = args.get(index) else {
-            return Err("Index (zero based) must be greater than or equal to zero and less than the size of the argument list."
-                .to_string());
+            return Err(
+                "Index (zero based) must be greater than or equal to zero and less than the size of the argument list."
+                    .to_string(),
+            );
         };
         let n = arg.chars().count();
         let pad = width.saturating_sub(n);
         if !left {
-            out.extend(std::iter::repeat(' ').take(pad));
+            out.extend(std::iter::repeat_n(' ', pad));
         }
         out.push_str(arg);
         if left {
-            out.extend(std::iter::repeat(' ').take(pad));
+            out.extend(std::iter::repeat_n(' ', pad));
         }
     }
     Ok(out)
@@ -814,7 +814,8 @@ mod tests {
     #[test]
     fn composite_errors() {
         // messages and offsets observed from .NET 8 `String.Format` with no arguments
-        let index = "Index (zero based) must be greater than or equal to zero and less than the size of the argument list.";
+        let index =
+            "Index (zero based) must be greater than or equal to zero and less than the size of the argument list.";
         let cases: &[(&str, &str)] = &[
             ("a{b", "2. Expected an ASCII digit."),
             ("a}b", "2. Unexpected closing brace without a corresponding opening brace."),
@@ -839,9 +840,26 @@ mod tests {
         ];
         for (b, e) in cases {
             let msg = format_composite(b, &[]).unwrap_err();
-            assert_eq!(msg, format!("Input string was not in a correct format. Failure to parse near offset {}", e), "{}", b);
+            assert_eq!(
+                msg,
+                format!("Input string was not in a correct format. Failure to parse near offset {}", e),
+                "{}",
+                b
+            );
         }
-        for b in ["{0}", "{0 }", "{1000000}", "{0,-5}", "{0:x}}", "{0, 5}", "{0:a}b}", "{00}", "{0:}", "{0,5:x}", "{0,1000000}"] {
+        for b in [
+            "{0}",
+            "{0 }",
+            "{1000000}",
+            "{0,-5}",
+            "{0:x}}",
+            "{0, 5}",
+            "{0:a}b}",
+            "{00}",
+            "{0:}",
+            "{0,5:x}",
+            "{0,1000000}",
+        ] {
             assert_eq!(format_composite(b, &[]).unwrap_err(), index, "{}", b);
         }
     }

@@ -115,7 +115,13 @@ pub fn parser() -> ArgParser {
         "Choose the probabilistic scheduling strategy with given probability for each scheduling decision where the probability is specified as the integer N in the equation 0.5 to the power of N.  So for N=1, the probability is 0.5, for N=2 the probability is 0.25, N=3 you get 0.125, etc.",
         DataType::UInt,
     );
-    p.add(s, "sch-pct", None, "Choose the PCT scheduling strategy with given maximum number of priority switch points", DataType::UInt);
+    p.add(
+        s,
+        "sch-pct",
+        None,
+        "Choose the PCT scheduling strategy with given maximum number of priority switch points",
+        DataType::UInt,
+    );
     p.add(s, "sch-pos", None, "Choose the POS scheduling strategy", DataType::Bool);
     p.add(
         s,
@@ -141,8 +147,20 @@ pub fn parser() -> ArgParser {
         DataType::Str,
     )
     .allowed(&["pairwise", "kgram", "causal", "hybrid"]);
-    p.add(s, "timeline-kgram", None, "Gram length for the kgram/hybrid timeline representation (default: 3)", DataType::UInt);
-    p.add(s, "timeline-payload", None, "Enrich timeline event labels with a stable hash of the event payload", DataType::Bool);
+    p.add(
+        s,
+        "timeline-kgram",
+        None,
+        "Gram length for the kgram/hybrid timeline representation (default: 3)",
+        DataType::UInt,
+    );
+    p.add(
+        s,
+        "timeline-payload",
+        None,
+        "Enrich timeline event labels with a stable hash of the event payload",
+        DataType::Bool,
+    );
 
     p.group("replay", "Replay and debug options");
     p.add(Some("replay"), "replay", Some("r"), "Schedule file to replay", DataType::Str);
@@ -150,8 +168,20 @@ pub fn parser() -> ArgParser {
     let t = Some("time");
     p.group("time", "Time and latency options (pnext extension, see design/time/PROPOSAL.md)");
     p.add(t, "latency", None, "Latency profile file (TOML) giving delivery latencies and costs", DataType::Str);
-    p.add(t, "latency-profile", None, "Profile of the latency file to use (overrides its [tests] table)", DataType::Str);
-    p.add(t, "timed", None, "Time-aware scheduling: never run a step that is certainly later than another", DataType::Bool);
+    p.add(
+        t,
+        "latency-profile",
+        None,
+        "Profile of the latency file to use (overrides its [tests] table)",
+        DataType::Str,
+    );
+    p.add(
+        t,
+        "timed",
+        None,
+        "Time-aware scheduling: never run a step that is certainly later than another",
+        DataType::Bool,
+    );
 
     let a = Some("advanced");
     p.group("advanced", "Advanced options");
@@ -160,8 +190,14 @@ pub fn parser() -> ArgParser {
     p.add(a, "graph-bug", None, "Output a DGML graph of the schedule that found a bug", DataType::Bool);
     p.add(a, "graph", None, "Output a DGML graph of all test schedules whether a bug was found or not", DataType::Bool);
     p.add(a, "xml-trace", None, "Specify a filename for XML runtime log output to be written to", DataType::Bool);
-    p.add(a, "jvm-args", None, "Specify a concatenated list of JVM arguments to pass, each starting with a colon", DataType::Str)
-        .hidden();
+    p.add(
+        a,
+        "jvm-args",
+        None,
+        "Specify a concatenated list of JVM arguments to pass, each starting with a colon",
+        DataType::Str,
+    )
+    .hidden();
     p.add(
         a,
         "checker-args",
@@ -326,7 +362,9 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
             "testcase" => cfg.test_case_name = string(),
             "list-tests" => cfg.list_test_cases = true,
             "seed" => cfg.seed = Some(uint()),
-            "sch-random" | "sch-pos" | "sch-feedbackpos" | "sch-feedback" => cfg.strategy = a.long_name[4..].to_string(),
+            "sch-random" | "sch-pos" | "sch-feedbackpos" | "sch-feedback" => {
+                cfg.strategy = a.long_name[4..].to_string()
+            }
             "sch-probabilistic" | "sch-pct" | "sch-fairpct" | "sch-feedbackpct" => {
                 cfg.strategy = a.long_name[4..].to_string();
                 cfg.strategy_bound = uint() as usize;
@@ -381,7 +419,9 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
         let path = full_path(&host.cwd(), Path::new(&cfg.latency_file));
         let text = match host.read_to_string(&path) {
             Ok(t) => t,
-            Err(e) => return Err(report_and_exit(host, &format!("Cannot read latency file '{}': {}", cfg.latency_file, e))),
+            Err(e) => {
+                return Err(report_and_exit(host, &format!("Cannot read latency file '{}': {}", cfg.latency_file, e)))
+            }
         };
         match pnext_checker::time::ProfileSet::parse(&text) {
             Ok(set) => cfg.latency = Some(std::rc::Rc::new(set)),
@@ -442,11 +482,7 @@ fn find_local_compiled_file(host: &mut dyn Host, cfg: &mut CheckConfig) -> Resul
         host.out_line(&format!(".. Found a P compiled file: {}", cfg.assembly));
         return Ok(());
     }
-    host.out_line(&format!(
-        ".. No P compiled file {} found in the current folder: {}",
-        pattern,
-        host.cwd().display()
-    ));
+    host.out_line(&format!(".. No P compiled file {} found in the current folder: {}", pattern, host.cwd().display()));
     Err(checker_report_and_exit(host, &format!("Could not find any {} file.", pattern)))
 }
 
@@ -618,7 +654,8 @@ fn fetch_test_cases(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> 
 fn select_test_case(host: &mut dyn Host, loaded: &Loaded, name: &str) -> Result<pnext_sema::TestCase, Exit> {
     let all = loaded.analysis.program.test_cases();
     let exact: Vec<_> = all.iter().filter(|t| t.name == name).cloned().collect();
-    let filtered: Vec<_> = if !exact.is_empty() { exact } else { all.iter().filter(|t| t.name.contains(name)).cloned().collect() };
+    let filtered: Vec<_> =
+        if !exact.is_empty() { exact } else { all.iter().filter(|t| t.name.contains(name)).cloned().collect() };
     if filtered.is_empty() {
         if !all.is_empty() {
             let mut msg = format!("Cannot find a P test case that contains {}. Possible options are: \n", name);
@@ -728,7 +765,7 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
     let tc = select_test_case(host, loaded, &cfg.test_case_name)?;
     let opts = engine_options(cfg, seed);
     let engine_start = host.now();
-    let deadline = (cfg.timeout > 0).then(|| engine_start + cfg.timeout as f64);
+    let deadline = (cfg.timeout > 0).then_some(engine_start + cfg.timeout as f64);
     let res = run_engine(host, loaded, &tc, &opts, deadline)?;
     let engine_elapsed = host.now() - engine_start;
     if res.cancelled {

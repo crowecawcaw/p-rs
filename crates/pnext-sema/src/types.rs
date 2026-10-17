@@ -239,7 +239,10 @@ impl PType {
             PType::NamedTuple(fs) => match other.canonicalize(prog) {
                 PType::NamedTuple(os) => {
                     fs.len() == os.len()
-                        && fs.iter().zip(os.iter()).all(|((n1, t1), (n2, t2))| n1 == n2 && t1.is_assignable_from(t2, prog))
+                        && fs
+                            .iter()
+                            .zip(os.iter())
+                            .all(|((n1, t1), (n2, t2))| n1 == n2 && t1.is_assignable_from(t2, prog))
                 }
                 _ => false,
             },

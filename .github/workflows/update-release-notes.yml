@@ -1,0 +1,82 @@
+# Regenerate an existing release's notes with Claude, e.g. when the release fell
+# back to GitHub's generated notes or the notes were thin.
+
+name: Update release notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.0.2)"
+        required: true
+        type: string
+      since:
+        description: "Previous tag to diff from (optional; defaults to the tag before)"
+        required: false
+        type: string
+      dry_run:
+        description: "Only print the notes; don't edit the release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: Regenerate notes for ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      id-token: write # claude-code-action exchanges an OIDC token
+    env:
+      TAG: ${{ inputs.tag }}
+      SINCE: ${{ inputs.since }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the release exists
+        run: gh release view "$TAG" > /dev/null
+
+      - name: Collect commit and PR context
+        run: |
+          node .github/scripts/release-notes.mjs context "$TAG" ${SINCE:+--since "$SINCE"} > release-notes-context.txt
+          cat release-notes-context.txt
+
+      - name: Classify changes with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowedTools "Read,Write" --model opus'
+          prompt: |
+            Read `.github/release-notes-prompt.md` and follow it exactly.
+
+            The release being documented is `${{ inputs.tag }}`.
+            The commit and PR context is in `release-notes-context.txt`.
+
+            Write the resulting JSON to `release-notes-entries.json` in the
+            repository root. Write nothing else.
+
+      - name: Render release notes
+        id: notes
+        run: |
+          if [ ! -s release-notes-entries.json ]; then
+            echo "::error::Claude wrote no release-notes-entries.json. Check that CLAUDE_CODE_OAUTH_TOKEN is set and valid (regenerate with 'claude setup-token'), and that this workflow runs from main: claude-code-action skips itself when the workflow file differs from the default branch." >&2
+            exit 1
+          fi
+          notes="$RUNNER_TEMP/release-notes.md"
+          node .github/scripts/release-notes.mjs render "$TAG" ${SINCE:+--since "$SINCE"} --entries release-notes-entries.json > "$notes"
+          echo "file=$notes" >> "$GITHUB_OUTPUT"
+          cat "$notes"
+
+      - name: Update the release
+        if: ${{ !inputs.dry_run }}
+        run: gh release edit "$TAG" --notes-file "${{ steps.notes.outputs.file }}"

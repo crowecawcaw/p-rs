@@ -43,25 +43,80 @@ pub struct Program {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TopDecl {
     /// `type T;` (foreign, `ty == None`) or `type T = ...;`
-    TypeDef { name: Ident, ty: Option<Type>, span: Span },
-    Enum { name: Ident, elems: Vec<EnumElem>, span: Span },
-    Event { name: Ident, payload: Option<Type>, span: Span },
-    EventSet { name: Ident, events: Vec<Ident>, span: Span },
+    TypeDef {
+        name: Ident,
+        ty: Option<Type>,
+        span: Span,
+    },
+    Enum {
+        name: Ident,
+        elems: Vec<EnumElem>,
+        span: Span,
+    },
+    Event {
+        name: Ident,
+        payload: Option<Type>,
+        span: Span,
+    },
+    EventSet {
+        name: Ident,
+        events: Vec<Ident>,
+        span: Span,
+    },
     /// `receives == None` means the universal event set.
-    Interface { name: Ident, payload: Option<Type>, receives: Option<Vec<Ident>>, span: Span },
+    Interface {
+        name: Ident,
+        payload: Option<Type>,
+        receives: Option<Vec<Ident>>,
+        span: Span,
+    },
     Machine(MachineDecl),
     Fun(FunDecl),
     Pure(PureDecl),
     Invariant(InvariantDecl),
-    InvariantGroup { name: Ident, is_theorem: bool, invariants: Vec<InvariantDecl>, span: Span },
-    Axiom { body: Expr, span: Span },
-    AssumeOnStart { body: Expr, span: Span },
-    ProofBlock { name: Option<Ident>, items: Vec<ProofItem>, span: Span },
-    Module { name: Ident, expr: ModExpr, span: Span },
+    InvariantGroup {
+        name: Ident,
+        is_theorem: bool,
+        invariants: Vec<InvariantDecl>,
+        span: Span,
+    },
+    Axiom {
+        body: Expr,
+        span: Span,
+    },
+    AssumeOnStart {
+        body: Expr,
+        span: Span,
+    },
+    ProofBlock {
+        name: Option<Ident>,
+        items: Vec<ProofItem>,
+        span: Span,
+    },
+    Module {
+        name: Ident,
+        expr: ModExpr,
+        span: Span,
+    },
     SafetyTest(SafetyTestDecl),
-    RefinementTest { name: Ident, main: Ident, lhs: ModExpr, rhs: ModExpr, span: Span },
-    Implementation { name: Ident, main: Option<Ident>, expr: ModExpr, span: Span },
-    GlobalParam { names: Vec<Ident>, ty: Type, span: Span },
+    RefinementTest {
+        name: Ident,
+        main: Ident,
+        lhs: ModExpr,
+        rhs: ModExpr,
+        span: Span,
+    },
+    Implementation {
+        name: Ident,
+        main: Option<Ident>,
+        expr: ModExpr,
+        span: Span,
+    },
+    GlobalParam {
+        names: Vec<Ident>,
+        ty: Type,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -213,30 +268,82 @@ pub struct Stmt {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StmtKind {
     Compound(Vec<Stmt>),
-    Assert { cond: Expr, message: Option<Expr> },
-    Assume { cond: Expr, message: Option<Expr> },
+    Assert {
+        cond: Expr,
+        message: Option<Expr>,
+    },
+    Assume {
+        cond: Expr,
+        message: Option<Expr>,
+    },
     Print(Expr),
     Return(Option<Expr>),
     Break,
     Continue,
-    Assign { lhs: Expr, rhs: Expr },
+    Assign {
+        lhs: Expr,
+        rhs: Expr,
+    },
     /// `lhs += (index, value);`
-    Insert { lhs: Expr, index: Expr, value: Expr },
+    Insert {
+        lhs: Expr,
+        index: Expr,
+        value: Expr,
+    },
     /// `lhs += (value);`
-    Add { lhs: Expr, value: Expr },
+    Add {
+        lhs: Expr,
+        value: Expr,
+    },
     /// `lhs -= value;`
-    Remove { lhs: Expr, value: Expr },
-    While { cond: Expr, body: Box<Stmt> },
-    Foreach { item: Ident, collection: Expr, invariants: Vec<Expr>, body: Box<Stmt> },
-    If { cond: Expr, then_branch: Box<Stmt>, else_branch: Option<Box<Stmt>> },
+    Remove {
+        lhs: Expr,
+        value: Expr,
+    },
+    While {
+        cond: Expr,
+        body: Box<Stmt>,
+    },
+    Foreach {
+        item: Ident,
+        collection: Expr,
+        invariants: Vec<Expr>,
+        body: Box<Stmt>,
+    },
+    If {
+        cond: Expr,
+        then_branch: Box<Stmt>,
+        else_branch: Option<Box<Stmt>>,
+    },
     /// `new I(args);`
-    Ctor { interface: Ident, args: Vec<Expr> },
-    FunCall { fun: Ident, args: Vec<Expr> },
-    Raise { event: Expr, args: Vec<Expr> },
-    Send { target: Expr, event: Expr, args: Vec<Expr> },
-    Announce { event: Expr, args: Vec<Expr> },
-    Goto { state: Ident, args: Vec<Expr> },
-    Receive { cases: Vec<RecvCase> },
+    Ctor {
+        interface: Ident,
+        args: Vec<Expr>,
+    },
+    FunCall {
+        fun: Ident,
+        args: Vec<Expr>,
+    },
+    Raise {
+        event: Expr,
+        args: Vec<Expr>,
+    },
+    Send {
+        target: Expr,
+        event: Expr,
+        args: Vec<Expr>,
+    },
+    Announce {
+        event: Expr,
+        args: Vec<Expr>,
+    },
+    Goto {
+        state: Ident,
+        args: Vec<Expr>,
+    },
+    Receive {
+        cases: Vec<RecvCase>,
+    },
     NoStmt,
 }
 
@@ -334,26 +441,70 @@ pub enum ExprKind {
     This,
     UnnamedTuple(Vec<Expr>),
     NamedTuple(Vec<(Ident, Expr)>),
-    NamedTupleAccess { base: Box<Expr>, field: Ident },
-    TupleAccess { base: Box<Expr>, index: String, index_span: Span },
-    Test { instance: Box<Expr>, kind: Ident },
-    Targets { instance: Box<Expr>, target: Box<Expr> },
+    NamedTupleAccess {
+        base: Box<Expr>,
+        field: Ident,
+    },
+    TupleAccess {
+        base: Box<Expr>,
+        index: String,
+        index_span: Span,
+    },
+    Test {
+        instance: Box<Expr>,
+        kind: Ident,
+    },
+    Targets {
+        instance: Box<Expr>,
+        target: Box<Expr>,
+    },
     Flying(Box<Expr>),
     Sent(Box<Expr>),
-    Index { base: Box<Expr>, index: Box<Expr> },
+    Index {
+        base: Box<Expr>,
+        index: Box<Expr>,
+    },
     Keys(Box<Expr>),
     Values(Box<Expr>),
     Sizeof(Box<Expr>),
     Default(Type),
-    Ctor { interface: Ident, args: Vec<Expr> },
-    FunCall { fun: Ident, args: Vec<Expr> },
-    Unary { op: UnOp, operand: Box<Expr> },
-    Binary { op: BinOp, op_span: Span, lhs: Box<Expr>, rhs: Box<Expr> },
-    Cast { kind: CastKind, expr: Box<Expr>, ty: Type },
-    Quant { quant: Quantifier, diff: bool, bound: Vec<Param>, body: Box<Expr> },
+    Ctor {
+        interface: Ident,
+        args: Vec<Expr>,
+    },
+    FunCall {
+        fun: Ident,
+        args: Vec<Expr>,
+    },
+    Unary {
+        op: UnOp,
+        operand: Box<Expr>,
+    },
+    Binary {
+        op: BinOp,
+        op_span: Span,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    Cast {
+        kind: CastKind,
+        expr: Box<Expr>,
+        ty: Type,
+    },
+    Quant {
+        quant: Quantifier,
+        diff: bool,
+        bound: Vec<Param>,
+        body: Box<Expr>,
+    },
     Choose(Option<Box<Expr>>),
     /// String literal (raw text including quotes) with optional `format(...)` arguments.
-    Str { raw: String, raw_span: Span, args: Vec<Expr>, is_format: bool },
+    Str {
+        raw: String,
+        raw_span: Span,
+        args: Vec<Expr>,
+        is_format: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -370,11 +521,27 @@ pub enum ModExprKind {
     Named(Ident),
     Compose(Vec<ModExpr>),
     Union(Vec<ModExpr>),
-    HideEvents { events: Vec<Ident>, module: Box<ModExpr> },
-    HideInterfaces { interfaces: Vec<Ident>, module: Box<ModExpr> },
-    Assert { monitors: Vec<Ident>, module: Box<ModExpr> },
-    Rename { old: Ident, new: Ident, module: Box<ModExpr> },
-    Main { main: Ident, module: Box<ModExpr> },
+    HideEvents {
+        events: Vec<Ident>,
+        module: Box<ModExpr>,
+    },
+    HideInterfaces {
+        interfaces: Vec<Ident>,
+        module: Box<ModExpr>,
+    },
+    Assert {
+        monitors: Vec<Ident>,
+        module: Box<ModExpr>,
+    },
+    Rename {
+        old: Ident,
+        new: Ident,
+        module: Box<ModExpr>,
+    },
+    Main {
+        main: Ident,
+        module: Box<ModExpr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -388,7 +555,11 @@ pub struct BindExpr {
 pub enum SeqPrimitive {
     Bool(bool, Span),
     /// Integer literal text with optional leading minus.
-    Int { negative: bool, text: String, span: Span },
+    Int {
+        negative: bool,
+        text: String,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

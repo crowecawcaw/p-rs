@@ -404,7 +404,10 @@ impl ProfileSet {
                     raw.insert(p.clone(), Vec::new());
                     Section::Profile(p)
                 } else {
-                    return Err(format!("line {}: unknown section '[{}]' (expected [profile.<name>] or [tests])", ln, h));
+                    return Err(format!(
+                        "line {}: unknown section '[{}]' (expected [profile.<name>] or [tests])",
+                        ln, h
+                    ));
                 };
                 continue;
             }
@@ -515,8 +518,8 @@ fn unquote(s: &str) -> String {
 
 fn split_pair(line: &str) -> Option<(String, String)> {
     // The key may be quoted and contain '='-free text such as "(A, B).e".
-    let (k, v) = if line.starts_with('"') {
-        let end = line[1..].find('"')? + 1;
+    let (k, v) = if let Some(quoted) = line.strip_prefix('"') {
+        let end = quoted.find('"')? + 1;
         let rest = line[end + 1..].trim_start().strip_prefix('=')?;
         (line[1..end].to_string(), rest)
     } else {
@@ -530,7 +533,8 @@ fn split_pair(line: &str) -> Option<(String, String)> {
 
 fn is_ident(s: &str) -> bool {
     let mut cs = s.chars();
-    matches!(cs.next(), Some(c) if c.is_ascii_alphabetic() || c == '_') && cs.all(|c| c.is_ascii_alphanumeric() || c == '_')
+    matches!(cs.next(), Some(c) if c.is_ascii_alphabetic() || c == '_')
+        && cs.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 /// `"5ms"`, `"1ms..2ms"`, `"250us"`, `"2s"`, `"0"`.

@@ -30,7 +30,13 @@ fn queue(v: &Value) -> PriorityQueue {
 struct Functions;
 
 impl ForeignFunctions for Functions {
-    fn call(&self, name: &str, _owner: Option<&str>, args: &[Value], cx: &mut ForeignCx) -> Option<Result<Value, ForeignError>> {
+    fn call(
+        &self,
+        name: &str,
+        _owner: Option<&str>,
+        args: &[Value],
+        cx: &mut ForeignCx,
+    ) -> Option<Result<Value, ForeignError>> {
         Some(match name {
             "CreatePriorityQueue" => {
                 cx.log_line("Creating Priority Queue!");
@@ -90,8 +96,12 @@ fn priority_queue_with_rust_foreign_functions() {
     let opts = CheckerOptions { iterations: 100, log_every_schedule: true, ..Default::default() };
     let r = checker.check(&tc, &opts, &mut Vec::<String>::new()).unwrap();
     assert_eq!(r.report.num_bugs, 0, "{:?}", r.report.bug_reports);
-    let prints: Vec<&str> =
-        r.last_log.iter().filter_map(|l| l.strip_prefix("<PrintLog> ")).filter(|l| !l.contains("Queue") && !l.starts_with("Choosing")).collect();
+    let prints: Vec<&str> = r
+        .last_log
+        .iter()
+        .filter_map(|l| l.strip_prefix("<PrintLog> "))
+        .filter(|l| !l.contains("Queue") && !l.starts_with("Choosing"))
+        .collect();
     assert_eq!(prints, ["--------------", "Hello", "World", "!!", "123", "--------------"]);
     assert!(r.last_log.iter().any(|l| l.starts_with("<RandomLog> Client(1) nondeterministically chose")));
 }

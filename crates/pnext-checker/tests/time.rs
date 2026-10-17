@@ -49,7 +49,8 @@ fn retry_budget(edit: impl Fn(String) -> String) -> (pnext_sema::Analysis, Rc<Pr
 fn retry_budget_finds_the_give_up_path_and_accepts_the_fix() {
     let (a, profiles) = retry_budget(|s| s);
     for timed in [false, true] {
-        let opts = CheckerOptions { iterations: 500, seed: 1, latency: Some(profiles.clone()), timed, ..Default::default() };
+        let opts =
+            CheckerOptions { iterations: 500, seed: 1, latency: Some(profiles.clone()), timed, ..Default::default() };
         let r = check(&a, "tcRetry", &opts).unwrap();
         assert_eq!(r.report.num_bugs, 1, "timed={}", timed);
         let bug = &r.report.bug_reports[0];
@@ -61,7 +62,8 @@ fn retry_budget_finds_the_give_up_path_and_accepts_the_fix() {
 
     let (fixed, _) = retry_budget(|s| s.replace("ms(300)", "ms(250)"));
     for timed in [false, true] {
-        let opts = CheckerOptions { iterations: 500, seed: 1, latency: Some(profiles.clone()), timed, ..Default::default() };
+        let opts =
+            CheckerOptions { iterations: 500, seed: 1, latency: Some(profiles.clone()), timed, ..Default::default() };
         let r = check(&fixed, "tcRetry", &opts).unwrap();
         assert_eq!(r.report.num_bugs, 0, "{:?}", r.report.bug_reports);
     }
@@ -70,7 +72,8 @@ fn retry_budget_finds_the_give_up_path_and_accepts_the_fix() {
 #[test]
 fn replay_takes_time_settings_from_the_schedule() {
     let (a, profiles) = retry_budget(|s| s);
-    let opts = CheckerOptions { iterations: 500, seed: 2, latency: Some(profiles.clone()), timed: true, ..Default::default() };
+    let opts =
+        CheckerOptions { iterations: 500, seed: 2, latency: Some(profiles.clone()), timed: true, ..Default::default() };
     let r = check(&a, "tcRetry", &opts).unwrap();
     let text = r.schedule_trace.unwrap();
     assert!(text.contains("--pnext-time:timed=1;profile=same-az\n"), "{}", text);
@@ -174,7 +177,8 @@ test tcStopwatch [main=Main]: { Main };
 #[test]
 fn stopwatch_functions() {
     let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("sw.p".into(), STOPWATCH.into())]);
-    let profiles = Rc::new(ProfileSet::parse("[profile.p]\n\"cost.Query\" = \"2ms..8ms\"\n[tests]\ntcStopwatch = \"p\"").unwrap());
+    let profiles =
+        Rc::new(ProfileSet::parse("[profile.p]\n\"cost.Query\" = \"2ms..8ms\"\n[tests]\ntcStopwatch = \"p\"").unwrap());
     let opts = CheckerOptions { latency: Some(profiles), ..Default::default() };
     let r = check(&a, "tcStopwatch", &opts).unwrap();
     assert_eq!(r.report.num_bugs, 0, "{:?}", r.report.bug_reports);
@@ -193,10 +197,12 @@ fn bad_calls_and_names_are_reported() {
     assert!(err.contains("unknown event 'eRequest'"), "{}", err);
 
     let no_profile = Rc::new(ProfileSet::parse("[profile.p]\ndefault = \"1ms\"").unwrap());
-    let err = check(&a, "tcBad", &CheckerOptions { latency: Some(no_profile.clone()), ..Default::default() }).unwrap_err();
+    let err =
+        check(&a, "tcBad", &CheckerOptions { latency: Some(no_profile.clone()), ..Default::default() }).unwrap_err();
     assert!(err.contains("has no latency profile"), "{}", err);
 
-    let unpriced = "machine Main { start state Init { entry { ElapseCost(\"Db\"); } } }\ntest tcCost [main=Main]: { Main };";
+    let unpriced =
+        "machine Main { start state Init { entry { ElapseCost(\"Db\"); } } }\ntest tcCost [main=Main]: { Main };";
     let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("cost.p".into(), unpriced.into())]);
     let r = check(&a, "tcCost", &CheckerOptions::default()).unwrap();
     assert_eq!(r.report.num_bugs, 0, "no profile: costs are 0");
@@ -265,7 +271,10 @@ test tcReceiver [main=MainReceiver]: { MainReceiver, Receiver, Far, Near };
 #[test]
 fn timed_delivery_follows_arrival_not_send_order() {
     let a = compile(&[("decls.p".into(), TIME_DECLS.into()), ("order.p".into(), ARRIVAL_ORDER.into())]);
-    let profiles = Rc::new(ProfileSet::parse("[profile.p]\neA = \"1ms\"\n\"(Far, Handler)\" = \"300ms\"\n\"(Far, Receiver)\" = \"300ms\"").unwrap());
+    let profiles = Rc::new(
+        ProfileSet::parse("[profile.p]\neA = \"1ms\"\n\"(Far, Handler)\" = \"300ms\"\n\"(Far, Receiver)\" = \"300ms\"")
+            .unwrap(),
+    );
     for test in ["tcHandler", "tcReceiver"] {
         let opts = |timed| CheckerOptions {
             iterations: 200,
@@ -301,8 +310,11 @@ fn timed_delivery_explores_overlapping_arrivals() {
         let r = check(&a, test, &opts).unwrap();
         assert_eq!(r.report.num_bugs, 1, "{} timed", test);
         let text = r.schedule_trace.unwrap();
-        let replay =
-            CheckerOptions { strategy: "replay".into(), replay: Some(ScheduleTrace::parse(&text).unwrap()), ..Default::default() };
+        let replay = CheckerOptions {
+            strategy: "replay".into(),
+            replay: Some(ScheduleTrace::parse(&text).unwrap()),
+            ..Default::default()
+        };
         assert_eq!(check(&a, test, &replay).unwrap().report.num_bugs, 1, "{} replay", test);
     }
 }
@@ -348,6 +360,10 @@ fn timed_default_handler_races_only_overlapping_events() {
             ..Default::default()
         };
         let r = check(&a, "tc", &opts).unwrap();
-        assert_eq!(r.report.num_bugs, bug as usize, "{} timeout_fails={}: {:?}", lat, timeout_fails, r.report.bug_reports);
+        assert_eq!(
+            r.report.num_bugs, bug as usize,
+            "{} timeout_fails={}: {:?}",
+            lat, timeout_fails, r.report.bug_reports
+        );
     }
 }

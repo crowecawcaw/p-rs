@@ -67,6 +67,8 @@ impl DotNetRandom {
     }
 
     /// `Random.Next()`: a non-negative integer below `i32::MAX`.
+    // Named after the .NET API it mirrors; this is not an iterator.
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> i32 {
         self.internal_sample()
     }
@@ -100,6 +102,7 @@ impl RandomValueGenerator {
         self.rng = DotNetRandom::new(seed as i32);
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> i32 {
         self.rng.next()
     }

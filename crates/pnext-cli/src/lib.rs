@@ -113,7 +113,11 @@ impl Host for NativeHost {
 impl NativeHost {
     /// A host on the process's console; colors are used on terminals only.
     pub fn new() -> NativeHost {
-        NativeHost { start: Instant::now(), color_out: io::stdout().is_terminal(), color_err: io::stderr().is_terminal() }
+        NativeHost {
+            start: Instant::now(),
+            color_out: io::stdout().is_terminal(),
+            color_err: io::stderr().is_terminal(),
+        }
     }
 }
 

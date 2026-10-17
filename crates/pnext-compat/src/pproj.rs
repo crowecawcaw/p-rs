@@ -40,9 +40,7 @@ impl Doc {
 
     /// Text of each direct child element named `name`.
     fn elements(&self, name: &str) -> Vec<String> {
-        self.with(|root| {
-            root.children().filter(|c| c.has_tag_name(name)).map(|c| element_value(&c)).collect()
-        })
+        self.with(|root| root.children().filter(|c| c.has_tag_name(name)).map(|c| element_value(&c)).collect())
     }
 
     /// Text of each `child` element under each `parent` element.
@@ -50,7 +48,9 @@ impl Doc {
         self.with(|root| {
             root.children()
                 .filter(|c| c.has_tag_name(parent))
-                .flat_map(|p| p.children().filter(|c| c.has_tag_name(child)).map(|c| element_value(&c)).collect::<Vec<_>>())
+                .flat_map(|p| {
+                    p.children().filter(|c| c.has_tag_name(child)).map(|c| element_value(&c)).collect::<Vec<_>>()
+                })
                 .collect()
         })
     }
@@ -231,7 +231,11 @@ fn all_dependencies(
         // upstream resolves included projects against the current directory
         let (ok, full) = legal_pproj(host, &dep);
         if !ok {
-            return Err(Err2::Parse(format!("Illegal P project file name {} or file {} not found", dep, full.display())));
+            return Err(Err2::Parse(format!(
+                "Illegal P project file name {} or file {} not found",
+                dep,
+                full.display()
+            )));
         }
         host.out_line(&format!("==== Loading project file: {}", full.display()));
         let dir = full.parent().map(Path::to_path_buf).unwrap_or_default();

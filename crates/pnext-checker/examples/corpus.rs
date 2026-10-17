@@ -34,7 +34,15 @@ struct Args {
 
 fn main() {
     let raw: Vec<String> = std::env::args().skip(1).collect();
-    let mut args = Args { verbose: false, seed: 0, schedules: 1000, filter: None, trace: false, strategy: "random".into(), bound: 0 };
+    let mut args = Args {
+        verbose: false,
+        seed: 0,
+        schedules: 1000,
+        filter: None,
+        trace: false,
+        strategy: "random".into(),
+        bound: 0,
+    };
     let mut roots = Vec::new();
     let mut i = 0;
     while i < raw.len() {
@@ -130,7 +138,8 @@ fn find_tests(dir: &Path, stats: &mut Stats, args: &Args) {
     let dir_name = dir.file_name().unwrap().to_str().unwrap().to_lowercase();
     let wanted: Option<String> = if dir_name.contains("param") {
         let expected = std::fs::read_to_string(dir.join("ExpectedParametricTests.txt")).unwrap_or_default();
-        let lines: Vec<&str> = expected.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).collect();
+        let lines: Vec<&str> =
+            expected.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).collect();
         if lines.len() != 1 {
             stats.skipped += 1;
             return;

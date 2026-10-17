@@ -94,7 +94,8 @@ pub fn run_with(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parse
     host.out_line(&c);
 
     // read the logs
-    let opts = ObserveOptions { replay_window: cfg.replay_window, assume_sorted: cfg.assume_sorted, keys: cfg.keys.clone() };
+    let opts =
+        ObserveOptions { replay_window: cfg.replay_window, assume_sorted: cfg.assume_sorted, keys: cfg.keys.clone() };
     let mut inputs = Vec::new();
     let mut read_error = None;
     for f in &cfg.log_files {
@@ -333,7 +334,10 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
     while i < args.len() {
         let tok = args[i].as_str();
         let Some((canon, arity)) = option(tok) else {
-            return Err(format!("Was passed main parameter '{}' but no main parameter was defined in your arg class", tok));
+            return Err(format!(
+                "Was passed main parameter '{}' but no main parameter was defined in your arg class",
+                tok
+            ));
         };
         i += 1;
         let mut values: Vec<String> = Vec::new();
@@ -421,7 +425,8 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                     cfg.output_dir = Some(v);
                 }
                 "--replaySize" => {
-                    let bad = || format!("The specified {} ({}) is not valid (Must be an integer > 0)", strip_dashes(tok), v);
+                    let bad =
+                        || format!("The specified {} ({}) is not valid (Must be an integer > 0)", strip_dashes(tok), v);
                     if v.is_empty() || !v.chars().all(|c| c.is_ascii_digit()) {
                         return Err(bad());
                     }
@@ -441,7 +446,10 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                             }
                         }
                         Err(e) => {
-                            host.out_colored_line(&format!("Exception occurred while reading keyListFile({}) ::", v), Color::Red);
+                            host.out_colored_line(
+                                &format!("Exception occurred while reading keyListFile({}) ::", v),
+                                Color::Red,
+                            );
                             host.out_colored_line(&e.to_string(), Color::Red);
                         }
                     }
@@ -529,7 +537,8 @@ pub fn parse_instant(s: &str) -> Option<Timestamp> {
         t.chars().all(|c| c.is_ascii_digit()).then(|| t.parse().ok())?
     };
     let y = num(0, 4)?;
-    if b.get(4) != Some(&b'-') || b.get(7) != Some(&b'-') || !matches!(b.get(10), Some(b'T') | Some(b't') | Some(b' ')) {
+    if b.get(4) != Some(&b'-') || b.get(7) != Some(&b'-') || !matches!(b.get(10), Some(b'T') | Some(b't') | Some(b' '))
+    {
         return None;
     }
     let (mo, d, h, mi) = (num(5, 2)?, num(8, 2)?, num(11, 2)?, num(14, 2)?);
@@ -665,7 +674,8 @@ fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, Stri
         };
         project_name = proj.name.clone();
         package = proj.pobserve_package.clone();
-        let files = proj.input_files.into_iter().filter(|f| f.to_string_lossy().to_lowercase().ends_with(".p")).collect();
+        let files =
+            proj.input_files.into_iter().filter(|f| f.to_string_lossy().to_lowercase().ends_with(".p")).collect();
         (files, proj.project_root, "pproj", file)
     };
     let mut sources = Vec::new();
@@ -718,7 +728,9 @@ fn select_parser(cfg: &ObserveConfig, parsers: &mut Vec<Box<dyn Parser>>) -> Res
     parsers.push(Box::new(JsonLinesParser::default()));
     parsers.push(Box::new(PTraceParser));
     match &cfg.parser {
-        Some(n) => parsers.iter().position(|p| p.name() == n).ok_or_else(|| "PARSER not found in the specified jar.".into()),
+        Some(n) => {
+            parsers.iter().position(|p| p.name() == n).ok_or_else(|| "PARSER not found in the specified jar.".into())
+        }
         None => match registered {
             0 => Ok(match cfg.input_kind {
                 InputKind::Text => registered,
@@ -740,10 +752,15 @@ fn join(dir: &str, file: &str) -> String {
 }
 
 fn replay_file_name(key: &str) -> String {
-    let s: String = key.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    let s: String =
+        key.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
     let chars: Vec<char> = s.chars().collect();
     let name = if chars.len() > 200 {
-        format!("{}__{}", chars[..100].iter().collect::<String>(), chars[chars.len() - 100..].iter().collect::<String>())
+        format!(
+            "{}__{}",
+            chars[..100].iter().collect::<String>(),
+            chars[chars.len() - 100..].iter().collect::<String>()
+        )
     } else {
         s
     };
@@ -801,7 +818,10 @@ fn write_replay(host: &mut dyn Host, prog: &Program, e: &ObserveError, out: &str
     let Some(r) = &e.replay else { return };
     let path = join(out, &replay_file_name(&r.key));
     host.out_line(&format!(".. writing error log into file {}", path));
-    let mut text = format!("errorKey={}\nerrorTimeStamp={}\nerrorMessage={}\nreplayEvents=\n", r.key, r.error_timestamp, e.message);
+    let mut text = format!(
+        "errorKey={}\nerrorTimeStamp={}\nerrorMessage={}\nreplayEvents=\n",
+        r.key, r.error_timestamp, e.message
+    );
     for ev in &r.events {
         text.push_str(&ev.to_java_string(prog));
         text.push('\n');
@@ -844,10 +864,19 @@ fn emit_metrics(host: &mut dyn Host, m: &Metrics, out: &str) {
     let mut f = s.clone();
     let d3 = "-".repeat(103);
     f.push_str(&format!("{}\n", d3));
-    f.push_str(&format!("{:<30}  {:<20}  {:<20}  {:<20}\n", "Event Type", "Total Verified", "Avg Exec Time (ms)", "Max Exec Time (ms)"));
+    f.push_str(&format!(
+        "{:<30}  {:<20}  {:<20}  {:<20}\n",
+        "Event Type", "Total Verified", "Avg Exec Time (ms)", "Max Exec Time (ms)"
+    ));
     f.push_str(&format!("{}\n", d3));
     for e in &m.events {
-        f.push_str(&format!("{:<30}  {:<20}  {:<20}  {:<20}\n", e.name, e.verified, java_percent_f(e.avg_ms()), e.max_ms));
+        f.push_str(&format!(
+            "{:<30}  {:<20}  {:<20}  {:<20}\n",
+            e.name,
+            e.verified,
+            java_percent_f(e.avg_ms()),
+            e.max_ms
+        ));
     }
     let _ = host.write_file(Path::new(&join(out, "PObserveMetrics.txt")), &f);
 }
@@ -916,7 +945,9 @@ pub fn value_from_json(prog: &Program, j: &Json, ty: &PType) -> Result<Value, St
             if items.len() != ts.len() {
                 return Err(bad());
             }
-            Value::Tuple(Rc::new(items.iter().zip(ts).map(|(v, t)| value_from_json(prog, v, t)).collect::<Result<_, _>>()?))
+            Value::Tuple(Rc::new(
+                items.iter().zip(ts).map(|(v, t)| value_from_json(prog, v, t)).collect::<Result<_, _>>()?,
+            ))
         }
         PType::NamedTuple(fs) => {
             let mut values = Vec::new();
@@ -1029,7 +1060,14 @@ pub fn event_from_json(
         None | Some(Json::Null) => Value::Null,
         Some(p) => value_from_json(spec.prog, p, &ty)?,
     };
-    Ok(Some(ObservedEvent { key, timestamp, event, payload, log_line: log_line.map(String::from), custom_payload: None }))
+    Ok(Some(ObservedEvent {
+        key,
+        timestamp,
+        event,
+        payload,
+        log_line: log_line.map(String::from),
+        custom_payload: None,
+    }))
 }
 
 // ---- built-in parsers ----------------------------------------------------------------------
@@ -1051,7 +1089,12 @@ pub struct JsonLinesParser {
 
 impl Default for JsonLinesParser {
     fn default() -> Self {
-        JsonLinesParser { key: "key".into(), timestamp: "timestamp".into(), event: "event".into(), payload: "payload".into() }
+        JsonLinesParser {
+            key: "key".into(),
+            timestamp: "timestamp".into(),
+            event: "event".into(),
+            payload: "payload".into(),
+        }
     }
 }
 
@@ -1090,7 +1133,10 @@ impl Parser for JsonLinesParser {
         let j: Json = serde_json::from_str(configuration)
             .map_err(|e| format!("The specified parserConfiguration ({}) is invalid. ({})", configuration, e))?;
         let Some(o) = j.as_object() else {
-            return Err(format!("The specified parserConfiguration ({}) is invalid. (expected a JSON object)", configuration));
+            return Err(format!(
+                "The specified parserConfiguration ({}) is invalid. (expected a JSON object)",
+                configuration
+            ));
         };
         for (k, v) in o {
             let v = v.as_str().ok_or_else(|| format!("parserConfiguration: '{}' must be a string", k))?.to_string();

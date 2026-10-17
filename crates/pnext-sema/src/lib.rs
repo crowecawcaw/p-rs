@@ -77,9 +77,18 @@ pub enum CompileError {
     /// A lexer or parser error; `message` is `line L:C msg` as upstream formats it.
     /// `lexer` is true for token recognition errors, which upstream reports
     /// without first retrying the parse in LL mode.
-    Parse { file: FileId, message: String, lexer: bool },
+    Parse {
+        file: FileId,
+        message: String,
+        lexer: bool,
+    },
     /// PVerifier-only syntax used with the checker backend (`NotSupportedException` upstream).
-    NotSupported { file: FileId, line: usize, col: usize, keyword: String },
+    NotSupported {
+        file: FileId,
+        line: usize,
+        col: usize,
+        keyword: String,
+    },
     Analysis(AnalysisError),
 }
 
@@ -90,7 +99,11 @@ pub fn compile(sm: &SourceMap, opts: &Options) -> Result<Analysis, CompileError>
         let id = FileId(i as u32);
         let tokens = pnext_syntax::lexer::lex(id, &f.text).map_err(|e| {
             let lc = f.line_col(e.span.start);
-            CompileError::Parse { file: id, message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message), lexer: true }
+            CompileError::Parse {
+                file: id,
+                message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message),
+                lexer: true,
+            }
         })?;
         if !opts.verifier {
             if let Some(t) = tokens.iter().find(|t| t.kind.is_verifier_only()) {
@@ -105,7 +118,11 @@ pub fn compile(sm: &SourceMap, opts: &Options) -> Result<Analysis, CompileError>
         }
         let p = pnext_syntax::parse(id, &f.text).map_err(|e| {
             let lc = f.line_col(e.span.start);
-            CompileError::Parse { file: id, message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message), lexer: false }
+            CompileError::Parse {
+                file: id,
+                message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message),
+                lexer: false,
+            }
         })?;
         programs.push(p);
     }
@@ -155,7 +172,8 @@ fn run<'a>(a: &mut Analyzer<'a>, programs: &'a [ast::Program]) -> Result<(), Dia
     // anonymous handlers interleaved). Receive handlers created while checking a body are
     // populated in place and skipped here.
     let declared = a.prog.funs.len();
-    let mut order: Vec<FunId> = (0..declared as u32).map(FunId).filter(|f| a.prog.funs[f.idx()].owner.is_none()).collect();
+    let mut order: Vec<FunId> =
+        (0..declared as u32).map(FunId).filter(|f| a.prog.funs[f.idx()].owner.is_none()).collect();
     for m in 0..a.prog.machines.len() {
         let mut methods: Vec<FunId> = (0..declared as u32)
             .map(FunId)
