@@ -56,7 +56,7 @@ struct Choice {
 /// generator the alternatives at each new choice point are tried in random order
 /// (`--sch-pex random`, the default).
 pub struct ExhaustiveStrategy {
-    pub max_steps: usize,
+    max_steps: usize,
     rng: Option<SharedRandom>,
     path: Vec<Choice>,
     /// Position in `path` of the current schedule.

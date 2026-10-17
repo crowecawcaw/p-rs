@@ -9,11 +9,12 @@
 //! temperature, ...), with nodes and events interned for speed.
 
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use prs_sema::{EventId, HandlerAction, MachineId, Program, StateId, Temperature};
 
 use crate::engine::culture_order;
-use crate::runtime::{Runtime, GOTO_EVENT};
+use crate::runtime::{Machine, Monitor, Runtime, GOTO_EVENT};
 use crate::value::event_cs_name;
 
 /// Node and event naming tables for a program (built once).
@@ -98,7 +99,7 @@ struct InboxEntry {
 
 /// Per-schedule state of the coverage loggers.
 #[derive(Debug, Clone, Default)]
-pub struct CoverageRun {
+struct CoverageRun {
     /// `ControlledRuntimeLogEventCoverage.Dequeued` (a single, global slot upstream).
     dequeued: Option<u32>,
     /// Graph builder inboxes per machine/monitor type.
@@ -107,31 +108,33 @@ pub struct CoverageRun {
     graph_dequeued: HashMap<usize, InboxEntry>,
 }
 
-impl Runtime<'_> {
-    fn cov_on(&self) -> bool {
-        self.coverage.is_some()
+/// Activity coverage being collected by a runtime: the coverage accumulated so far plus the
+/// loggers' state for the current schedule.
+#[derive(Debug, Clone)]
+pub struct Coverage {
+    tables: Rc<CoverageTables>,
+    info: CoverageInfo,
+    run: CoverageRun,
+}
+
+impl Coverage {
+    /// Continues accumulating `info` (named by `tables`) in a new schedule.
+    pub fn new(tables: Rc<CoverageTables>, info: CoverageInfo) -> Coverage {
+        Coverage { tables, info, run: CoverageRun::default() }
     }
 
-    /// The naming tables, which the engine installs together with the coverage.
-    fn cov_tables(&self) -> &CoverageTables {
-        self.coverage_tables.as_deref().expect("coverage tables are set while coverage is on")
+    /// The coverage accumulated so far.
+    pub fn into_info(self) -> CoverageInfo {
+        self.info
     }
 
-    fn mstate_node(&self, m: usize) -> Option<u32> {
-        let tables = self.coverage_tables.as_ref()?;
-        self.machines[m].state.map(|s| tables.plain(s))
-    }
-
-    fn cov_add_event(&mut self, target: MachineId, entry: InboxEntry) {
-        if let Some(run) = self.coverage_run.as_mut() {
-            run.inbox.entry(target).or_default().push(entry);
-        }
+    fn add_event(&mut self, target: MachineId, entry: InboxEntry) {
+        self.run.inbox.entry(target).or_default().push(entry);
     }
 
     /// `PopEvent`: removes every matching entry, returns the earliest.
-    fn cov_pop_event(&mut self, target: MachineId, event: u32) -> Option<InboxEntry> {
-        let run = self.coverage_run.as_mut()?;
-        let inbox = run.inbox.get_mut(&target)?;
+    fn pop_event(&mut self, target: MachineId, event: u32) -> Option<InboxEntry> {
+        let inbox = self.run.inbox.get_mut(&target)?;
         let mut result = None;
         let mut i = inbox.len();
         while i > 0 {
@@ -143,234 +146,181 @@ impl Runtime<'_> {
         result
     }
 
-    fn cov_link(&mut self, a: u32, b: u32) {
-        if let Some(c) = self.coverage.as_mut() {
-            c.links.insert((a, b));
+    /// Pops the latest entry of a monitor's inbox and links its state to `target`.
+    fn link_popped(&mut self, decl: MachineId, target: u32) {
+        if let Some(e) = self.run.inbox.get_mut(&decl).and_then(|i| i.pop()) {
+            self.link(e.state, target);
         }
+    }
+
+    fn link(&mut self, a: u32, b: u32) {
+        self.info.links.insert((a, b));
+    }
+
+    /// `ControlledRuntimeLogEventCoverage.OnEventHandled`.
+    fn event_handled(&mut self, state: u32) {
+        if let Some(ev) = self.run.dequeued.take() {
+            self.info.received.insert((state, ev));
+        }
+    }
+
+    /// `LinkTransition`.
+    fn link_transition(&mut self, m: usize, current: u32, new_state: Option<u32>) {
+        if let Some(i) = self.run.graph_dequeued.remove(&m) {
+            if i.sender != Sender::Machine(m) || i.state != current {
+                self.link(i.state, current);
+            }
+        }
+        if let Some(n) = new_state {
+            self.link(current, n);
+        }
+    }
+}
+
+impl Runtime<'_> {
+    /// The coverage being collected and the node of machine `m`'s state; `None` when
+    /// coverage is off or the machine has not entered a state.
+    fn cov_machine(&mut self, m: usize) -> Option<(&mut Coverage, u32)> {
+        let cov = self.coverage.as_mut()?;
+        let state = cov.tables.plain(self.machines[m].state?);
+        Some((cov, state))
+    }
+
+    /// The coverage being collected and monitor `mon`'s state and declaration; `None` when
+    /// coverage is off or the monitor has not entered a state.
+    fn cov_monitor(&mut self, mon: usize) -> Option<(&mut Coverage, StateId, MachineId)> {
+        let cov = self.coverage.as_mut()?;
+        let Monitor { state: Some(s), decl, .. } = self.monitors[mon] else { return None };
+        Some((cov, s, decl))
     }
 
     /// `ReportActivityCoverageOfStateMachine/Monitor` + `OnCreateStateMachine/Monitor`.
     pub(crate) fn cov_declare(&mut self, decl: MachineId, monitor: bool) {
         if let Some(c) = self.coverage.as_mut() {
-            if !c.declared.iter().any(|(d, _)| *d == decl) {
-                c.declared.push((decl, monitor));
+            if !c.info.declared.iter().any(|(d, _)| *d == decl) {
+                c.info.declared.push((decl, monitor));
             }
         }
     }
 
     /// `OnSendEvent`.
     pub(crate) fn cov_send(&mut self, sender: usize, target_decl: MachineId, e: EventId) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(state) = self.mstate_node(sender) else { return };
-        let ev = e.0;
-        if let Some(c) = self.coverage.as_mut() {
-            c.sent.insert((state, ev));
-        }
-        let entry = InboxEntry { sender: Sender::Machine(sender), state, event: ev };
-        self.cov_add_event(target_decl, entry);
+        let Some((cov, state)) = self.cov_machine(sender) else { return };
+        cov.info.sent.insert((state, e.0));
+        cov.add_event(target_decl, InboxEntry { sender: Sender::Machine(sender), state, event: e.0 });
     }
 
     /// `OnRaiseEvent` (user raises and the goto pseudo event).
     pub(crate) fn cov_raise(&mut self, m: usize, e: EventId) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(state) = self.mstate_node(m) else { return };
-        let ev = e.0;
-        if let Some(c) = self.coverage.as_mut() {
-            c.sent.insert((state, ev));
-        }
         let decl = self.machines[m].decl;
-        self.cov_add_event(decl, InboxEntry { sender: Sender::Machine(m), state, event: ev });
+        let Some((cov, state)) = self.cov_machine(m) else { return };
+        cov.info.sent.insert((state, e.0));
+        cov.add_event(decl, InboxEntry { sender: Sender::Machine(m), state, event: e.0 });
     }
 
     /// `OnDequeueEvent`.
     pub(crate) fn cov_dequeue(&mut self, m: usize, e: EventId) {
-        if !self.cov_on() {
-            return;
-        }
-        let ev = e.0;
-        if let Some(run) = self.coverage_run.as_mut() {
-            run.dequeued = Some(ev);
-        }
         let decl = self.machines[m].decl;
-        if let Some(info) = self.cov_pop_event(decl, ev) {
-            if let Some(run) = self.coverage_run.as_mut() {
-                run.graph_dequeued.insert(m, info);
-            }
+        let Some(cov) = self.coverage.as_mut() else { return };
+        cov.run.dequeued = Some(e.0);
+        if let Some(info) = cov.pop_event(decl, e.0) {
+            cov.run.graph_dequeued.insert(m, info);
         }
     }
 
     /// `OnDefaultEventHandler`.
     pub(crate) fn cov_default(&mut self, m: usize) {
-        if !self.cov_on() {
-            return;
-        }
         let ev = self.prog.null_event.0;
-        if let Some(run) = self.coverage_run.as_mut() {
-            run.dequeued = Some(ev);
-        }
-        let Some(state) = self.mstate_node(m) else { return };
-        let decl = self.machines[m].decl;
-        self.cov_add_event(decl, InboxEntry { sender: Sender::Machine(m), state, event: ev });
-        let popped = self.cov_pop_event(decl, ev);
-        if let Some(run) = self.coverage_run.as_mut() {
-            match popped {
-                Some(i) => {
-                    run.graph_dequeued.insert(m, i);
-                }
-                None => {
-                    run.graph_dequeued.remove(&m);
-                }
+        let Machine { decl, state, .. } = self.machines[m];
+        let Some(cov) = self.coverage.as_mut() else { return };
+        cov.run.dequeued = Some(ev);
+        let Some(state) = state.map(|s| cov.tables.plain(s)) else { return };
+        cov.add_event(decl, InboxEntry { sender: Sender::Machine(m), state, event: ev });
+        match cov.pop_event(decl, ev) {
+            Some(i) => {
+                cov.run.graph_dequeued.insert(m, i);
+            }
+            None => {
+                cov.run.graph_dequeued.remove(&m);
             }
         }
     }
 
     /// `OnHandleRaisedEvent`.
     pub(crate) fn cov_handle_raised(&mut self, m: usize, e: EventId) {
-        if !self.cov_on() {
-            return;
-        }
-        let ev = e.0;
         let decl = self.machines[m].decl;
-        if let Some(run) = self.coverage_run.as_mut() {
-            run.dequeued = Some(ev);
-            let found = run.inbox.get(&decl).and_then(|inbox| inbox.iter().rev().find(|i| i.event == ev).copied());
-            if let Some(info) = found {
-                run.graph_dequeued.insert(m, info);
-            }
-        }
-    }
-
-    /// `ControlledRuntimeLogEventCoverage.OnEventHandled`.
-    fn cov_event_handled(&mut self, state: u32) {
-        let Some(ev) = self.coverage_run.as_mut().and_then(|r| r.dequeued.take()) else { return };
-        if let Some(c) = self.coverage.as_mut() {
-            c.received.insert((state, ev));
-        }
-    }
-
-    /// `LinkTransition`.
-    fn cov_link_transition(&mut self, m: usize, current: u32, new_state: Option<u32>) {
-        let info = self.coverage_run.as_mut().and_then(|r| r.graph_dequeued.remove(&m));
-        if let Some(i) = info {
-            if i.sender != Sender::Machine(m) || i.state != current {
-                self.cov_link(i.state, current);
-            }
-        }
-        if let Some(n) = new_state {
-            self.cov_link(current, n);
+        let Some(cov) = self.coverage.as_mut() else { return };
+        let run = &mut cov.run;
+        run.dequeued = Some(e.0);
+        let found = run.inbox.get(&decl).and_then(|inbox| inbox.iter().rev().find(|i| i.event == e.0).copied());
+        if let Some(info) = found {
+            run.graph_dequeued.insert(m, info);
         }
     }
 
     /// `OnExecuteAction` (do, entry, exit and `with` actions of machines).
     pub(crate) fn cov_execute_action(&mut self, m: usize) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(state) = self.mstate_node(m) else { return };
-        self.cov_event_handled(state);
-        self.cov_link_transition(m, state, None);
+        let Some((cov, state)) = self.cov_machine(m) else { return };
+        cov.event_handled(state);
+        cov.link_transition(m, state, None);
     }
 
     /// `OnGotoState`.
     pub(crate) fn cov_goto(&mut self, m: usize, target: StateId) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(state) = self.mstate_node(m) else { return };
-        self.cov_event_handled(state);
-        let t = self.cov_tables().plain(target);
-        self.cov_link_transition(m, state, Some(t));
+        let Some((cov, state)) = self.cov_machine(m) else { return };
+        cov.event_handled(state);
+        let target = cov.tables.plain(target);
+        cov.link_transition(m, state, Some(target));
     }
 
     /// `OnReceiveEvent` (a `receive` statement got its event).
     pub(crate) fn cov_receive(&mut self, m: usize, e: EventId) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(state) = self.mstate_node(m) else { return };
-        let ev = e.0;
-        if let Some(c) = self.coverage.as_mut() {
-            c.received.insert((state, ev));
-        }
         let decl = self.machines[m].decl;
-        let found = self.coverage_run.as_mut().and_then(|run| {
-            let inbox = run.inbox.get_mut(&decl)?;
-            let i = inbox.iter().rposition(|i| i.event == ev)?;
+        let Some((cov, state)) = self.cov_machine(m) else { return };
+        cov.info.received.insert((state, e.0));
+        let found = cov.run.inbox.get_mut(&decl).and_then(|inbox| {
+            let i = inbox.iter().rposition(|i| i.event == e.0)?;
             Some(inbox.remove(i))
         });
         if let Some(info) = found {
-            let target = self.cov_tables().receive_target[decl.idx()];
-            self.cov_link(info.state, target);
+            let target = cov.tables.receive_target[decl.idx()];
+            cov.link(info.state, target);
         }
-    }
-
-    fn mon_state(&self, mon: usize) -> Option<StateId> {
-        self.monitors[mon].state
     }
 
     /// `OnMonitorProcessEvent`.
     pub(crate) fn cov_monitor_process(&mut self, mon: usize, e: EventId, sender: Option<usize>) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(s) = self.mon_state(mon) else { return };
-        let state = self.cov_tables().plain(s);
-        let ev = e.0;
-        if let Some(c) = self.coverage.as_mut() {
-            c.received.insert((state, ev));
-        }
-        let decl = self.monitors[mon].decl;
-        self.cov_add_event(decl, InboxEntry { sender: Sender::Monitor(mon), state, event: ev });
-        if let Some(src) = sender.and_then(|m| self.mstate_node(m)) {
-            self.cov_link(src, state);
+        let sender_state = sender.and_then(|m| self.machines[m].state);
+        let Some((cov, s, decl)) = self.cov_monitor(mon) else { return };
+        let state = cov.tables.plain(s);
+        cov.info.received.insert((state, e.0));
+        cov.add_event(decl, InboxEntry { sender: Sender::Monitor(mon), state, event: e.0 });
+        if let Some(src) = sender_state {
+            let src = cov.tables.plain(src);
+            cov.link(src, state);
         }
     }
 
     /// `OnMonitorExecuteAction` (do actions; the state is named with its temperature).
     pub(crate) fn cov_monitor_do(&mut self, mon: usize) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(s) = self.mon_state(mon) else { return };
-        let target = self.cov_tables().tempered(s);
-        let decl = self.monitors[mon].decl;
-        let popped = self.coverage_run.as_mut().and_then(|r| r.inbox.get_mut(&decl).and_then(|i| i.pop()));
-        if let Some(e) = popped {
-            self.cov_link(e.state, target);
-        }
+        let Some((cov, s, decl)) = self.cov_monitor(mon) else { return };
+        let target = cov.tables.tempered(s);
+        cov.link_popped(decl, target);
     }
 
     /// `OnMonitorRaiseEvent` (raises and gotos inside monitor actions).
     pub(crate) fn cov_monitor_raise(&mut self, mon: usize, e: EventId) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(s) = self.mon_state(mon) else { return };
-        let state = self.cov_tables().plain(s);
-        let ev = e.0;
-        if let Some(c) = self.coverage.as_mut() {
-            c.sent.insert((state, ev));
-        }
-        let decl = self.monitors[mon].decl;
-        self.cov_add_event(decl, InboxEntry { sender: Sender::Monitor(mon), state, event: ev });
+        let Some((cov, s, decl)) = self.cov_monitor(mon) else { return };
+        let state = cov.tables.plain(s);
+        cov.info.sent.insert((state, e.0));
+        cov.add_event(decl, InboxEntry { sender: Sender::Monitor(mon), state, event: e.0 });
     }
 
     /// `OnMonitorStateTransition` on entry.
     pub(crate) fn cov_monitor_enter(&mut self, mon: usize) {
-        if !self.cov_on() {
-            return;
-        }
-        let Some(s) = self.mon_state(mon) else { return };
-        let target = self.cov_tables().tempered(s);
-        let decl = self.monitors[mon].decl;
-        let popped = self.coverage_run.as_mut().and_then(|r| r.inbox.get_mut(&decl).and_then(|i| i.pop()));
-        if let Some(e) = popped {
-            self.cov_link(e.state, target);
-        }
+        let Some((cov, s, decl)) = self.cov_monitor(mon) else { return };
+        let target = cov.tables.tempered(s);
+        cov.link_popped(decl, target);
     }
 }
 

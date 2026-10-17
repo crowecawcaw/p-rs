@@ -48,9 +48,9 @@ impl QRow {
 }
 
 pub struct QLearningStrategy {
-    pub max_steps: usize,
-    pub steps: usize,
-    pub rng: SharedRandom,
+    max_steps: usize,
+    steps: usize,
+    rng: SharedRandom,
     q_table: HashMap<u64, QRow>,
     /// (choice that led here, state) per step of the current schedule.
     path: Vec<(u64, u64)>,

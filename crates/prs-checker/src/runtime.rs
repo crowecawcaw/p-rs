@@ -15,6 +15,7 @@ use prs_sema::{
 
 use crate::bytecode::{CodeBlock, ReceiveCase, Root};
 use crate::compile::Code;
+use crate::coverage::Coverage;
 use crate::jsonlog::{payload_key, to_dict, Details, JsonLog};
 use crate::strategy::{OpInfo, ScheduleStep, ScheduleTrace, Strategy};
 use crate::timeline::{Timeline, TimelineConfig, VectorTime};
@@ -362,55 +363,70 @@ impl Exception {
     }
 }
 
-pub struct Runtime<'p> {
-    pub prog: &'p Program,
-    pub code: &'p Code,
-    pub module: &'p ModuleInfo,
-    pub config: &'p Config,
-    pub globals: Vec<Value>,
-    pub machines: Vec<Machine>,
-    pub monitors: Vec<Monitor>,
-    pub ops: Vec<Operation>,
-    pub current: u64,
-    pub strategy: &'p mut dyn Strategy,
-    pub trace: ScheduleTrace,
-    pub log: Vec<String>,
-    pub timeline: Timeline,
-    pub bug: Option<String>,
-    pub stopped: bool,
-    pub fully_explored: bool,
-    /// The strategy cut the schedule short at an already explored state.
-    pub pruned: bool,
-    pub scheduled_steps: usize,
-    /// Work done since the last scheduling point (see [`Config::max_work_per_step`]).
-    pub step_work: u64,
-    /// The JSON trace, when enabled.
-    pub json: Option<JsonLog>,
-    /// The XML trace, when enabled.
-    pub xml: Option<crate::xmllog::XmlLog>,
-    /// The strategy description at the time the bug was found.
-    pub bug_strategy_description: Option<String>,
+/// What a run is given and records beyond its [`Config`]; everything is off by default.
+#[derive(Default)]
+pub struct Setup<'a> {
+    /// Values of the test case's global parameters (`param`).
+    pub assignment: Option<&'a prs_sema::ParamAssignment>,
     /// Implementations of foreign functions.
     pub foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
+    /// Time tracking (see `design/time/PROPOSAL.md`).
+    pub time: Option<crate::time::TimeOptions>,
+    /// Record the JSON trace.
+    pub json_trace: bool,
+    /// Record the XML trace, which names the test task by this id (`Task.CurrentId`).
+    pub xml_trace: Option<u64>,
+    /// Accumulate activity coverage.
+    pub coverage: Option<Coverage>,
+}
+
+pub struct Runtime<'p> {
+    pub(crate) prog: &'p Program,
+    pub(crate) code: &'p Code,
+    pub(crate) module: &'p ModuleInfo,
+    pub(crate) config: &'p Config,
+    pub(crate) globals: Vec<Value>,
+    pub(crate) machines: Vec<Machine>,
+    pub(crate) monitors: Vec<Monitor>,
+    pub(crate) ops: Vec<Operation>,
+    pub(crate) current: u64,
+    pub(crate) strategy: &'p mut dyn Strategy,
+    pub(crate) trace: ScheduleTrace,
+    pub(crate) log: Vec<String>,
+    pub(crate) timeline: Timeline,
+    pub(crate) bug: Option<String>,
+    stopped: bool,
+    fully_explored: bool,
+    /// The strategy cut the schedule short at an already explored state.
+    pruned: bool,
+    scheduled_steps: usize,
+    /// Work done since the last scheduling point (see [`Config::max_work_per_step`]).
+    pub(crate) step_work: u64,
+    /// The JSON trace, when enabled.
+    pub(crate) json: Option<JsonLog>,
+    /// The XML trace, when enabled.
+    pub(crate) xml: Option<crate::xmllog::XmlLog>,
+    /// The strategy description at the time the bug was found.
+    pub(crate) bug_strategy_description: Option<String>,
+    /// Implementations of foreign functions.
+    pub(crate) foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
     /// The monitors of the test and the interfaces each observes: the module's monitor map
     /// plus every scenario monitor, which upstream attaches to all tests.
-    pub monitor_map: Vec<(MachineId, Vec<InterfaceId>)>,
+    monitor_map: Vec<(MachineId, Vec<InterfaceId>)>,
     /// Progress of each attached scenario monitor in this schedule.
-    pub scenarios: Vec<ScenarioProgress>,
+    pub(crate) scenarios: Vec<ScenarioProgress>,
     /// Whether the text log is produced (see [`Config::logging`]).
-    pub logging: bool,
+    pub(crate) logging: bool,
     /// Trace position at which the step bound was hit, if it was.
-    pub bound_hit_at: Option<usize>,
-    /// Activity coverage being accumulated (enabled when set).
-    pub coverage: Option<crate::coverage::CoverageInfo>,
-    pub coverage_run: Option<crate::coverage::CoverageRun>,
-    pub coverage_tables: Option<Rc<crate::coverage::CoverageTables>>,
+    pub(crate) bound_hit_at: Option<usize>,
+    /// Activity coverage being accumulated, when enabled.
+    pub(crate) coverage: Option<Coverage>,
     /// Time tracking (see `design/time/PROPOSAL.md`); `None` when the test does not use it.
-    pub time: Option<Box<crate::time::TimeState>>,
+    time: Option<Box<crate::time::TimeState>>,
     /// Machine event handlers started (each runs on a fresh .NET task upstream).
-    pub handler_starts: u64,
+    pub(crate) handler_starts: u64,
     /// The first failure of this execution (see [`Failure`]).
-    pub failure: Option<Failure>,
+    pub(crate) failure: Option<Failure>,
     next_op_id: u64,
     action_names: Vec<String>,
     /// Scratch buffer for rendering `format` arguments, reused to avoid reallocating.
@@ -418,14 +434,16 @@ pub struct Runtime<'p> {
 }
 
 impl<'p> Runtime<'p> {
+    /// A runtime for one schedule of the test of `module`, scheduled by `strategy`.
     pub fn new(
         prog: &'p Program,
         code: &'p Code,
         module: &'p ModuleInfo,
         config: &'p Config,
         strategy: &'p mut dyn Strategy,
-        assignment: Option<&prs_sema::ParamAssignment>,
+        setup: Setup<'_>,
     ) -> Runtime<'p> {
+        let Setup { assignment, foreign, time, json_trace, xml_trace, coverage } = setup;
         let mut globals: Vec<Value> =
             prog.global_params.iter().map(|v| default_value(&prog.var(*v).ty, prog)).collect();
         if let Some(a) = assignment {
@@ -461,18 +479,16 @@ impl<'p> Runtime<'p> {
             pruned: false,
             scheduled_steps: 0,
             step_work: 0,
-            json: None,
-            xml: None,
+            json: json_trace.then(JsonLog::new),
+            xml: xml_trace.map(crate::xmllog::XmlLog::new),
             bug_strategy_description: None,
-            foreign: None,
+            foreign,
             monitor_map: monitor_map_with_scenarios(prog, module),
             scenarios: Vec::new(),
             logging: config.logging,
             bound_hit_at: None,
-            coverage: None,
-            coverage_run: None,
-            coverage_tables: None,
-            time: None,
+            coverage,
+            time: time.map(|o| Box::new(crate::time::TimeState::new(o))),
             handler_starts: 0,
             failure: None,
             next_op_id: 0,

@@ -8,8 +8,9 @@ use std::rc::Rc;
 use prs_sema::{Program, TestCase};
 
 use crate::compile::{compile_program, Code};
+use crate::coverage::Coverage;
 use crate::random::RandomValueGenerator;
-use crate::runtime::{Config, Runtime};
+use crate::runtime::{Config, Runtime, Setup};
 use crate::strategy::{
     ComboStrategy, PctStrategy, ProbabilisticRandomStrategy, RandomStrategy, ReplayStrategy, ScheduleTrace,
     SharedRandom, Strategy,
@@ -331,10 +332,10 @@ fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn S
     Ok(match opts.strategy.as_str() {
         "random" => Box::new(RandomStrategy::new(opts.max_fair_steps, rng.clone())),
         "pct" => Box::new(PctStrategy::new(opts.max_unfair_steps, opts.strategy_bound, rng.clone())),
-        "fairpct" => Box::new(ComboStrategy {
-            prefix: Box::new(PctStrategy::new(opts.max_unfair_steps, opts.strategy_bound, rng.clone())),
-            suffix: Box::new(RandomStrategy::new(opts.max_fair_steps, rng.clone())),
-        }),
+        "fairpct" => Box::new(ComboStrategy::new(
+            Box::new(PctStrategy::new(opts.max_unfair_steps, opts.strategy_bound, rng.clone())),
+            Box::new(RandomStrategy::new(opts.max_fair_steps, rng.clone())),
+        )),
         "probabilistic" => {
             Box::new(ProbabilisticRandomStrategy::new(opts.max_fair_steps, opts.strategy_bound, rng.clone()))
         }
@@ -487,15 +488,15 @@ impl<'p> Checker<'p> {
         let mut config = config.clone();
         config.strategy_description = bug.strategy_description.clone();
         config.logging = true;
-        let mut rt = Runtime::new(self.prog, &self.code, module, &config, &mut strategy, assignment);
-        rt.foreign = self.foreign.clone();
-        rt.time = time.map(|o| Box::new(crate::time::TimeState::new(o.clone())));
-        if json {
-            rt.json = Some(crate::jsonlog::JsonLog::new());
-        }
-        if xml {
-            rt.xml = Some(crate::xmllog::XmlLog::new(bug.test_task_id));
-        }
+        let setup = Setup {
+            assignment,
+            foreign: self.foreign.clone(),
+            time: time.cloned(),
+            json_trace: json,
+            xml_trace: xml.then_some(bug.test_task_id),
+            coverage: None,
+        };
+        let mut rt = Runtime::new(self.prog, &self.code, module, &config, &mut strategy, setup);
         rt.run_test(main, &tc.name);
         if rt.bug.is_none() {
             rt.check_hot_monitors_at_termination();
@@ -580,17 +581,17 @@ impl<'p> Checker<'p> {
             }
             let bug_found;
             {
-                let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, assignment);
-                rt.foreign = self.foreign.clone();
-                rt.time = time.as_ref().map(|o| Box::new(crate::time::TimeState::new(o.clone())));
-                if let Some(t) = &coverage_tables {
-                    rt.coverage_tables = Some(t.clone());
-                    rt.coverage = Some(result.coverage.take().unwrap_or_default());
-                    rt.coverage_run = Some(Default::default());
-                }
-                if verbose_json.is_some() {
-                    rt.json = Some(crate::jsonlog::JsonLog::new());
-                }
+                let setup = Setup {
+                    assignment,
+                    foreign: self.foreign.clone(),
+                    time: time.clone(),
+                    json_trace: verbose_json.is_some(),
+                    xml_trace: None,
+                    coverage: coverage_tables
+                        .as_ref()
+                        .map(|t| Coverage::new(t.clone(), result.coverage.take().unwrap_or_default())),
+                };
+                let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, setup);
                 rt.run_test(main, &tc.name);
                 if rt.strategy.wants_feedback() {
                     let tokens = rt.timeline.tokens();
@@ -689,8 +690,8 @@ impl<'p> Checker<'p> {
                     out.line(&format!("..... Schedule #{} triggered bug #{} [task-0]", i + 1, result.report.num_bugs));
                 }
                 result.last_log = std::mem::take(&mut rt.log);
-                if rt.coverage.is_some() {
-                    result.coverage = rt.coverage.take();
+                if let Some(c) = rt.coverage.take() {
+                    result.coverage = Some(c.into_info());
                 }
             }
             if is_replay || (!opts.full_exploration && result.report.num_bugs > 0) || !strategy.prepare_next_iteration()

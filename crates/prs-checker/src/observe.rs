@@ -19,7 +19,7 @@ use prs_sema::{EventId, MachineId, ModuleInfo, PType, Program};
 
 use crate::compile::{compile_program, Code};
 use crate::javafmt;
-use crate::runtime::{Config, Event, Failure, Runtime};
+use crate::runtime::{Config, Event, Failure, Runtime, Setup};
 use crate::strategy::{OpInfo, Strategy};
 use crate::value::{NamedTuple, Value};
 
@@ -484,7 +484,7 @@ impl<'p> Spec<'p> {
         log: &mut Vec<String>,
     ) -> KeyOutcome {
         let mut strategy = NoScheduling;
-        let mut rt = Runtime::new(self.prog, &self.code, &self.module, &self.config, &mut strategy, None);
+        let mut rt = Runtime::new(self.prog, &self.code, &self.module, &self.config, &mut strategy, Setup::default());
         let mon = match rt.start_monitor(self.decl) {
             Ok(m) => m,
             Err(_) => return KeyOutcome::Fatal(self.failure_error(rt.failure.take(), None, log)),

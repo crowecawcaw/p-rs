@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use prs_checker::engine::{CheckResult, Checker, CheckerOptions, Output};
 use prs_checker::random::RandomValueGenerator;
-use prs_checker::runtime::{Config, Runtime};
+use prs_checker::runtime::{Config, Runtime, Setup};
 use prs_checker::strategy::{OpInfo, RandomStrategy, ScheduleStep, ScheduleTrace, Strategy};
 
 struct Quiet;
@@ -219,7 +219,7 @@ fn equal_program_states_hash_equal() {
     let run = || {
         let rng = Rc::new(RefCell::new(RandomValueGenerator::new(0)));
         let mut strategy = Hashes { inner: RandomStrategy::new(40, rng), seen: Vec::new() };
-        let mut rt = Runtime::new(&a.program, &code, module, &config, &mut strategy, None);
+        let mut rt = Runtime::new(&a.program, &code, module, &config, &mut strategy, Setup::default());
         rt.run_test(main.unwrap(), &tc.name);
         strategy.seen
     };

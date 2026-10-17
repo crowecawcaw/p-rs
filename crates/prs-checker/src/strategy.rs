@@ -81,9 +81,9 @@ fn enabled_ids(ops: &[OpInfo]) -> Vec<u64> {
 // ---------------------------------------------------------------------------
 
 pub struct RandomStrategy {
-    pub max_steps: usize,
-    pub steps: usize,
-    pub rng: SharedRandom,
+    max_steps: usize,
+    steps: usize,
+    rng: SharedRandom,
 }
 
 impl RandomStrategy {
@@ -133,8 +133,8 @@ impl Strategy for RandomStrategy {
 // ---------------------------------------------------------------------------
 
 pub struct ProbabilisticRandomStrategy {
-    pub inner: RandomStrategy,
-    pub coin_flips: usize,
+    inner: RandomStrategy,
+    coin_flips: usize,
 }
 
 impl ProbabilisticRandomStrategy {
@@ -194,14 +194,14 @@ impl Strategy for ProbabilisticRandomStrategy {
 // ---------------------------------------------------------------------------
 
 pub struct PctStrategy {
-    pub max_steps: usize,
-    pub steps: usize,
-    pub max_switch_points: usize,
-    pub schedule_length: usize,
-    pub prioritized: Vec<u64>,
+    max_steps: usize,
+    steps: usize,
+    max_switch_points: usize,
+    schedule_length: usize,
+    prioritized: Vec<u64>,
     /// Kept sorted (upstream uses a `SortedSet<int>`).
-    pub change_points: Vec<usize>,
-    pub rng: SharedRandom,
+    change_points: Vec<usize>,
+    rng: SharedRandom,
 }
 
 impl PctStrategy {
@@ -321,8 +321,14 @@ impl Strategy for PctStrategy {
 
 /// A prefix strategy followed by a suffix strategy once the prefix hits its bound.
 pub struct ComboStrategy {
-    pub prefix: Box<dyn Strategy>,
-    pub suffix: Box<dyn Strategy>,
+    prefix: Box<dyn Strategy>,
+    suffix: Box<dyn Strategy>,
+}
+
+impl ComboStrategy {
+    pub fn new(prefix: Box<dyn Strategy>, suffix: Box<dyn Strategy>) -> Self {
+        ComboStrategy { prefix, suffix }
+    }
 }
 
 impl Strategy for ComboStrategy {
@@ -462,13 +468,13 @@ impl ScheduleTrace {
 
 /// Replays a recorded schedule (`ReplayStrategy`).
 pub struct ReplayStrategy {
-    pub trace: ScheduleTrace,
-    pub index: usize,
-    pub is_fair: bool,
-    pub error: Option<String>,
+    trace: ScheduleTrace,
+    index: usize,
+    is_fair: bool,
+    error: Option<String>,
     /// Report the step bound as reached once this many steps were replayed (used to
     /// reproduce a schedule that ended at the bound; upstream replays never hit it).
-    pub stop_at: Option<usize>,
+    pub(crate) stop_at: Option<usize>,
 }
 
 impl ReplayStrategy {
