@@ -12,6 +12,7 @@ pub mod artifact;
 pub mod check;
 pub mod compile;
 pub mod host;
+pub mod observe;
 pub mod pproj;
 pub mod scenario;
 pub mod sci;
@@ -41,6 +42,10 @@ pub const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (pnext)");
 /// `CommandLine.Main`: runs the `p` tool with `args` (without the program name) and returns
 /// the process exit code.
 pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
+    // PObserve is its own tool upstream: its output has no P tool banner
+    if args.first().map(|a| a.to_lowercase()).as_deref() == Some("observe") {
+        return observe::run(&args[1..], host);
+    }
     let code = match args.first().map(|a| a.to_lowercase()) {
         None => {
             print_command_help(host);

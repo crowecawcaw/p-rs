@@ -30,6 +30,7 @@ dependencies = [
 name = "pnext-cli"
 version = "0.1.0"
 dependencies = [
+ "pnext-checker",
  "pnext-compat",
 ]
 

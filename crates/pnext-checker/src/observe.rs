@@ -179,6 +179,32 @@ impl<'p> Spec<'p> {
         })
     }
 
+    /// Builds an event whose payload is a tuple, from its field values in declaration order
+    /// (field names come from the event's payload type).
+    pub fn tuple_event(
+        &self,
+        key: impl Into<String>,
+        timestamp: Timestamp,
+        name: &str,
+        values: Vec<Value>,
+        log_line: Option<&str>,
+    ) -> Result<ObservedEvent, String> {
+        let id = self.event_id(name).ok_or_else(|| format!("unknown event '{}'", name))?;
+        let mut ty = self.payload_type(id);
+        while let PType::TypeDef(t) = ty {
+            ty = &self.prog.typedefs[t.idx()].ty;
+        }
+        let payload = match ty {
+            PType::NamedTuple(fs) if fs.len() == values.len() => {
+                let names: Vec<String> = fs.iter().map(|(n, _)| n.clone()).collect();
+                Value::NamedTuple(Rc::new(NamedTuple { names: names.into(), values }))
+            }
+            PType::Tuple(ts) if ts.len() == values.len() => Value::Tuple(Rc::new(values)),
+            _ => return Err(format!("the payload of '{}' is not a tuple of {} fields", name, values.len())),
+        };
+        self.event(key, timestamp, name, payload, log_line)
+    }
+
     /// `true` if events of this kind reach the spec (upstream's `filterBasedOnSpecObservation`).
     pub fn observes_event(&self, e: EventId) -> bool {
         self.observes().contains(&e)
