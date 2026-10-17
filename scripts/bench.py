@@ -148,10 +148,14 @@ def run(opts):
             print(f"{name:32} {res['check_s']:8.3f} s  {res['schedules_per_s']:10.1f} sched/s"
                   + (f"  {res['instructions']:,} instr" if "instructions" in res else ""), file=sys.stderr, flush=True)
 
+    commit = git("rev-parse", opts.commit)
     record = {
         "tool": opts.tool,
-        "commit": os.environ.get("GITHUB_SHA") or git("rev-parse", "HEAD"),
-        "message": git("log", "-1", "--format=%s"),
+        "commit": commit,
+        "message": git("log", "-1", "--format=%s", commit),
+        # Order entries by commit date: runs for different commits can finish in any order.
+        "commit_date": datetime.datetime.fromtimestamp(int(git("log", "-1", "--format=%ct", commit)),
+                                                       datetime.timezone.utc).isoformat(timespec="seconds"),
         "date": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         "version": opts.version or "",
         "seed": SEED,
@@ -181,32 +185,49 @@ def pct(new, old):
 
 def report(opts):
     cur = json.loads(Path(opts.current).read_text())
-    prev = None
+    prev_cpu = prev_any = None
     if opts.history and Path(opts.history).exists():
-        lines = [l for l in Path(opts.history).read_text().splitlines() if l.strip()]
-        for line in reversed(lines):
-            rec = json.loads(line)
-            if rec["commit"] != cur["commit"]:
-                prev = rec
-                break
-    old = {r["name"]: r for r in prev["results"]} if prev else {}
+        recs = [json.loads(l) for l in Path(opts.history).read_text().splitlines() if l.strip()]
+        when = lambda r: datetime.datetime.fromisoformat(r.get("commit_date") or r["date"])
+        older = [r for r in recs if r["commit"] != cur["commit"] and when(r) <= when(cur)]
+        # Runners differ by up to ~40% in speed, so times are compared only with
+        # an earlier run on the same CPU model. Instruction counts do not depend
+        # on the CPU, so those are compared with the latest earlier run on any.
+        same_cpu = [r for r in older if r["runner"]["cpu"] == cur["runner"]["cpu"]]
+        prev_cpu = max(same_cpu, key=when) if same_cpu else None
+        prev_any = max(older, key=when) if older else None
+
+    names = [r["name"] for r in cur["results"]]
+
+    def lookup(prev):
+        # Totals are comparable only over the same workloads.
+        if not prev:
+            return {}
+        out = {r["name"]: r for r in prev["results"]}
+        out["**total**"] = prev["total"] if [r["name"] for r in prev["results"]] == names else None
+        return out
+
+    old_t, old_i = lookup(prev_cpu), lookup(prev_any)
     out = [f"### Benchmarks for {cur['commit'][:7]}", ""]
-    if prev:
-        out += [f"Compared with {prev['commit'][:7]} ({prev['message']}). "
-                "Wall clock, median of %d runs. Instructions change is the noise-free signal." % cur["runs"], ""]
-    out += ["| workload | schedules | time | Δ time | schedules/s | Δ sched/s | Δ instructions |",
+    cpu = cur["runner"]["cpu"]
+    if prev_cpu:
+        out.append(f"Times: wall clock, median of {cur['runs']} runs, compared with {prev_cpu['commit'][:7]} "
+                   f"({prev_cpu['message']}), the latest earlier run on the same CPU ({cpu}).")
+    else:
+        out.append(f"Times: wall clock, median of {cur['runs']} runs. No earlier run on this CPU ({cpu}) "
+                   "to compare with; runners differ in speed, so times are not compared across CPUs.")
+    if prev_any:
+        out.append(f"Instructions: compared with {prev_any['commit'][:7]} (any CPU); "
+                   "they do not vary with the runner, so this is the noise-free signal.")
+    out += ["", "| workload | schedules | time | Δ time | schedules/s | Δ sched/s | Δ instructions |",
             "|---|---:|---:|---:|---:|---:|---:|"]
     rows = cur["results"] + [{"name": "**total**", **cur["total"]}]
-    # Totals are comparable only over the same workloads.
-    same = prev and [r["name"] for r in prev["results"]] == [r["name"] for r in cur["results"]]
-    old["**total**"] = prev["total"] if same else None
     for r in rows:
-        o = old.get(r["name"]) or {}
+        o, oi = old_t.get(r["name"]) or {}, old_i.get(r["name"]) or {}
         out.append("| {} | {} | {:.3f} s | {} | {:,.0f} | {} | {} |".format(
             r["name"], r["schedules"], r["check_s"], pct(r["check_s"], o.get("check_s")),
             r["schedules_per_s"], pct(r["schedules_per_s"], o.get("schedules_per_s")),
-            pct(r.get("instructions", 0), o.get("instructions")) if r.get("instructions") else ""))
-    out += ["", f"Runner: {cur['runner']['cpu']}."]
+            pct(r.get("instructions", 0), oi.get("instructions")) if r.get("instructions") else ""))
     print("\n".join(out))
 
 
@@ -240,6 +261,7 @@ def main():
     r.add_argument("--cmd", default="target/release/prs", help="the p command to benchmark")
     r.add_argument("--tool", default="prs", help="label stored in the result: prs or upstream")
     r.add_argument("--version", default="", help="version label stored in the result")
+    r.add_argument("--commit", default="HEAD", help="commit the binary was built from (default HEAD)")
     r.add_argument("--out", required=True)
     r.add_argument("--runs", type=int, default=5)
     r.add_argument("--workers", type=int, default=1,

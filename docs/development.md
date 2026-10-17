@@ -70,7 +70,10 @@ python3 scripts/bench.py report --current bench.json --history old.jsonl
   `main.jsonl` on the `benchmarks` branch and reports the change in the run summary.
   [Charts](https://crowecawcaw.github.io/p-rs/bench/). Wall-clock times on shared
   runners vary by about ±10%; instruction counts are stable to about 0.2% and are the
-  better signal.
+  better signal. GitHub also hands out runners with different CPUs, up to 40% apart in
+  speed, so charts have one line per CPU model, and the run summary compares times
+  only with the previous run on the same CPU (instructions with the previous run on
+  any CPU).
 * Against upstream P: run the "Benchmark vs upstream P" workflow by hand. It installs P
   from NuGet, runs both tools on the same runner and appends the comparison to
   `upstream.jsonl` on the `benchmarks` branch.

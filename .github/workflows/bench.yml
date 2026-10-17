@@ -1,5 +1,7 @@
 # Benchmarks every commit on main (scripts/bench.py) and appends the result to
-# main.jsonl on the `benchmarks` branch. The run summary compares the commit
+# main.jsonl on the `benchmarks` branch. To fill in a commit that has no entry,
+# run it by hand on main with that commit's sha: main's bench script runs
+# against a build of that commit. The run summary compares the commit
 # with the previous one; the chart is at https://<owner>.github.io/<repo>/bench/.
 #
 # Wall-clock times on shared runners vary by 10-20% between runs, so each result
@@ -12,14 +14,18 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit to benchmark (empty = the branch head)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
 
-# One run at a time, all finish: every main commit gets an entry, in order.
-concurrency:
-  group: bench
-  cancel-in-progress: false
+# No concurrency group: GitHub keeps only one pending run per group and cancels
+# the rest, which would skip commits. Runs go in parallel; the data push retries
+# on races and entries are ordered by commit date.
 
 env:
   CARGO_TERM_COLOR: always
@@ -30,6 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Full history for a backfill, so a short sha resolves.
+          fetch-depth: ${{ inputs.sha && '0' || '1' }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -37,11 +46,29 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install Valgrind
         run: sudo apt-get update -q && sudo apt-get install -yq valgrind
+      - name: Check out the commit to benchmark
+        id: src
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "${SHA:-}" ]; then
+            commit=$(git rev-parse --verify "${SHA}^{commit}")
+            git worktree add -q --detach ../src "$commit"
+            echo "dir=../src" >> "$GITHUB_OUTPUT"
+            echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=." >> "$GITHUB_OUTPUT"
+            echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build
+        working-directory: ${{ steps.src.outputs.dir }}
         run: cargo build --release --locked -p prs-cli
 
       - name: Run benchmarks
-        run: python3 scripts/bench.py run --cmd target/release/prs --instructions --out bench.json
+        run: >-
+          python3 scripts/bench.py run --cmd ${{ steps.src.outputs.dir }}/target/release/prs
+          --commit ${{ steps.src.outputs.commit }} --instructions --out bench.json
 
       - name: Report
         run: |
@@ -50,7 +77,9 @@ jobs:
 
       - name: Record
         if: github.ref == 'refs/heads/main'
-        run: ./.github/scripts/push-bench-data.sh append bench.json main.jsonl "Benchmark ${GITHUB_SHA::7}"
+        env:
+          COMMIT: ${{ steps.src.outputs.commit }}
+        run: ./.github/scripts/push-bench-data.sh append bench.json main.jsonl "Benchmark ${COMMIT::7}"
 
       - uses: actions/upload-artifact@v4
         with:
