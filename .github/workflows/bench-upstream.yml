@@ -4,7 +4,7 @@
 #
 # The comparison goes to the run summary and is appended to upstream.jsonl on the
 # `benchmarks` branch (runs on main only). Wall clock only: total check time,
-# schedules per second and compile time for each tool.
+# schedules per second, and upstream's compile time (prs has no compile step).
 
 name: Benchmark vs upstream P
 

@@ -1,5 +1,5 @@
 //! Port of upstream's `CommandLineArgumentParser`: the same matching rules, value parsing,
-//! error messages and help layout, so `p compile --help` and `p check --help` look the same.
+//! error messages and help layout, so `p check --help` looks the same.
 
 use std::fmt::Write as _;
 

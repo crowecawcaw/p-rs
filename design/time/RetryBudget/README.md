@@ -9,7 +9,7 @@ Sample 5 of `../examples/` rewritten with no new syntax. The extension is:
 | Delivery latencies | `PTst/latency.toml` |
 | Time-ordered scheduling | `p check --timed` |
 
-Runs with the current build (`p compile` first):
+Runs with the current build:
 
 ```
 $ p check -tc tcRetry -s 1000                        # no latency file

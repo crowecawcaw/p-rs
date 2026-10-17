@@ -1,19 +1,19 @@
 //! Drop-in compatibility with the upstream P command line tool.
 //!
-//! Reproduces `p compile` and `p check` from `PCommandLine`: the same options, help text,
-//! project-file handling, console messages, output files and exit codes, on top of the
-//! pure-Rust compiler ([`prs_sema`]) and checker ([`prs_checker`]). Everything goes
+//! Reproduces `p check` from `PCommandLine`: the same options, help text, project-file
+//! handling, console messages, output files and exit codes, on top of the pure-Rust type
+//! checker ([`prs_sema`]) and checker ([`prs_checker`]). There is no `p compile`: `p check`
+//! reads the P sources directly. Everything goes
 //! through a [`Host`](host::Host), so the commands also run in-memory (tests, browsers).
 //!
 //! Known differences from upstream are listed in the crate README.
 
 pub mod argparse;
-pub mod artifact;
 pub mod check;
-pub mod compile;
 pub mod host;
 pub mod observe;
 pub mod pproj;
+pub mod project;
 pub mod scenario;
 pub mod sci;
 
@@ -51,27 +51,36 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
             print_command_help(host);
             0
         }
-        Some(cmd) => match cmd.as_str() {
-            "compile" => compile::run(&args[1..], host),
-            "check" => check::run(&args[1..], host),
-            "merge-scenario-coverage" => scenario::run_merge(&args[1..], host),
-            "version" | "-v" | "-version" | "--version" => {
-                host.out_line(&format!("P version {}", VERSION));
-                0
-            }
-            "help" | "-h" | "--help" => {
-                print_command_help(host);
-                0
-            }
-            _ => {
-                host.out_colored_line(
-                    &format!("Expected (compile | check) as the command input but received `{}`", args[0]),
+        Some(cmd) => {
+            match cmd.as_str() {
+                // Accepted so scripts running `p compile && p check` keep working
+                "compile" => {
+                    host.out_colored_line(
+                    "Warning: `compile` does nothing and exists only for compatibility; prs checks P sources directly. Run `p check` (it reads the *.pproj or *.p files).",
+                    Color::Yellow,
+                );
+                    0
+                }
+                "check" => check::run(&args[1..], host),
+                "merge-scenario-coverage" => scenario::run_merge(&args[1..], host),
+                "version" | "-v" | "-version" | "--version" => {
+                    host.out_line(&format!("P version {}", VERSION));
+                    0
+                }
+                "help" | "-h" | "--help" => {
+                    print_command_help(host);
+                    0
+                }
+                _ => {
+                    host.out_colored_line(
+                    &format!("Expected (check | observe | merge-scenario-coverage) as the command input but received `{}`", args[0]),
                     Color::Red,
                 );
-                print_command_help(host);
-                0
+                    print_command_help(host);
+                    0
+                }
             }
-        },
+        }
     };
     host.out_line("~~ [PTool]: Thanks for using P! ~~");
     code
@@ -80,15 +89,16 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
 fn print_command_help(host: &mut dyn Host) {
     for l in [
         "================================================================================",
-        "The P commandline tool supports two commands (or modes): compile or check.\n",
+        "The P commandline tool supports the commands: check, observe and merge-scenario-coverage.\n",
         "usage:> p command options",
-        "\t command : compile | check           'compile' to run the P compiler and ",
-        "\t                                     'check' to run the P checker on the compiled code",
+        "\t command : check                     run the P checker on the P sources",
+        "\t           observe                   check recorded logs against spec monitors",
+        "\t           merge-scenario-coverage   merge scenario coverage reports",
         "\t options:                             use `--help` or `-h` to learn more about the",
         "\t                                      corresponding command options",
         "\t -----------------------------------------------------------------------",
-        "\t p compile --help                     for P compiler help",
         "\t p check --help                       for P checker help",
+        "\t p observe --help                     for P observe help",
         "================================================================================",
     ] {
         host.out_line(l);

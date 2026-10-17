@@ -6,8 +6,10 @@
   scripts/bench.py report --current result.json [--history main.jsonl]
   scripts/bench.py compare prs.json upstream.json
 
-`run` copies each project to a temp folder, compiles it once (timed) and runs
-`check` with a fixed test, schedule count and seed. The seed fixes which
+`run` copies each project to a temp folder and runs `check` with a fixed test,
+schedule count and seed. prs has no compile step (`check` type-checks the
+sources itself); upstream P compiles each project once first, and that compile
+time is recorded separately. The seed fixes which
 schedules are explored, so between commits only the speed changes. For each
 workload it records the median wall-clock time of the check over --runs runs,
 the schedules explored, schedules per second (schedules / median time) and,
@@ -99,7 +101,7 @@ def run(opts):
         for project, test, n in workloads:
             proj = Path(tmp) / project
             name = f"{project.split('_', 1)[-1]}/{test.split('___', 1)[0]}"
-            if project not in compiled:
+            if opts.tool == "upstream" and project not in compiled:
                 t0 = time.perf_counter()
                 r = sh([*cmd, "compile"], proj)
                 compiled[project] = time.perf_counter() - t0
@@ -126,8 +128,9 @@ def run(opts):
                 "check_s_min": round(min(times), 4),
                 "check_s_max": round(max(times), 4),
                 "schedules_per_s": round(schedules / check_s, 1),
-                "compile_s": round(compiled[project], 4),
             }
+            if project in compiled:
+                res["compile_s"] = round(compiled[project], 4)
             if opts.instructions:
                 res["instructions"] = instructions(cmd, args, proj)
             results.append(res)
@@ -145,11 +148,12 @@ def run(opts):
         "runner": {"os": platform.platform(), "cpu": cpu_model(), "cpus": os.cpu_count()},
         "total": {
             "check_s": round(sum(r["check_s"] for r in results), 4),
-            "compile_s": round(sum(compiled.values()), 4),
             "schedules": sum(r["schedules"] for r in results),
         },
         "results": results,
     }
+    if compiled:
+        record["total"]["compile_s"] = round(sum(compiled.values()), 4)
     record["total"]["schedules_per_s"] = round(record["total"]["schedules"] / record["total"]["check_s"], 1)
     if opts.instructions:
         record["total"]["instructions"] = sum(r["instructions"] for r in results)
@@ -190,7 +194,7 @@ def report(opts):
             r["name"], r["schedules"], r["check_s"], pct(r["check_s"], o.get("check_s")),
             r["schedules_per_s"], pct(r["schedules_per_s"], o.get("schedules_per_s")),
             pct(r.get("instructions", 0), o.get("instructions")) if r.get("instructions") else ""))
-    out += ["", f"Compile time, all projects: {cur['total']['compile_s']:.3f} s. Runner: {cur['runner']['cpu']}."]
+    out += ["", f"Runner: {cur['runner']['cpu']}."]
     print("\n".join(out))
 
 
@@ -200,18 +204,19 @@ def compare(opts):
     upr = {r["name"]: r for r in up["results"]}
     out = [f"### prs {prs['version'] or prs['commit'][:7]} vs upstream P {up['version']}", "",
            f"Same runner, same tests, schedule counts and seed. Wall clock, median of {prs['runs']} runs. "
-           "Speedup = upstream time / prs time.", "",
-           "| workload | schedules | prs time | P time | speedup | prs sched/s | P sched/s | prs compile | P compile |",
-           "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
+           "Speedup = upstream time / prs time. prs type-checks inside `check`; "
+           "P compiles first (P compile).", "",
+           "| workload | schedules | prs time | P time | speedup | prs sched/s | P sched/s | P compile |",
+           "|---|---:|---:|---:|---:|---:|---:|---:|"]
     rows = [(r, upr.get(r["name"])) for r in prs["results"]]
     rows.append(({"name": "**total**", **prs["total"]}, up["total"]))
     same = [r["name"] for r in prs["results"]] == [r["name"] for r in up["results"]]
     for p, u in rows:
         if not u or (p["name"] == "**total**" and not same):
             continue
-        out.append("| {} | {} | {:.3f} s | {:.3f} s | {:.1f}× | {:,.0f} | {:,.0f} | {:.2f} s | {:.2f} s |".format(
+        out.append("| {} | {} | {:.3f} s | {:.3f} s | {:.1f}× | {:,.0f} | {:,.0f} | {:.2f} s |".format(
             p["name"], p["schedules"], p["check_s"], u["check_s"], u["check_s"] / p["check_s"],
-            p["schedules_per_s"], u["schedules_per_s"], p["compile_s"], u["compile_s"]))
+            p["schedules_per_s"], u["schedules_per_s"], u["compile_s"]))
     out += ["", f"Runner: {prs['runner']['cpu']}."]
     print("\n".join(out))
 

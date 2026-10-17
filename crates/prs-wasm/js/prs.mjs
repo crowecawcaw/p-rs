@@ -2,8 +2,7 @@
 //
 //   import { loadP } from "./prs.mjs";
 //   const p = await loadP(wasmBytesOrResponse);
-//   let r = p.run(["compile", "-pf", "model.p"], { "/work/model.p": source });
-//   r = p.run(["check", "-tc", "tcMain", "-s", "1000"], r.files, { seed: 42 });
+//   const r = p.run(["check", "-pf", "model.p", "-tc", "tcMain", "-s", "1000"], { "/work/model.p": source }, { seed: 42 });
 //   console.log(r.stdout, r.exitCode);
 
 export async function loadP(source) {
