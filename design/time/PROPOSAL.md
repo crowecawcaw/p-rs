@@ -1,11 +1,11 @@
-# Time, timeouts and latency budgets in p-next (design proposal, v5)
+# Time, timeouts and latency budgets in p-rs (design proposal, v5)
 
-Status: Phase 1 implemented in `pnext-checker` (`src/time.rs`, runtime hooks)
+Status: Phase 1 implemented in `prs-checker` (`src/time.rs`, runtime hooks)
 and `p check` (`--latency`, `--latency-profile`, `--timed`); tests in
-`crates/pnext-checker/tests/time.rs`.
+`crates/prs-checker/tests/time.rs`.
 
 **No language change.** Models use plain P (foreign functions and ordinary
-machines). Everything new is in `pnext-checker` and the CLI. The native syntax explored in
+machines). Everything new is in `prs-checker` and the CLI. The native syntax explored in
 v1/v2 (`examples/`) is kept as a possible later surface over the same semantics.
 
 v5 changes (review of v4): under `--timed`, overlapping candidates (and a
@@ -42,7 +42,7 @@ fun Elapsed(m: int): int;      // worst case of (clock - mark m)
 fun ElapsedBest(m: int): int;  // best case
 ```
 
-* p-next implements these natively and does not consult a user's Rust
+* p-rs implements these natively and does not consult a user's Rust
   `ForeignFunctions` for them. Only global declarations count (a machine-owned
   `fun Now()` is an ordinary foreign function). If a declaration uses one of these
   names with a different signature, that is an error that names the expected
@@ -264,8 +264,8 @@ tcRetry = "same-az"             # profile per test case
 
 When time tracking is active, the `.schedule` file gets these lines:
 
-    --pnext-time:timed=<0|1>;profile=<name or ->
-    --pnext-latency:<key>=<lo>us..<hi>us      (one per resolved profile entry)
+    --prs-time:timed=<0|1>;profile=<name or ->
+    --prs-latency:<key>=<lo>us..<hi>us      (one per resolved profile entry)
 
 `p check --replay` takes the mode and profile from these lines and ignores
 `--latency`, `--latency-profile` and `--timed`, as it already ignores other

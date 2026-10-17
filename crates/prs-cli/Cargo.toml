@@ -1,0 +1,21 @@
+[package]
+name = "prs-cli"
+version.workspace = true
+publish = false
+edition.workspace = true
+license.workspace = true
+description = "The `p` command line tool (drop-in replacement for the upstream P tool)"
+
+[[bin]]
+name = "prs"
+path = "src/main.rs"
+
+[dependencies]
+prs-compat = { workspace = true }
+
+[lib]
+name = "prs_cli"
+path = "src/lib.rs"
+
+[dev-dependencies]
+prs-checker = { workspace = true }

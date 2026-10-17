@@ -2,25 +2,25 @@
 resolver = "2"
 members = [
     "crates/p-rs",
-    "crates/pnext-syntax",
-    "crates/pnext-sema",
-    "crates/pnext-checker",
-    "crates/pnext-compat",
-    "crates/pnext-cli",
-    "crates/pnext-wasm",
+    "crates/prs-syntax",
+    "crates/prs-sema",
+    "crates/prs-checker",
+    "crates/prs-compat",
+    "crates/prs-cli",
+    "crates/prs-wasm",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/crowecawcaw/p-next"
+repository = "https://github.com/crowecawcaw/p-rs"
 
 [workspace.dependencies]
-pnext-syntax = { path = "crates/pnext-syntax" }
-pnext-sema = { path = "crates/pnext-sema" }
-pnext-checker = { path = "crates/pnext-checker" }
-pnext-compat = { path = "crates/pnext-compat" }
+prs-syntax = { path = "crates/prs-syntax" }
+prs-sema = { path = "crates/prs-sema" }
+prs-checker = { path = "crates/prs-checker" }
+prs-compat = { path = "crates/prs-compat" }
 indexmap = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -30,7 +30,7 @@ roxmltree = "0.20"
 debug = 1
 
 # Size-optimized build for the WebAssembly module:
-#   cargo build --profile wasm --target wasm32-unknown-unknown -p pnext-wasm
+#   cargo build --profile wasm --target wasm32-unknown-unknown -p prs-wasm
 [profile.wasm]
 inherits = "release"
 debug = false

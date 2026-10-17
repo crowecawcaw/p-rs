@@ -19,60 +19,60 @@ name = "p-rs"
 version = "0.0.1"
 
 [[package]]
-name = "pnext-checker"
-version = "0.1.0"
-dependencies = [
- "pnext-sema",
- "pnext-syntax",
-]
-
-[[package]]
-name = "pnext-cli"
-version = "0.1.0"
-dependencies = [
- "pnext-checker",
- "pnext-compat",
-]
-
-[[package]]
-name = "pnext-compat"
-version = "0.1.0"
-dependencies = [
- "pnext-checker",
- "pnext-sema",
- "pnext-syntax",
- "roxmltree",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "pnext-sema"
-version = "0.1.0"
-dependencies = [
- "pnext-syntax",
-]
-
-[[package]]
-name = "pnext-syntax"
-version = "0.1.0"
-
-[[package]]
-name = "pnext-wasm"
-version = "0.1.0"
-dependencies = [
- "pnext-compat",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "prs-checker"
+version = "0.1.0"
+dependencies = [
+ "prs-sema",
+ "prs-syntax",
+]
+
+[[package]]
+name = "prs-cli"
+version = "0.1.0"
+dependencies = [
+ "prs-checker",
+ "prs-compat",
+]
+
+[[package]]
+name = "prs-compat"
+version = "0.1.0"
+dependencies = [
+ "prs-checker",
+ "prs-sema",
+ "prs-syntax",
+ "roxmltree",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "prs-sema"
+version = "0.1.0"
+dependencies = [
+ "prs-syntax",
+]
+
+[[package]]
+name = "prs-syntax"
+version = "0.1.0"
+
+[[package]]
+name = "prs-wasm"
+version = "0.1.0"
+dependencies = [
+ "prs-compat",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

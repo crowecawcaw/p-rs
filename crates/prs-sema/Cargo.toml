@@ -1,0 +1,10 @@
+[package]
+name = "prs-sema"
+version.workspace = true
+publish = false
+edition.workspace = true
+license.workspace = true
+description = "Name resolution, type checking and module system for P programs"
+
+[dependencies]
+prs-syntax = { workspace = true }

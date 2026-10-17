@@ -1,0 +1,15 @@
+[package]
+name = "prs-compat"
+version.workspace = true
+publish = false
+edition.workspace = true
+license.workspace = true
+description = "Drop-in compatibility layer for the upstream P command line (p compile / p check)"
+
+[dependencies]
+prs-syntax = { workspace = true }
+prs-sema = { workspace = true }
+prs-checker = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+roxmltree = { workspace = true }

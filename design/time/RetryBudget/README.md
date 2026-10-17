@@ -31,7 +31,7 @@ in all three modes. The slowest successful path is the third attempt answered
 at the last moment: 750ms + 2 + 36 + 2 = 790ms.
 
 The bug's `.schedule` file records the time mode and the resolved profile
-(`--pnext-time:` and `--pnext-latency:` lines), so `p check --replay` needs no
+(`--prs-time:` and `--prs-latency:` lines), so `p check --replay` needs no
 other options.
 
 ## What `--timed` changes here
