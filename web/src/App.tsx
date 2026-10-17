@@ -440,8 +440,14 @@ export function App() {
                 empty={compileOk === false ? "" : "Press Check (Ctrl/⌘+Enter) to explore schedules of the selected test case."}
               />
             )}
-            {tab === "trace" && result?.traceJson && <TraceView json={result.traceJson} onOpenLocation={openLocation} />}
-            {tab === "log" && result?.traceText && <Console text={result.traceText} onOpenLocation={openLocation} />}
+            {(tab === "trace" || tab === "log") && result?.traceJson && (
+              <TraceView
+                json={result.traceJson}
+                view={tab === "log" ? "log" : "diagram"}
+                onOpenLocation={openLocation}
+                onShowDiagram={() => setTab("trace")}
+              />
+            )}
           </div>
         </section>
       </main>

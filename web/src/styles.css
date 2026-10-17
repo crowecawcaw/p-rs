@@ -214,7 +214,47 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
 }
 .step-detail pre { margin: 4px 0 0; color: var(--muted); }
 
-.seq-wrap { flex: 1; min-height: 0; position: relative; display: flex; }
+.trace-find { display: flex; gap: 6px; align-items: center; padding: 6px var(--g); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.trace-find input { flex: 1; min-width: 0; min-height: 32px; padding: 0 10px; border-radius: 8px; font: 13px var(--mono); }
+.trace-find button { min-width: 32px; padding: 0 8px; }
+.trace-find .hits { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+.trace-focus { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px var(--g); border-bottom: 1px solid var(--border); font-size: 12px; flex-shrink: 0; }
+.trace-focus .chip {
+  min-height: 26px; padding: 0 10px; border-radius: 999px; font: 600 12px var(--mono);
+  color: color-mix(in srgb, var(--c) 70%, var(--fg)); background: color-mix(in srgb, var(--c) 12%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+}
+.trace-focus { flex-wrap: nowrap; }
+.trace-focus > * { flex-shrink: 0; }
+.trace-focus .chip { flex-shrink: 1; min-width: 0; display: inline-flex; gap: 6px; align-items: center; }
+.trace-focus .chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trace-focus button.link { min-height: 26px; white-space: nowrap; }
+.lane { -webkit-tap-highlight-color: transparent; }
+.trace-main { flex: 1; min-height: 0; display: flex; }
+.trace-main.list-side .step-list { flex: 0 0 340px; border-left: 1px solid var(--border); }
+.trace-main.list-bottom { flex-direction: column; }
+.trace-main.list-bottom .step-list { flex: 0 0 34%; border-top: 1px solid var(--border); }
+.step-list { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 4px 0; list-style: none; font: 12px/1.45 var(--mono); }
+.step-list button {
+  display: flex; gap: 8px; align-items: baseline; width: 100%; min-height: 0; padding: 4px var(--g) 4px 0;
+  border: none; border-radius: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer;
+}
+.step-list .n { flex: 0 0 4ch; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.step-list .swatch { flex: 0 0 8px; height: 8px; border-radius: 2px; align-self: center; }
+.step-list .text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.step-list li.hover button, .step-list button:hover { background: var(--active-line); }
+.step-list li.current button { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 var(--accent); }
+.step-list li.dim { opacity: 0.4; }
+.step-list li.error .text { color: var(--bad); font-weight: 600; }
+.step-list mark { background: var(--flash); color: inherit; border-radius: 2px; }
+.lane { cursor: pointer; }
+.lane:hover .lane-head { fill: color-mix(in srgb, var(--c) 18%, var(--panel)); }
+.lane.focused .lane-head { fill: color-mix(in srgb, var(--c) 22%, var(--panel)); stroke: var(--c); stroke-width: 2; }
+.row.dim { opacity: 0.22; }
+.row.dim.selected { opacity: 0.6; }
+.row.hover .row-hit { fill: var(--active-line); }
+
+.seq-wrap { flex: 1; min-width: 0; min-height: 0; position: relative; display: flex; }
 .seq { flex: 1; min-width: 0; overflow: auto; position: relative; touch-action: pan-x pan-y; }
 .seq svg { display: block; }
 .seq-head { position: sticky; top: 0; z-index: 1; background: var(--panel); box-shadow: 0 1px 0 var(--border); }
@@ -332,6 +372,10 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
 
   .trace-controls { gap: 4px; }
   .trace-controls .jump { display: none; }
+  .trace-find input { font-size: 16px; min-height: 36px; }
+  .trace-find button { min-width: 40px; min-height: 36px; }
+  .step-list { font-size: 12.5px; }
+  .step-list button { padding-top: 7px; padding-bottom: 7px; }
   .trace-controls input[type="range"] { height: 32px; }
   .trace-controls button { min-width: 40px; padding: 0 8px; }
   .trace-controls button.primary { min-width: 60px; }
