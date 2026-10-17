@@ -6,7 +6,7 @@
 //! reads the P sources directly. Everything goes
 //! through a [`Host`](host::Host), so the commands also run in-memory (tests, browsers).
 //!
-//! Known differences from upstream are listed in the crate README.
+//! Known differences from upstream are listed in the repository README.
 
 pub mod argparse;
 pub mod check;
