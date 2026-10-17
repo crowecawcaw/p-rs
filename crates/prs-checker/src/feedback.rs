@@ -151,7 +151,6 @@ impl Source {
 /// `IScheduler`.
 pub trait Scheduler {
     fn next_operation(&mut self, current: u64, ops: &[OpInfo]) -> Option<u64>;
-    fn reset(&mut self);
     fn prepare_next_iteration(&mut self) -> bool;
     fn mutate(&self) -> Box<dyn Scheduler>;
     fn new_like(&self) -> Box<dyn Scheduler>;
@@ -181,7 +180,6 @@ impl Scheduler for RandomScheduler {
             n => Some(enabled[self.rng.next_below(n as i32) as usize].id),
         }
     }
-    fn reset(&mut self) {}
     fn prepare_next_iteration(&mut self) -> bool {
         true
     }
@@ -246,9 +244,6 @@ impl Scheduler for PosScheduler {
             self.prioritized.retain(|p| *p != next);
         }
         Some(next)
-    }
-    fn reset(&mut self) {
-        self.prioritized.clear();
     }
     fn prepare_next_iteration(&mut self) -> bool {
         self.prioritized.clear();
@@ -339,11 +334,6 @@ impl Scheduler for PctScheduler {
         }
         highest_priority(&self.prioritized, &enabled)
     }
-    fn reset(&mut self) {
-        self.schedule_length = 0;
-        self.steps = 0;
-        self.prioritized.clear();
-    }
     fn prepare_next_iteration(&mut self) -> bool {
         self.schedule_length = self.schedule_length.max(self.steps);
         self.steps = 0;
@@ -407,10 +397,6 @@ impl Strategy for ScheduleAndInputStrategy {
     fn description(&self) -> String {
         // sic: upstream reports this strategy as pct
         format!("pct[seed '{}']", self.rng.borrow().seed)
-    }
-    fn reset(&mut self) {
-        self.steps = 0;
-        self.scheduler.reset();
     }
 }
 
@@ -577,9 +563,6 @@ impl Strategy for FeedbackGuidedStrategy {
     }
     fn description(&self) -> String {
         "feedback".into()
-    }
-    fn reset(&mut self) {
-        self.steps = 0;
     }
     fn wants_feedback(&self) -> bool {
         true

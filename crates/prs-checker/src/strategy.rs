@@ -34,7 +34,6 @@ pub trait Strategy {
     fn has_reached_max_steps(&self) -> bool;
     fn is_fair(&self) -> bool;
     fn description(&self) -> String;
-    fn reset(&mut self);
     /// Error of a replay strategy whose trace could not be followed.
     fn replay_error(&self) -> Option<String> {
         None
@@ -129,9 +128,6 @@ impl Strategy for RandomStrategy {
     fn description(&self) -> String {
         format!("random[seed '{}']", self.rng.borrow().seed)
     }
-    fn reset(&mut self) {
-        self.steps = 0;
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -192,9 +188,6 @@ impl Strategy for ProbabilisticRandomStrategy {
     }
     fn description(&self) -> String {
         format!("probabilistic[seed '{}', coin flips '{}']", self.inner.rng.borrow().seed, self.coin_flips)
-    }
-    fn reset(&mut self) {
-        self.inner.reset()
     }
 }
 
@@ -322,12 +315,6 @@ impl Strategy for PctStrategy {
             self.rng.borrow().seed
         )
     }
-    fn reset(&mut self) {
-        self.schedule_length = 0;
-        self.steps = 0;
-        self.prioritized.clear();
-        self.change_points.clear();
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -380,10 +367,6 @@ impl Strategy for ComboStrategy {
     }
     fn description(&self) -> String {
         format!("combo[{},{}]", self.prefix.description(), self.suffix.description())
-    }
-    fn reset(&mut self) {
-        self.prefix.reset();
-        self.suffix.reset();
     }
 }
 
@@ -564,9 +547,6 @@ impl Strategy for ReplayStrategy {
     }
     fn description(&self) -> String {
         "replay".into()
-    }
-    fn reset(&mut self) {
-        self.index = 0;
     }
     fn replay_error(&self) -> Option<String> {
         self.error.clone()

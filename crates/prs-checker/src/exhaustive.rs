@@ -162,10 +162,6 @@ impl Strategy for ExhaustiveStrategy {
         }
     }
 
-    fn reset(&mut self) {
-        self.pos = 0;
-    }
-
     fn replay_error(&self) -> Option<String> {
         self.error.clone()
     }

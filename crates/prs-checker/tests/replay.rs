@@ -189,7 +189,6 @@ impl Strategy for Hashes {
     fn description(&self) -> String {
         "hashes".into()
     }
-    fn reset(&mut self) {}
     fn wants_state_hash(&self) -> bool {
         true
     }

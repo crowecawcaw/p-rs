@@ -18,4 +18,5 @@ which takes the log entries, a `Parser` and `ObserveOptions` and returns a `Repo
 
 Foreign types and functions are supplied through
 `prs_checker::foreign::ForeignFunctions`. `crates/prs-checker/tests/foreign.rs` is an
-example; it ports the PriorityQueue tutorial's C# code.
+example; it ports the PriorityQueue tutorial's C# code. `crates/prs-checker/tests/library.rs`
+runs the example above.

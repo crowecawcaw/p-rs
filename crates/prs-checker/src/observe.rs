@@ -424,7 +424,6 @@ impl Strategy for NoScheduling {
     fn description(&self) -> String {
         String::new()
     }
-    fn reset(&mut self) {}
 }
 
 /// Outcome of running the spec over one key's events.

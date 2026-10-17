@@ -206,10 +206,6 @@ impl Strategy for QLearningStrategy {
         format!("rl[seed '{}']", self.rng.borrow().seed)
     }
 
-    fn reset(&mut self) {
-        self.steps = 0;
-    }
-
     fn wants_state_hash(&self) -> bool {
         true
     }

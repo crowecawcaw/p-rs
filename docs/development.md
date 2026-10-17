@@ -34,8 +34,8 @@ The module is about 1 MB (320 KB gzipped). The playground in `web/` is built on 
 Upstream's test suites are vendored in `tests/upstream`.
 
 * Type checker: all 424 upstream regression tests compile or fail to compile as
-  upstream expects.
-  `cargo run --release -p prs-sema --example corpus -- tests/upstream/RegressionTests`
+  upstream expects. Checked in `cargo test`, or
+  `cargo run --release -p prs-sema --example corpus -- tests/upstream/RegressionTests`.
 * Checker: all 249 tests of the suites upstream's harness runs find a bug exactly when
   upstream expects one, with upstream's settings (1000 schedules, 1000 steps) across
   seeds. `cargo run --release -p prs-checker --example corpus -- <suite dir>`.
