@@ -1,6 +1,7 @@
 //! Recursive descent parser for P, equivalent to `PParser.g4`.
 
 use crate::ast::*;
+use crate::lexer::error_display;
 use crate::span::{FileId, Span};
 use crate::token::TokenKind as T;
 use crate::token::{Token, TokenKind};
@@ -43,6 +44,36 @@ const STMT_STARTS: &[TokenKind] = &[
     T::Receive,
     T::Semi,
 ];
+
+/// Tokens that can start a top-level declaration (`topDecl`).
+const TOP_DECL_STARTS: &[TokenKind] = &[
+    T::Type,
+    T::Enum,
+    T::Event,
+    T::EventSet,
+    T::Interface,
+    T::Machine,
+    T::Spec,
+    T::Scenario,
+    T::Fun,
+    T::Pure,
+    T::Module,
+    T::Test,
+    T::Implementation,
+    T::Param,
+    T::Invariant,
+    T::Lemma,
+    T::Theorem,
+    T::Axiom,
+    T::InitCondition,
+    T::Proof,
+];
+
+/// Tokens that can start a machine body entry (`machineEntry`).
+const MACHINE_ENTRY_STARTS: &[TokenKind] = &[T::Var, T::Fun, T::Start, T::Hot, T::Cold, T::State];
+
+/// Tokens that can start a state body item (`stateBodyItem`).
+const STATE_ITEM_STARTS: &[TokenKind] = &[T::Defer, T::Entry, T::Exit, T::Ignore, T::On];
 
 /// Appends the comments in `gap` (text between two tokens), which ANTLR keeps
 /// on its hidden channel and includes in "no viable alternative" input text.
@@ -123,15 +154,15 @@ impl<'a> Parser<'a> {
         if tok.kind == T::Eof {
             "<EOF>".to_string()
         } else {
-            self.tok_text(tok).to_string()
+            error_display(self.tok_text(tok))
         }
     }
 
     /// Formats a token set the way ANTLR's `IntervalSet.ToString(vocabulary)`
-    /// does: ordered by token type, braces only around several elements.
+    /// does: ordered by token type (`<EOF>`, type -1, first), braces only around several elements.
     fn format_set(kinds: &[TokenKind]) -> String {
         let mut ks: Vec<TokenKind> = kinds.to_vec();
-        ks.sort_by_key(|k| *k as u32);
+        ks.sort_by_key(|k| (*k != T::Eof, *k as u32));
         ks.dedup();
         let names: Vec<&str> = ks.iter().map(|k| if *k == T::Eof { "<EOF>" } else { k.display() }).collect();
         if names.len() == 1 {
@@ -182,12 +213,19 @@ impl<'a> Parser<'a> {
         self.expect_followed_by(T::Semi, &follow)
     }
 
-    fn expect_one_of(&mut self, kinds: &[TokenKind]) -> PResult<Token> {
-        if kinds.contains(&self.peek_kind()) {
-            Ok(self.bump())
-        } else {
-            self.mismatch(kinds, &[])
-        }
+    /// The `;` ending a top-level declaration; another declaration or the end of the
+    /// file follows.
+    fn expect_top_semi(&mut self) -> PResult<Token> {
+        let mut follow = TOP_DECL_STARTS.to_vec();
+        follow.push(T::Eof);
+        self.expect_followed_by(T::Semi, &follow)
+    }
+
+    /// The `;` ending a state body item; another item or the end of the state follows.
+    fn expect_state_item_semi(&mut self) -> PResult<Token> {
+        let mut follow = STATE_ITEM_STARTS.to_vec();
+        follow.push(T::RBrace);
+        self.expect_followed_by(T::Semi, &follow)
     }
 
     /// The error-recovery `Sync` ANTLR runs before each iteration of an
@@ -239,7 +277,7 @@ impl<'a> Parser<'a> {
             }
             text.push_str(self.tok_text(t));
         }
-        let text = text.replace('\n', "\\n").replace('\r', "\\r").replace('\t', "\\t");
+        let text = error_display(&text);
         ParseError { span: err.span, message: format!("no viable alternative at input '{}'", text) }
     }
 
@@ -260,8 +298,10 @@ impl<'a> Parser<'a> {
 
     fn program(&mut self) -> PResult<Program> {
         let mut decls = Vec::new();
+        self.sync_loop(TOP_DECL_STARTS, T::Eof, true)?;
         while !self.at(T::Eof) {
             decls.push(self.top_decl()?);
+            self.sync_loop(TOP_DECL_STARTS, T::Eof, false)?;
         }
         Ok(Program { decls })
     }
@@ -273,7 +313,7 @@ impl<'a> Parser<'a> {
                 self.bump();
                 let name = self.ident()?;
                 let ty = if self.eat(T::Assign) { Some(self.ty()?) } else { None };
-                let end = self.expect(T::Semi)?.span;
+                let end = if ty.is_some() { self.expect_top_semi()? } else { self.expect(T::Semi)? }.span;
                 Ok(TopDecl::TypeDef { name, ty, span: start.to(end) })
             }
             T::Enum => {
@@ -302,8 +342,14 @@ impl<'a> Parser<'a> {
             T::Event => {
                 self.bump();
                 let name = self.ident()?;
-                let payload = if self.eat(T::Colon) { Some(self.ty()?) } else { None };
-                let end = self.expect(T::Semi)?.span;
+                let payload = if self.eat(T::Colon) {
+                    Some(self.ty()?)
+                } else if !self.at(T::Semi) {
+                    return self.mismatch(&[T::Semi, T::Colon], &[]);
+                } else {
+                    None
+                };
+                let end = self.expect_top_semi()?.span;
                 Ok(TopDecl::Event { name, payload, span: start.to(end) })
             }
             T::EventSet => {
@@ -313,7 +359,7 @@ impl<'a> Parser<'a> {
                 self.expect(T::LBrace)?;
                 let events = self.non_default_event_list()?;
                 self.expect(T::RBrace)?;
-                let end = self.expect(T::Semi)?.span;
+                let end = self.expect_top_semi()?.span;
                 Ok(TopDecl::EventSet { name, events, span: start.to(end) })
             }
             T::Interface => {
@@ -331,7 +377,7 @@ impl<'a> Parser<'a> {
                 } else {
                     None
                 };
-                let end = self.expect(T::Semi)?.span;
+                let end = self.expect_top_semi()?.span;
                 Ok(TopDecl::Interface { name, payload, receives, span: start.to(end) })
             }
             T::Machine => self.machine_decl(MachineKind::Impl).map(TopDecl::Machine),
@@ -355,7 +401,7 @@ impl<'a> Parser<'a> {
                 let name = self.ident()?;
                 self.expect(T::Assign)?;
                 let expr = self.mod_expr()?;
-                let end = self.expect(T::Semi)?.span;
+                let end = self.expect_top_semi()?.span;
                 Ok(TopDecl::Module { name, expr, span: start.to(end) })
             }
             T::Test => self.test_decl(),
@@ -373,7 +419,7 @@ impl<'a> Parser<'a> {
                 };
                 self.expect(T::Colon)?;
                 let expr = self.mod_expr()?;
-                let end = self.expect(T::Semi)?.span;
+                let end = self.expect_top_semi()?.span;
                 Ok(TopDecl::Implementation { name, main, expr, span: start.to(end) })
             }
             T::Param => {
@@ -381,7 +427,7 @@ impl<'a> Parser<'a> {
                 let names = self.ident_list()?;
                 self.expect(T::Colon)?;
                 let ty = self.ty()?;
-                let end = self.expect(T::Semi)?.span;
+                let end = self.expect_top_semi()?.span;
                 Ok(TopDecl::GlobalParam { names, ty, span: start.to(end) })
             }
             T::Invariant => self.invariant_decl().map(TopDecl::Invariant),
@@ -662,7 +708,7 @@ impl<'a> Parser<'a> {
                     let s = self.peek().span;
                     let is_recv = self.bump().kind == T::Receives;
                     let events = if self.at(T::Semi) { Vec::new() } else { self.non_default_event_list()? };
-                    let e = self.expect(T::Semi)?.span;
+                    let e = self.expect_followed_by(T::Semi, &[T::Receives, T::Sends, T::LBrace])?.span;
                     if is_recv {
                         receives.push((events, s.to(e)));
                     } else {
@@ -680,13 +726,14 @@ impl<'a> Parser<'a> {
         let mut vars = Vec::new();
         let mut funs = Vec::new();
         let mut states = Vec::new();
-        const ENTRY_STARTS: &[TokenKind] = &[T::Var, T::Fun, T::Start, T::Hot, T::Cold, T::State];
         let mut first = true;
+        let mut var_follow = MACHINE_ENTRY_STARTS.to_vec();
+        var_follow.push(T::RBrace);
         loop {
-            self.sync_loop(ENTRY_STARTS, T::RBrace, first)?;
+            self.sync_loop(MACHINE_ENTRY_STARTS, T::RBrace, first)?;
             first = false;
             match self.peek_kind() {
-                T::Var => vars.push(self.var_decl()?),
+                T::Var => vars.push(self.var_decl(&var_follow)?),
                 T::Fun => funs.push(self.fun_decl()?),
                 T::Start | T::Hot | T::Cold | T::State => states.push(self.state_decl()?),
                 T::RBrace => break,
@@ -697,12 +744,13 @@ impl<'a> Parser<'a> {
         Ok(MachineDecl { kind, name, receives, sends, observes, vars, funs, states, span: start.to(end) })
     }
 
-    fn var_decl(&mut self) -> PResult<VarDecl> {
+    /// `var x, y: T;`, where the tokens in `follow` can come after the declaration.
+    fn var_decl(&mut self, follow: &[TokenKind]) -> PResult<VarDecl> {
         let start = self.expect(T::Var)?.span;
         let names = self.ident_list()?;
         self.expect(T::Colon)?;
         let ty = self.ty()?;
-        let end = self.expect(T::Semi)?.span;
+        let end = self.expect_followed_by(T::Semi, follow)?.span;
         Ok(VarDecl { names, ty, span: start.to(end) })
     }
 
@@ -791,9 +839,11 @@ impl<'a> Parser<'a> {
         let start = self.expect(T::LBrace)?.span;
         let mut vars = Vec::new();
         let var_starts: Vec<TokenKind> = std::iter::once(T::Var).chain(STMT_STARTS.iter().copied()).collect();
+        let mut var_follow = var_starts.clone();
+        var_follow.push(T::RBrace);
         self.sync_loop(&var_starts, T::RBrace, true)?;
         while self.at(T::Var) {
-            vars.push(self.var_decl()?);
+            vars.push(self.var_decl(&var_follow)?);
             self.sync_loop(&var_starts, T::RBrace, false)?;
         }
         let mut stmts = Vec::new();
@@ -833,11 +883,10 @@ impl<'a> Parser<'a> {
         let name = self.ident()?;
         self.expect(T::LBrace)?;
         let mut items = Vec::new();
-        const ITEM_STARTS: &[TokenKind] = &[T::Defer, T::Entry, T::Exit, T::Ignore, T::On];
-        self.sync_loop(ITEM_STARTS, T::RBrace, true)?;
+        self.sync_loop(STATE_ITEM_STARTS, T::RBrace, true)?;
         while !self.at(T::RBrace) {
             items.push(self.state_item()?);
-            self.sync_loop(ITEM_STARTS, T::RBrace, false)?;
+            self.sync_loop(STATE_ITEM_STARTS, T::RBrace, false)?;
         }
         let end = self.expect(T::RBrace)?.span;
         Ok(StateDecl { name, is_start, temperature, items, span: start.to(end) })
@@ -846,7 +895,7 @@ impl<'a> Parser<'a> {
     fn handler_or_named(&mut self, allow_param: bool) -> PResult<Handler> {
         if self.at(T::Iden) {
             let name = self.ident()?;
-            self.expect(T::Semi)?;
+            self.expect_state_item_semi()?;
             Ok(Handler::Named(name))
         } else {
             Ok(Handler::Anon(self.anon_handler(allow_param)?))
@@ -855,6 +904,7 @@ impl<'a> Parser<'a> {
 
     fn state_item(&mut self) -> PResult<StateItem> {
         let start = self.peek().span;
+        let first_tok = self.pos;
         let kind = match self.peek_kind() {
             T::Entry => {
                 self.bump();
@@ -867,13 +917,13 @@ impl<'a> Parser<'a> {
             T::Defer => {
                 self.bump();
                 let events = self.non_default_event_list()?;
-                self.expect(T::Semi)?;
+                self.expect_state_item_semi()?;
                 StateItemKind::Defer(events)
             }
             T::Ignore => {
                 self.bump();
                 let events = self.non_default_event_list()?;
-                self.expect(T::Semi)?;
+                self.expect_state_item_semi()?;
                 StateItemKind::Ignore(events)
             }
             T::On => {
@@ -887,9 +937,11 @@ impl<'a> Parser<'a> {
                     let target = self.ident()?;
                     let with = if self.eat(T::With) {
                         Some(self.handler_or_named(true)?)
-                    } else {
-                        self.expect(T::Semi)?;
+                    } else if self.eat(T::Semi) {
                         None
+                    } else {
+                        // ANTLR is still choosing among the `on ... goto` items here.
+                        return self.no_viable().map_err(|e| self.no_viable_from(first_tok, e));
                     };
                     StateItemKind::OnGoto { events, target, with }
                 }
@@ -907,7 +959,7 @@ impl<'a> Parser<'a> {
                 Ok(Ident { name: "halt".to_string(), span: t.span })
             }
             T::Iden => self.ident(),
-            _ => self.expect_one_of(&[T::Halt, T::Iden]).map(|_| unreachable!()),
+            _ => self.mismatch(&[T::Halt, T::Iden], &[]),
         }
     }
 
@@ -931,7 +983,7 @@ impl<'a> Parser<'a> {
                 Ok(Ident { name: "halt".to_string(), span: t.span })
             }
             T::Iden => self.ident(),
-            _ => self.expect_one_of(&[T::NullLiteral, T::Halt, T::Iden]).map(|_| unreachable!()),
+            _ => self.mismatch(&[T::NullLiteral, T::Halt, T::Iden], &[]),
         }
     }
 
@@ -1458,18 +1510,31 @@ impl<'a> Parser<'a> {
             T::LParen => {
                 self.bump();
                 if self.at(T::Iden) && self.peek_at(1) == T::Assign {
-                    // named tuple
-                    let mut fields = Vec::new();
-                    loop {
+                    // `namedTupleBody`: either one field and a comma, or several fields
+                    // without a trailing comma. ANTLR picks the alternative by looking
+                    // past the first comma, so an error before it is a "no viable
+                    // alternative" from the first name; after it, anything but a name
+                    // is taken as the one-field form.
+                    let first_tok = self.pos;
+                    let first = (|| -> PResult<(Ident, Expr)> {
                         let n = self.ident()?;
                         self.expect(T::Assign)?;
                         let v = self.expr()?;
-                        fields.push((n, v));
                         if !self.eat(T::Comma) {
-                            break;
+                            return self.no_viable();
                         }
-                        if self.at(T::RParen) {
-                            break; // trailing comma, single-field tuple
+                        Ok((n, v))
+                    })()
+                    .map_err(|e| self.no_viable_from(first_tok, e))?;
+                    let mut fields = vec![first];
+                    if self.at(T::Iden) {
+                        loop {
+                            let n = self.ident()?;
+                            self.expect(T::Assign)?;
+                            fields.push((n, self.expr()?));
+                            if !self.eat(T::Comma) {
+                                break;
+                            }
                         }
                     }
                     self.expect(T::RParen)?;
@@ -1477,14 +1542,12 @@ impl<'a> Parser<'a> {
                 } else {
                     let first = self.expr()?;
                     if self.eat(T::Comma) {
+                        // `unnamedTupleBody`: a trailing comma only after a single field.
                         let mut fields = vec![first];
                         if !self.at(T::RParen) {
                             loop {
                                 fields.push(self.expr()?);
                                 if !self.eat(T::Comma) {
-                                    break;
-                                }
-                                if self.at(T::RParen) {
                                     break;
                                 }
                             }
@@ -1658,6 +1721,55 @@ mod tests {
         );
         assert!(matches!(&b.stmts[2].kind, StmtKind::Assign { rhs, .. } if matches!(rhs.kind, ExprKind::IntLit(_))));
         assert!(matches!(&b.stmts[3].kind, StmtKind::Assign { rhs, .. } if matches!(rhs.kind, ExprKind::FloatLit(_))));
+    }
+
+    fn error(src: &str) -> String {
+        parse(FileId(0), src).unwrap_err().message
+    }
+
+    #[test]
+    fn rejects_malformed_tuples() {
+        // Messages from ANTLR 4 running upstream's grammar in LL mode, except the last,
+        // which follows this parser's report for an expression that cannot start.
+        assert_eq!(error("fun f() { x = (a = 1); }"), "no viable alternative at input 'a=1)'");
+        assert_eq!(error("fun f() { x = (a = 1 2); }"), "no viable alternative at input 'a=12'");
+        assert_eq!(error("fun f() { x = (a=1, b=2,); }"), "mismatched input ')' expecting Iden");
+        assert_eq!(error("fun f() { x = (a=1, 2); }"), "extraneous input '2' expecting ')'");
+        assert_eq!(error("fun f() { x = (1, 2,); }"), "no viable alternative at input ')'");
+        assert!(parse(FileId(0), "fun f() { x = (a=1,); y = (1,); z = (a=1, b=2); w = (1, 2); }").is_ok());
+    }
+
+    #[test]
+    fn reports_declaration_errors() {
+        // Messages from ANTLR 4 running upstream's grammar in LL mode.
+        let cases = [
+            ("machine M { var x: int }", "missing ';' at '}'"),
+            ("fun f() { var x: int x = 1; }", "missing ';' at 'x'"),
+            ("event e : int\nevent f;", "missing ';' at 'event'"),
+            ("event e\nevent f;", "mismatched input 'event' expecting {';', ':'}"),
+            ("type T; type U = int", "missing ';' at '<EOF>'"),
+            ("type T = int }", "mismatched input '}' expecting ';'"),
+            ("eventset s = { e } event f;", "missing ';' at 'event'"),
+            ("interface I() receives e event f;", "missing ';' at 'event'"),
+            ("param x: int event f;", "missing ';' at 'event'"),
+            ("module m = {M} event e;", "missing ';' at 'event'"),
+            ("implementation I [main=M]: {M} event f;", "missing ';' at 'event'"),
+            ("machine M receives e { }", "missing ';' at '{'"),
+            ("machine M { start state S { entry Foo } }", "missing ';' at '}'"),
+            ("machine M { start state S { on e do F } }", "missing ';' at '}'"),
+            ("machine M { start state S { on e goto S with F } }", "missing ';' at '}'"),
+            ("machine M { start state S { ignore e, f exit { } } }", "missing ';' at 'exit'"),
+            ("machine M { start state S { on e goto S } }", "no viable alternative at input 'onegotoS}'"),
+            ("foo event", "extraneous input 'foo' expecting {<EOF>, 'enum', 'event', 'eventset', 'machine', 'interface', 'fun', 'scenario', 'spec', 'type', 'param', 'invariant', 'axiom', 'Proof', 'Lemma', 'Theorem', 'init-condition', 'pure', 'module', 'implementation', 'test'}"),
+            ("fun f() {} ) x", "extraneous input ')' expecting {<EOF>, 'enum', 'event', 'eventset', 'machine', 'interface', 'fun', 'scenario', 'spec', 'type', 'param', 'invariant', 'axiom', 'Proof', 'Lemma', 'Theorem', 'init-condition', 'pure', 'module', 'implementation', 'test'}"),
+            ("x = 1;", "mismatched input 'x' expecting {<EOF>, 'enum', 'event', 'eventset', 'machine', 'interface', 'fun', 'scenario', 'spec', 'type', 'param', 'invariant', 'axiom', 'Proof', 'Lemma', 'Theorem', 'init-condition', 'pure', 'module', 'implementation', 'test'}"),
+            ("fun f() {} \"a\tb\"", "extraneous input '\"a\\tb\"' expecting {<EOF>, 'enum', 'event', 'eventset', 'machine', 'interface', 'fun', 'scenario', 'spec', 'type', 'param', 'invariant', 'axiom', 'Proof', 'Lemma', 'Theorem', 'init-condition', 'pure', 'module', 'implementation', 'test'}"),
+            ("event e x;", "extraneous input 'x' expecting {';', ':'}"),
+            ("event e x", "mismatched input 'x' expecting {';', ':'}"),
+        ];
+        for (src, want) in cases {
+            assert_eq!(error(src), want, "{src}");
+        }
     }
 
     #[test]

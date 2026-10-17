@@ -5,9 +5,9 @@
 
 pub mod ast;
 pub mod lexer;
-pub mod parser;
-pub mod span;
+mod parser;
+mod span;
 pub mod token;
 
 pub use parser::{parse, ParseError};
-pub use span::{FileId, Location, SourceFile, SourceMap, Span};
+pub use span::{FileId, LineCol, Location, SourceFile, SourceMap, Span};

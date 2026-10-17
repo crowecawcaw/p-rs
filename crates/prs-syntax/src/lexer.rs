@@ -10,6 +10,11 @@ pub struct LexError {
     pub message: String,
 }
 
+/// Escapes line breaks and tabs the way ANTLR displays offending text in errors.
+pub(crate) fn error_display(text: &str) -> String {
+    text.replace('\n', "\\n").replace('\r', "\\r").replace('\t', "\\t")
+}
+
 /// Tokenizes the complete text of one file. Comments and whitespace are skipped.
 pub fn lex(file: FileId, text: &str) -> Result<Vec<Token>, LexError> {
     let bytes = text.as_bytes();
@@ -87,7 +92,7 @@ pub fn lex(file: FileId, text: &str) -> Result<Vec<Token>, LexError> {
                 if i >= n {
                     return Err(LexError {
                         span: Span::new(file, start as u32, n as u32),
-                        message: format!("token recognition error at: '{}'", &text[start..n]),
+                        message: format!("token recognition error at: '{}'", error_display(&text[start..n])),
                     });
                 }
                 let b = bytes[i];
@@ -172,6 +177,12 @@ pub fn lex(file: FileId, text: &str) -> Result<Vec<Token>, LexError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn escapes_unterminated_string_in_error() {
+        let e = lex(FileId(0), "x = \"a\tb\r\nc").unwrap_err();
+        assert_eq!(e.message, "token recognition error at: '\"a\\tb\\r\\nc'");
+    }
 
     #[test]
     fn lexes_keywords_and_symbols() {
