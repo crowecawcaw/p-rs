@@ -416,7 +416,7 @@ fn group_digits(digits: &str, negative: bool) -> String {
     }
     let n = digits.len();
     for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (n - i) % 3 == 0 {
+        if i > 0 && (n - i).is_multiple_of(3) {
             out.push(',');
         }
         out.push(c);
@@ -653,9 +653,9 @@ pub fn instant_nanos9(secs: i64, nanos: u32) -> String {
 pub fn instant_to_string(secs: i64, nanos: u32) -> String {
     let frac = if nanos == 0 {
         String::new()
-    } else if nanos % 1_000_000 == 0 {
+    } else if nanos.is_multiple_of(1_000_000) {
         format!(".{:03}", nanos / 1_000_000)
-    } else if nanos % 1000 == 0 {
+    } else if nanos.is_multiple_of(1000) {
         format!(".{:06}", nanos / 1000)
     } else {
         format!(".{:09}", nanos)

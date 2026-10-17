@@ -216,10 +216,13 @@ impl SlotSet {
     }
 }
 
+/// One [`SlotMap`] slot: a key-value pair, or `None` for a freed slot.
+pub type MapSlot = Option<(Value, Value)>;
+
 /// A map with .NET `Dictionary<K,V>` enumeration order (see [`SlotSet`]).
 #[derive(Debug, Clone, Default)]
 pub struct SlotMap {
-    slots: Vec<Option<(Value, Value)>>,
+    slots: Vec<MapSlot>,
     index: HashMap<Value, usize>,
     free: Vec<usize>,
     /// Insertion stamp of each slot (for Java's `HashMap` bucket order).
@@ -314,7 +317,7 @@ impl SlotMap {
     }
 
     /// See [`SlotSet::layout`].
-    pub fn layout(&self) -> (&[Option<(Value, Value)>], &[usize]) {
+    pub fn layout(&self) -> (&[MapSlot], &[usize]) {
         (&self.slots, &self.free)
     }
 
