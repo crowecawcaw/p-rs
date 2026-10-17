@@ -1,6 +1,7 @@
 [package]
 name = "pnext-compat"
 version.workspace = true
+publish = false
 edition.workspace = true
 license.workspace = true
 description = "Drop-in compatibility layer for the upstream P command line (p compile / p check)"

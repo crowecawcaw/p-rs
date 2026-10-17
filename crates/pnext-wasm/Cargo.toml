@@ -1,6 +1,7 @@
 [package]
 name = "pnext-wasm"
 version.workspace = true
+publish = false
 edition.workspace = true
 license.workspace = true
 description = "WebAssembly build of the P tool: run `p compile` / `p check` in a browser or Node.js"
