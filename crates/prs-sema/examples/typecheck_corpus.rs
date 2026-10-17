@@ -11,7 +11,7 @@ fn main() {
     let verbose = args.iter().any(|a| a == "-v");
     let roots: Vec<&String> = args.iter().filter(|a| !a.starts_with('-')).collect();
     if roots.is_empty() {
-        eprintln!("usage: corpus [-v] <regression test root>...");
+        eprintln!("usage: typecheck_corpus [-v] <regression test root>...");
         std::process::exit(2);
     }
     let (mut ok, mut mismatched, mut param_ok, mut param_bad) = (0, 0, 0, 0);
