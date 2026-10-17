@@ -515,8 +515,8 @@ fn unquote(s: &str) -> String {
 
 fn split_pair(line: &str) -> Option<(String, String)> {
     // The key may be quoted and contain '='-free text such as "(A, B).e".
-    let (k, v) = if line.starts_with('"') {
-        let end = line[1..].find('"')? + 1;
+    let (k, v) = if let Some(quoted) = line.strip_prefix('"') {
+        let end = quoted.find('"')? + 1;
         let rest = line[end + 1..].trim_start().strip_prefix('=')?;
         (line[1..end].to_string(), rest)
     } else {

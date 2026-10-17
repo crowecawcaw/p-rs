@@ -214,8 +214,7 @@ impl TestReport {
         if total > 0 && self.num_bugs > 0 {
             out.push_str(&format!("\n{} Found {} buggy schedules.", sub, percent(self.num_bugs as f64 * 100.0 / total as f64)));
         }
-        if self.explored_fair_schedules > 0 {
-            let avg = self.total_fair_steps / self.explored_fair_schedules;
+        if let Some(avg) = self.total_fair_steps.checked_div(self.explored_fair_schedules) {
             out.push_str(&format!(
                 "\n{} Number of scheduling points in terminating schedules: {} (min), {} (avg), {} (max).",
                 sub,
@@ -372,7 +371,7 @@ impl PrintGuard {
             let digits = schedule.to_string().len() - 1;
             self.0 = 10usize.pow(digits as u32);
         }
-        schedule % self.0 == 0
+        schedule.is_multiple_of(self.0)
     }
 }
 

@@ -28,8 +28,9 @@ pub struct NamedTuple {
     pub values: Vec<Value>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Value {
+    #[default]
     Null,
     Bool(bool),
     /// Integers and enum values (`PInt`).
@@ -45,12 +46,6 @@ pub enum Value {
     Map(Rc<SlotMap>),
     /// A value of a foreign type.
     Foreign(Rc<dyn crate::foreign::ForeignValue>),
-}
-
-impl Default for Value {
-    fn default() -> Value {
-        Value::Null
-    }
 }
 
 /// `PValues.SafeEquals`.
@@ -619,7 +614,7 @@ pub fn format_double(f: f64) -> String {
     let digits = digits.trim_end_matches('0');
     let digits = if digits.is_empty() { "0" } else { digits };
     let neg = if f < 0.0 { "-" } else { "" };
-    if exp >= 15 || exp < -4 {
+    if !(-4..15).contains(&exp) {
         let mut m = String::new();
         m.push_str(&digits[..1]);
         if digits.len() > 1 {
@@ -769,11 +764,11 @@ pub fn format_composite(base: &str, args: &[String]) -> Result<String, String> {
         let n = arg.chars().count();
         let pad = width.saturating_sub(n);
         if !left {
-            out.extend(std::iter::repeat(' ').take(pad));
+            out.extend(std::iter::repeat_n(' ', pad));
         }
         out.push_str(arg);
         if left {
-            out.extend(std::iter::repeat(' ').take(pad));
+            out.extend(std::iter::repeat_n(' ', pad));
         }
     }
     Ok(out)

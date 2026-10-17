@@ -728,7 +728,7 @@ fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> R
     let tc = select_test_case(host, loaded, &cfg.test_case_name)?;
     let opts = engine_options(cfg, seed);
     let engine_start = host.now();
-    let deadline = (cfg.timeout > 0).then(|| engine_start + cfg.timeout as f64);
+    let deadline = (cfg.timeout > 0).then_some(engine_start + cfg.timeout as f64);
     let res = run_engine(host, loaded, &tc, &opts, deadline)?;
     let engine_elapsed = host.now() - engine_start;
     if res.cancelled {

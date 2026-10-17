@@ -38,8 +38,8 @@ fn push_comments(out: &mut String, gap: &str) {
             let end = tail.find(['\r', '\n']).unwrap_or(tail.len());
             out.push_str(&tail[..end]);
             rest = &tail[end..];
-        } else if tail.starts_with("/*") {
-            let end = tail[2..].find("*/").map(|j| j + 4).unwrap_or(tail.len());
+        } else if let Some(body) = tail.strip_prefix("/*") {
+            let end = body.find("*/").map(|j| j + 4).unwrap_or(tail.len());
             out.push_str(&tail[..end]);
             rest = &tail[end..];
         } else {
