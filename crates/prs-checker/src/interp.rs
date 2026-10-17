@@ -845,6 +845,15 @@ impl<'p> Runtime<'p> {
                     stack.truncate(at);
                     stack.push(Value::Str(Rc::from(text)));
                 }
+                Op::UnreadFormat { base, nargs, types } => {
+                    let at = stack.len() - *nargs as usize;
+                    let v = match java {
+                        true => Value::Str(Rc::from(self.format(base, &stack[at..], types)?)),
+                        false => Value::Null,
+                    };
+                    stack.truncate(at);
+                    stack.push(v);
+                }
                 Op::Bin(op) => {
                     let b = pop(stack);
                     let a = pop(stack);
@@ -1543,12 +1552,19 @@ mod tests {
 
     /// The bug, log and final work count of the program's test under a work bound.
     fn run(prog: &Program, code: &Code, max_work_per_step: u64) -> (Option<String>, Vec<String>, u64) {
+        run_with(prog, code, max_work_per_step, false)
+    }
+
+    /// [`run`], in Java semantics if `java`.
+    fn run_with(prog: &Program, code: &Code, max_work_per_step: u64, java: bool) -> (Option<String>, Vec<String>, u64) {
         let tc = prog.test_cases().into_iter().next().expect("a test case");
         let (module, main) = prog.test_case_module(&tc);
         let config = Config { max_work_per_step, ..Config::default() };
         let rng = Rc::new(std::cell::RefCell::new(crate::random::RandomValueGenerator::new(0)));
         let mut strategy = crate::strategy::RandomStrategy::new(1000, rng);
-        let mut rt = Runtime::new(prog, code, module, &config, &mut strategy, Setup::default());
+        let formatter = crate::javafmt::JavaFormatter::new(prog);
+        let setup = Setup { java_semantics: java.then_some(&formatter), ..Setup::default() };
+        let mut rt = Runtime::new(prog, code, module, &config, &mut strategy, setup);
         rt.run_test(main.expect("a main machine"), &tc.name);
         (rt.bug.clone(), rt.log.clone(), rt.step_work)
     }
@@ -1580,11 +1596,13 @@ mod tests {
                     total = total / d;
                     print format(\"{0} {1}\", total, sizeof(keys(m)));
                     helper();
+                    log(format(\"{0} {1}\", m[k], total / d), i);
                     i = i + 1;
                   }
                 }
               }
               fun helper() { var z: int; if (z >= 0) { z = 1; } }
+              fun log(msg: string, n: int) { msg = \"\"; if (n > 1) { n = 1; } }
             }
             test tc [main=Main]: { Main };";
         // runs into the work bound; fails at `keys(m)[j]`; fails at `total / d`
@@ -1592,9 +1610,104 @@ mod tests {
             let src = BODY.replace("INDEX", index).replace("DIVISOR", divisor);
             let a = analyze(&src);
             let (fused, plain) = (compile_program(&a.program), compile_program_plain(&a.program));
+            assert_eq!(unread_formats(&fused), 1);
             for bound in 1..bounds {
                 assert_eq!(run(&a.program, &fused, bound), run(&a.program, &plain, bound), "{} {}", index, bound);
             }
+        }
+    }
+
+    /// The `UnreadFormat` instructions in `code`.
+    fn unread_formats(code: &Code) -> usize {
+        code.funs.iter().flatten().flat_map(|c| &c.ops).filter(|op| matches!(op, Op::UnreadFormat { .. })).count()
+    }
+
+    /// Compiles `calls` in the entry of a machine that also has `funs`, checks that it
+    /// emits `expected` `UnreadFormat` instructions, and that it runs as without them,
+    /// in C# and in Java semantics. Returns the bug and log of the run.
+    fn unread_format_case(calls: &str, funs: &str, expected: usize) -> (Option<String>, Vec<String>) {
+        let src = format!(
+            "event E; machine Main {{ var m: map[string, int]; var r: int;
+               start state S {{ entry {{ print \"a\"; {} print \"b\"; }} on E do {{}} }} {} }}
+             test tc [main=Main]: {{ Main }};",
+            calls, funs
+        );
+        let a = analyze(&src);
+        let (fused, plain) = (compile_program(&a.program), compile_program_plain(&a.program));
+        assert_eq!(unread_formats(&fused), expected, "{}", src);
+        for java in [false, true] {
+            assert_eq!(
+                run_with(&a.program, &fused, 100_000, java),
+                run_with(&a.program, &plain, 100_000, java),
+                "{}",
+                src
+            );
+        }
+        let (bug, log, _) = run(&a.program, &fused, 100_000);
+        (bug, log)
+    }
+
+    #[test]
+    fn unread_format_arguments_are_not_built() {
+        let empty = "fun log(msg: string) { }";
+        // the arguments are still evaluated, and fail as usual
+        let (bug, log) = unread_format_case("log(format(\"{0}\", m[\"x\"]));", empty, 1);
+        assert!(bug.unwrap().contains("KeyNotFoundException"));
+        assert!(log.iter().any(|l| l.ends_with(" a")) && !log.iter().any(|l| l.ends_with(" b")));
+        // a parameter that is only written is unread
+        let fun = "fun log(n: int, msg: string): int { msg = \"x\"; print \"in\"; return n; }";
+        let (bug, log) = unread_format_case("r = log(1, format(\"{0}\", 2));", fun, 1);
+        assert_eq!(bug, None);
+        assert!(log.iter().any(|l| l.ends_with(" in")));
+    }
+
+    #[test]
+    fn invalid_unread_formats_still_throw() {
+        // an index that the type checker reads as 0 (it wraps around), but too large for C#:
+        // a `FormatException` between `a` and `b`
+        let (bug, log) = unread_format_case("log(format(\"{4294967296}\", 1));", "fun log(msg: string) { }", 0);
+        let bug = bug.unwrap();
+        assert!(bug.contains("System.FormatException"), "{}", bug);
+        assert!(log.iter().any(|l| l.ends_with(" a")) && !log.iter().any(|l| l.ends_with(" b")));
+        // valid in C#, but not in Java (`MessageFormat` reads `{{x}}` as argument `{x`), where
+        // the string is still built
+        let a = analyze(
+            "machine Main { start state S { entry { log(format(\"{{x}} {0}\", 1)); } } fun log(msg: string) { } }
+             test tc [main=Main]: { Main };",
+        );
+        let (fused, plain) = (compile_program(&a.program), compile_program_plain(&a.program));
+        assert_eq!(unread_formats(&fused), 1);
+        let java = run_with(&a.program, &fused, 0, true);
+        assert!(java.0.as_ref().unwrap().contains("can't parse argument number"), "{:?}", java);
+        assert_eq!(java, run_with(&a.program, &plain, 0, true));
+    }
+
+    #[test]
+    fn read_or_exposed_parameters_are_formatted() {
+        let f = "format(\"k{0}\", 1)";
+        // read through a fused instruction (`m[s]` loads `s` in `MapGetLocal`)
+        let fun = "fun get(t: map[string, int], s: string): int { return t[s]; }";
+        let a = analyze(&format!(
+            "machine Main {{ start state S {{ entry {{ }} }} {} }} test tc [main=Main]: {{ Main }};",
+            fun
+        ));
+        let code = compile_program(&a.program);
+        assert!(code.funs.iter().flatten().flat_map(|c| &c.ops).any(|op| matches!(op, Op::MapGetLocal { .. })));
+        let (bug, _) = unread_format_case(&format!("m[\"k1\"] = 5; r = get(m, {}); assert r == 5;", f), fun, 0);
+        assert_eq!(bug, None);
+        // read by `print`, a `return`, a comparison, or a call
+        for fun in [
+            "fun log(msg: string) { print msg; }",
+            "fun log(msg: string): string { return msg; }",
+            "fun log(msg: string) { if (msg == \"\") { } }",
+            "fun log(msg: string) { other(msg); } fun other(msg: string) { }",
+        ] {
+            unread_format_case(&format!("log({});", f), fun, 0);
+        }
+        // unread, but the callee yields, calls, raises or chooses
+        for body in ["send this, E;", "receive { case E: { } }", "other();", "raise E;", "goto S;", "r = choose(3);"] {
+            let fun = format!("fun log(msg: string) {{ {} }} fun other() {{ }}", body);
+            unread_format_case(&format!("log({});", f), &fun, 0);
         }
     }
 

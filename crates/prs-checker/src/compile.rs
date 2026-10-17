@@ -37,18 +37,137 @@ pub(crate) fn compile_program_plain(prog: &Program) -> Code {
 }
 
 fn compile_program_with(prog: &Program, fuse: bool) -> Code {
-    let mut funs = Vec::with_capacity(prog.funs.len());
-    for (i, f) in prog.funs.iter().enumerate() {
-        if f.parent.is_none() && f.body.is_some() {
-            funs.push(Some(Rc::new(compile_fun(prog, FunId(i as u32), fuse))));
-        } else {
-            funs.push(None);
+    let compile_all = |unread: &[Vec<bool>]| -> Vec<Option<Rc<CodeBlock>>> {
+        let funs = prog.funs.iter().enumerate();
+        funs.map(|(i, f)| {
+            (f.parent.is_none() && f.body.is_some()).then(|| Rc::new(compile_fun(prog, FunId(i as u32), fuse, unread)))
+        })
+        .collect()
+    };
+    let mut funs = compile_all(&[]);
+    if fuse {
+        // A second pass emits `UnreadFormat` for the parameters the first finds unread.
+        // It changes no callee that has unread parameters, as those contain no calls.
+        let unread: Vec<Vec<bool>> = funs.iter().map(|c| c.as_deref().map_or_else(Vec::new, unread_params)).collect();
+        if unread.iter().flatten().any(|u| *u) {
+            funs = compile_all(&unread);
         }
     }
     let permissions = (0..prog.interfaces.len())
         .map(|i| Rc::from(prog.interface_receives(prs_sema::InterfaceId(i as u32))))
         .collect();
     Code { funs, permissions }
+}
+
+/// For each parameter of `code`, whether the function never reads it, and cannot expose
+/// it either. Locals are only ever observed by the state hash of a scheduling point
+/// (`statehash`), never by logs, traces or bug reports; a function that neither calls
+/// nor yields, raises or chooses returns before any, so its frame is never hashed. Such a
+/// parameter is dead, so a caller need not compute its value, only the effects of
+/// computing it (see [`Op::UnreadFormat`]). Conservative: an instruction that names the
+/// slot counts as a read unless it only overwrites it. The match is exhaustive so that
+/// new instructions get classified.
+fn unread_params(code: &CodeBlock) -> Vec<bool> {
+    let mut unread = vec![true; code.param_slots.len()];
+    for op in &code.ops {
+        // the local slots `op` reads, or `None` when it may leave the frame
+        let reads: Option<[Option<u32>; 2]> = match op {
+            // calls, scheduling points, leaving the action, and choices (which consult the
+            // strategy)
+            Op::Call { .. }
+            | Op::Create { .. }
+            | Op::Send { .. }
+            | Op::Raise { .. }
+            | Op::Announce { .. }
+            | Op::Goto { .. }
+            | Op::Receive { .. }
+            | Op::ChooseBool
+            | Op::ChooseInt
+            | Op::ChooseSeq
+            | Op::ChooseSet
+            | Op::ChooseMap => None,
+            Op::LoadLocal(s)
+            | Op::LocalTupleGet { slot: s, .. }
+            | Op::LocalSizeof(s)
+            | Op::MapGetLocal { slot: s, .. }
+            | Op::KeyAtLocal(s)
+            | Op::IntBin { rhs: Operand::Local(s), .. }
+            | Op::IntCmpJumpIfFalse { rhs: Operand::Local(s), .. }
+            | Op::Store { root: Root::Local(s), .. }
+            | Op::Insert { root: Root::Local(s), .. }
+            | Op::Add { root: Root::Local(s), .. }
+            | Op::Remove { root: Root::Local(s), .. }
+            | Op::ForeachInit { root: Some(Root::Local(s)), .. } => Some([Some(*s), None]),
+            Op::ForeachNext { iter_slot, item_slot, .. } => Some([Some(*iter_slot), Some(*item_slot)]),
+            // only overwrite a local, or touch none
+            Op::StoreLocal(_)
+            | Op::StoreLocalConst { .. }
+            | Op::ForeachInit { .. }
+            | Op::IntBin { .. }
+            | Op::IntCmpJumpIfFalse { .. }
+            | Op::Store { .. }
+            | Op::Insert { .. }
+            | Op::Add { .. }
+            | Op::Remove { .. }
+            | Op::PushNull
+            | Op::PushBool(_)
+            | Op::PushInt(_)
+            | Op::PushFloat(_)
+            | Op::PushStr(_)
+            | Op::PushEvent(_)
+            | Op::PushThis
+            | Op::LoadField(_)
+            | Op::LoadGlobal(_)
+            | Op::StoreField(_)
+            | Op::Pop
+            | Op::Dup
+            | Op::MakeTuple(_)
+            | Op::MakeNamedTuple(_)
+            | Op::TupleGet(_)
+            | Op::SeqGet
+            | Op::SetGet
+            | Op::MapGet { .. }
+            | Op::Keys
+            | Op::Values
+            | Op::Sizeof
+            | Op::Contains
+            | Op::Default(_)
+            | Op::Format { .. }
+            | Op::UnreadFormat { .. }
+            | Op::Bin(_)
+            | Op::Neg
+            | Op::Not
+            | Op::Jump(_)
+            | Op::JumpIfFalse(_)
+            | Op::JumpIfTrue(_)
+            | Op::JumpIfFalseElsePop(_)
+            | Op::JumpIfTrueElsePop(_)
+            | Op::Cast(_)
+            | Op::CoerceFloat
+            | Op::CoerceInt
+            | Op::CoerceInterface(_)
+            | Op::KeysSizeof
+            | Op::KeysContains
+            | Op::Return
+            | Op::ReturnNull
+            | Op::Assert
+            | Op::Print => Some([None, None]),
+        };
+        let Some(reads) = reads else { return vec![false; unread.len()] };
+        for slot in reads.into_iter().flatten() {
+            if let Some(i) = code.param_slots.iter().position(|p| *p == slot) {
+                unread[i] = false;
+            }
+        }
+    }
+    unread
+}
+
+/// Whether `format(base, ...)` with `nargs` arguments always succeeds in C# semantics. A
+/// `FormatException` depends only on `base` and the number of arguments, never on their
+/// values.
+fn format_cannot_fail(base: &str, nargs: usize) -> bool {
+    crate::value::format_composite(base, &vec![""; nargs]).is_ok()
 }
 
 struct LoopCtx {
@@ -63,14 +182,17 @@ struct Compiler<'a> {
     loops: Vec<LoopCtx>,
     /// Emit the specialized and fused instructions.
     fuse: bool,
+    /// [`unread_params`] of every function, by [`FunId`] (empty in the first pass).
+    unread: &'a [Vec<bool>],
     /// The last position taken as a jump target: instructions from there on cannot be
     /// fused with earlier ones.
     barrier: usize,
 }
 
-fn compile_fun(prog: &Program, id: FunId, fuse: bool) -> CodeBlock {
+fn compile_fun(prog: &Program, id: FunId, fuse: bool, unread: &[Vec<bool>]) -> CodeBlock {
     let f = prog.fun(id);
-    let mut c = Compiler { prog, ops: Vec::new(), next_hidden: f.frame_size, loops: Vec::new(), fuse, barrier: 0 };
+    let mut c =
+        Compiler { prog, ops: Vec::new(), next_hidden: f.frame_size, loops: Vec::new(), fuse, unread, barrier: 0 };
     c.init_locals(f);
     if let Some(body) = &f.body {
         for s in &body.stmts {
@@ -323,10 +445,7 @@ impl<'a> Compiler<'a> {
                 self.emit(Op::Pop);
             }
             StmtKind::FunCall { fun, args } => {
-                for a in args {
-                    self.expr(a);
-                }
-                self.emit(Op::Call { fun: *fun, nargs: args.len() as u32 });
+                self.call(*fun, args);
                 self.emit(Op::Pop);
             }
             StmtKind::Raise { event, payload } => {
@@ -374,6 +493,38 @@ impl<'a> Compiler<'a> {
             }
             StmtKind::Nop => {}
         }
+    }
+
+    /// A call of `fun`. A `format` argument for a parameter `fun` never reads is evaluated
+    /// for its effects only: its arguments as usual, then `UnreadFormat` in place of
+    /// `Format`, which counts the same work and, if the format cannot fail, has no other
+    /// effect.
+    fn call(&mut self, fun: FunId, args: &[Expr]) {
+        let unread = self.unread.get(fun.idx()).map_or(&[][..], Vec::as_slice);
+        for (i, a) in args.iter().enumerate() {
+            match &a.kind {
+                ExprKind::Str { base, args }
+                    if unread.get(i) == Some(&true) && format_cannot_fail(base, args.len()) =>
+                {
+                    self.format(base, args, true)
+                }
+                _ => self.expr(a),
+            }
+        }
+        self.emit(Op::Call { fun, nargs: args.len() as u32 });
+    }
+
+    /// `format(base, args...)`, or its [`Op::UnreadFormat`] form when `unread`.
+    fn format(&mut self, base: &str, args: &[Expr], unread: bool) {
+        for a in args {
+            self.expr(a);
+        }
+        let (base, nargs) = (Rc::from(base), args.len() as u32);
+        let types: Rc<[PType]> = args.iter().map(|a| a.ty.clone()).collect();
+        self.emit(match unread {
+            true => Op::UnreadFormat { base, nargs, types },
+            false => Op::Format { base, nargs, types },
+        });
     }
 
     fn opt_expr(&mut self, e: Option<&Expr>) -> bool {
@@ -456,13 +607,7 @@ impl<'a> Compiler<'a> {
             ExprKind::NullLit | ExprKind::Error => {
                 self.emit(Op::PushNull);
             }
-            ExprKind::Str { base, args } => {
-                for a in args {
-                    self.expr(a);
-                }
-                let types: Rc<[PType]> = args.iter().map(|a| a.ty.clone()).collect();
-                self.emit(Op::Format { base: Rc::from(base.as_str()), nargs: args.len() as u32, types });
-            }
+            ExprKind::Str { base, args } => self.format(base, args, false),
             ExprKind::Nondet | ExprKind::FairNondet => {
                 self.emit(Op::ChooseBool);
             }
@@ -530,12 +675,7 @@ impl<'a> Compiler<'a> {
                 let has_payload = self.opt_expr(payload.as_deref());
                 self.emit(Op::Create { iface: *interface, has_payload });
             }
-            ExprKind::FunCall { fun, args } => {
-                for a in args {
-                    self.expr(a);
-                }
-                self.emit(Op::Call { fun: *fun, nargs: args.len() as u32 });
-            }
+            ExprKind::FunCall { fun, args } => self.call(*fun, args),
             ExprKind::Unary { op, operand } => {
                 self.expr(operand);
                 match op {

@@ -191,6 +191,16 @@ pub enum Op {
     JumpIfTrueElsePop(u32),
     /// `PushNull; Return`.
     ReturnNull,
+    /// `Format`, as an argument of a call whose callee never reads that parameter (see
+    /// `compile::unread_params`): pops the arguments and pushes `null` instead of building
+    /// the string. Emitted only when `base` cannot fail to format with `nargs` arguments,
+    /// so the only effect the plain `Format` has is lost on a value nobody sees. In Java
+    /// semantics, whose formatting can fail on the values, it is `Format`.
+    UnreadFormat {
+        base: Rc<str>,
+        nargs: u32,
+        types: Rc<[PType]>,
+    },
 }
 
 /// The right operand of an [`Op::IntBin`].
