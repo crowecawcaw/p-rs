@@ -1,7 +1,7 @@
 # P Playground
 
 A web page for editing and model-checking P models in the browser. It runs the
-`pnext-wasm` build of the toolchain in a Web Worker; nothing is sent to a server.
+`prs-wasm` build of the toolchain in a Web Worker; nothing is sent to a server.
 
 ```sh
 cd web

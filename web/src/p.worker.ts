@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 // Runs the WebAssembly build of the `p` tool. Each request starts from the user's
 // files in a fresh in-memory file system rooted at /work.
-import { loadP, type PTool, type PResult } from "../../crates/pnext-wasm/js/pnext.mjs";
-import wasmUrl from "./generated/pnext.wasm?url";
+import { loadP, type PTool, type PResult } from "../../crates/prs-wasm/js/prs.mjs";
+import wasmUrl from "./generated/prs.wasm?url";
 import type { CheckResult, CompileResult, Diagnostic, Files, Request, WorkerReply } from "./protocol";
 
 const ROOT = "/work";
