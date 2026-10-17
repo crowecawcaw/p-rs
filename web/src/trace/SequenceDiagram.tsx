@@ -35,28 +35,53 @@ function head(x1: number, y1: number, x2: number, y2: number, size = 7) {
 
 interface Props {
   trace: Trace;
+  /** Step indices to draw, in order. */
+  rows: number[];
+  /** Lane indices to draw, in order. */
+  cols: number[];
+  /** Lane colors, indexed by lane (stable while filtering). */
+  color: string[];
+  focus: ReadonlySet<number>;
   cursor: number;
+  hover?: number;
   onSelect: (i: number) => void;
+  onHover: (i: number | undefined) => void;
+  onToggleLane: (lane: number) => void;
+}
+
+/** Lane colors: machines cycle through the palette, specs share one color. */
+export function laneColors(lanes: Trace["lanes"]): string[] {
+  let n = 0;
+  return lanes.map((l) => (l.monitor ? "var(--spec)" : `var(--lane-${n++ % HUES})`));
+}
+
+/** Where a lane or step is drawn: its position among the visible ones. */
+interface Layout {
+  col: (lane: number | undefined) => number | undefined;
+  row: (step: number | undefined) => number | undefined;
 }
 
 /** A message sequence chart of a bug trace: one lane per machine or spec. Zoomable. */
-export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
+export function SequenceDiagram({ trace, rows, cols, color, focus, cursor, hover, onSelect, onHover, onToggleLane }: Props) {
   const { lanes, steps } = trace;
   const [W] = useState(() => (matchMedia("(max-width: 600px)").matches ? LANE_W_NARROW : LANE_W));
   const laneX = laneXFor(W);
-  const width = Math.max(lanes.length, 1) * W;
+  const width = Math.max(cols.length, 1) * W;
   // Extra room at the bottom so the last rows can scroll clear of the zoom controls.
-  const height = TOP * 2 + steps.length * ROW_H + PILL_H + 16;
+  const height = TOP * 2 + rows.length * ROW_H + PILL_H + 16;
+  const layout = useMemo<Layout>(() => {
+    const c = new Map(cols.map((l, i) => [l, i]));
+    const r = new Map(rows.map((s, i) => [s, i]));
+    return {
+      col: (l) => (l === undefined ? undefined : c.get(l)),
+      row: (s) => (s === undefined ? undefined : r.get(s)),
+    };
+  }, [rows, cols]);
   const scroller = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [legend, setLegend] = useState(false);
   // Content point to keep under the screen point after a zoom.
   const anchor = useRef<{ cx: number; cy: number; sx: number; sy: number } | null>(null);
-
-  const color = useMemo(() => {
-    let n = 0;
-    return lanes.map((l) => (l.monitor ? "var(--spec)" : `var(--lane-${n++ % HUES})`));
-  }, [lanes]);
 
   // Machine ids like "(3)" are only needed to tell apart machines of the same type.
   const dupNames = useMemo(() => {
@@ -68,12 +93,13 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   // Where each lane's lifeline starts: its creation step (monitors: the top).
   const born = useMemo(() => {
     const b: number[] = lanes.map((l) => (l.monitor ? 0 : -1));
-    steps.forEach((s, i) => {
-      if (s.kind === "create" && s.to !== undefined && b[s.to] < 0) b[s.to] = i;
-      if (s.lane !== undefined && b[s.lane] < 0) b[s.lane] = i;
+    rows.forEach((i, pos) => {
+      const s = steps[i];
+      if (s.kind === "create" && s.to !== undefined && b[s.to] < 0) b[s.to] = pos;
+      if (s.lane !== undefined && b[s.lane] < 0) b[s.lane] = pos;
     });
     return b.map((v) => Math.max(v, 0));
-  }, [lanes, steps]);
+  }, [lanes, steps, rows]);
 
   const fitZoom = useCallback(() => {
     const el = scroller.current;
@@ -167,17 +193,19 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
+    const pos = layout.row(cursor);
+    if (pos === undefined) return;
     const head = HEADER_H * zoomRef.current;
-    const top = head + (rowY(cursor) - ROW_H) * zoomRef.current;
-    const bottom = head + (rowY(cursor) + ROW_H) * zoomRef.current;
+    const top = head + (rowY(pos) - ROW_H) * zoomRef.current;
+    const bottom = head + (rowY(pos) + ROW_H) * zoomRef.current;
     if (top < el.scrollTop + head) el.scrollTop = top - head;
     else if (bottom > el.scrollTop + el.clientHeight - PILL_H) el.scrollTop = bottom - el.clientHeight + PILL_H;
     // Sideways too: bring the step's lanes (sender and receiver) into view.
     const st = steps[cursor];
     if (!st) return;
-    const involved = [st.lane, st.to, st.peer !== undefined ? steps[st.peer]?.lane : undefined].filter(
-      (l): l is number => l !== undefined,
-    );
+    const involved = [st.lane, st.to, st.peer !== undefined ? steps[st.peer]?.lane : undefined]
+      .map(layout.col)
+      .filter((l): l is number => l !== undefined);
     if (!involved.length) return;
     const z = zoomRef.current;
     let left = Math.min(...involved) * W * z;
@@ -191,7 +219,7 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
     if (right - left > el.clientWidth) el.scrollLeft = (left + right) / 2 - el.clientWidth / 2;
     else if (left < el.scrollLeft) el.scrollLeft = left;
     else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
-  }, [cursor, steps, W, width]);
+  }, [cursor, steps, W, width, layout]);
 
   return (
     <div className="seq-wrap">
@@ -210,34 +238,55 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
           viewBox={`0 0 ${width} ${HEADER_H}`}
           role="presentation"
         >
-          {lanes.map((l, i) => (
-            <g key={l.id} transform={`translate(${laneX(i)},${HEADER_H / 2})`} style={{ "--c": color[i] } as React.CSSProperties}>
-              <rect
-                x={-W / 2 + 4}
-                y={-15}
-                width={W - 8}
-                height={30}
-                rx={15}
-                className={l.monitor ? "lane-head monitor" : "lane-head"}
-              />
-              <LaneLabel id={l.id} monitor={l.monitor} w={W} showId={dupNames.has(baseName(l.id))} />
-            </g>
-          ))}
+          {cols.map((li, i) => {
+            const l = lanes[li];
+            return (
+              <g
+                key={l.id}
+                className={focus.has(li) ? "lane focused" : "lane"}
+                transform={`translate(${laneX(i)},${HEADER_H / 2})`}
+                style={{ "--c": color[li] } as React.CSSProperties}
+                onClick={() => onToggleLane(li)}
+              >
+                <rect
+                  x={-W / 2 + 4}
+                  y={-15}
+                  width={W - 8}
+                  height={30}
+                  rx={15}
+                  className={l.monitor ? "lane-head monitor" : "lane-head"}
+                />
+                <LaneLabel id={l.id} monitor={l.monitor} w={W} showId={dupNames.has(baseName(l.id))} focused={focus.has(li)} />
+              </g>
+            );
+          })}
         </svg>
         <svg width={width * zoom} height={height * zoom} viewBox={`0 0 ${width} ${height}`} className="seq-body">
-          {lanes.map((l, i) => (
+          {cols.map((li, i) => (
             <line
-              key={l.id}
+              key={lanes[li].id}
               x1={laneX(i)}
               x2={laneX(i)}
-              y1={rowY(born[i]) - ROW_H / 2}
+              y1={rowY(born[li]) - ROW_H / 2}
               y2={height}
-              className={l.monitor ? "lifeline monitor" : "lifeline"}
-              style={{ "--c": color[i] } as React.CSSProperties}
+              className={lanes[li].monitor ? "lifeline monitor" : "lifeline"}
+              style={{ "--c": color[li] } as React.CSSProperties}
             />
           ))}
-          {steps.map((s, i) => (
-            <Row key={i} i={i} s={s} W={W} width={width} cursor={cursor} color={color} onSelect={onSelect} />
+          {rows.map((i) => (
+            <Row
+              key={i}
+              i={i}
+              s={steps[i]}
+              W={W}
+              width={width}
+              cursor={cursor}
+              hover={hover === i}
+              color={color}
+              layout={layout}
+              onSelect={onSelect}
+              onHover={onHover}
+            />
           ))}
         </svg>
       </div>
@@ -260,15 +309,19 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   );
 }
 
-function Row({ i, s, W, width, cursor, color, onSelect }: {
-  i: number; s: Step; W: number; width: number; cursor: number; color: string[]; onSelect: (i: number) => void;
+function Row({ i, s, W, width, cursor, hover, color, layout, onSelect, onHover }: {
+  i: number; s: Step; W: number; width: number; cursor: number; hover: boolean; color: string[];
+  layout: Layout; onSelect: (i: number) => void; onHover: (i: number | undefined) => void;
 }) {
-  const laneX = laneXFor(W);
-  const y = rowY(i);
+  const at = laneXFor(W);
+  const laneX = (l: number) => at(layout.col(l) ?? 0);
+  const y = rowY(layout.row(i) ?? 0);
   const future = i > cursor;
   const selected = i === cursor;
   const linked = s.peer !== undefined && s.peer === cursor;
-  const cls = ["row", future && "future", (selected || linked) && "selected", `k-${s.kind}`].filter(Boolean).join(" ");
+  const cls = ["row", future && "future", (selected || linked) && "selected", hover && "hover", `k-${s.kind}`]
+    .filter(Boolean)
+    .join(" ");
   const x = s.lane !== undefined ? laneX(s.lane) : 0;
   const c = s.lane !== undefined ? color[s.lane] : "var(--fg)";
   let body: React.ReactNode = null;
@@ -292,7 +345,8 @@ function Row({ i, s, W, width, cursor, color, onSelect }: {
     case "send": {
       if (s.lane === undefined || s.to === undefined) break;
       const x2 = laneX(s.to);
-      const y2 = s.peer !== undefined ? rowY(s.peer) : y;
+      const peerRow = layout.row(s.peer);
+      const y2 = peerRow !== undefined ? rowY(peerRow) : y;
       const dir = x2 >= x ? 1 : -1;
       const self = s.to === s.lane;
       body = self ? (
@@ -368,7 +422,14 @@ function Row({ i, s, W, width, cursor, color, onSelect }: {
     }
   }
   return (
-    <g className={cls} data-row={i} onClick={() => onSelect(i)} style={{ "--c": c } as React.CSSProperties}>
+    <g
+      className={cls}
+      data-row={i}
+      onClick={() => onSelect(i)}
+      onMouseEnter={() => onHover(i)}
+      onMouseLeave={() => onHover(undefined)}
+      style={{ "--c": c } as React.CSSProperties}
+    >
       <rect x={0} y={y - ROW_H / 2} width={width} height={ROW_H} className="row-hit" />
       {selected && <rect x={0} y={y - ROW_H / 2 + 3} width={3} height={ROW_H - 6} rx={1.5} className="row-cursor" />}
       <title>{s.log}</title>
@@ -393,7 +454,7 @@ function shortError(e: string) {
 /** "Client(3)" -> name "Client" and a muted "(3)". */
 const baseName = (id: string) => id.replace(/\(\d+\)$/, "");
 
-function LaneLabel({ id, monitor, w, showId }: { id: string; monitor: boolean; w: number; showId: boolean }) {
+function LaneLabel({ id, monitor, w, showId, focused }: { id: string; monitor: boolean; w: number; showId: boolean; focused: boolean }) {
   const m = /^(.*?)(\(\d+\))?$/.exec(id)!;
   const n = showId ? (m[2] ?? "") : "";
   // Shrink long names (down to ~10px) before truncating, so "Participant(2)" and
@@ -403,7 +464,7 @@ function LaneLabel({ id, monitor, w, showId }: { id: string; monitor: boolean; w
   const scale = Math.max(0.82, Math.min(1, room / need));
   return (
     <text textAnchor="middle" dy="0.35em" className="lane-label" style={scale < 1 ? { fontSize: `${(12 * scale).toFixed(1)}px` } : undefined}>
-      <title>{monitor ? `spec ${id}` : id}</title>
+      <title>{`${monitor ? `spec ${id}` : id} (${focused ? "click to stop focusing" : "click to show only its steps"})`}</title>
       {clip(m[1], room / scale - n.length * CH)}
       {n && <tspan className="lane-id">{n}</tspan>}
     </text>
@@ -483,6 +544,10 @@ function Legend({ onClose }: { onClose: () => void }) {
           "Spec observed an event",
         )}
         {row(<rect x="4" y="3" width="32" height="12" rx="6" className="error-bar" />, "Where the bug was detected")}
+        {row(
+          <rect x="4" y="2" width="32" height="14" rx="7" className="lane-head" style={{ "--c": "var(--lane-0)" } as React.CSSProperties} />,
+          "Tap a machine's name to show only its steps",
+        )}
       </ul>
     </div>
   );

@@ -1,42 +1,106 @@
-import { useEffect, useMemo, useState } from "react";
-import { parseTrace } from "./model";
-import { SequenceDiagram } from "./SequenceDiagram";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { visible } from "./filter";
+import { parseTrace, type Trace } from "./model";
+import { laneColors, SequenceDiagram } from "./SequenceDiagram";
 
 interface Props {
   json: string;
+  /** "diagram": the chart (plus the step list beside it when there's room); "log": the step list alone. */
+  view: "diagram" | "log";
   onOpenLocation: (file: string, line: number) => void;
+  /** Picking a step in the log view asks to show it in the diagram. */
+  onShowDiagram: () => void;
 }
 
 const LOC = /([\w./-]+\.p):(\d+):(\d+)/;
+/** Show the step list beside the diagram when the trace panel is at least this wide… */
+const SIDE_LIST_MIN = 820;
+/** …and below it when the panel is at least this tall (phones have the Log tab instead). */
+const BOTTOM_LIST_MIN_H = 560;
 
-/** Bug trace: step-through controls, the sequence diagram, and the selected step's details. */
-export function TraceView({ json, onOpenLocation }: Props) {
+/** Bug trace: step-through controls, machine focus, the diagram, and the step list. */
+export function TraceView({ json, view, onOpenLocation, onShowDiagram }: Props) {
   const trace = useMemo(() => parseTrace(json), [json]);
-  const last = trace.steps.length - 1;
-  const [cursor, setCursor] = useState(last);
+  const color = useMemo(() => laneColors(trace.lanes), [trace]);
+  const [cursor, setCursor] = useState(trace.steps.length - 1);
   const [playing, setPlaying] = useState(false);
   const [bannerOpen, setBannerOpen] = useState(false);
+  const [focus, setFocus] = useState<ReadonlySet<number>>(new Set());
+  const [hover, setHover] = useState<number>();
+  const root = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<"side" | "bottom" | "none">("none");
 
+  const { rows, cols } = useMemo(() => visible(trace, focus), [trace, focus]);
+  const pos = rows.indexOf(cursor);
+  const lastPos = rows.length - 1;
+
+  // A new trace: start at the bug, with no focus.
   useEffect(() => {
-    setCursor(last);
+    setCursor(trace.steps.length - 1);
     setPlaying(false);
-  }, [json, last]);
+    setFocus(new Set());
+  }, [trace]);
+
+  // Focusing can hide the current step: move to the nearest earlier one still shown.
+  useEffect(() => {
+    if (pos >= 0 || !rows.length) return;
+    const before = rows.filter((i) => i < cursor);
+    setCursor(before.length ? before[before.length - 1] : rows[0]);
+  }, [pos, rows, cursor]);
 
   useEffect(() => {
     if (!playing) return;
-    if (cursor >= last) {
+    if (pos >= lastPos) {
       setPlaying(false);
       return;
     }
-    const t = setTimeout(() => setCursor((c) => Math.min(c + 1, last)), 220);
+    const t = setTimeout(() => setCursor(rows[Math.min(pos + 1, lastPos)]), 220);
     return () => clearTimeout(t);
-  }, [playing, cursor, last]);
+  }, [playing, pos, lastPos, rows]);
+
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() =>
+      setPlace(el.clientWidth >= SIDE_LIST_MIN ? "side" : el.clientHeight >= BOTTOM_LIST_MIN_H && !matchMedia("(max-width: 900px)").matches ? "bottom" : "none"),
+    );
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const go = (i: number | undefined) => {
+    if (i === undefined) return;
+    setPlaying(false);
+    setCursor(i);
+  };
+  const toPos = (p: number) => go(rows[Math.max(0, Math.min(p, lastPos))]);
+  const toggleLane = (l: number) =>
+    setFocus((f) => {
+      const n = new Set(f);
+      if (n.has(l)) n.delete(l);
+      else n.add(l);
+      return n;
+    });
 
   const step = trace.steps[cursor];
   const loc = trace.error ? LOC.exec(trace.error) : null;
+  const list = (
+    <StepList
+      trace={trace}
+      rows={rows}
+      color={color}
+      cursor={cursor}
+      hover={hover}
+      onSelect={(i) => {
+        go(i);
+        if (view === "log") onShowDiagram();
+      }}
+      onHover={setHover}
+    />
+  );
 
   return (
-    <div className="trace">
+    <div className="trace" ref={root}>
       {trace.error && (
         <div className={bannerOpen ? "trace-error open" : "trace-error"} onClick={() => setBannerOpen(!bannerOpen)}>
           <span className="trace-error-text">
@@ -56,40 +120,127 @@ export function TraceView({ json, onOpenLocation }: Props) {
           )}
         </div>
       )}
-      <div className="trace-controls">
-        <button onClick={() => { setPlaying(false); setCursor(0); }} title="First step" aria-label="First step" className="jump">⏮</button>
-        <button onClick={() => setCursor((c) => Math.max(c - 1, 0))} title="Previous step" aria-label="Previous step">◀</button>
-        <button
-          className="primary"
-          onClick={() => {
-            if (!playing && cursor >= last) setCursor(0);
-            setPlaying(!playing);
-          }}
-          title={playing ? "Pause" : "Play"}
-        >
-          {playing ? "Pause" : "Play"}
-        </button>
-        <button onClick={() => setCursor((c) => Math.min(c + 1, last))} title="Next step" aria-label="Next step">▶</button>
-        <button onClick={() => { setPlaying(false); setCursor(last); }} title="Last step" aria-label="Last step" className="jump">⏭</button>
-        <input
-          type="range"
-          min={0}
-          max={Math.max(last, 0)}
-          value={cursor}
-          onChange={(e) => { setPlaying(false); setCursor(Number(e.target.value)); }}
-          aria-label="Step"
-        />
-        <span className="muted">
-          {cursor + 1}/{trace.steps.length}
-        </span>
-      </div>
-      <SequenceDiagram trace={trace} cursor={cursor} onSelect={(i) => { setPlaying(false); setCursor(i); }} />
-      {step && (
-        <div className="step-detail">
-          <div>{step.log}</div>
-          {step.payload !== undefined && <pre>{JSON.stringify(step.payload, null, 2)}</pre>}
+      {view === "diagram" && (
+        <div className="trace-controls">
+          <button onClick={() => toPos(0)} title="First step" aria-label="First step" className="jump">⏮</button>
+          <button onClick={() => toPos(pos - 1)} title="Previous step" aria-label="Previous step">◀</button>
+          <button
+            className="primary"
+            onClick={() => {
+              if (!playing && pos >= lastPos) setCursor(rows[0]);
+              setPlaying(!playing);
+            }}
+            title={playing ? "Pause" : "Play"}
+          >
+            {playing ? "Pause" : "Play"}
+          </button>
+          <button onClick={() => toPos(pos + 1)} title="Next step" aria-label="Next step">▶</button>
+          <button onClick={() => toPos(lastPos)} title="Last step" aria-label="Last step" className="jump">⏭</button>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(lastPos, 0)}
+            value={Math.max(pos, 0)}
+            onChange={(e) => toPos(Number(e.target.value))}
+            aria-label="Step"
+          />
+          <span className="muted">
+            {pos + 1}/{rows.length}
+          </span>
         </div>
       )}
+      {focus.size > 0 && (
+        <div className="trace-focus">
+          <span className="muted">Only steps of</span>
+          {[...focus].map((l) => (
+            <button key={l} className="chip" style={{ "--c": color[l] } as React.CSSProperties} onClick={() => toggleLane(l)} aria-label={`Stop focusing ${trace.lanes[l].id}`}>
+              <span className="chip-name">{trace.lanes[l].id}</span> <span aria-hidden="true">✕</span>
+            </button>
+          ))}
+          <button className="link" onClick={() => setFocus(new Set())}>
+            Show all
+          </button>
+        </div>
+      )}
+      {view === "log" ? (
+        list
+      ) : (
+        <>
+          <div className={`trace-main list-${place}`}>
+            <SequenceDiagram
+              trace={trace}
+              rows={rows}
+              cols={cols}
+              color={color}
+              focus={focus}
+              cursor={cursor}
+              hover={hover}
+              onSelect={go}
+              onHover={setHover}
+              onToggleLane={toggleLane}
+            />
+            {place !== "none" && list}
+          </div>
+          {step && place === "none" && (
+            <div className="step-detail">
+              <div>{step.log}</div>
+              {step.payload !== undefined && <pre>{JSON.stringify(step.payload, null, 2)}</pre>}
+            </div>
+          )}
+        </>
+      )}
     </div>
+  );
+}
+
+/** Every shown step's log line; linked to the diagram by cursor and hover. */
+function StepList({ trace, rows, color, cursor, hover, onSelect, onHover }: {
+  trace: Trace;
+  rows: number[];
+  color: string[];
+  cursor: number;
+  hover?: number;
+  onSelect: (i: number) => void;
+  onHover: (i: number | undefined) => void;
+}) {
+  const box = useRef<HTMLOListElement>(null);
+
+  // Keep the current step in view, scrolling only the list.
+  useEffect(() => {
+    const el = box.current;
+    const li = el?.querySelector<HTMLElement>(`[data-step="${cursor}"]`);
+    if (!el || !li) return;
+    const top = li.offsetTop - el.offsetTop;
+    if (top < el.scrollTop) el.scrollTop = top - 8;
+    else if (top + li.offsetHeight > el.scrollTop + el.clientHeight) el.scrollTop = top + li.offsetHeight - el.clientHeight + 8;
+  }, [cursor, rows]);
+
+  return (
+    <ol className="step-list" ref={box} aria-label="Steps">
+      {rows.map((i) => {
+        const s = trace.steps[i];
+        const cls = [
+          i === cursor && "current",
+          i === hover && "hover",
+          s.kind === "error" && "error",
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return (
+          <li key={i} data-step={i} className={cls}>
+            <button
+              onClick={() => onSelect(i)}
+              onMouseEnter={() => onHover(i)}
+              onMouseLeave={() => onHover(undefined)}
+              aria-current={i === cursor ? "step" : undefined}
+            >
+              <span className="n">{i + 1}</span>
+              <span className="swatch" style={{ background: s.lane !== undefined ? color[s.lane] : "var(--muted)" }} />
+              <span className="text">{s.log}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
