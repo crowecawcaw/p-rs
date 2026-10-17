@@ -1,5 +1,5 @@
 //! `p observe` with the parsers of upstream's PObserve regression tests registered, for
-//! comparing against upstream PObserve (`scripts/compare-pobserve.sh`).
+//! comparing against upstream PObserve (`scripts/compare-pobserve.py`).
 //!
 //!   cargo run --release -p prs-cli --example observe_regression -- --spec IncreasingInts \
 //!       --parser TestCase4Parser -pp tests/upstream/PObserve/p_specs.pproj -l some.log

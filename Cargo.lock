@@ -51,7 +51,6 @@ dependencies = [
  "prs-sema",
  "prs-syntax",
  "roxmltree",
- "serde",
  "serde_json",
 ]
 
