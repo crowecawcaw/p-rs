@@ -36,6 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Full history for a backfill, so a short sha resolves.
+          fetch-depth: ${{ inputs.sha && '0' || '1' }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -50,10 +53,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "${SHA:-}" ]; then
-            git fetch -q --depth 1 origin "$SHA"
-            git worktree add -q --detach ../src FETCH_HEAD
+            commit=$(git rev-parse --verify "${SHA}^{commit}")
+            git worktree add -q --detach ../src "$commit"
             echo "dir=../src" >> "$GITHUB_OUTPUT"
-            echo "commit=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+            echo "commit=$commit" >> "$GITHUB_OUTPUT"
           else
             echo "dir=." >> "$GITHUB_OUTPUT"
             echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
