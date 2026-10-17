@@ -59,8 +59,9 @@ pub fn compile_fun(prog: &Program, id: FunId) -> CodeBlock {
     }
     c.emit(Op::PushNull);
     c.emit(Op::Return);
-    let param_slots = f.params.iter().map(|v| prog.var(*v).slot).collect();
-    CodeBlock { ops: c.ops, frame_size: c.next_hidden, param_slots }
+    let param_slots: Vec<u32> = f.params.iter().map(|v| prog.var(*v).slot).collect();
+    let params_in_order = param_slots.iter().enumerate().all(|(i, s)| *s as usize == i);
+    CodeBlock { ops: c.ops, frame_size: c.next_hidden, param_slots, params_in_order }
 }
 
 impl<'a> Compiler<'a> {

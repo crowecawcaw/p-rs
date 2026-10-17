@@ -11,8 +11,8 @@ use prs_sema::{BinOp, EventId, PType, Program};
 
 use crate::bytecode::{Op, PathElem, ReceiveCase, Root};
 use crate::runtime::{
-    make_frame, ActiveIter, Actor, Event, Exception, Exec, ExecOutcome, MachineStatus, OpStatus, Pending, Runtime,
-    SchedKind, Stop, Transition,
+    ActiveIter, Actor, Event, Exception, Exec, ExecOutcome, MachineStatus, OpStatus, Pending, Runtime, SchedKind, Stop,
+    Transition,
 };
 use crate::value::{default_value, event_cs_full_name, format_composite, format_exception, NamedTuple, Value};
 
@@ -279,10 +279,8 @@ fn note_mutation(exec: &mut Exec, frame_idx: usize, root: Root) {
         .map(|it| (it.frame, it.slot))
         .collect();
     for (f, slot) in hits {
-        if let Some(frame) = exec.frames.get_mut(f) {
-            if let Some(v) = frame.locals.get_mut(slot as usize + 1) {
-                *v = Value::Int(-1);
-            }
+        if let Some(frame) = exec.frames.get(f) {
+            exec.values[frame.base + slot as usize + 1] = Value::Int(-1);
         }
     }
 }
@@ -375,25 +373,24 @@ impl<'p> Runtime<'p> {
             }
         }
         loop {
-            if exec.frames.is_empty() {
-                return Ok(Flow::Finished(Value::Null));
-            }
-            self.step_work += 1;
-            let limit = self.config.max_work_per_step;
-            if limit > 0 && self.step_work > limit {
-                let msg = format!(
-                    "{} in state {} exceeded the work bound of {} without reaching a scheduling point (possible infinite loop).",
-                    self.actor_name(actor),
-                    self.actor_state_name(actor),
-                    limit
-                );
-                return Err(self.report_bug(msg).into());
-            }
-            match self.step(actor, exec)? {
+            match self.run_frame(actor, exec)? {
                 Flow::Continue => {}
                 other => return Ok(other),
             }
         }
+    }
+
+    /// The bug reported when an action runs longer than `--max-work-per-step` allows.
+    #[cold]
+    #[inline(never)]
+    fn work_bound_exceeded(&mut self, actor: Actor) -> Fault {
+        let msg = format!(
+            "{} in state {} exceeded the work bound of {} without reaching a scheduling point (possible infinite loop).",
+            self.actor_name(actor),
+            self.actor_state_name(actor),
+            self.config.max_work_per_step
+        );
+        self.report_bug(msg).into()
     }
 
     /// Calls a foreign function through the embedder's [`ForeignFunctions`].
@@ -428,8 +425,8 @@ impl<'p> Runtime<'p> {
         match p {
             Pending::Create { machine, iface, payload } => {
                 let v = self.finish_create(m, machine, iface, payload);
-                if let Some(f) = exec.frames.last_mut() {
-                    f.stack.push(v);
+                if !exec.frames.is_empty() {
+                    exec.values.push(v);
                 }
                 Ok(Flow::Continue)
             }
@@ -452,7 +449,7 @@ impl<'p> Runtime<'p> {
         if let Some(case) = cases.iter().find(|c| c.event == e.id) {
             if let Some(frame) = exec.frames.last_mut() {
                 if let Some(slot) = case.param_slot {
-                    frame.locals[slot as usize] = e.payload;
+                    exec.values[frame.base + slot as usize] = e.payload;
                 }
                 frame.pc = case.target as usize;
             }
@@ -551,132 +548,323 @@ impl<'p> Runtime<'p> {
         format_composite(base, &args).map_err(format_exception)
     }
 
-    /// Executes one instruction.
-    fn step(&mut self, actor: Actor, exec: &mut Exec) -> Result<Flow, Fault> {
-        let frame_idx = exec.frames.len() - 1;
-        let op = {
-            let frame = &mut exec.frames[frame_idx];
-            match frame.code.ops.get(frame.pc) {
-                Some(op) => {
-                    frame.pc += 1;
-                    op.clone()
-                }
-                None => Op::Return,
-            }
+    /// Runs the innermost frame until it calls or returns, or until the action finishes,
+    /// unwinds, fails or reaches a scheduling point. Every instruction is one unit of work.
+    fn run_frame(&mut self, actor: Actor, exec: &mut Exec) -> Result<Flow, Fault> {
+        // `step_work` lives in a local while the frame runs, so that it can stay in a
+        // register; it is written back around every call that may log or run monitors.
+        let mut work = self.step_work;
+        let flow = self.run_ops(actor, exec, &mut work);
+        self.step_work = work;
+        flow
+    }
+
+    #[inline(always)]
+    fn run_ops(&mut self, actor: Actor, exec: &mut Exec, work: &mut u64) -> Result<Flow, Fault> {
+        let Some(frame_idx) = exec.frames.len().checked_sub(1) else {
+            return Ok(Flow::Finished(Value::Null));
         };
+        let frame = &exec.frames[frame_idx];
+        let code = frame.code.clone();
+        let base = frame.base;
+        let mut pc = frame.pc;
+        let limit = self.config.max_work_per_step;
         let prog = self.prog;
-        macro_rules! frame {
-            () => {
-                exec.frames[frame_idx]
-            };
+        let java = self.java_semantics();
+        loop {
+            *work += 1;
+            if limit > 0 && *work > limit {
+                self.step_work = *work;
+                let bug = self.work_bound_exceeded(actor);
+                *work = self.step_work;
+                return Err(bug);
+            }
+            let stack = &mut exec.values;
+            // every code block ends with a `Return`
+            let op = &code.ops[pc];
+            pc += 1;
+            match op {
+                Op::PushNull => stack.push(Value::Null),
+                Op::PushBool(b) => stack.push(Value::Bool(*b)),
+                Op::PushInt(i) => stack.push(Value::Int(*i)),
+                Op::PushFloat(f) if java => stack.push(Value::Float(*f as f32 as f64)),
+                Op::PushFloat(f) => stack.push(Value::Float(*f)),
+                Op::PushStr(s) => stack.push(Value::Str(s.clone())),
+                Op::PushEvent(e) => stack.push(Value::Event(*e)),
+                Op::PushThis => {
+                    let v = match actor {
+                        Actor::Machine(m) => Value::Machine(self.machines[m].this.clone()),
+                        Actor::Monitor(_) => Value::Null,
+                    };
+                    stack.push(v);
+                }
+                Op::LoadLocal(s) => {
+                    let v = stack[base + *s as usize].clone();
+                    stack.push(v);
+                }
+                Op::StoreLocal(s) => {
+                    let v = pop(stack);
+                    stack[base + *s as usize] = v;
+                }
+                Op::LoadField(s) => {
+                    let v = self.fields_mut(actor)[*s as usize].clone();
+                    stack.push(v);
+                }
+                Op::LoadGlobal(s) => stack.push(self.globals[*s as usize].clone()),
+                Op::Pop => {
+                    pop(stack);
+                }
+                Op::Dup => {
+                    let v = stack.last().expect("operand stack underflow").clone();
+                    stack.push(v);
+                }
+                Op::MakeTuple(n) => {
+                    let vs = pop_n(stack, *n as usize);
+                    stack.push(Value::Tuple(Rc::new(vs)));
+                }
+                Op::MakeNamedTuple(names) => {
+                    let vs = pop_n(stack, names.len());
+                    stack.push(Value::NamedTuple(Rc::new(NamedTuple { names: names.clone(), values: vs })));
+                }
+                Op::TupleGet(i) => {
+                    let base = pop(stack);
+                    let v = match &base {
+                        Value::Tuple(t) => t.get(*i as usize).cloned().ok_or_else(index_oor)?,
+                        Value::NamedTuple(t) => t.values.get(*i as usize).cloned().ok_or_else(index_oor)?,
+                        Value::Null => return Err(nre().into()),
+                        other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PTuple", prog).into()),
+                    };
+                    stack.push(v);
+                }
+                Op::SeqGet => {
+                    let idx = pop(stack);
+                    let base = pop(stack);
+                    let v = match &base {
+                        Value::Seq(s) => {
+                            let i = idx.as_int();
+                            if i < 0 || i as usize >= s.len() {
+                                return Err(index_oor().into());
+                            }
+                            s[i as usize].clone()
+                        }
+                        Value::Null => return Err(nre().into()),
+                        other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSeq", prog).into()),
+                    };
+                    stack.push(v);
+                }
+                Op::SetGet => {
+                    let idx = pop(stack);
+                    let base = pop(stack);
+                    let v = match &base {
+                        Value::Set(s) => {
+                            let i = idx.as_int();
+                            if i < 0 {
+                                return Err(element_at_oor().into());
+                            }
+                            s.element_at(i as usize).cloned().ok_or_else(element_at_oor)?
+                        }
+                        Value::Null => return Err(nre().into()),
+                        other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSet", prog).into()),
+                    };
+                    stack.push(v);
+                }
+                Op::MapGet { java_null } => {
+                    let key = pop(stack);
+                    let base = pop(stack);
+                    let v = match &base {
+                        Value::Map(m) if *java_null && java => m.get(&key).cloned().unwrap_or(Value::Null),
+                        Value::Map(m) => m.get(&key).cloned().ok_or_else(|| key_not_found(&key.to_display(prog)))?,
+                        Value::Null => return Err(nre().into()),
+                        other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
+                    };
+                    stack.push(v);
+                }
+                Op::Sizeof => {
+                    let base = pop(stack);
+                    if base.is_null() {
+                        return Err(nre().into());
+                    }
+                    stack.push(Value::Int(base.count() as i64));
+                }
+                Op::Contains => {
+                    let coll = pop(stack);
+                    let item = pop(stack);
+                    let b = match &coll {
+                        Value::Seq(s) => s.contains(&item),
+                        Value::Set(s) => s.contains(&item),
+                        Value::Map(m) => m.contains_key(&item),
+                        Value::Null => return Err(nre().into()),
+                        _ => false,
+                    };
+                    stack.push(Value::Bool(b));
+                }
+                Op::Default(v) => stack.push(v.clone()),
+                Op::Format { base, nargs, types } => {
+                    let at = stack.len() - *nargs as usize;
+                    let text = self.format(base, &stack[at..], types)?;
+                    stack.truncate(at);
+                    stack.push(Value::Str(Rc::from(text)));
+                }
+                Op::Bin(op) => {
+                    let b = pop(stack);
+                    let a = pop(stack);
+                    let r = arith(*op, a, b)?;
+                    // P floats are Java `float`s in the PObserve backend
+                    let r = match r {
+                        Value::Float(f) if java => Value::Float(f as f32 as f64),
+                        r => r,
+                    };
+                    stack.push(r);
+                }
+                Op::Neg => {
+                    let v = match pop(stack) {
+                        Value::Int(i) => Value::Int(i.wrapping_neg()),
+                        Value::Float(f) => Value::Float(-f),
+                        Value::Null => return Err(nre().into()),
+                        other => other,
+                    };
+                    stack.push(v);
+                }
+                Op::Not => {
+                    let a = pop(stack);
+                    if a.is_null() {
+                        return Err(nre().into());
+                    }
+                    stack.push(Value::Bool(!a.as_bool()));
+                }
+                Op::Jump(t) => pc = *t as usize,
+                Op::JumpIfFalse(t) => {
+                    if !pop(stack).as_bool() {
+                        pc = *t as usize;
+                    }
+                }
+                Op::JumpIfTrue(t) => {
+                    if pop(stack).as_bool() {
+                        pc = *t as usize;
+                    }
+                }
+                Op::Cast(ty) => check_cast(stack.last().expect("operand stack underflow"), ty, prog)?,
+                Op::CoerceFloat => {
+                    let v = match pop(stack) {
+                        Value::Int(i) => Value::Float(i as f64),
+                        Value::Null => return Err(nre().into()),
+                        other => other,
+                    };
+                    stack.push(v);
+                }
+                Op::CoerceInt => {
+                    let v = match pop(stack) {
+                        Value::Float(f) => Value::Int(f as i64),
+                        Value::Null => return Err(nre().into()),
+                        other => other,
+                    };
+                    stack.push(v);
+                }
+                Op::Call { fun, nargs } => {
+                    let nargs = *nargs as usize;
+                    if let Some(callee) = self.code.get(*fun) {
+                        exec.frames[frame_idx].pc = pc;
+                        exec.push_frame(callee.clone(), *fun, nargs);
+                        return Ok(Flow::Continue);
+                    }
+                    let at = stack.len() - nargs;
+                    self.step_work = *work;
+                    let v = self.call_foreign(actor, *fun, &stack[at..]);
+                    *work = self.step_work;
+                    let v = v?;
+                    stack.truncate(at);
+                    stack.push(v);
+                }
+                Op::Return => {
+                    let v = pop(stack);
+                    let frame = exec.frames.pop().expect("a running frame");
+                    stack.truncate(frame.base);
+                    let depth = exec.frames.len();
+                    exec.iters.retain(|it| it.frame < depth);
+                    if depth == 0 {
+                        return Ok(Flow::Finished(v));
+                    }
+                    stack.push(v);
+                    return Ok(Flow::Continue);
+                }
+                Op::Store { root, path } => {
+                    let rhs = pop(stack);
+                    let keys = pop_n(stack, key_count(path));
+                    if path.len() == 1 {
+                        note_mutation(exec, frame_idx, *root);
+                    }
+                    let target: &mut Value = match *root {
+                        Root::Local(s) => &mut exec.values[base + s as usize],
+                        Root::Field(s) => &mut self.fields_mut(actor)[s as usize],
+                    };
+                    match path.split_last() {
+                        None => *target = rhs,
+                        Some((last, init)) => {
+                            let nk = key_count(init);
+                            let base = navigate(target, init, &keys[..nk], prog)?;
+                            store_at(base, last, keys.get(nk), rhs, prog)?;
+                        }
+                    }
+                }
+                Op::ForeachInit { iter_slot, root } => {
+                    let coll = pop(stack);
+                    if coll.is_null() {
+                        return Err(nre().into());
+                    }
+                    let slot = base + *iter_slot as usize;
+                    stack[slot] = coll;
+                    stack[slot + 1] = Value::Int(0);
+                    exec.iters.retain(|it| !(it.frame == frame_idx && it.slot == *iter_slot));
+                    if let Some(root) = root {
+                        exec.iters.push(ActiveIter { frame: frame_idx, slot: *iter_slot, root: *root });
+                    }
+                }
+                Op::ForeachNext { iter_slot, item_slot, exit } => {
+                    let slot = base + *iter_slot as usize;
+                    let idx = stack[slot + 1].as_int();
+                    if idx < 0 {
+                        return Err(modified().into());
+                    }
+                    let item = match &stack[slot] {
+                        Value::Seq(s) => s.get(idx as usize).cloned(),
+                        Value::Set(s) => s.element_at(idx as usize).cloned(),
+                        _ => unreachable!("foreach over a sequence or set"),
+                    };
+                    match item {
+                        Some(v) => {
+                            stack[base + *item_slot as usize] = v;
+                            stack[slot + 1] = Value::Int(idx + 1);
+                        }
+                        None => {
+                            exec.iters.retain(|it| !(it.frame == frame_idx && it.slot == *iter_slot));
+                            pc = *exit as usize;
+                        }
+                    }
+                }
+                _ => {
+                    exec.frames[frame_idx].pc = pc;
+                    self.step_work = *work;
+                    let flow = self.other_op(actor, exec, frame_idx, op);
+                    *work = self.step_work;
+                    match flow? {
+                        Flow::Continue => pc = exec.frames[frame_idx].pc,
+                        flow => return Ok(flow),
+                    }
+                }
+            }
         }
-        macro_rules! stack {
-            () => {
-                exec.frames[frame_idx].stack
-            };
-        }
+    }
+
+    /// Executes the instructions that `run_frame` leaves out: the rarer ones and those that
+    /// reach scheduling points or leave the action. The frame's `pc` is up to date.
+    #[inline(never)]
+    fn other_op(&mut self, actor: Actor, exec: &mut Exec, frame_idx: usize, op: &Op) -> Result<Flow, Fault> {
+        let prog = self.prog;
+        let base = exec.frames[frame_idx].base;
+        let stack = &mut exec.values;
         match op {
-            Op::PushNull => stack!().push(Value::Null),
-            Op::PushBool(b) => stack!().push(Value::Bool(b)),
-            Op::PushInt(i) => stack!().push(Value::Int(i)),
-            Op::PushFloat(f) if self.java_semantics() => stack!().push(Value::Float(f as f32 as f64)),
-            Op::PushFloat(f) => stack!().push(Value::Float(f)),
-            Op::PushStr(s) => stack!().push(Value::Str(s)),
-            Op::PushEvent(e) => stack!().push(Value::Event(e)),
-            Op::PushThis => {
-                let v = match actor {
-                    Actor::Machine(m) => Value::Machine(self.machines[m].this.clone()),
-                    Actor::Monitor(_) => Value::Null,
-                };
-                stack!().push(v);
-            }
-            Op::LoadLocal(s) => {
-                let v = frame!().locals[s as usize].clone();
-                stack!().push(v);
-            }
-            Op::StoreLocal(s) => {
-                let v = pop(&mut stack!());
-                frame!().locals[s as usize] = v;
-            }
-            Op::LoadField(s) => {
-                let v = self.fields_mut(actor)[s as usize].clone();
-                stack!().push(v);
-            }
-            Op::LoadGlobal(s) => {
-                let v = self.globals[s as usize].clone();
-                stack!().push(v);
-            }
-            Op::Pop => {
-                pop(&mut stack!());
-            }
-            Op::Dup => {
-                let v = stack!().last().expect("operand stack underflow").clone();
-                stack!().push(v);
-            }
-            Op::MakeTuple(n) => {
-                let vs = pop_n(&mut stack!(), n as usize);
-                stack!().push(Value::Tuple(Rc::new(vs)));
-            }
-            Op::MakeNamedTuple(names) => {
-                let vs = pop_n(&mut stack!(), names.len());
-                stack!().push(Value::NamedTuple(Rc::new(NamedTuple { names, values: vs })));
-            }
-            Op::TupleGet(i) => {
-                let base = pop(&mut stack!());
-                let v = match &base {
-                    Value::Tuple(t) => t.get(i as usize).cloned().ok_or_else(index_oor)?,
-                    Value::NamedTuple(t) => t.values.get(i as usize).cloned().ok_or_else(index_oor)?,
-                    Value::Null => return Err(nre().into()),
-                    other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PTuple", prog).into()),
-                };
-                stack!().push(v);
-            }
-            Op::SeqGet => {
-                let idx = pop(&mut stack!());
-                let base = pop(&mut stack!());
-                let v = match &base {
-                    Value::Seq(s) => {
-                        let i = idx.as_int();
-                        if i < 0 || i as usize >= s.len() {
-                            return Err(index_oor().into());
-                        }
-                        s[i as usize].clone()
-                    }
-                    Value::Null => return Err(nre().into()),
-                    other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSeq", prog).into()),
-                };
-                stack!().push(v);
-            }
-            Op::SetGet => {
-                let idx = pop(&mut stack!());
-                let base = pop(&mut stack!());
-                let v = match &base {
-                    Value::Set(s) => {
-                        let i = idx.as_int();
-                        if i < 0 {
-                            return Err(element_at_oor().into());
-                        }
-                        s.element_at(i as usize).cloned().ok_or_else(element_at_oor)?
-                    }
-                    Value::Null => return Err(nre().into()),
-                    other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSet", prog).into()),
-                };
-                stack!().push(v);
-            }
-            Op::MapGet { java_null } => {
-                let key = pop(&mut stack!());
-                let base = pop(&mut stack!());
-                let v = match &base {
-                    Value::Map(m) if java_null && self.java_semantics() => m.get(&key).cloned().unwrap_or(Value::Null),
-                    Value::Map(m) => m.get(&key).cloned().ok_or_else(|| key_not_found(&key.to_display(prog)))?,
-                    Value::Null => return Err(nre().into()),
-                    other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
-                };
-                stack!().push(v);
-            }
             Op::Keys => {
-                let base = pop(&mut stack!());
-                let v = match &base {
+                let v = match &pop(stack) {
                     Value::Map(m) if self.java_semantics() => {
                         Value::Seq(Rc::new(crate::javafmt::map_keys_in_java_order(m)))
                     }
@@ -684,11 +872,10 @@ impl<'p> Runtime<'p> {
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
                 };
-                stack!().push(v);
+                stack.push(v);
             }
             Op::Values => {
-                let base = pop(&mut stack!());
-                let v = match &base {
+                let v = match &pop(stack) {
                     Value::Map(m) if self.java_semantics() => {
                         Value::Seq(Rc::new(crate::javafmt::map_values_in_java_order(m)))
                     }
@@ -696,106 +883,16 @@ impl<'p> Runtime<'p> {
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
                 };
-                stack!().push(v);
-            }
-            Op::Sizeof => {
-                let base = pop(&mut stack!());
-                if base.is_null() {
-                    return Err(nre().into());
-                }
-                stack!().push(Value::Int(base.count() as i64));
-            }
-            Op::Contains => {
-                let coll = pop(&mut stack!());
-                let item = pop(&mut stack!());
-                let b = match &coll {
-                    Value::Seq(s) => s.contains(&item),
-                    Value::Set(s) => s.contains(&item),
-                    Value::Map(m) => m.contains_key(&item),
-                    Value::Null => return Err(nre().into()),
-                    _ => false,
-                };
-                stack!().push(Value::Bool(b));
-            }
-            Op::Default(ty) => {
-                stack!().push(ty.clone());
-            }
-            Op::Format { base, nargs, types } => {
-                let vals = pop_n(&mut stack!(), nargs as usize);
-                let text = self.format(&base, &vals, &types)?;
-                stack!().push(Value::Str(Rc::from(text)));
-            }
-            Op::Bin(op) => {
-                let b = pop(&mut stack!());
-                let a = pop(&mut stack!());
-                let r = arith(op, a, b)?;
-                // P floats are Java `float`s in the PObserve backend
-                let r = match r {
-                    Value::Float(f) if self.java_semantics() => Value::Float(f as f32 as f64),
-                    r => r,
-                };
-                stack!().push(r);
-            }
-            Op::Neg => {
-                let a = pop(&mut stack!());
-                let v = match a {
-                    Value::Int(i) => Value::Int(i.wrapping_neg()),
-                    Value::Float(f) => Value::Float(-f),
-                    Value::Null => return Err(nre().into()),
-                    other => other,
-                };
-                stack!().push(v);
-            }
-            Op::Not => {
-                let a = pop(&mut stack!());
-                if a.is_null() {
-                    return Err(nre().into());
-                }
-                stack!().push(Value::Bool(!a.as_bool()));
-            }
-            Op::Jump(t) => frame!().pc = t as usize,
-            Op::JumpIfFalse(t) => {
-                let c = pop(&mut stack!());
-                if !c.as_bool() {
-                    frame!().pc = t as usize;
-                }
-            }
-            Op::JumpIfTrue(t) => {
-                let c = pop(&mut stack!());
-                if c.as_bool() {
-                    frame!().pc = t as usize;
-                }
-            }
-            Op::Cast(ty) => {
-                check_cast(stack!().last().expect("operand stack underflow"), &ty, prog)?;
-            }
-            Op::CoerceFloat => {
-                let v = pop(&mut stack!());
-                let v = match v {
-                    Value::Int(i) => Value::Float(i as f64),
-                    Value::Null => return Err(nre().into()),
-                    other => other,
-                };
-                stack!().push(v);
-            }
-            Op::CoerceInt => {
-                let v = pop(&mut stack!());
-                let v = match v {
-                    Value::Float(f) => Value::Int(f as i64),
-                    Value::Null => return Err(nre().into()),
-                    other => other,
-                };
-                stack!().push(v);
+                stack.push(v);
             }
             Op::CoerceInterface(iface) => {
-                let v = pop(&mut stack!());
-                let v = match v {
+                let v = match pop(stack) {
                     Value::Machine(r) => {
                         let perms = self.code.permissions[iface.idx()].clone();
                         if !perms.iter().all(|e| r.permissions.contains(e)) {
                             return Err(Exception::new(
                                 "PChecker.Runtime.Exceptions.PIllegalCoercionException",
-                                format!("value cannot be coerced to interface I_{}", prog.interface(iface).name),
+                                format!("value cannot be coerced to interface I_{}", prog.interface(*iface).name),
                             )
                             .into());
                         }
@@ -807,15 +904,15 @@ impl<'p> Runtime<'p> {
                     }
                     other => other,
                 };
-                stack!().push(v);
+                stack.push(v);
             }
             Op::ChooseBool => {
                 let name = self.actor_name(actor);
                 let b = self.choose_bool(2, &name)?;
-                stack!().push(Value::Bool(b));
+                stack.push(Value::Bool(b));
             }
             Op::ChooseInt => {
-                let v = pop(&mut stack!());
+                let v = pop(stack);
                 if v.is_null() {
                     return Err(nre().into());
                 }
@@ -829,82 +926,38 @@ impl<'p> Runtime<'p> {
                 }
                 let name = self.actor_name(actor);
                 let i = self.choose_int(max.max(0) as i32, &name)?;
-                stack!().push(Value::Int(i as i64));
+                stack.push(Value::Int(i as i64));
             }
             Op::ChooseSeq => {
-                let v = pop(&mut stack!());
+                let v = pop(stack);
                 let Value::Seq(s) = &v else { return Err(nre().into()) };
                 let i = self.pick(actor, s.len(), "sequence")?;
-                let r = s[i].clone();
-                stack!().push(r);
+                stack.push(s[i].clone());
             }
             Op::ChooseSet => {
-                let v = pop(&mut stack!());
+                let v = pop(stack);
                 let Value::Set(s) = &v else { return Err(nre().into()) };
                 let i = self.pick(actor, s.len(), "set")?;
-                let r = s.element_at(i).expect("choice in range").clone();
-                stack!().push(r);
+                stack.push(s.element_at(i).expect("choice in range").clone());
             }
             Op::ChooseMap => {
-                let v = pop(&mut stack!());
+                let v = pop(stack);
                 let Value::Map(m) = &v else { return Err(nre().into()) };
                 let i = self.pick(actor, m.len(), "map")?;
-                let r = m.key_at(i).expect("choice in range").clone();
-                stack!().push(r);
-            }
-            Op::Call { fun, nargs } => {
-                let args = pop_n(&mut stack!(), nargs as usize);
-                match self.code.get(fun) {
-                    Some(code) => {
-                        exec.frames.push(make_frame(code.clone(), fun, args));
-                    }
-                    None => {
-                        let v = self.call_foreign(actor, fun, &args)?;
-                        stack!().push(v);
-                    }
-                }
-            }
-            Op::Return => {
-                let v = pop(&mut stack!());
-                exec.frames.pop();
-                exec.iters.retain(|it| it.frame < exec.frames.len());
-                match exec.frames.last_mut() {
-                    Some(f) => f.stack.push(v),
-                    None => return Ok(Flow::Finished(v)),
-                }
-            }
-            Op::Store { root, path } => {
-                let rhs = pop(&mut stack!());
-                let keys = pop_n(&mut stack!(), key_count(&path));
-                if path.len() == 1 {
-                    note_mutation(exec, frame_idx, root);
-                }
-                let target: &mut Value = match root {
-                    Root::Local(s) => &mut exec.frames[frame_idx].locals[s as usize],
-                    Root::Field(s) => &mut self.fields_mut(actor)[s as usize],
-                };
-                match path.split_last() {
-                    None => *target = rhs,
-                    Some((last, init)) => {
-                        let nk = key_count(init);
-                        let base = navigate(target, init, &keys[..nk], prog)?;
-                        store_at(base, last, keys.get(nk), rhs, prog)?;
-                    }
-                }
+                stack.push(m.key_at(i).expect("choice in range").clone());
             }
             Op::Insert { root, path } => {
-                let value = pop(&mut stack!());
-                let index = pop(&mut stack!());
-                let keys = pop_n(&mut stack!(), key_count(&path));
+                let value = pop(stack);
+                let index = pop(stack);
+                let keys = pop_n(stack, key_count(path));
                 if path.is_empty() {
-                    note_mutation(exec, frame_idx, root);
+                    note_mutation(exec, frame_idx, *root);
                 }
-                let target: &mut Value = match root {
-                    Root::Local(s) => &mut exec.frames[frame_idx].locals[s as usize],
+                let target: &mut Value = match *root {
+                    Root::Local(s) => &mut exec.values[base + s as usize],
                     Root::Field(s) => &mut self.fields_mut(actor)[s as usize],
                 };
-                let coll = navigate(target, &path, &keys, prog)?;
-                match coll {
+                match navigate(target, path, &keys, prog)? {
                     Value::Seq(s) => {
                         let i = index.as_int();
                         if i < 0 || i as usize > s.len() {
@@ -925,17 +978,16 @@ impl<'p> Runtime<'p> {
                 }
             }
             Op::Add { root, path } => {
-                let value = pop(&mut stack!());
-                let keys = pop_n(&mut stack!(), key_count(&path));
+                let value = pop(stack);
+                let keys = pop_n(stack, key_count(path));
                 if path.is_empty() {
-                    note_mutation(exec, frame_idx, root);
+                    note_mutation(exec, frame_idx, *root);
                 }
-                let target: &mut Value = match root {
-                    Root::Local(s) => &mut exec.frames[frame_idx].locals[s as usize],
+                let target: &mut Value = match *root {
+                    Root::Local(s) => &mut exec.values[base + s as usize],
                     Root::Field(s) => &mut self.fields_mut(actor)[s as usize],
                 };
-                let coll = navigate(target, &path, &keys, prog)?;
-                match coll {
+                match navigate(target, path, &keys, prog)? {
                     Value::Set(s) => {
                         Rc::make_mut(s).insert(value);
                     }
@@ -945,17 +997,16 @@ impl<'p> Runtime<'p> {
                 }
             }
             Op::Remove { root, path } => {
-                let value = pop(&mut stack!());
-                let keys = pop_n(&mut stack!(), key_count(&path));
+                let value = pop(stack);
+                let keys = pop_n(stack, key_count(path));
                 if path.is_empty() {
-                    note_mutation(exec, frame_idx, root);
+                    note_mutation(exec, frame_idx, *root);
                 }
-                let target: &mut Value = match root {
-                    Root::Local(s) => &mut exec.frames[frame_idx].locals[s as usize],
+                let target: &mut Value = match *root {
+                    Root::Local(s) => &mut exec.values[base + s as usize],
                     Root::Field(s) => &mut self.fields_mut(actor)[s as usize],
                 };
-                let coll = navigate(target, &path, &keys, prog)?;
-                match coll {
+                match navigate(target, path, &keys, prog)? {
                     Value::Seq(s) => {
                         let i = value.as_int();
                         if i < 0 || i as usize >= s.len() {
@@ -974,8 +1025,8 @@ impl<'p> Runtime<'p> {
                 }
             }
             Op::Assert => {
-                let msg = pop(&mut stack!());
-                let cond = pop(&mut stack!());
+                let msg = pop(stack);
+                let cond = pop(stack);
                 if !cond.as_bool() {
                     if self.java_semantics() {
                         // `Monitor.tryAssert`: a `PAssertionFailureException`
@@ -989,10 +1040,10 @@ impl<'p> Runtime<'p> {
             }
             Op::Print if self.java_semantics() => {
                 // the generated monitors log through a java.util.logging logger that is off
-                pop(&mut stack!());
+                pop(stack);
             }
             Op::Print => {
-                let msg = pop(&mut stack!());
+                let msg = pop(stack);
                 let text = msg.to_display(prog);
                 self.log(|_| format!("<PrintLog> {}", text));
                 if self.json_enabled() {
@@ -1000,14 +1051,14 @@ impl<'p> Runtime<'p> {
                 }
             }
             Op::Create { iface, has_payload } => {
-                let payload = if has_payload { pop(&mut stack!()) } else { Value::Null };
+                let payload = if *has_payload { pop(stack) } else { Value::Null };
                 let Actor::Machine(m) = actor else {
                     return Err(Exception::new("System.InvalidOperationException", "monitors cannot create machines")
                         .from_source(crate::runtime::P_CHECKER_CORE)
                         .into());
                 };
                 let creator_iface = self.machines[m].iface;
-                let created = self.module.link(creator_iface, iface).unwrap_or(iface);
+                let created = self.module.link(creator_iface, *iface).unwrap_or(*iface);
                 let decl = self.machines[m].decl;
                 if !prog.machine(decl).creates.contains(&created) {
                     let msg = format!(
@@ -1028,9 +1079,9 @@ impl<'p> Runtime<'p> {
                 return Ok(Flow::Yield(SchedKind::Create));
             }
             Op::Send { has_payload } => {
-                let payload = if has_payload { Some(pop(&mut stack!())) } else { None };
-                let event = pop(&mut stack!());
-                let target = pop(&mut stack!());
+                let payload = if *has_payload { Some(pop(stack)) } else { None };
+                let event = pop(stack);
+                let target = pop(stack);
                 let Actor::Machine(m) = actor else {
                     return Err(Exception::new("System.InvalidOperationException", "monitors cannot send events")
                         .from_source(crate::runtime::P_CHECKER_CORE)
@@ -1087,8 +1138,8 @@ impl<'p> Runtime<'p> {
                 return Ok(Flow::Yield(SchedKind::Send));
             }
             Op::Raise { has_payload } => {
-                let payload = if has_payload { Some(pop(&mut stack!())) } else { None };
-                let event = pop(&mut stack!());
+                let payload = if *has_payload { Some(pop(stack)) } else { None };
+                let event = pop(stack);
                 let name = self.actor_name(actor);
                 let state = self.actor_state_name(actor);
                 if let Actor::Machine(m) = actor {
@@ -1113,8 +1164,8 @@ impl<'p> Runtime<'p> {
                 return Ok(Flow::Unwound);
             }
             Op::Announce { has_payload } => {
-                let payload = if has_payload { pop(&mut stack!()) } else { Value::Null };
-                let event = pop(&mut stack!());
+                let payload = if *has_payload { pop(stack) } else { Value::Null };
+                let event = pop(stack);
                 let Actor::Machine(m) = actor else {
                     return Err(Exception::new("System.InvalidOperationException", "monitors cannot announce events")
                         .from_source(crate::runtime::P_CHECKER_CORE)
@@ -1161,7 +1212,7 @@ impl<'p> Runtime<'p> {
                 self.announce_internal(m, &e)?;
             }
             Op::Goto { state, has_payload } => {
-                let payload = if has_payload { Some(pop(&mut stack!())) } else { None };
+                let payload = if *has_payload { Some(pop(stack)) } else { None };
                 match actor {
                     Actor::Machine(m) => {
                         if self.machines[m].status != MachineStatus::Active {
@@ -1169,11 +1220,11 @@ impl<'p> Runtime<'p> {
                             return Err(self.report_bug(msg).into());
                         }
                         self.machines[m].goto_payload = payload;
-                        self.machines[m].pending_transition = Transition::Goto(state);
+                        self.machines[m].pending_transition = Transition::Goto(*state);
                     }
                     Actor::Monitor(mon) => {
                         self.monitors[mon].goto_payload = payload;
-                        self.monitors[mon].pending_transition = Transition::Goto(state);
+                        self.monitors[mon].pending_transition = Transition::Goto(*state);
                     }
                 }
                 return Ok(Flow::Unwound);
@@ -1184,41 +1235,9 @@ impl<'p> Runtime<'p> {
                         .from_source(crate::runtime::P_CHECKER_CORE)
                         .into());
                 };
-                return self.do_receive(m, exec, cases, false);
+                return self.do_receive(m, exec, cases.clone(), false);
             }
-            Op::ForeachInit { iter_slot, root } => {
-                let coll = pop(&mut stack!());
-                if coll.is_null() {
-                    return Err(nre().into());
-                }
-                frame!().locals[iter_slot as usize] = coll;
-                frame!().locals[iter_slot as usize + 1] = Value::Int(0);
-                exec.iters.retain(|it| !(it.frame == frame_idx && it.slot == iter_slot));
-                if let Some(root) = root {
-                    exec.iters.push(ActiveIter { frame: frame_idx, slot: iter_slot, root });
-                }
-            }
-            Op::ForeachNext { iter_slot, item_slot, exit } => {
-                let idx = frame!().locals[iter_slot as usize + 1].as_int();
-                if idx < 0 {
-                    return Err(modified().into());
-                }
-                let item = match &frame!().locals[iter_slot as usize] {
-                    Value::Seq(s) => s.get(idx as usize).cloned(),
-                    Value::Set(s) => s.element_at(idx as usize).cloned(),
-                    _ => unreachable!("foreach over a sequence or set"),
-                };
-                match item {
-                    Some(v) => {
-                        frame!().locals[item_slot as usize] = v;
-                        frame!().locals[iter_slot as usize + 1] = Value::Int(idx + 1);
-                    }
-                    None => {
-                        exec.iters.retain(|it| !(it.frame == frame_idx && it.slot == iter_slot));
-                        frame!().pc = exit as usize;
-                    }
-                }
-            }
+            _ => unreachable!("run_frame executes {:?}", op),
         }
         Ok(Flow::Continue)
     }

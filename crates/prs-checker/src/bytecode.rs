@@ -151,4 +151,7 @@ pub struct CodeBlock {
     pub frame_size: u32,
     /// Slots the parameters occupy, in order.
     pub param_slots: Vec<u32>,
+    /// Whether parameter `i` occupies slot `i`, so arguments can stay where the caller
+    /// pushed them.
+    pub params_in_order: bool,
 }

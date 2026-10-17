@@ -184,13 +184,15 @@ pub enum Pending {
     },
 }
 
+/// One active call. Its locals and operand stack live in [`Exec::values`].
 #[derive(Debug, Clone)]
 pub struct Frame {
     pub code: Rc<CodeBlock>,
     pub fun: FunId,
     pub pc: usize,
-    pub locals: Vec<Value>,
-    pub stack: Vec<Value>,
+    /// Index of the frame's first local in [`Exec::values`]. The `code.frame_size` locals
+    /// are followed by the operand stack, which ends where the next frame begins.
+    pub base: usize,
 }
 
 /// A `foreach` loop in progress, used to detect modification of the iterated variable.
@@ -205,6 +207,8 @@ pub struct ActiveIter {
 #[derive(Debug, Clone, Default)]
 pub struct Exec {
     pub frames: Vec<Frame>,
+    /// Locals and operand stacks of all frames, outermost first.
+    pub values: Vec<Value>,
     pub pending: Option<Pending>,
     /// Name of the action for diagnostics.
     pub action: String,
@@ -1674,10 +1678,13 @@ impl<'p> Runtime<'p> {
     }
 
     pub fn new_exec(&self, f: FunId, args: Vec<Value>) -> Exec {
-        let mut exec =
-            Exec { frames: Vec::new(), pending: None, action: self.fun_name(f).to_string(), iters: Vec::new() };
+        let mut exec = Exec { action: self.fun_name(f).to_string(), ..Exec::default() };
         if let Some(code) = self.code.get(f) {
-            exec.frames.push(make_frame(code.clone(), f, args));
+            // room for the locals and a typical operand stack and call depth
+            exec.values = Vec::with_capacity(code.frame_size as usize + 32);
+            let nargs = args.len();
+            exec.values.extend(args);
+            exec.push_frame(code.clone(), f, nargs);
         }
         exec
     }
@@ -2458,12 +2465,31 @@ impl<'p> Runtime<'p> {
     }
 }
 
-pub fn make_frame(code: Rc<CodeBlock>, fun: FunId, args: Vec<Value>) -> Frame {
-    let mut locals = vec![Value::Null; code.frame_size as usize];
-    for (slot, arg) in code.param_slots.iter().zip(args) {
-        locals[*slot as usize] = arg;
+impl Exec {
+    /// Enters `code`, whose `nargs` arguments are on top of the operand stack.
+    pub fn push_frame(&mut self, code: Rc<CodeBlock>, fun: FunId, nargs: usize) {
+        let base = self.values.len() - nargs;
+        let size = code.frame_size as usize;
+        if code.params_in_order && nargs == code.param_slots.len() {
+            // the arguments already sit in their slots
+            self.values.resize(base + size, Value::Null);
+        } else {
+            let args = self.values.split_off(base);
+            self.values.resize(base + size, Value::Null);
+            for (slot, arg) in code.param_slots.iter().zip(args) {
+                self.values[base + *slot as usize] = arg;
+            }
+        }
+        self.frames.push(Frame { code, fun, pc: 0, base });
     }
-    Frame { code, fun, pc: 0, locals, stack: Vec::new() }
+
+    /// The locals and the operand stack of frame `i`.
+    pub fn frame_values(&self, i: usize) -> (&[Value], &[Value]) {
+        let f = &self.frames[i];
+        let locals_end = f.base + f.code.frame_size as usize;
+        let end = self.frames.get(i + 1).map_or(self.values.len(), |next| next.base);
+        (&self.values[f.base..locals_end], &self.values[locals_end..end])
+    }
 }
 
 /// Outcome of running an action.
