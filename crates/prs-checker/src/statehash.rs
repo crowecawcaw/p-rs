@@ -205,15 +205,13 @@ fn exec(x: &Exec, h: &mut StableHasher) {
             h.write_u64(target.id);
             event(e, h);
         }
-        Some(Pending::ReceiveWait { cases, exit }) => {
+        Some(Pending::ReceiveWait { cases }) => {
             h.write_u8(3);
             receive_cases(cases, h);
-            h.write_u32(*exit);
         }
-        Some(Pending::ReceiveFound { cases, exit, event: e }) => {
+        Some(Pending::ReceiveFound { cases, event: e }) => {
             h.write_u8(4);
             receive_cases(cases, h);
-            h.write_u32(*exit);
             event(e, h);
         }
     }

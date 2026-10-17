@@ -415,10 +415,7 @@ impl Value {
             Value::Seq(s) => s.len(),
             Value::Set(s) => s.len(),
             Value::Map(m) => m.len(),
-            Value::Tuple(t) => t.len(),
-            Value::NamedTuple(t) => t.values.len(),
-            Value::Str(s) => s.len(),
-            _ => 0,
+            _ => unreachable!("sizeof of a sequence, set or map"),
         }
     }
 

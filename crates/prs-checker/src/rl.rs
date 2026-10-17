@@ -59,7 +59,6 @@ pub struct QLearningStrategy {
     /// State of the last scheduling point and the choices made since.
     last_state: u64,
     choices_since: u64,
-    pub epochs: usize,
 }
 
 impl QLearningStrategy {
@@ -74,13 +73,7 @@ impl QLearningStrategy {
             previous: 0,
             last_state: 0,
             choices_since: 0,
-            epochs: 0,
         }
-    }
-
-    /// Number of distinct states seen so far.
-    pub fn distinct_states(&self) -> usize {
-        self.frequencies.len()
     }
 
     fn capture(&mut self, state: u64) -> u64 {
@@ -192,7 +185,6 @@ impl Strategy for QLearningStrategy {
         self.previous = 0;
         self.last_state = 0;
         self.choices_since = 0;
-        self.epochs += 1;
         self.steps = 0;
         true
     }

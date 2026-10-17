@@ -25,14 +25,6 @@ pub enum PathElem {
     MapKey,
 }
 
-/// Which collection kind a `Contains`, `Insert`, `Remove` or `Foreach` operates on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CollKind {
-    Seq,
-    Set,
-    Map,
-}
-
 #[derive(Debug, Clone)]
 pub struct ReceiveCase {
     pub event: EventId,
@@ -70,7 +62,7 @@ pub enum Op {
     Keys,
     Values,
     Sizeof,
-    Contains(CollKind),
+    Contains,
     /// Pushes a precomputed default value (values are copy-on-write, so sharing is safe).
     Default(crate::value::Value),
     /// `format(base, args)`; `types` are the static types of the arguments.
@@ -106,7 +98,6 @@ pub enum Op {
     Insert {
         root: Root,
         path: Rc<[PathElem]>,
-        kind: CollKind,
     },
     Add {
         root: Root,
@@ -115,7 +106,6 @@ pub enum Op {
     Remove {
         root: Root,
         path: Rc<[PathElem]>,
-        kind: CollKind,
     },
     Assert,
     Print,
@@ -139,12 +129,10 @@ pub enum Op {
     },
     Receive {
         cases: Rc<[ReceiveCase]>,
-        exit: u32,
     },
-    /// Pops the collection, stores an iterator in `iter_slot`.
+    /// Pops the collection (a sequence or set), stores an iterator in `iter_slot`.
     ForeachInit {
         iter_slot: u32,
-        kind: CollKind,
         root: Option<Root>,
     },
     /// Advances the iterator; jumps to `exit` when exhausted, else stores the item.

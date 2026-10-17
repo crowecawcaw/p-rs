@@ -10,8 +10,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 use prs_sema::{
-    EventId, FunId, HandlerAction, InterfaceId, MachineId, MachineKind, ModuleInfo, ParamValue, Program, StateId,
-    Temperature, VarRole,
+    EventId, FunId, HandlerAction, InterfaceId, MachineId, ModuleInfo, ParamValue, Program, StateId, Temperature,
 };
 
 use crate::bytecode::{CodeBlock, ReceiveCase, Root};
@@ -85,11 +84,23 @@ pub enum Transition {
 }
 
 impl Transition {
+    /// The transition's type in a state machine (`Transition.Type`).
     pub fn kind_name(&self) -> &'static str {
         match self {
             Transition::None => "None",
             Transition::Raise(_) => "RaiseEvent",
             Transition::Goto(_) => "GotoState",
+            Transition::Halt => "Halt",
+        }
+    }
+
+    /// The transition's type in a monitor, which names them differently
+    /// (`Monitor.Transition.Type`).
+    pub fn monitor_kind_name(&self) -> &'static str {
+        match self {
+            Transition::None => "None",
+            Transition::Raise(_) => "Raise",
+            Transition::Goto(_) => "Goto",
             Transition::Halt => "Halt",
         }
     }
@@ -163,12 +174,10 @@ pub enum Pending {
     /// Blocked in `receive`; the matching event is delivered via `Machine::received`.
     ReceiveWait {
         cases: Rc<[ReceiveCase]>,
-        exit: u32,
     },
     /// Found the event in the queue; continue after the `Receive` scheduling point.
     ReceiveFound {
         cases: Rc<[ReceiveCase]>,
-        exit: u32,
         event: Event,
     },
 }
@@ -1272,10 +1281,10 @@ impl<'p> Runtime<'p> {
                 Stage::Start(payload) => {
                     let e = Event { id: self.prog.null_event, payload, stamp: None, vt: None };
                     self.machines[m].stage = Stage::AfterStartEntry;
-                    self.enter_state(m, e)?;
+                    self.enter_state(m, e);
                 }
                 Stage::AfterStartEntry => {
-                    self.apply_transition(m)?;
+                    self.apply_transition(m);
                     if self.machines[m].status == MachineStatus::Halting {
                         self.machines[m].stage = Stage::Halt;
                     } else {
@@ -1395,7 +1404,7 @@ impl<'p> Runtime<'p> {
                     }
                     if e.id == GOTO_EVENT {
                         let target = self.machines[m].goto_target.take().expect("goto target");
-                        self.begin_goto(m, target, None, e)?;
+                        self.begin_goto(m, target, None, e);
                         continue;
                     }
                     let Some(state) = self.machines[m].state else {
@@ -1471,7 +1480,7 @@ impl<'p> Runtime<'p> {
                             self.start_action(m, f, &e);
                         }
                         Some(HandlerAction::Goto { target, with }) => {
-                            self.begin_goto(m, target, with, e)?;
+                            self.begin_goto(m, target, with, e);
                         }
                         Some(HandlerAction::Ignore) | Some(HandlerAction::Defer) => {
                             self.machines[m].stage = Stage::Loop;
@@ -1479,12 +1488,12 @@ impl<'p> Runtime<'p> {
                         None => {
                             // Unhandled: run the exit action, then pop the state.
                             self.machines[m].stage = Stage::AfterExit { e: e.clone(), then: ExitThen::Pop };
-                            self.exit_state(m, e)?;
+                            self.exit_state(m, e);
                         }
                     }
                 }
                 Stage::AfterAction(_e) => {
-                    self.apply_transition(m)?;
+                    self.apply_transition(m);
                     self.machines[m].stage = Stage::Loop;
                 }
                 Stage::AfterExit { e, then } => {
@@ -1576,13 +1585,13 @@ impl<'p> Runtime<'p> {
                     if self.machines[m].status == MachineStatus::Active {
                         self.machines[m].state = Some(target);
                         self.machines[m].stage = Stage::AfterEntry(e.clone());
-                        self.enter_state(m, e)?;
+                        self.enter_state(m, e);
                     } else {
                         self.machines[m].stage = Stage::Halt;
                     }
                 }
                 Stage::AfterEntry(_e) => {
-                    self.apply_transition(m)?;
+                    self.apply_transition(m);
                     self.machines[m].stage = Stage::Loop;
                 }
                 Stage::Halt => {
@@ -1648,7 +1657,7 @@ impl<'p> Runtime<'p> {
         exec
     }
 
-    fn enter_state(&mut self, m: usize, e: Event) -> Result<(), Stop> {
+    fn enter_state(&mut self, m: usize, e: Event) {
         let name = self.machines[m].name.clone();
         let state = self.log_state_name(m);
         self.log(|_| format!("<StateLog> {} enters state '{}'.", name, state));
@@ -1658,7 +1667,6 @@ impl<'p> Runtime<'p> {
                 self.start_action(m, entry, &e);
             }
         }
-        Ok(())
     }
 
     fn json_state_transition(&mut self, m: usize, is_entry: bool) {
@@ -1685,7 +1693,7 @@ impl<'p> Runtime<'p> {
         self.jlog("StateTransition", d, true);
     }
 
-    fn exit_state(&mut self, m: usize, e: Event) -> Result<(), Stop> {
+    fn exit_state(&mut self, m: usize, e: Event) {
         let name = self.machines[m].name.clone();
         let state = self.log_state_name(m);
         self.log(|_| format!("<StateLog> {} exits state '{}'.", name, state));
@@ -1695,10 +1703,9 @@ impl<'p> Runtime<'p> {
                 self.start_action(m, exit, &e);
             }
         }
-        Ok(())
     }
 
-    fn begin_goto(&mut self, m: usize, target: StateId, with: Option<FunId>, e: Event) -> Result<(), Stop> {
+    fn begin_goto(&mut self, m: usize, target: StateId, with: Option<FunId>, e: Event) {
         self.cov_goto(m, target);
         let name = self.machines[m].name.clone();
         let cur = self.log_state_name(m);
@@ -1730,7 +1737,7 @@ impl<'p> Runtime<'p> {
     }
 
     /// `ApplyEventHandlerTransitionAsync` for the pending transition.
-    fn apply_transition(&mut self, m: usize) -> Result<(), Stop> {
+    fn apply_transition(&mut self, m: usize) {
         let t = std::mem::replace(&mut self.machines[m].pending_transition, Transition::None);
         match t {
             Transition::None => {}
@@ -1776,7 +1783,6 @@ impl<'p> Runtime<'p> {
                 self.machines[m].status = MachineStatus::Halting;
             }
         }
-        Ok(())
     }
 
     // ---- monitors ----------------------------------------------------------------------
@@ -1967,7 +1973,7 @@ impl<'p> Runtime<'p> {
             let msg = format!(
                 "{} has performed a '{}' transition from an OnExit action.",
                 self.monitor_full_name(mon),
-                monitor_transition_name(&t)
+                t.monitor_kind_name()
             );
             return Err(self.report_bug(msg));
         }
@@ -2376,12 +2382,6 @@ impl<'p> Runtime<'p> {
     }
 
     fn monitor_handle_event(&mut self, mon: usize, e: Event) -> Result<(), Stop> {
-        // Ignored (exact or wildcard) events are dropped.
-        if let Some(s) = self.monitors[mon].state {
-            if matches!(self.prog.state(s).handler_for(e.id).map(|h| &h.action), Some(HandlerAction::Ignore)) {
-                return Ok(());
-            }
-        }
         loop {
             let Some(s) = self.monitors[mon].state else {
                 let msg = format!(
@@ -2413,6 +2413,7 @@ impl<'p> Runtime<'p> {
                 Some(HandlerAction::Goto { target, with }) => {
                     return self.monitor_goto(mon, target, with, &e);
                 }
+                // ignored (exact or wildcard) events are dropped
                 Some(HandlerAction::Ignore) => return Ok(()),
                 // deferral is not supported by the Java backend: no handler is generated
                 Some(HandlerAction::Defer) | None if self.config.java_semantics => {
@@ -2429,15 +2430,6 @@ impl<'p> Runtime<'p> {
                 }
             }
         }
-    }
-}
-
-fn monitor_transition_name(t: &Transition) -> &'static str {
-    match t {
-        Transition::None => "None",
-        Transition::Raise(_) => "Raise",
-        Transition::Goto(_) => "Goto",
-        Transition::Halt => "Halt",
     }
 }
 
@@ -2459,15 +2451,6 @@ pub enum ExecOutcome {
 
 /// Pseudo event id used for the internal `GotoStateEvent`.
 pub const GOTO_EVENT: EventId = EventId(u32::MAX);
-
-/// Helper to query the role of a variable id (used by the interpreter).
-pub fn is_field(prog: &Program, v: prs_sema::VarId) -> bool {
-    prog.var(v).role == VarRole::Field
-}
-
-pub fn is_spec(prog: &Program, m: MachineId) -> bool {
-    prog.machine(m).kind != MachineKind::Impl
-}
 
 /// Progress of a scenario (coverage) monitor within one schedule.
 #[derive(Debug, Clone)]

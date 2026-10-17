@@ -162,9 +162,7 @@ impl TestReport {
         v.sort_by(|a, b| culture_order(&a.name, &b.name));
         v
     }
-}
 
-impl TestReport {
     /// `TestReport.GetText`.
     pub fn text(&self, opts: &CheckerOptions, prefix: &str) -> String {
         let sub = if prefix == "..." { "....." } else { prefix };
@@ -409,8 +407,6 @@ impl<'p> Checker<'p> {
         self
     }
 
-    /// Time tracking for `tc`: active when the program declares one of the time
-    /// functions or a latency file or `--timed` is given. Checks the profile's names.
     /// Whether the program declares time functions; errors on a wrong declaration.
     fn declares_time(&self) -> Result<bool, String> {
         use prs_sema::PType;
@@ -440,6 +436,8 @@ impl<'p> Checker<'p> {
         Ok(declares)
     }
 
+    /// Time tracking for `tc`: active when the program declares one of the time
+    /// functions or a latency file or `--timed` is given. Checks the profile's names.
     fn time_options(&self, tc: &TestCase, opts: &CheckerOptions) -> Result<Option<crate::time::TimeOptions>, String> {
         let declares = self.declares_time()?;
         if !declares && opts.latency.is_none() && !opts.timed {

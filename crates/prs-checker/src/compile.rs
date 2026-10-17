@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use prs_sema::{BinOp, Expr, ExprKind, FunDecl, FunId, PType, Program, Stmt, StmtKind, UnOp, VarId, VarRole};
 
-use crate::bytecode::{CodeBlock, CollKind, Op, PathElem, ReceiveCase, Root};
+use crate::bytecode::{CodeBlock, Op, PathElem, ReceiveCase, Root};
 
 /// Compiled code for a whole program, indexed by [`FunId`].
 #[derive(Debug, Clone, Default)]
@@ -77,7 +77,6 @@ impl<'a> Compiler<'a> {
         match &mut self.ops[at] {
             Op::Jump(t) | Op::JumpIfFalse(t) | Op::JumpIfTrue(t) => *t = target,
             Op::ForeachNext { exit, .. } => *exit = target,
-            Op::Receive { exit, .. } => *exit = target,
             _ => unreachable!("patching a non-jump"),
         }
     }
@@ -95,15 +94,6 @@ impl<'a> Compiler<'a> {
         match d.role {
             VarRole::Field => Root::Field(d.slot),
             _ => Root::Local(d.slot),
-        }
-    }
-
-    fn coll_kind(&self, ty: &PType) -> CollKind {
-        match ty.canonicalize(self.prog) {
-            PType::Seq(_) => CollKind::Seq,
-            PType::Set(_) => CollKind::Set,
-            PType::Map(..) => CollKind::Map,
-            _ => CollKind::Seq,
         }
     }
 
@@ -161,11 +151,10 @@ impl<'a> Compiler<'a> {
                 self.emit(Op::Store { root, path });
             }
             StmtKind::Insert { lhs, index, value } => {
-                let kind = self.coll_kind(&lhs.ty);
                 let (root, path) = self.lvalue(lhs);
                 self.expr(index);
                 self.expr(value);
-                self.emit(Op::Insert { root, path, kind });
+                self.emit(Op::Insert { root, path });
             }
             StmtKind::Add { lhs, value } => {
                 let (root, path) = self.lvalue(lhs);
@@ -173,10 +162,9 @@ impl<'a> Compiler<'a> {
                 self.emit(Op::Add { root, path });
             }
             StmtKind::Remove { lhs, value } => {
-                let kind = self.coll_kind(&lhs.ty);
                 let (root, path) = self.lvalue(lhs);
                 self.expr(value);
-                self.emit(Op::Remove { root, path, kind });
+                self.emit(Op::Remove { root, path });
             }
             StmtKind::While { cond, body } => {
                 let start = self.here();
@@ -193,7 +181,6 @@ impl<'a> Compiler<'a> {
                 }
             }
             StmtKind::Foreach { item, collection, body } => {
-                let kind = self.coll_kind(&collection.ty);
                 let root = match &collection.kind {
                     ExprKind::Var(v) if self.prog.var(*v).role != VarRole::GlobalParam => Some(self.var_root(*v)),
                     _ => None,
@@ -202,7 +189,7 @@ impl<'a> Compiler<'a> {
                 self.next_hidden += 2;
                 let item_slot = self.prog.var(*item).slot;
                 self.expr(collection);
-                self.emit(Op::ForeachInit { iter_slot, kind, root });
+                self.emit(Op::ForeachInit { iter_slot, root });
                 let start = self.here();
                 let next = self.emit(Op::ForeachNext { iter_slot, item_slot, exit: 0 });
                 self.loops.push(LoopCtx { break_patches: Vec::new(), continue_target: start as usize });
@@ -264,7 +251,7 @@ impl<'a> Compiler<'a> {
                 self.emit(Op::Goto { state: *state, has_payload });
             }
             StmtKind::Receive { cases } => {
-                let recv = self.emit(Op::Receive { cases: Rc::from(Vec::new()), exit: 0 });
+                let recv = self.emit(Op::Receive { cases: Rc::from(Vec::new()) });
                 let mut compiled = Vec::new();
                 let mut end_jumps = Vec::new();
                 for (ev, fun) in cases {
@@ -284,7 +271,7 @@ impl<'a> Compiler<'a> {
                 for j in end_jumps {
                     self.patch(j, end);
                 }
-                self.ops[recv] = Op::Receive { cases: Rc::from(compiled), exit: end };
+                self.ops[recv] = Op::Receive { cases: Rc::from(compiled) };
             }
             StmtKind::Nop => {}
         }
@@ -498,10 +485,9 @@ impl<'a> Compiler<'a> {
                 }
             },
             ExprKind::Contains { item, collection } => {
-                let kind = self.coll_kind(&collection.ty);
                 self.expr(item);
                 self.expr(collection);
-                self.emit(Op::Contains(kind));
+                self.emit(Op::Contains);
             }
             ExprKind::Cast(inner) => {
                 self.expr(inner);

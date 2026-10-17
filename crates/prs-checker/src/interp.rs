@@ -437,13 +437,13 @@ impl<'p> Runtime<'p> {
                 self.finish_send(m, &target, event);
                 Ok(Flow::Continue)
             }
-            Pending::ReceiveWait { cases, exit } if self.timed() => self.do_receive(m, exec, cases, exit, true),
-            Pending::ReceiveWait { cases, exit: _ } => {
+            Pending::ReceiveWait { cases } if self.timed() => self.do_receive(m, exec, cases, true),
+            Pending::ReceiveWait { cases } => {
                 // the operation is enabled again only by the event it waits for
                 let e = self.machines[m].received.take().expect("a blocked receive resumes with its event");
                 Ok(self.dispatch_receive(m, exec, &cases, e))
             }
-            Pending::ReceiveFound { cases, exit: _, event } => Ok(self.dispatch_receive(m, exec, &cases, event)),
+            Pending::ReceiveFound { cases, event } => Ok(self.dispatch_receive(m, exec, &cases, event)),
         }
     }
 
@@ -683,7 +683,7 @@ impl<'p> Runtime<'p> {
                 }
                 stack!().push(Value::Int(base.count() as i64));
             }
-            Op::Contains(_kind) => {
+            Op::Contains => {
                 let coll = pop(&mut stack!());
                 let item = pop(&mut stack!());
                 let b = match &coll {
@@ -901,7 +901,7 @@ impl<'p> Runtime<'p> {
                     }
                 }
             }
-            Op::Insert { root, path, kind } => {
+            Op::Insert { root, path } => {
                 let value = pop(&mut stack!());
                 let index = pop(&mut stack!());
                 let keys = pop_n(&mut stack!(), key_count(&path));
@@ -913,24 +913,24 @@ impl<'p> Runtime<'p> {
                     Root::Field(s) => &mut self.fields_mut(actor)[s as usize],
                 };
                 let coll = navigate(target, &path, &keys, prog)?;
-                match (kind, coll) {
-                    (_, Value::Seq(s)) => {
+                match coll {
+                    Value::Seq(s) => {
                         let i = index.as_int();
                         if i < 0 || i as usize > s.len() {
                             return Err(insert_oor().into());
                         }
                         Rc::make_mut(s).insert(i as usize, value);
                     }
-                    (_, Value::Map(m)) => {
+                    Value::Map(m) => {
                         if !Rc::make_mut(m).add(index.clone(), value) {
                             return Err(duplicate_key(&index.to_display(prog)).into());
                         }
                     }
-                    (_, Value::Set(s)) => {
+                    Value::Set(s) => {
                         Rc::make_mut(s).insert(value);
                     }
-                    (_, Value::Null) => return Err(nre().into()),
-                    (_, other) => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSeq", prog).into()),
+                    Value::Null => return Err(nre().into()),
+                    other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSeq", prog).into()),
                 }
             }
             Op::Add { root, path } => {
@@ -953,7 +953,7 @@ impl<'p> Runtime<'p> {
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSet", prog).into()),
                 }
             }
-            Op::Remove { root, path, kind } => {
+            Op::Remove { root, path } => {
                 let value = pop(&mut stack!());
                 let keys = pop_n(&mut stack!(), key_count(&path));
                 if path.is_empty() {
@@ -964,22 +964,22 @@ impl<'p> Runtime<'p> {
                     Root::Field(s) => &mut self.fields_mut(actor)[s as usize],
                 };
                 let coll = navigate(target, &path, &keys, prog)?;
-                match (kind, coll) {
-                    (_, Value::Seq(s)) => {
+                match coll {
+                    Value::Seq(s) => {
                         let i = value.as_int();
                         if i < 0 || i as usize >= s.len() {
                             return Err(index_oor().into());
                         }
                         Rc::make_mut(s).remove(i as usize);
                     }
-                    (_, Value::Map(m)) => {
+                    Value::Map(m) => {
                         Rc::make_mut(m).remove(&value);
                     }
-                    (_, Value::Set(s)) => {
+                    Value::Set(s) => {
                         Rc::make_mut(s).remove(&value);
                     }
-                    (_, Value::Null) => return Err(nre().into()),
-                    (_, other) => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSeq", prog).into()),
+                    Value::Null => return Err(nre().into()),
+                    other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSeq", prog).into()),
                 }
             }
             Op::Assert => {
@@ -1187,15 +1187,15 @@ impl<'p> Runtime<'p> {
                 }
                 return Ok(Flow::Unwound);
             }
-            Op::Receive { cases, exit } => {
+            Op::Receive { cases } => {
                 let Actor::Machine(m) = actor else {
                     return Err(Exception::new("System.InvalidOperationException", "monitors cannot receive events")
                         .from_source(crate::runtime::P_CHECKER_CORE)
                         .into());
                 };
-                return self.do_receive(m, exec, cases, exit, false);
+                return self.do_receive(m, exec, cases, false);
             }
-            Op::ForeachInit { iter_slot, kind: _, root } => {
+            Op::ForeachInit { iter_slot, root } => {
                 let coll = pop(&mut stack!());
                 if coll.is_null() {
                     return Err(nre().into());
@@ -1215,8 +1215,7 @@ impl<'p> Runtime<'p> {
                 let item = match &frame!().locals[iter_slot as usize] {
                     Value::Seq(s) => s.get(idx as usize).cloned(),
                     Value::Set(s) => s.element_at(idx as usize).cloned(),
-                    Value::Map(m) => m.key_at(idx as usize).cloned(),
-                    _ => None,
+                    _ => unreachable!("foreach over a sequence or set"),
                 };
                 match item {
                     Some(v) => {
@@ -1241,7 +1240,6 @@ impl<'p> Runtime<'p> {
         m: usize,
         exec: &mut Exec,
         cases: Rc<[ReceiveCase]>,
-        exit: u32,
         at_point: bool,
     ) -> Result<Flow, Fault> {
         if self.machines[m].status != MachineStatus::Active {
@@ -1260,7 +1258,7 @@ impl<'p> Runtime<'p> {
             self.machines[m].inbox.queue.iter().position(|e| wait.contains(&e.id))
         };
         if found.is_some() && timed && !at_point {
-            exec.pending = Some(Pending::ReceiveWait { cases, exit });
+            exec.pending = Some(Pending::ReceiveWait { cases });
             return Ok(Flow::Yield(SchedKind::Receive));
         }
         if let Some(i) = found {
@@ -1293,7 +1291,7 @@ impl<'p> Runtime<'p> {
             if timed {
                 return Ok(self.dispatch_receive(m, exec, &cases, e));
             }
-            exec.pending = Some(Pending::ReceiveFound { cases, exit, event: e });
+            exec.pending = Some(Pending::ReceiveFound { cases, event: e });
             return Ok(Flow::Yield(SchedKind::Receive));
         }
         let names: Vec<String> = wait.iter().map(|e| self.event_name(*e).to_string()).collect();
@@ -1328,7 +1326,7 @@ impl<'p> Runtime<'p> {
         self.machines[m].inbox.waiting = Some(Rc::from(wait));
         let id = self.machines[m].id;
         self.op_mut(id).status = OpStatus::BlockedOnReceive;
-        exec.pending = Some(Pending::ReceiveWait { cases, exit });
+        exec.pending = Some(Pending::ReceiveWait { cases });
         Ok(Flow::Yield(SchedKind::Join))
     }
 }
