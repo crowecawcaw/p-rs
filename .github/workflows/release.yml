@@ -1,20 +1,139 @@
-name: Publish p-rs
+# Manually triggered release of the `p-rs` crate. See .github/RELEASING.md.
+#
+#   Actions -> Release -> Run workflow (on main) -> pick a level
+#
+#   1. preflight  fmt, clippy, tests and a package dry run on main.
+#   2. prepare    bumps crates/p-rs's version (unless level=release), commits,
+#                 tags v<version> and pushes both to main.
+#   3. publish    publishes to crates.io via trusted publishing (no stored token).
+#                 A version that is already on crates.io is skipped, so a failed
+#                 run can be re-run with level=release.
+#   4. github-release  creates the GitHub release with generated notes.
+#
+# crates.io trusts this file name (release.yml) and the `release` environment;
+# keep both if you edit this workflow.
+
+name: Release
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      level:
+        description: "Version bump"
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+          - release # publish the current version without bumping
 
 permissions:
   contents: read
 
 concurrency:
-  group: crates-io-p-rs
+  group: release
   cancel-in-progress: false
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
+  preflight:
+    name: Preflight checks
+    if: github.repository == 'crowecawcaw/p-rs' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: test
+          save-if: false
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked
+      - run: cargo test --workspace --locked
+      - run: cargo publish -p p-rs --locked --dry-run
+
+  prepare:
+    name: Bump version and tag
+    needs: preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        if: inputs.level != 'release'
+        env:
+          LEVEL: ${{ inputs.level }}
+        run: |
+          set -euo pipefail
+          python3 - "$LEVEL" <<'PY'
+          import pathlib, re, sys
+          level = sys.argv[1]
+          path = pathlib.Path("crates/p-rs/Cargo.toml")
+          text = path.read_text()
+          m = re.search(r'^version = "(\d+)\.(\d+)\.(\d+)"$', text, re.M)
+          if not m:
+              sys.exit("No plain x.y.z version in crates/p-rs/Cargo.toml")
+          major, minor, patch = map(int, m.groups())
+          if level == "major":
+              major, minor, patch = major + 1, 0, 0
+          elif level == "minor":
+              minor, patch = minor + 1, 0
+          else:
+              patch += 1
+          new = f'version = "{major}.{minor}.{patch}"'
+          path.write_text(text[: m.start()] + new + text[m.end() :])
+          print(f"{m.group(0)} -> {new}")
+          PY
+          # Refresh p-rs's entry in Cargo.lock without touching dependencies.
+          cargo update --workspace
+          version=$(cargo pkgid -p p-rs | sed 's/.*[#@]//')
+          git add crates/p-rs/Cargo.toml Cargo.lock
+          git commit -m "Release p-rs v${version}"
+
+      - name: Tag and push
+        id: version
+        run: |
+          set -euo pipefail
+          version=$(cargo pkgid -p p-rs | sed 's/.*[#@]//')
+          tag="v${version}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            if [ "$(git rev-list -n1 "${tag}")" != "$(git rev-parse HEAD)" ]; then
+              echo "::error::${tag} already exists on a different commit. Bump the version instead." >&2
+              exit 1
+            fi
+            echo "${tag} already exists on HEAD; reusing it."
+          else
+            git tag -a "${tag}" -m "p-rs ${tag}"
+          fi
+          # Atomic: main and the tag move together or not at all.
+          git push --atomic origin HEAD:main "${tag}"
+
   publish:
-    if: github.repository == 'crowecawcaw/p-rs' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main')
+    name: Publish to crates.io
+    needs: prepare
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -23,37 +142,55 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.tag }}
           persist-credentials: false
-
-      - name: Validate release tag
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          set -euo pipefail
-          version=$(python3 -c 'import tomllib; print(tomllib.load(open("crates/p-rs/Cargo.toml", "rb"))["package"]["version"])')
-          if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
-            echo "Tag must match the p-rs version: v$version" >&2
-            exit 1
-          fi
-          git merge-base --is-ancestor HEAD origin/main
 
       - name: Select Rust stable
         run: rustup update stable --no-self-update
 
-      - name: Verify package
-        run: cargo +stable publish -p p-rs --locked --dry-run
+      - name: Check whether this version is already published
+        id: exists
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -A 'p-rs release workflow (github.com/crowecawcaw/p-rs)' \
+            "https://crates.io/api/v1/crates/p-rs/${VERSION}")
+          if [ "$code" = 200 ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "p-rs ${VERSION} is already on crates.io; skipping publish." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Authenticate with crates.io
+        if: steps.exists.outputs.published == 'false'
         id: auth
         uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1
 
       - name: Publish
-        if: github.event_name == 'push'
+        if: steps.exists.outputs.published == 'false'
         run: cargo +stable publish -p p-rs --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
-      - name: Report authentication check
-        if: github.event_name == 'workflow_dispatch'
-        run: echo 'Package verification and crates.io trusted authentication succeeded. No version was published.' >> "$GITHUB_STEP_SUMMARY"
+  github-release:
+    name: Create GitHub release
+    needs: [prepare, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+            exit 0
+          fi
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
+            --title "p-rs $TAG" \
+            --generate-notes \
+            --verify-tag
+          echo "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"
