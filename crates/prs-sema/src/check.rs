@@ -857,9 +857,11 @@ impl<'a> Analyzer<'a> {
         Ok(x)
     }
 
+    /// Checks a statement. Only the statements that contain statements are
+    /// checked in this frame, one of which is on the stack per level of
+    /// statement nesting; the others go to [`Self::check_simple_stmt`].
     pub fn check_stmt(&mut self, ctx: Ctx, s: &'a ast::Stmt) -> Result<Stmt, Fatal> {
         let span = s.span;
-        let ret_is_void = self.prog.funs[ctx.fun.idx()].ret.is_same_type_as(&PType::Null, &self.prog);
         match &s.kind {
             ast::StmtKind::Compound(stmts) => {
                 let mut v = Vec::new();
@@ -868,6 +870,86 @@ impl<'a> Analyzer<'a> {
                 }
                 Ok(Self::stmt(StmtKind::Block(Block { stmts: v, span }), span))
             }
+            ast::StmtKind::While { cond, body } => {
+                let c = self.check_bool_cond(ctx, cond)?;
+                let b = self.check_stmt(ctx, body)?;
+                Ok(Self::stmt(StmtKind::While { cond: c, body: Box::new(b) }, span))
+            }
+            ast::StmtKind::If { cond, then_branch, else_branch } => {
+                let c = self.check_bool_cond(ctx, cond)?;
+                let t = self.check_stmt(ctx, then_branch)?;
+                let el = match else_branch {
+                    None => Self::stmt(StmtKind::Nop, span),
+                    Some(e) => self.check_stmt(ctx, e)?,
+                };
+                Ok(Self::stmt(StmtKind::If { cond: c, then_branch: Box::new(t), else_branch: Box::new(el) }, span))
+            }
+            ast::StmtKind::Foreach { item, collection, invariants, body } => {
+                self.check_foreach(ctx, item, collection, invariants, body, span)
+            }
+            _ => self.check_simple_stmt(ctx, s),
+        }
+    }
+
+    #[inline(never)]
+    fn check_foreach(
+        &mut self,
+        ctx: Ctx,
+        item: &'a ast::Ident,
+        collection: &'a ast::Expr,
+        invariants: &'a [ast::Expr],
+        body: &'a ast::Stmt,
+        span: Span,
+    ) -> Result<Stmt, Fatal> {
+        let Some(var) = self.scopes.lookup_var(ctx.scope, &item.name) else {
+            let d = self.e.missing_declaration(item.span, "foreach iterator variable", &item.name);
+            self.report(d)?;
+            self.check_expr(ctx, collection)?;
+            self.check_stmt(ctx, body)?;
+            for inv in invariants {
+                self.check_expr(ctx, inv)?;
+            }
+            return Ok(Self::stmt(StmtKind::Nop, span));
+        };
+        let coll = self.check_expr(ctx, collection)?;
+        let expected = if coll.ty.is_error() {
+            PType::Error
+        } else {
+            match coll.ty.canonicalize(&self.prog) {
+                PType::Set(el) => *el,
+                PType::Seq(el) => *el,
+                _ => {
+                    let d = self.e.type_mismatch_kinds(
+                        coll.span,
+                        &coll.ty,
+                        &[TypeKind::Set, TypeKind::Sequence],
+                        &self.prog,
+                    );
+                    self.report(d)?;
+                    PType::Error
+                }
+            }
+        };
+        let item_ty = self.prog.var_decls[var.idx()].ty.clone();
+        if !expected.is_error()
+            && !item_ty.is_error()
+            && (!expected.is_same_type_as(&item_ty, &self.prog) || !expected.is_assignable_from(&item_ty, &self.prog))
+        {
+            let d = self.e.type_mismatch(item.span, &item_ty, &[&expected], &self.prog);
+            self.report(d)?;
+        }
+        let b = self.check_stmt(ctx, body)?;
+        for inv in invariants {
+            self.check_expr(ctx, inv)?;
+        }
+        Ok(Self::stmt(StmtKind::Foreach { item: var, collection: coll, body: Box::new(b) }, span))
+    }
+
+    #[inline(never)]
+    fn check_simple_stmt(&mut self, ctx: Ctx, s: &'a ast::Stmt) -> Result<Stmt, Fatal> {
+        let span = s.span;
+        let ret_is_void = self.prog.funs[ctx.fun.idx()].ret.is_same_type_as(&PType::Null, &self.prog);
+        match &s.kind {
             ast::StmtKind::Assert { cond, message } | ast::StmtKind::Assume { cond, message } => {
                 let c = self.check_bool_cond(ctx, cond)?;
                 let loc = self.sm.location(span).to_string().replace('\\', "\\\\");
@@ -974,65 +1056,6 @@ impl<'a> Analyzer<'a> {
                     }
                 }
                 Ok(Self::stmt(StmtKind::Remove { lhs: l, value: v }, span))
-            }
-            ast::StmtKind::While { cond, body } => {
-                let c = self.check_bool_cond(ctx, cond)?;
-                let b = self.check_stmt(ctx, body)?;
-                Ok(Self::stmt(StmtKind::While { cond: c, body: Box::new(b) }, span))
-            }
-            ast::StmtKind::Foreach { item, collection, invariants, body } => {
-                let Some(var) = self.scopes.lookup_var(ctx.scope, &item.name) else {
-                    let d = self.e.missing_declaration(item.span, "foreach iterator variable", &item.name);
-                    self.report(d)?;
-                    self.check_expr(ctx, collection)?;
-                    self.check_stmt(ctx, body)?;
-                    for inv in invariants {
-                        self.check_expr(ctx, inv)?;
-                    }
-                    return Ok(Self::stmt(StmtKind::Nop, span));
-                };
-                let coll = self.check_expr(ctx, collection)?;
-                let expected = if coll.ty.is_error() {
-                    PType::Error
-                } else {
-                    match coll.ty.canonicalize(&self.prog) {
-                        PType::Set(el) => *el,
-                        PType::Seq(el) => *el,
-                        _ => {
-                            let d = self.e.type_mismatch_kinds(
-                                coll.span,
-                                &coll.ty,
-                                &[TypeKind::Set, TypeKind::Sequence],
-                                &self.prog,
-                            );
-                            self.report(d)?;
-                            PType::Error
-                        }
-                    }
-                };
-                let item_ty = self.prog.var_decls[var.idx()].ty.clone();
-                if !expected.is_error()
-                    && !item_ty.is_error()
-                    && (!expected.is_same_type_as(&item_ty, &self.prog)
-                        || !expected.is_assignable_from(&item_ty, &self.prog))
-                {
-                    let d = self.e.type_mismatch(item.span, &item_ty, &[&expected], &self.prog);
-                    self.report(d)?;
-                }
-                let b = self.check_stmt(ctx, body)?;
-                for inv in invariants {
-                    self.check_expr(ctx, inv)?;
-                }
-                Ok(Self::stmt(StmtKind::Foreach { item: var, collection: coll, body: Box::new(b) }, span))
-            }
-            ast::StmtKind::If { cond, then_branch, else_branch } => {
-                let c = self.check_bool_cond(ctx, cond)?;
-                let t = self.check_stmt(ctx, then_branch)?;
-                let el = match else_branch {
-                    None => Self::stmt(StmtKind::Nop, span),
-                    Some(e) => self.check_stmt(ctx, e)?,
-                };
-                Ok(Self::stmt(StmtKind::If { cond: c, then_branch: Box::new(t), else_branch: Box::new(el) }, span))
             }
             ast::StmtKind::Ctor { interface, args } => {
                 let a = self.check_args(ctx, args)?;
@@ -1172,6 +1195,10 @@ impl<'a> Analyzer<'a> {
             }
             ast::StmtKind::Receive { cases } => self.check_receive(ctx, cases, span),
             ast::StmtKind::NoStmt => Ok(Self::stmt(StmtKind::Nop, span)),
+            ast::StmtKind::Compound(_)
+            | ast::StmtKind::While { .. }
+            | ast::StmtKind::If { .. }
+            | ast::StmtKind::Foreach { .. } => unreachable!("checked by check_stmt"),
         }
     }
 

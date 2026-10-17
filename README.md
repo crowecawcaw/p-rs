@@ -83,6 +83,9 @@ See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 * Files are enumerated in sorted order; elapsed time and memory figures differ.
 * An action that runs forever without reaching a scheduling point is reported as a bug
   (upstream hangs).
+* Nesting deeper than 128 levels is a parse error, `nesting is too deep` (upstream has
+  no limit). Blocks, statements, expressions, types and each operand of an operator
+  chain such as `a + b + c` count a level; the upstream tests nest at most 16 deep.
 * `prs check` exits with 1 if any of the test cases matching `--testcase` finds a bug
   (upstream: the last one's exit code), `--timeout 0` disables the timeout (upstream
   explores forever) and `--liveness-temperature-threshold` is honored (upstream fails).

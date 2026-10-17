@@ -9,5 +9,5 @@ mod parser;
 mod span;
 pub mod token;
 
-pub use parser::{parse, ParseError};
+pub use parser::{parse, ParseError, MAX_NESTING};
 pub use span::{FileId, LineCol, Location, SourceFile, SourceMap, Span};
