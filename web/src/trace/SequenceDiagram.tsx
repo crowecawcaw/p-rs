@@ -3,18 +3,21 @@ import { formatPayload, type Step, type Trace } from "./model";
 
 /** Lane width: narrower on phones so a small model fits the screen. */
 const LANE_W = 150;
-const LANE_W_NARROW = 112;
-const ROW_H = 28;
+const LANE_W_NARROW = 96;
+const ROW_H = 30;
 const TOP = 10;
 const HEADER_H = 44;
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 2.5;
 /** Machine lanes cycle through this many hues (--lane-0 … in styles.css). */
-const HUES = 6;
+const HUES = 8;
 
 const laneXFor = (W: number) => (i: number) => i * W + W / 2;
 const rowY = (i: number) => TOP + i * ROW_H + ROW_H / 2;
 const clamp = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+
+/** Where along a message arrow its label sits: nearer the sender, clear of the receiver's next state. */
+const LABEL_AT = 0.4;
 
 /** Approximate advance of one 12px monospace character. */
 const CH = 7.2;
@@ -104,8 +107,9 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
   // Start at 100% on wide screens. On phones shrink toward fitting the width, but not
   // so far that labels become unreadable; pinch or the buttons do the rest.
   useLayoutEffect(() => {
-    const narrow = (scroller.current?.clientWidth ?? 1000) < 600;
-    const z = narrow ? Math.min(1, Math.max(fitZoom(), 0.8)) : 1;
+    // Labels are drawn at 12px at 100%; start there so they stay readable, and let
+    // narrow lanes, sideways step-following, pinch and the buttons handle the rest.
+    const z = 1;
     zoomRef.current = z;
     setZoom(z);
   }, [trace, fitZoom]);
@@ -161,7 +165,20 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
     const bottom = head + (rowY(cursor) + ROW_H) * zoomRef.current;
     if (top < el.scrollTop + head) el.scrollTop = top - head;
     else if (bottom > el.scrollTop + el.clientHeight) el.scrollTop = bottom - el.clientHeight;
-  }, [cursor]);
+    // Sideways too: bring the step's lanes (sender and receiver) into view.
+    const st = steps[cursor];
+    if (!st) return;
+    const involved = [st.lane, st.to, st.peer !== undefined ? steps[st.peer]?.lane : undefined].filter(
+      (l): l is number => l !== undefined,
+    );
+    if (!involved.length) return;
+    const z = zoomRef.current;
+    const left = (Math.min(...involved) * W) * z;
+    const right = (Math.max(...involved) + 1) * W * z;
+    if (right - left > el.clientWidth) el.scrollLeft = (left + right) / 2 - el.clientWidth / 2;
+    else if (left < el.scrollLeft) el.scrollLeft = left;
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
+  }, [cursor, steps, W]);
 
   return (
     <div className="seq-wrap">
@@ -183,9 +200,9 @@ export function SequenceDiagram({ trace, cursor, onSelect }: Props) {
           {lanes.map((l, i) => (
             <g key={l.id} transform={`translate(${laneX(i)},${HEADER_H / 2})`} style={{ "--c": color[i] } as React.CSSProperties}>
               <rect
-                x={-W / 2 + 8}
+                x={-W / 2 + 4}
                 y={-15}
-                width={W - 16}
+                width={W - 8}
                 height={30}
                 rx={15}
                 className={l.monitor ? "lane-head monitor" : "lane-head"}
@@ -275,7 +292,7 @@ function Row({ i, s, W, width, cursor, color, onSelect }: {
         <>
           <line x1={x} y1={y} x2={x2 - dir * 5} y2={y2} className={s.peer === undefined ? "msg pending" : "msg"} />
           <path d={head(x, y, x2 - dir * 5, y2)} className="arrowhead" />
-          <MsgLabel x={(x + x2) / 2} y={(y + y2) / 2 - 7} anchor="middle" event={s.label} payload={s.payload} max={Math.max(Math.abs(x2 - x) - 16, 90)} />
+          <MsgLabel x={x + (x2 - x) * LABEL_AT} y={y + (y2 - y) * LABEL_AT - 7} anchor="middle" event={s.label} payload={s.payload} max={Math.max(Math.abs(x2 - x) - 16, 90)} />
         </>
       );
       break;
@@ -354,7 +371,7 @@ function LaneLabel({ id, monitor, w }: { id: string; monitor: boolean; w: number
   return (
     <text textAnchor="middle" dy="0.35em" className="lane-label">
       <title>{monitor ? `spec ${id}` : id}</title>
-      {clip(m[1], w - 28 - n.length * CH)}
+      {clip(m[1], w - 16 - n.length * CH)}
       {n && <tspan className="lane-id">{n}</tspan>}
     </text>
   );

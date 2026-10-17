@@ -46,7 +46,7 @@ export function App() {
   const [blurbOpen, setBlurbOpen] = useState(false);
   const [blurbClamped, setBlurbClamped] = useState(false);
   const blurbRef = useRef<HTMLParagraphElement>(null);
-  const [optionsOpen, setOptionsOpen] = useState(() => matchMedia(WIDE).matches);
+  const [optionsOpen, setOptionsOpen] = useState(false);
 
   const applyDemo = useCallback((d: Demo) => {
     const f = loadDemo(d);
@@ -421,6 +421,8 @@ export function App() {
           <div className="output">
             {tab === "console" && (
               <Console
+                summary={!runError && result?.ok ? (result.bug ? `✕ ${bugLine(result)}` : `✓ No bugs found in ${result.testCase}`) : undefined}
+                bad={result?.bug}
                 text={runError ?? (result ? result.console : compileOk === false ? compileConsole : "")}
                 onOpenLocation={openLocation}
                 empty={compileOk === false ? "" : "Press Check (Ctrl/⌘+Enter) to explore schedules of the selected test case."}
@@ -438,10 +440,19 @@ export function App() {
 
 const LOC_G = /([\w./-]+\.p):(\d+)(?::(\d+))?/g;
 
-function Console({ text, empty, onOpenLocation }: { text: string; empty?: string; onOpenLocation: (f: string, l: number) => void }) {
+/** The checker's one-line verdict for a buggy run, from its console output. */
+function bugLine(r: CheckResult): string {
+  const line = `${r.traceText ?? ""}\n${r.console}`.split("\n").find((l) => /<ErrorLog>|Assertion Failed|Deadlock|liveness|Exception/i.test(l));
+  return line ? line.replace(/^.*?<ErrorLog>\s*/, "").trim() : "Bug found";
+}
+
+function Console({ text, empty, summary, bad, onOpenLocation }: {
+  text: string; empty?: string; summary?: string; bad?: boolean; onOpenLocation: (f: string, l: number) => void;
+}) {
   if (!text) return <div className="console empty">{empty}</div>;
   return (
     <pre className="console">
+      {summary && <div className={bad ? "summary bad" : "summary good"}>{summary}</div>}
       {text.split("\n").map((line, i) => {
         const cls =
           /Error|Assertion Failed|\bbug\b(?! found: 0)|Found [1-9]/i.test(line) && !/Found 0 bug/.test(line)
