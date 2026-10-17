@@ -5,17 +5,17 @@
 //! (`Plang.Compiler.TypeChecker`) so that the same models produce the same errors.
 //! The crate performs no I/O; callers load sources into a [`SourceMap`].
 
-pub mod analyzer;
-pub mod check;
-pub mod collect;
-pub mod csharp;
+pub(crate) mod analyzer;
+pub(crate) mod check;
+pub(crate) mod collect;
+pub(crate) mod csharp;
 pub mod diag;
-pub mod errors;
-pub mod modules;
+pub(crate) mod errors;
+pub(crate) mod modules;
 pub mod program;
-pub mod scope;
+pub(crate) mod scope;
 pub mod types;
-pub mod validate;
+pub(crate) mod validate;
 
 pub use diag::{Diagnostic, Diagnostics};
 pub use program::*;
@@ -23,7 +23,6 @@ pub use types::{PType, PermissionOrigin, TypeKind};
 
 use analyzer::Analyzer;
 use prs_syntax::ast;
-use prs_syntax::token::TokenKind;
 use prs_syntax::{FileId, SourceMap};
 
 /// Analysis options.
@@ -131,7 +130,7 @@ pub fn compile(sm: &SourceMap, opts: &Options) -> Result<Analysis, CompileError>
 
 /// Runs semantic analysis over parsed programs (`Analyzer.AnalyzeCompilationUnit`).
 pub fn analyze(sm: &SourceMap, programs: &[ast::Program], opts: &Options) -> Result<Analysis, AnalysisError> {
-    let mut a = Analyzer::new(sm, opts.continue_on_error, opts.verifier);
+    let mut a = Analyzer::new(sm, opts.continue_on_error);
     let r = run(&mut a, programs);
     let thrown = r.err();
     if thrown.is_some() || a.diags.has_errors() {
@@ -225,6 +224,3 @@ fn run<'a>(a: &mut Analyzer<'a>, programs: &'a [ast::Program]) -> Result<(), Dia
     a.populate_module_system()?;
     Ok(())
 }
-
-#[allow(dead_code)]
-fn _token_kind_used(_: TokenKind) {}

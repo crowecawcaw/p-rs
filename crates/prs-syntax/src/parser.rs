@@ -1615,12 +1615,7 @@ impl<'a> Parser<'a> {
             }
             T::StringLiteral => {
                 self.bump();
-                ExprKind::Str {
-                    raw: self.tok_text(t).to_string(),
-                    raw_span: t.span,
-                    args: Vec::new(),
-                    is_format: false,
-                }
+                ExprKind::Str { raw: self.tok_text(t).to_string(), raw_span: t.span, args: Vec::new() }
             }
             T::Format => {
                 self.bump();
@@ -1628,7 +1623,7 @@ impl<'a> Parser<'a> {
                 let s = self.expect(T::StringLiteral)?;
                 let args = if self.eat(T::Comma) { self.rvalue_list()? } else { Vec::new() };
                 self.expect(T::RParen)?;
-                ExprKind::Str { raw: self.tok_text(s).to_string(), raw_span: s.span, args, is_format: true }
+                ExprKind::Str { raw: self.tok_text(s).to_string(), raw_span: s.span, args }
             }
             T::Float => {
                 // float(base, exp)

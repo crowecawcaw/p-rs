@@ -180,11 +180,7 @@ fn canonical(ty: &PType, prog: &Program) -> String {
             let fs: Vec<String> = fs.iter().map(|(n, t)| format!("{}:{}", n, canonical(t, prog))).collect();
             format!("({})", fs.join(","))
         }
-        PType::Permission(o) => match o {
-            prs_sema::PermissionOrigin::Machine(m) => prog.machines[m.idx()].name.clone(),
-            prs_sema::PermissionOrigin::Interface(i) => prog.interfaces[i.idx()].name.clone(),
-            prs_sema::PermissionOrigin::EventSet(e) => prog.event_sets[e.idx()].name.clone(),
-        },
+        PType::Permission(o) => prog.permission_name(*o).to_string(),
         PType::Foreign(n) => n.clone(),
         PType::TypeDef(_) => unreachable!(),
     }

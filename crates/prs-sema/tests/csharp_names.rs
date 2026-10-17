@@ -46,3 +46,18 @@ fn action_names_share_the_pool() {
     names.sort();
     assert_eq!(names, ["Anon_1", "Anon_2", "Anon_3", "_Foo"]);
 }
+
+#[test]
+fn event_used_as_type_claims_no_name() {
+    // Upstream types `var x: Foo` with an event set it never declares, so the action keeps
+    // its plain name.
+    let mut sm = prs_syntax::SourceMap::new();
+    sm.add(
+        "t.p".to_string(),
+        "event Foo; machine Main { var x: Foo; start state S { entry Foo; } fun Foo() {} }".to_string(),
+    );
+    let a = prs_sema::compile(&sm, &prs_sema::Options::default()).expect("compiles");
+    let names: Vec<String> = a.program.funs.iter().map(|f| f.action_name()).collect();
+    assert_eq!(names, ["_Foo"]);
+    assert!(a.program.event_sets.is_empty());
+}

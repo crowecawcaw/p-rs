@@ -657,6 +657,7 @@ impl Program {
             PermissionOrigin::Machine(m) => &self.machines[m.idx()].name,
             PermissionOrigin::Interface(i) => &self.interfaces[i.idx()].name,
             PermissionOrigin::EventSet(e) => &self.event_sets[e.idx()].name,
+            PermissionOrigin::Event(e) => &self.events[e.idx()].name,
         }
     }
 
@@ -665,6 +666,7 @@ impl Program {
             PermissionOrigin::Machine(m) => self.machine_receives(m),
             PermissionOrigin::Interface(i) => self.interface_receives(i),
             PermissionOrigin::EventSet(e) => self.event_sets[e.idx()].events.clone(),
+            PermissionOrigin::Event(e) => vec![e],
         }
     }
 

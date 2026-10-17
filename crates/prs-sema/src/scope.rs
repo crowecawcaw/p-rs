@@ -3,19 +3,9 @@
 use std::collections::HashMap;
 
 use crate::program::*;
-use prs_syntax::Span;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ScopeId(pub u32);
-
-/// What a name in a given namespace refers to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ModuleRef {
-    Named(u32),
-    Test(TestId),
-    Refinement(u32),
-    Impl(ImplId),
-}
 
 #[derive(Debug, Default)]
 pub struct Scope {
@@ -37,7 +27,7 @@ pub struct Scope {
     pub pures: HashMap<String, u32>,
     pub invariants: HashMap<String, u32>,
     pub invariant_groups: HashMap<String, u32>,
-    /// Machines declared in this scope, in declaration order (for state lookup).
+    /// Machines declared in this scope, in declaration order.
     pub machine_list: Vec<MachineId>,
     /// Variables in declaration order.
     pub var_list: Vec<VarId>,
@@ -115,33 +105,6 @@ impl Scopes {
     pub fn lookup_pure(&self, id: ScopeId, name: &str) -> Option<u32> {
         self.chain(id).find_map(|s| s.pures.get(name).copied())
     }
-    pub fn lookup_invariant(&self, id: ScopeId, name: &str) -> Option<u32> {
-        self.chain(id).find_map(|s| s.invariants.get(name).copied())
-    }
-    pub fn lookup_invariant_group(&self, id: ScopeId, name: &str) -> Option<u32> {
-        self.chain(id).find_map(|s| s.invariant_groups.get(name).copied())
-    }
-
-    /// State lookup also searches the scopes of machines declared along the chain.
-    pub fn lookup_state(&self, id: ScopeId, name: &str, machine_scopes: &[ScopeId]) -> Option<StateId> {
-        for s in self.chain(id) {
-            if let Some(st) = s.states.get(name) {
-                return Some(*st);
-            }
-            for m in &s.machine_list {
-                let ms = machine_scopes[m.idx()];
-                if let Some(st) = self.scopes[ms.0 as usize].states.get(name) {
-                    return Some(*st);
-                }
-            }
-        }
-        None
-    }
-}
-
-/// A conflicting declaration found by [`Scopes::conflict`].
-pub struct Conflict {
-    pub existing: DeclRef,
 }
 
 impl Scope {
@@ -194,9 +157,4 @@ pub enum Namespace {
     Pures,
     Invariants,
     InvariantGroups,
-}
-
-/// Dummy span helper for synthesized declarations.
-pub fn no_span() -> Span {
-    Span::dummy()
 }

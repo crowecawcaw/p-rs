@@ -219,10 +219,6 @@ impl<'a> Errors<'a> {
         Diagnostic::new(span, format!("function '{}' is used as a transition handler but might change state here", fun))
     }
 
-    pub fn invalid_print_format(&self, span: Span) -> Diagnostic {
-        Diagnostic::new(span, "print format placeholders must contain only digits; escape braces by doubling them")
-    }
-
     pub fn invalid_string_expr_format(&self, span: Span) -> Diagnostic {
         Diagnostic::new(span, "string format placeholders must contain only digits; escape braces by doubling them")
     }

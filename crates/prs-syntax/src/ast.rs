@@ -503,7 +503,6 @@ pub enum ExprKind {
         raw: String,
         raw_span: Span,
         args: Vec<Expr>,
-        is_format: bool,
     },
 }
 

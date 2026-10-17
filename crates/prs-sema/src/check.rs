@@ -25,48 +25,50 @@ fn expr(kind: ExprKind, ty: PType, span: Span) -> Expr {
     Expr { kind, ty, span }
 }
 
-/// `TypeCheckingUtils.PrintStmtNumArgs`: number of required arguments, or -1 when malformed.
-pub fn format_num_args(message: &str) -> i64 {
+/// `TypeCheckingUtils.PrintStmtNumArgs`: number of required arguments, or `None` when
+/// malformed. Like upstream, indices use wrapping 32-bit arithmetic: an overflowing index
+/// counts as the value it wraps to, and a negative one requires no arguments.
+pub fn format_num_args(message: &str) -> Option<usize> {
     let m: Vec<char> = message.chars().collect();
-    let mut max = 0i64;
+    let mut max = 0i32;
     let mut i = 0usize;
     while i < m.len() {
         if m[i] == '{' {
             i += 1;
             if i >= m.len() {
-                return -1;
+                return None;
             }
             if m[i] == '{' {
                 i += 1;
                 continue;
             }
-            let mut cur = 0i64;
+            let mut cur = 0i32;
             loop {
                 if !m[i].is_ascii_digit() {
-                    return -1;
+                    return None;
                 }
-                cur = 10 * cur + (m[i] as i64 - '0' as i64);
+                cur = cur.wrapping_mul(10).wrapping_add(m[i] as i32 - '0' as i32);
                 i += 1;
                 if i >= m.len() || m[i] == '}' {
                     break;
                 }
             }
             if i >= m.len() {
-                return -1;
+                return None;
             }
-            max = max.max(cur + 1);
+            max = max.max(cur.wrapping_add(1));
             i += 1;
         } else if m[i] == '}' {
             i += 1;
             if i >= m.len() || m[i] != '}' {
-                return -1;
+                return None;
             }
             i += 1;
         } else {
             i += 1;
         }
     }
-    max
+    Some(max as usize)
 }
 
 /// Interprets C# escape sequences the way the generated C# source would.
@@ -476,17 +478,17 @@ impl<'a> Analyzer<'a> {
                 };
                 Ok(expr(ExprKind::Choose(Some(Box::new(x))), ty, span))
             }
-            ast::ExprKind::Str { raw, raw_span, args, is_format: _ } => {
+            ast::ExprKind::Str { raw, raw_span, args } => {
                 let base = &raw[1..raw.len() - 1];
                 let needed = format_num_args(base);
                 let a = self.check_args(ctx, args)?;
-                if needed == -1 {
+                let Some(needed) = needed else {
                     let d = self.e.invalid_string_expr_format(*raw_span);
                     self.report(d)?;
                     return Ok(err_expr(span));
-                }
-                if a.len() as i64 != needed {
-                    let d = self.e.incorrect_argument_count(span, a.len(), needed as usize);
+                };
+                if a.len() != needed {
+                    let d = self.e.incorrect_argument_count(span, a.len(), needed);
                     self.report(d)?;
                     return Ok(err_expr(span));
                 }
@@ -819,7 +821,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    /// Checks an event expression used by raise/send/announce; returns false when erroneous.
+    /// Checks an event expression used by raise/send/announce, reporting null and non-event values.
     fn check_event_expr(&mut self, ctx: Ctx, e: &ast::Expr) -> Result<Expr, Fatal> {
         let x = self.check_expr(ctx, e)?;
         if x.ty.is_error() {
@@ -1173,6 +1175,27 @@ impl<'a> Analyzer<'a> {
         }
     }
 
+    /// Creates and checks the handler function of a receive case, nested in `ctx.fun`.
+    fn receive_handler(&mut self, ctx: Ctx, case: &'a ast::RecvCase) -> Result<FunId, Fatal> {
+        let hs = self.scopes.child(ctx.scope);
+        let hid = self.new_fun("", ctx.machine, hs, FunSrc::Receive, case.handler.span);
+        self.fun_root[hid.idx()] = self.fun_root[ctx.fun.idx()];
+        self.prog.funs[hid.idx()].parent = Some(ctx.fun);
+        self.prog.funs[hid.idx()].role.receive = true;
+        if let Some(p) = &case.handler.param {
+            self.check_conflict_var(hs, &p.name.name, p.name.span)?;
+            let slot = self.alloc_slot(hid);
+            let t = self.resolve_type(&p.ty, hs)?;
+            let v = self.new_var(&p.name.name, VarRole::Param, t, slot, p.name.span);
+            let s = self.scopes.get_mut(hs);
+            s.variables.insert(p.name.name.clone(), v);
+            s.var_list.push(v);
+            self.prog.funs[hid.idx()].params.push(v);
+        }
+        self.populate_body(hid, &case.handler.body)?;
+        Ok(hid)
+    }
+
     fn check_receive(&mut self, ctx: Ctx, cases: &'a [ast::RecvCase], span: Span) -> Result<Stmt, Fatal> {
         let is_spec = self.is_spec_ctx(ctx);
         if is_spec {
@@ -1187,22 +1210,7 @@ impl<'a> Analyzer<'a> {
                         self.report(d)?;
                     }
                 }
-                let hs = self.scopes.child(ctx.scope);
-                let hid = self.new_fun("", ctx.machine, hs, FunSrc::Receive, case.handler.span);
-                self.fun_root[hid.idx()] = self.fun_root[ctx.fun.idx()];
-                self.prog.funs[hid.idx()].parent = Some(ctx.fun);
-                self.prog.funs[hid.idx()].role.receive = true;
-                if let Some(p) = &case.handler.param {
-                    self.check_conflict_var(hs, &p.name.name, p.name.span)?;
-                    let slot = self.alloc_slot(hid);
-                    let t = self.resolve_type(&p.ty, hs)?;
-                    let v = self.new_var(&p.name.name, VarRole::Param, t, slot, p.name.span);
-                    let s = self.scopes.get_mut(hs);
-                    s.variables.insert(p.name.name.clone(), v);
-                    s.var_list.push(v);
-                    self.prog.funs[hid.idx()].params.push(v);
-                }
-                self.populate_body(hid, &case.handler.body)?;
+                self.receive_handler(ctx, case)?;
             }
             return Ok(Self::stmt(StmtKind::Nop, span));
         }
@@ -1210,22 +1218,7 @@ impl<'a> Analyzer<'a> {
         for case in cases {
             for ev in &case.events {
                 // one handler function per event id, as upstream
-                let hs = self.scopes.child(ctx.scope);
-                let hid = self.new_fun("", ctx.machine, hs, FunSrc::Receive, case.handler.span);
-                self.fun_root[hid.idx()] = self.fun_root[ctx.fun.idx()];
-                self.prog.funs[hid.idx()].parent = Some(ctx.fun);
-                self.prog.funs[hid.idx()].role.receive = true;
-                if let Some(p) = &case.handler.param {
-                    self.check_conflict_var(hs, &p.name.name, p.name.span)?;
-                    let slot = self.alloc_slot(hid);
-                    let t = self.resolve_type(&p.ty, hs)?;
-                    let v = self.new_var(&p.name.name, VarRole::Param, t, slot, p.name.span);
-                    let s = self.scopes.get_mut(hs);
-                    s.variables.insert(p.name.name.clone(), v);
-                    s.var_list.push(v);
-                    self.prog.funs[hid.idx()].params.push(v);
-                }
-                self.populate_body(hid, &case.handler.body)?;
+                let hid = self.receive_handler(ctx, case)?;
                 let Some(eid) = self.scopes.lookup_event(ctx.scope, &ev.name) else {
                     let d = self.e.missing_declaration(ev.span, "event", &ev.name);
                     self.report(d)?;

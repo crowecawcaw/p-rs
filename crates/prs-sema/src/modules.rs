@@ -837,10 +837,13 @@ impl<'a> Analyzer<'a> {
             };
             let twise = match &t.twise {
                 None => specs.len(),
-                Some(ast::Twise::Pairwise(_)) => 2,
-                Some(ast::Twise::N(text, span)) => {
-                    let Some(n) = parse_int_literal(text) else {
-                        return Err(self.e.value_out_of_range(*span, "int"));
+                Some(tw) => {
+                    let (n, span) = match tw {
+                        ast::Twise::Pairwise(span) => (2, span),
+                        ast::Twise::N(text, span) => match parse_int_literal(text) {
+                            Some(n) => (n, span),
+                            None => return Err(self.e.value_out_of_range(*span, "int")),
+                        },
                     };
                     let check = if n < 1 {
                         Some(format!("twise number {} is less than 1.", n))
