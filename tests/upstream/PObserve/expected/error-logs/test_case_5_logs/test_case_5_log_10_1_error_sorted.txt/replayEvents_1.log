@@ -1,0 +1,11 @@
+errorKey=1
+errorTimeStamp=1706724204487
+errorMessage=Assertion failure: pSpecs/test_case_5.p:35:7 Validation failed for key 1! newValue: 0, expectedValue: 1
+replayEvents=
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:24.480000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724204480, key=1, value=1]], logLine='1706724204480, 1, 1', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:24.481000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724204481, key=1, value=0]], logLine='1706724204481, 1, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:24.482000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724204482, key=1, value=1]], logLine='1706724204482, 1, 1', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:24.484000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724204484, key=1, value=0]], logLine='1706724204484, 1, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:24.485000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724204485, key=1, value=1]], logLine='1706724204485, 1, 1', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:24.486000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724204486, key=1, value=0]], logLine='1706724204486, 1, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:24.487000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724204487, key=1, value=0]], logLine='1706724204487, 1, 0', customPayload=null}

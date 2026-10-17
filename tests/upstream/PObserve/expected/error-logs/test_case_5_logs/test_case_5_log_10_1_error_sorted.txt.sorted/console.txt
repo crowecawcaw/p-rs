@@ -1,0 +1,30 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase5Parser
+  specificationName    = AlternatingInts
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Spec Violation::
+Assertion failure: pSpecs/test_case_5.p:35:7 Validation failed for key 1! newValue: 0, expectedValue: 1
+.. writing error log into file <out>/replayEvents_1.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+10                       6                        0                        1                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        1                        0                             0                      
+
+
+PObserve run completed with 1 error(s)
+Run details and replay event logs can be found in <out>

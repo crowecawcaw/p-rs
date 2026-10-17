@@ -1,0 +1,43 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase4Parser
+  specificationName    = IncreasingInts
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Event Out of Order Exception::
+Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-01-24T20:57:40.863Z
+Timestamp of current event: 2024-01-24T20:57:40.862Z
+Error event details: PObserveEvent{partitionKey='2', timestamp=2024-01-24T20:57:40.862000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129860862, key=2, value=141]], logLine='1706129860862, 2, 141', customPayload=null}
+.. writing error log into file <out>/replayEvents_2.log
+-------------------------------------
+-------------------------------------
+PObserve Event Out of Order Exception::
+Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-01-24T20:57:40.867Z
+Timestamp of current event: 2024-01-24T20:57:40.865Z
+Error event details: PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:40.865000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129860865, key=1, value=141]], logLine='1706129860865, 1, 141', customPayload=null}
+.. writing error log into file <out>/replayEvents_1.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+10                       5                        0                        2                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        0                        2                             0                      
+
+
+PObserve run completed with 2 error(s)
+Run details and replay event logs can be found in <out>

@@ -1,0 +1,11 @@
+errorKey=1
+errorTimeStamp=1706894854326
+errorMessage=Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-02-02T17:27:34.328Z
+Timestamp of current event: 2024-02-02T17:27:34.326Z
+Error event details: PObserveEvent{partitionKey='1', timestamp=2024-02-02T17:27:34.326000000Z, event=eWithDrawReq[PTuple_accnt_amnt_rId[accountId=1, amount=7, rId=12347]], logLine='2024-02-02 17:27:34.326.13814016190708 [Test worker] INFO  StructuredLogger - : MessageType=REQUEST; AccountID=1; RecipientAccountID=null; TransactionType=WITHDRAW; Amount=7.00; TransactionID=12347; Result=null; Message=null', customPayload=null}
+replayEvents=
+PObserveEvent{partitionKey='1', timestamp=2024-02-02T17:27:34.309000000Z, event=eSpec_BankBalanceIsAlwaysCorrect_Init[{0=100000, 1=100000}], logLine='2024-02-02 17:27:34.309.13813999095916 [Test worker] INFO  StructuredLogger - : MessageType=RESPONSE; AccountID=0; RecipientAccountID=null; TransactionType=CREATE_ACCOUNT; Amount=0.00; TransactionID=12345; Result=SUCCESS; Message=[[0, 100000.0], [1, 100000.0]]', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-02-02T17:27:34.328000000Z, event=eWithDrawReq[PTuple_accnt_amnt_rId[accountId=1, amount=26, rId=12348]], logLine='2024-02-02 17:27:34.328.13814018183333 [Test worker] INFO  StructuredLogger - : MessageType=REQUEST; AccountID=1; RecipientAccountID=null; TransactionType=WITHDRAW; Amount=26.00; TransactionID=12348; Result=null; Message=null', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-02-02T17:27:34.326000000Z, event=eWithDrawReq[PTuple_accnt_amnt_rId[accountId=1, amount=7, rId=12347]], logLine='2024-02-02 17:27:34.326.13814016190708 [Test worker] INFO  StructuredLogger - : MessageType=REQUEST; AccountID=1; RecipientAccountID=null; TransactionType=WITHDRAW; Amount=7.00; TransactionID=12347; Result=null; Message=null', customPayload=null}

@@ -1,0 +1,34 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase5Parser
+  specificationName    = AlternatingInts
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Event Out of Order Exception::
+Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-01-31T18:03:24.490Z
+Timestamp of current event: 2024-01-31T18:03:24.489Z
+Error event details: PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:24.489000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724204489, key=1, value=0]], logLine='1706724204489, 1, 0', customPayload=null}
+.. writing error log into file <out>/replayEvents_1.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+10                       4                        0                        1                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        0                        1                             0                      
+
+
+PObserve run completed with 1 error(s)
+Run details and replay event logs can be found in <out>

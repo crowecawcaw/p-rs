@@ -1,0 +1,7 @@
+errorKey=2
+errorTimeStamp=1706129860862
+errorMessage=Assertion failure: pSpecs/test_case_4.p:26:9 Validation failed for key 2! newValue: 37, highestValue: 50
+replayEvents=
+PObserveEvent{partitionKey='2', timestamp=2024-01-24T20:57:40.858000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129860858, key=2, value=1]], logLine='1706129860858, 2, 1', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-24T20:57:40.859000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129860859, key=2, value=50]], logLine='1706129860859, 2, 50', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-24T20:57:40.862000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129860862, key=2, value=37]], logLine='1706129860862, 2, 37', customPayload=null}

@@ -1,0 +1,10 @@
+errorKey=1
+errorTimeStamp=1706129831840
+errorMessage=Assertion failure: pSpecs/test_case_4.p:26:9 Validation failed for key 1! newValue: 142, highestValue: 191
+replayEvents=
+PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.833000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831833, key=1, value=21]], logLine='1706129831833, 1, 21', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.835000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831835, key=1, value=39]], logLine='1706129831835, 1, 39', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.836000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831836, key=1, value=103]], logLine='1706129831836, 1, 103', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.837000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831837, key=1, value=128]], logLine='1706129831837, 1, 128', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.838000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831838, key=1, value=191]], logLine='1706129831838, 1, 191', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.840000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831840, key=1, value=142]], logLine='1706129831840, 1, 142', customPayload=null}

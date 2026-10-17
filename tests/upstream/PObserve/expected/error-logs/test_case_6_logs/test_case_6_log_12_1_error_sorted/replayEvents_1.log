@@ -1,0 +1,16 @@
+errorKey=1
+errorTimeStamp=1706724239554
+errorMessage=Assertion failure: pSpecs/test_case_6.p:84:7 Incorrect counts for key 1: node1 expected value: 3, actual value: 2; 
+replayEvents=
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.540000000Z, event=eConfigReceivedDualNodesBinary[PTuple_tmstm_key_nd1cn_nd2cn_ttlvl[timestamp=1706724239540, key=1, node1Count=3, node2Count=2, totalValues=10]], logLine='params, 1706724239540, 1, 3, 2, 10', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.541000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239541, key=1, node=2, value=0]], logLine='1706724239541, 1, 2, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.543000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239543, key=1, node=2, value=1]], logLine='1706724239543, 1, 2, 1', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.544000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239544, key=1, node=1, value=1]], logLine='1706724239544, 1, 1, 1', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.545000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239545, key=1, node=1, value=1]], logLine='1706724239545, 1, 1, 1', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.546000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239546, key=1, node=1, value=0]], logLine='1706724239546, 1, 1, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.548000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239548, key=1, node=1, value=0]], logLine='1706724239548, 1, 1, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.549000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239549, key=1, node=1, value=0]], logLine='1706724239549, 1, 1, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.550000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239550, key=1, node=2, value=0]], logLine='1706724239550, 1, 2, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.551000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239551, key=1, node=2, value=0]], logLine='1706724239551, 1, 2, 0', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.553000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724239553, key=1, node=2, value=1]], logLine='1706724239553, 1, 2, 1', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:59.554000000Z, event=eEntriesFinishedDualNodesBinary[PTuple_tmstm_key[timestamp=1706724239554, key=1]], logLine='finished, 1706724239554, 1', customPayload=null}

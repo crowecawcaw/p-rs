@@ -1,0 +1,7 @@
+errorKey=2
+errorTimeStamp=1706724251256
+errorMessage=Assertion failure: pSpecs/test_case_6.p:84:7 Incorrect counts for key 2: node1 expected value: 1, actual value: 0; node2 expected value: 1, actual value: 0; total expected value: 5, actual value: 1; 
+replayEvents=
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:04:11.242000000Z, event=eConfigReceivedDualNodesBinary[PTuple_tmstm_key_nd1cn_nd2cn_ttlvl[timestamp=1706724251242, key=2, node1Count=1, node2Count=1, totalValues=5]], logLine='params, 1706724251242, 2, 1, 1, 5', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:04:11.251000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724251251, key=2, node=1, value=0]], logLine='1706724251251, 2, 1, 0', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:04:11.256000000Z, event=eEntriesFinishedDualNodesBinary[PTuple_tmstm_key[timestamp=1706724251256, key=2]], logLine='finished, 1706724251256, 2', customPayload=null}

@@ -377,7 +377,8 @@ impl<'a> Compiler<'a> {
                 for a in args {
                     self.expr(a);
                 }
-                self.emit(Op::Format { base: Rc::from(base.as_str()), nargs: args.len() as u32 });
+                let types: Rc<[PType]> = args.iter().map(|a| a.ty.clone()).collect();
+                self.emit(Op::Format { base: Rc::from(base.as_str()), nargs: args.len() as u32, types });
             }
             ExprKind::Nondet | ExprKind::FairNondet => {
                 self.emit(Op::ChooseBool);
@@ -418,7 +419,13 @@ impl<'a> Compiler<'a> {
             ExprKind::MapAccess { base, key } => {
                 self.expr(base);
                 self.expr(key);
-                self.emit(Op::MapGet);
+                let mut ty = &e.ty;
+                while let PType::TypeDef(id) = ty {
+                    ty = &self.prog.typedefs[id.idx()].ty;
+                }
+                // Java keeps int, bool, float and machines as primitives (unboxing null throws)
+                let java_null = !matches!(ty, PType::Int | PType::Bool | PType::Float | PType::Machine | PType::Permission(_));
+                self.emit(Op::MapGet { java_null });
             }
             ExprKind::Keys(b) => {
                 self.expr(b);

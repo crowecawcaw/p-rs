@@ -1,0 +1,39 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase5Parser
+  specificationName    = AlternatingInts
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Event Out of Order Exception::
+Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-01-31T18:03:31.169Z
+Timestamp of current event: 2024-01-31T18:03:31.165Z
+Error event details: PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:03:31.165000000Z, event=eNewAlternatingInt[PTuple_tmstm_key_value[timestamp=1706724211165, key=1, value=1]], logLine='1706724211165, 1, 1', customPayload=null}
+.. writing error log into file <out>/replayEvents_1.log
+-------------------------------------
+-------------------------------------
+PObserve Spec Violation::
+Assertion failure: pSpecs/test_case_5.p:35:7 Validation failed for key 2! newValue: 1, expectedValue: 0
+.. writing error log into file <out>/replayEvents_2.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+10                       2                        0                        2                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        1                        1                             0                      
+
+
+PObserve run completed with 2 error(s)
+Run details and replay event logs can be found in <out>

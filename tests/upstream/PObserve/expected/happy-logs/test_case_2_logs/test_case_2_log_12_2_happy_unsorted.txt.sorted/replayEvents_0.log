@@ -1,0 +1,6 @@
+errorKey=0
+errorTimeStamp=1706894854333
+errorMessage=Assertion failure: pSpecs/test_case_2.p:90:7 Unknown rId 12,350 in the withdraw response!
+replayEvents=
+PObserveEvent{partitionKey='0', timestamp=2024-02-02T17:27:34.309000000Z, event=eSpec_BankBalanceIsAlwaysCorrect_Init[{0=100000, 1=100000}], logLine='2024-02-02 17:27:34.309.13813999095916 [Test worker] INFO  StructuredLogger - : MessageType=RESPONSE; AccountID=0; RecipientAccountID=null; TransactionType=CREATE_ACCOUNT; Amount=0.00; TransactionID=12345; Result=SUCCESS; Message=[[0, 100000.0], [1, 100000.0]]', customPayload=null}
+PObserveEvent{partitionKey='0', timestamp=2024-02-02T17:27:34.333000000Z, event=eWithDrawResp[PTuple_stts_accnt_blnc_rId[status=WITHDRAW_SUCCESS, accountId=0, balance=99871, rId=12350]], logLine='2024-02-02 17:27:34.333.13814023231666 [Test worker] INFO  StructuredLogger - : MessageType=RESPONSE; AccountID=0; RecipientAccountID=null; TransactionType=WITHDRAW; Amount=99871.00; TransactionID=12350; Result=SUCCESS; Message=null', customPayload=null}

@@ -21,3 +21,9 @@ Upstream only runs `Combined`, `Feature1SMLevelDecls`, `Feature2Stmts`,
 `Feature1SMLevelDecls/DynamicError/bug2` (`PCheckerLogGeneratorTests`): the generated
 `bug2_0_0.txt` must contain the expected text and the generated `.trace.json` must
 contain the expected JSON as a subset.
+
+`PObserve/` holds the PObserve regression suite of
+`Src/PObserve/PObserveRegressionTesting` (spec, run parameters, and every log under
+8 KB) with the outputs of upstream PObserve on each log, with and without
+`--assumeInputsAreSorted` (`expected/`, recorded by `scripts/vendor-pobserve-goldens.py`
+and checked in `crates/pnext-compat/tests/observe_upstream.rs`).

@@ -26,3 +26,5 @@ pub mod xmllog;
 pub mod statehash;
 pub mod rl;
 pub mod exhaustive;
+pub mod javafmt;
+pub mod observe;

@@ -1,0 +1,5 @@
+errorKey=1
+errorTimeStamp=1706724251248
+errorMessage=Assertion failure: pSpecs/test_case_6.p:43:7 Key provided for ValidateLogEntry has not been initialized. Key received: 1
+replayEvents=
+PObserveEvent{partitionKey='1', timestamp=2024-01-31T18:04:11.248000000Z, event=eNewLogEntryDualNodesBinary[PTuple_tmstm_key_node_value[timestamp=1706724251248, key=1, node=2, value=1]], logLine='1706724251248, 1, 2, 1', customPayload=null}

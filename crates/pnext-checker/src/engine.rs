@@ -556,6 +556,7 @@ impl<'p> Checker<'p> {
             logging: is_replay || opts.verbose || opts.log_every_schedule,
             assembly_name: opts.assembly_name.clone(),
             timeline: opts.timeline,
+            java_semantics: false,
         };
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };

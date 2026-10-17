@@ -1,0 +1,5 @@
+errorKey=0
+errorTimeStamp=1706894775007
+errorMessage=Assertion failure: pSpecs/test_case_2.p:73:7 Unknown accountId 0 in the withdraw response!
+replayEvents=
+PObserveEvent{partitionKey='0', timestamp=2024-02-02T17:26:15.007000000Z, event=eWithDrawResp[PTuple_stts_accnt_blnc_rId[status=WITHDRAW_SUCCESS, accountId=0, balance=99677, rId=12350]], logLine='2024-02-02 17:26:15.007.13734697119625 [Test worker] INFO  StructuredLogger - : MessageType=RESPONSE; AccountID=0; RecipientAccountID=null; TransactionType=WITHDRAW; Amount=99677.00; TransactionID=12350; Result=SUCCESS; Message=null', customPayload=null}

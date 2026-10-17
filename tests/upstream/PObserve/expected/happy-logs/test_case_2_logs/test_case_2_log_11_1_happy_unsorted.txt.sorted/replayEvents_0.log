@@ -1,0 +1,5 @@
+errorKey=0
+errorTimeStamp=1706894775005
+errorMessage=Assertion failure: pSpecs/test_case_2.p:68:9 Unknown accountId 0 in the withdraw request. Valid accountIds = []
+replayEvents=
+PObserveEvent{partitionKey='0', timestamp=2024-02-02T17:26:15.005000000Z, event=eWithDrawReq[PTuple_accnt_amnt_rId[accountId=0, amount=99, rId=12350]], logLine='2024-02-02 17:26:15.005.13734695542833 [Test worker] INFO  StructuredLogger - : MessageType=REQUEST; AccountID=0; RecipientAccountID=null; TransactionType=WITHDRAW; Amount=99.00; TransactionID=12350; Result=null; Message=null', customPayload=null}

@@ -1,0 +1,12 @@
+errorKey=2
+errorTimeStamp=1706726080917
+errorMessage=Assertion failure: pSpecs/test_case_7.p:50:17 For key 2, event 4 has not ended. Current status: start
+replayEvents=
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.905000000Z, event=eEventStartEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080905, key=2, eventNumber=2, status=start]], logLine='1706726080905, 2, 2, start', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.907000000Z, event=eEventEndEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080907, key=2, eventNumber=2, status=end]], logLine='1706726080907, 2, 2, end', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.908000000Z, event=eEventStartEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080908, key=2, eventNumber=1, status=start]], logLine='1706726080908, 2, 1, start', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.909000000Z, event=eEventEndEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080909, key=2, eventNumber=1, status=end]], logLine='1706726080909, 2, 1, end', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.910000000Z, event=eEventStartEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080910, key=2, eventNumber=4, status=start]], logLine='1706726080910, 2, 4, start', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.912000000Z, event=eEventStartEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080912, key=2, eventNumber=5, status=start]], logLine='1706726080912, 2, 5, start', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.913000000Z, event=eEventEndEventPairs[PTuple_tmstm_key_evntn_stts[timestamp=1706726080913, key=2, eventNumber=5, status=end]], logLine='1706726080913, 2, 5, end', customPayload=null}
+PObserveEvent{partitionKey='2', timestamp=2024-01-31T18:34:40.917000000Z, event=eEntriesFinishedEventPairs[PTuple_tmstm_key[timestamp=1706726080917, key=2]], logLine='1706726080917, 2, finished', customPayload=null}

@@ -45,6 +45,10 @@ pub trait Host {
     }
     /// A fresh random seed (used when `--seed` is not given).
     fn random_seed(&mut self) -> u32;
+    /// Seconds since the Unix epoch (wall-clock time, for timestamped names).
+    fn unix_time(&self) -> f64 {
+        0.0
+    }
 }
 
 /// Convenience console helpers.

@@ -1,0 +1,10 @@
+errorKey=1
+errorTimeStamp=1706129831838
+errorMessage=Encountered an out of order event.
+Encountered an out of order event::
+Timestamp of last processed event: 2024-01-24T20:57:11.840Z
+Timestamp of current event: 2024-01-24T20:57:11.838Z
+Error event details: PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.838000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831838, key=1, value=191]], logLine='1706129831838, 1, 191', customPayload=null}
+replayEvents=
+PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.840000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831840, key=1, value=229]], logLine='1706129831840, 1, 229', customPayload=null}
+PObserveEvent{partitionKey='1', timestamp=2024-01-24T20:57:11.838000000Z, event=eNewIncreasingInt[PTuple_tmstm_key_value[timestamp=1706129831838, key=1, value=191]], logLine='1706129831838, 1, 191', customPayload=null}

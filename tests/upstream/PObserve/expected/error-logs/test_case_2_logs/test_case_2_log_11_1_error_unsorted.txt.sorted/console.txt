@@ -1,0 +1,30 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase2Parser
+  specificationName    = BankBalanceIsAlwaysCorrect
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Spec Violation::
+Assertion failure: pSpecs/test_case_2.p:73:7 Unknown accountId 0 in the withdraw response!
+.. writing error log into file <out>/replayEvents_0.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+11                       0                        0                        1                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        1                        0                             0                      
+
+
+PObserve run completed with 1 error(s)
+Run details and replay event logs can be found in <out>

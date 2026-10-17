@@ -1,0 +1,35 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase2Parser
+  specificationName    = BankBalanceIsAlwaysCorrect
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+PObserve Spec Violation::
+Assertion failure: pSpecs/test_case_2.p:97:9 Bank balance for the account 0 is 99,872 and not the expected value 99,871, Bank is lying!
+.. writing error log into file <out>/replayEvents_0.log
+-------------------------------------
+-------------------------------------
+PObserve Spec Violation::
+Assertion failure: pSpecs/test_case_2.p:97:9 Bank balance for the account 1 is 99,786 and not the expected value 99,785, Bank is lying!
+.. writing error log into file <out>/replayEvents_1.log
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+12                       10                       0                        2                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        2                        0                             0                      
+
+
+PObserve run completed with 2 error(s)
+Run details and replay event logs can be found in <out>

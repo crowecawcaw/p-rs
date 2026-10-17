@@ -1,0 +1,28 @@
+Current PObserve configuration:
+PObserveConfig {
+  inputKind            = TEXT
+  parserName           = TestCase2Parser
+  specificationName    = BankBalanceIsAlwaysCorrect
+  replayWindowSize     = 100
+  logDelimiter         = \n
+}
+-------------------------------------
+Success! No bugs found.
+-------------------------------------
+
+Total time taken = <t> min
+
+---------------------------------------------------------------------------------------------------------
+Total Events Read        Total Verified Events    Total Verified Keys      Total Partition Keys   
+---------------------------------------------------------------------------------------------------------
+11                       11                       1                        1                      
+
+
+------------------------------------------------------------------------------------------------------
+Total Parser Errors      Total Spec Errors        Total Out of Order Errors     Total Unknown Errors   
+------------------------------------------------------------------------------------------------------
+0                        0                        0                             0                      
+
+
+PObserve run completed with 0 error(s)
+Run details can be found in <out>
