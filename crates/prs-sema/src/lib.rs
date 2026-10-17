@@ -155,6 +155,7 @@ fn run<'a>(a: &mut Analyzer<'a>, programs: &'a [ast::Program]) -> Result<(), Dia
     for p in programs {
         a.collect_stubs(p)?;
     }
+    a.prog.sort_universal_events();
     let mut machine_iter = 0usize;
     let mut cursor = collect::FunCursor::default();
     for p in programs {

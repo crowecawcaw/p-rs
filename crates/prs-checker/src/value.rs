@@ -192,17 +192,17 @@ impl SlotSet {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Value> {
-        self.slots.iter().filter_map(|s| s.as_ref())
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &Value> {
+        Occupied { slots: self.slots.iter(), remaining: self.len() }
     }
 
-    /// `Enumerable.ElementAt(index)` over the enumeration order.
     /// The slots (insertion order, with holes) and the free list, which together decide
     /// the enumeration order of later inserts (used for program-state hashing).
     pub fn layout(&self) -> (&[Option<Value>], &[usize]) {
         (&self.slots, &self.free)
     }
 
+    /// `Enumerable.ElementAt(index)` over the enumeration order.
     pub fn element_at(&self, index: usize) -> Option<&Value> {
         self.iter().nth(index)
     }
@@ -215,6 +215,29 @@ impl SlotSet {
         v.into_iter().map(|(_, v)| v)
     }
 }
+
+/// The occupied slots of a [`SlotSet`] or [`SlotMap`], with an exact length so that
+/// collecting them allocates once.
+struct Occupied<'a, T> {
+    slots: std::slice::Iter<'a, Option<T>>,
+    remaining: usize,
+}
+
+impl<'a, T> Iterator for Occupied<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<&'a T> {
+        let item = self.slots.find_map(|s| s.as_ref())?;
+        self.remaining -= 1;
+        Some(item)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<T> ExactSizeIterator for Occupied<'_, T> {}
 
 /// One [`SlotMap`] slot: a key-value pair, or `None` for a freed slot.
 pub type MapSlot = Option<(Value, Value)>;
@@ -304,15 +327,15 @@ impl SlotMap {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> {
-        self.slots.iter().filter_map(|s| s.as_ref()).map(|(k, v)| (k, v))
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&Value, &Value)> {
+        Occupied { slots: self.slots.iter(), remaining: self.len() }.map(|(k, v)| (k, v))
     }
 
-    pub fn keys(&self) -> impl Iterator<Item = &Value> {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &Value> {
         self.iter().map(|(k, _)| k)
     }
 
-    pub fn values(&self) -> impl Iterator<Item = &Value> {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
         self.iter().map(|(_, v)| v)
     }
 
@@ -406,7 +429,7 @@ impl Value {
         s
     }
 
-    fn write_display(&self, out: &mut String, prog: &Program) {
+    pub(crate) fn write_display(&self, out: &mut String, prog: &Program) {
         match self {
             Value::Null => {}
             Value::Bool(b) => out.push_str(if *b { "True" } else { "False" }),
@@ -459,8 +482,7 @@ impl Value {
                 out.push(')');
             }
             Value::Map(m) => {
-                let mut items: Vec<(String, String)> =
-                    m.iter().map(|(k, v)| (k.to_display(prog), v.to_display(prog))).collect();
+                let mut items: Vec<(String, &Value)> = m.iter().map(|(k, v)| (k.to_display(prog), v)).collect();
                 items.sort_by(|a, b| a.0.cmp(&b.0));
                 out.push('(');
                 for (i, (k, v)) in items.iter().enumerate() {
@@ -470,7 +492,7 @@ impl Value {
                     out.push('<');
                     out.push_str(k);
                     out.push_str("->");
-                    out.push_str(v);
+                    v.write_display(out, prog);
                     out.push('>');
                 }
                 out.push(')');
@@ -653,17 +675,18 @@ pub fn format_double(f: f64) -> String {
 /// .NET composite formatting (`String.Format(InvariantCulture, base, args)`), with its
 /// exact `FormatException` messages. P values are not `IFormattable`, so format strings
 /// (`{0:x}`) are parsed but ignored; alignments (`{0,5}`, `{0,-5}`) pad.
-pub fn format_composite(base: &str, args: &[String]) -> Result<String, String> {
+pub fn format_composite(base: &str, args: &[&str]) -> Result<String, String> {
     const INDEX_LIMIT: usize = 1_000_000;
     const WIDTH_LIMIT: usize = 1_000_000;
-    let s: Vec<char> = base.chars().collect();
+    let mut s: Vec<char> = Vec::with_capacity(base.len());
+    s.extend(base.chars());
     let len = s.len();
     let bad = |pos: usize, reason: &str| {
         Err(format!("Input string was not in a correct format. Failure to parse near offset {}. {}", pos, reason))
     };
     const PREMATURE: &str = "Format item ends prematurely.";
     const DIGIT: &str = "Expected an ASCII digit.";
-    let mut out = String::new();
+    let mut out = String::with_capacity(base.len() + args.iter().map(|a| a.len()).sum::<usize>());
     let mut pos = 0;
     while pos < len {
         let c = s[pos];
@@ -804,7 +827,7 @@ mod tests {
 
     #[test]
     fn composite() {
-        let ok = |b: &str, a: &[&str]| format_composite(b, &a.iter().map(|s| s.to_string()).collect::<Vec<_>>());
+        let ok = |b: &str, a: &[&str]| format_composite(b, a);
         assert_eq!(ok("a {0} b {1}", &["x", "y"]).unwrap(), "a x b y");
         assert_eq!(ok("{{0}} {0}", &["x"]).unwrap(), "{0} x");
         assert_eq!(ok("x}}y{{", &[]).unwrap(), "x}y{");

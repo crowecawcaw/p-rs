@@ -404,6 +404,8 @@ pub struct Runtime<'p> {
     pub failure: Option<Failure>,
     next_op_id: u64,
     action_names: Vec<String>,
+    /// Scratch buffer for rendering `format` arguments, reused to avoid reallocating.
+    pub(crate) format_buf: String,
 }
 
 impl<'p> Runtime<'p> {
@@ -466,6 +468,7 @@ impl<'p> Runtime<'p> {
             failure: None,
             next_op_id: 0,
             action_names,
+            format_buf: String::new(),
         }
     }
 

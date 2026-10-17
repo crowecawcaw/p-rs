@@ -47,8 +47,8 @@ struct ParamSpec {
     values: Vec<ParamValue>,
 }
 
-fn sorted_dedup_by_name<T: Copy + PartialEq>(mut v: Vec<T>, name: impl Fn(T) -> String) -> Vec<T> {
-    v.sort_by_key(|a| name(*a));
+fn sorted_dedup_by_name<'n, T: Copy + PartialEq>(mut v: Vec<T>, name: impl Fn(T) -> &'n str) -> Vec<T> {
+    v.sort_by(|a, b| name(*a).cmp(name(*b)));
     v.dedup();
     v
 }
@@ -61,10 +61,10 @@ impl<'a> Analyzer<'a> {
         self.prog.interfaces[i.idx()].name.clone()
     }
     fn sorted_events(&self, v: Vec<EventId>) -> Vec<EventId> {
-        sorted_dedup_by_name(v, |e| self.event_name(e))
+        sorted_dedup_by_name(v, |e| &self.prog.events[e.idx()].name)
     }
     fn sorted_ifaces(&self, v: Vec<InterfaceId>) -> Vec<InterfaceId> {
-        sorted_dedup_by_name(v, |i| self.iface_name(i))
+        sorted_dedup_by_name(v, |i| &self.prog.interfaces[i.idx()].name)
     }
     /// `GetPermissions`: permissions embedded in a type, or the universal event set when the type
     /// admits any permission.

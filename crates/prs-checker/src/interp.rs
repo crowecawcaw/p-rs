@@ -715,7 +715,22 @@ impl<'p> Runtime<'p> {
                             .map_err(|m| Exception::new("java.lang.IllegalArgumentException", m))?
                     }
                 } else {
-                    let args: Vec<String> = vals.iter().map(|v| v.to_display(prog)).collect();
+                    // render every argument into one reused buffer, then slice it
+                    let buf = &mut self.format_buf;
+                    buf.clear();
+                    let mut ends = Vec::with_capacity(vals.len());
+                    for v in &vals {
+                        v.write_display(buf, prog);
+                        ends.push(buf.len());
+                    }
+                    let args: Vec<&str> = ends
+                        .iter()
+                        .scan(0, |start, &end| {
+                            let arg = &buf[*start..end];
+                            *start = end;
+                            Some(arg)
+                        })
+                        .collect();
                     format_composite(&base, &args).map_err(format_exception)?
                 };
                 stack!().push(Value::Str(Rc::from(text)));

@@ -580,6 +580,9 @@ pub struct Program {
     /// Ids of the built-in `null` and `halt` events.
     pub null_event: EventId,
     pub halt_event: EventId,
+    /// Every event except `null`, sorted by name (see [`Program::universal_events`]). Set once
+    /// all events are declared.
+    pub(crate) universal_events: Vec<EventId>,
     /// Cache for backends that derive names from the program (filled on first use).
     pub java_tuple_names: std::sync::OnceLock<std::collections::HashMap<String, String>>,
 }
@@ -616,10 +619,16 @@ impl Program {
 
     /// All declared events plus `halt` (the universal event set), sorted by name.
     pub fn universal_events(&self) -> Vec<EventId> {
+        debug_assert_eq!(self.universal_events.len(), self.events.iter().filter(|e| !e.is_null()).count());
+        self.universal_events.clone()
+    }
+
+    /// Computes [`Program::universal_events`]; called once every event is declared.
+    pub(crate) fn sort_universal_events(&mut self) {
         let mut v: Vec<EventId> =
             (0..self.events.len() as u32).map(EventId).filter(|e| !self.events[e.idx()].is_null()).collect();
         v.sort_by(|a, b| self.events[a.idx()].name.cmp(&self.events[b.idx()].name));
-        v
+        self.universal_events = v;
     }
 
     pub fn interface_receives(&self, id: InterfaceId) -> Vec<EventId> {
