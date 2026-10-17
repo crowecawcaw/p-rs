@@ -4,7 +4,11 @@ use std::rc::Rc;
 
 use prs_sema::{BinOp, Expr, ExprKind, FunDecl, FunId, PType, Program, Stmt, StmtKind, UnOp, VarId, VarRole};
 
-use crate::bytecode::{CodeBlock, Op, PathElem, ReceiveCase, Root};
+use crate::bytecode::{CodeBlock, Op, Operand, PathElem, ReceiveCase, Root};
+
+fn is_comparison(op: BinOp) -> bool {
+    matches!(op, BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge | BinOp::Eq | BinOp::Neq)
+}
 
 /// Compiled code for a whole program, indexed by [`FunId`].
 #[derive(Debug, Clone, Default)]
@@ -22,10 +26,21 @@ impl Code {
 
 /// Compiles every root function with a body.
 pub fn compile_program(prog: &Program) -> Code {
+    compile_program_with(prog, true)
+}
+
+/// Compiles without the specialized and fused instructions, which must behave exactly
+/// like the plain ones (see [`Op`]).
+#[cfg(test)]
+pub(crate) fn compile_program_plain(prog: &Program) -> Code {
+    compile_program_with(prog, false)
+}
+
+fn compile_program_with(prog: &Program, fuse: bool) -> Code {
     let mut funs = Vec::with_capacity(prog.funs.len());
     for (i, f) in prog.funs.iter().enumerate() {
         if f.parent.is_none() && f.body.is_some() {
-            funs.push(Some(Rc::new(compile_fun(prog, FunId(i as u32)))));
+            funs.push(Some(Rc::new(compile_fun(prog, FunId(i as u32), fuse))));
         } else {
             funs.push(None);
         }
@@ -46,11 +61,16 @@ struct Compiler<'a> {
     ops: Vec<Op>,
     next_hidden: u32,
     loops: Vec<LoopCtx>,
+    /// Emit the specialized and fused instructions.
+    fuse: bool,
+    /// The last position taken as a jump target: instructions from there on cannot be
+    /// fused with earlier ones.
+    barrier: usize,
 }
 
-pub fn compile_fun(prog: &Program, id: FunId) -> CodeBlock {
+fn compile_fun(prog: &Program, id: FunId, fuse: bool) -> CodeBlock {
     let f = prog.fun(id);
-    let mut c = Compiler { prog, ops: Vec::new(), next_hidden: f.frame_size, loops: Vec::new() };
+    let mut c = Compiler { prog, ops: Vec::new(), next_hidden: f.frame_size, loops: Vec::new(), fuse, barrier: 0 };
     c.init_locals(f);
     if let Some(body) = &f.body {
         for s in &body.stmts {
@@ -65,21 +85,95 @@ pub fn compile_fun(prog: &Program, id: FunId) -> CodeBlock {
 }
 
 impl<'a> Compiler<'a> {
+    /// Appends `op`, fused with the instructions before it where possible; returns its
+    /// position.
     fn emit(&mut self, op: Op) -> usize {
+        let op = self.fuse(op);
         self.ops.push(op);
         self.ops.len() - 1
     }
 
-    fn here(&self) -> u32 {
+    /// Whether the last `n` instructions can be fused with the next one: none of them but
+    /// the first is a jump target, and neither is the next one.
+    fn can_fuse(&self, n: usize) -> bool {
+        self.ops.len() >= n && self.barrier + n <= self.ops.len()
+    }
+
+    /// Combines `op` with the instructions before it into one of the fused instructions
+    /// (see [`Op`]), popping those it absorbs.
+    fn fuse(&mut self, op: Op) -> Op {
+        if !self.fuse {
+            return op;
+        }
+        let fused = match (self.ops.as_slice(), &op) {
+            ([.., Op::Keys, Op::LoadLocal(slot)], Op::SeqGet) if self.can_fuse(2) => (2, Op::KeyAtLocal(*slot)),
+            ([.., Op::Default(value)], Op::StoreLocal(slot)) => {
+                (1, Op::StoreLocalConst { slot: *slot, value: value.clone() })
+            }
+            ([.., Op::LoadLocal(slot)], Op::TupleGet(index)) => (1, Op::LocalTupleGet { slot: *slot, index: *index }),
+            ([.., Op::LoadLocal(slot)], Op::Sizeof) => (1, Op::LocalSizeof(*slot)),
+            ([.., Op::LoadLocal(slot)], Op::MapGet { java_null }) => {
+                (1, Op::MapGetLocal { slot: *slot, java_null: *java_null })
+            }
+            ([.., Op::Keys], Op::Sizeof) => (1, Op::KeysSizeof),
+            ([.., Op::Keys], Op::Contains) => (1, Op::KeysContains),
+            ([.., Op::LoadLocal(slot)], Op::IntBin { op, rhs: Operand::Stack }) => {
+                (1, Op::IntBin { op: *op, rhs: Operand::Local(*slot) })
+            }
+            ([.., Op::PushInt(k)], Op::IntBin { op, rhs: Operand::Stack }) => {
+                (1, Op::IntBin { op: *op, rhs: Operand::Int(*k) })
+            }
+            ([.., Op::IntBin { op, rhs }], Op::JumpIfFalse(target)) if is_comparison(*op) => {
+                (1, Op::IntCmpJumpIfFalse { op: *op, rhs: *rhs, target: *target })
+            }
+            ([.., Op::PushNull], Op::Return) => (1, Op::ReturnNull),
+            _ => return op,
+        };
+        match fused {
+            (n, fused) if self.can_fuse(n) => {
+                self.ops.truncate(self.ops.len() - n);
+                fused
+            }
+            _ => op,
+        }
+    }
+
+    /// The current position, as the target of a jump.
+    fn here(&mut self) -> u32 {
+        self.barrier = self.ops.len();
         self.ops.len() as u32
     }
 
     fn patch(&mut self, at: usize, target: u32) {
         match &mut self.ops[at] {
-            Op::Jump(t) | Op::JumpIfFalse(t) | Op::JumpIfTrue(t) => *t = target,
+            Op::Jump(t)
+            | Op::JumpIfFalse(t)
+            | Op::JumpIfTrue(t)
+            | Op::IntCmpJumpIfFalse { target: t, .. }
+            | Op::JumpIfFalseElsePop(t)
+            | Op::JumpIfTrueElsePop(t) => *t = target,
             Op::ForeachNext { exit, .. } => *exit = target,
             _ => unreachable!("patching a non-jump"),
         }
+    }
+
+    /// The jump of `&&` (`if_true` false) or `||`: jumps to the end keeping the left
+    /// operand when it decides the result, else pops it. Returns the jump to patch.
+    fn short_circuit(&mut self, if_true: bool) -> usize {
+        match (self.fuse, if_true) {
+            (true, false) => self.emit(Op::JumpIfFalseElsePop(0)),
+            (true, true) => self.emit(Op::JumpIfTrueElsePop(0)),
+            (false, _) => {
+                self.emit(Op::Dup);
+                let j = self.emit(if if_true { Op::JumpIfTrue(0) } else { Op::JumpIfFalse(0) });
+                self.emit(Op::Pop);
+                j
+            }
+        }
+    }
+
+    fn is_int(&self, e: &Expr) -> bool {
+        matches!(e.ty.canonicalize(self.prog), PType::Int)
     }
 
     fn init_locals(&mut self, f: &FunDecl) {
@@ -149,7 +243,11 @@ impl<'a> Compiler<'a> {
             StmtKind::Assign { lhs, rhs } => {
                 let (root, path) = self.lvalue(lhs);
                 self.expr(rhs);
-                self.emit(Op::Store { root, path });
+                match (root, path.is_empty() && self.fuse) {
+                    (Root::Local(slot), true) => self.emit(Op::StoreLocal(slot)),
+                    (Root::Field(slot), true) => self.emit(Op::StoreField(slot)),
+                    _ => self.emit(Op::Store { root, path }),
+                };
             }
             StmtKind::Insert { lhs, index, value } => {
                 let (root, path) = self.lvalue(lhs);
@@ -446,30 +544,12 @@ impl<'a> Compiler<'a> {
                 };
             }
             ExprKind::Binary { op, lhs, rhs } => match op {
-                BinOp::And => {
+                BinOp::And | BinOp::Or | BinOp::Then => {
                     self.expr(lhs);
-                    self.emit(Op::Dup);
-                    let j = self.emit(Op::JumpIfFalse(0));
-                    self.emit(Op::Pop);
-                    self.expr(rhs);
-                    let end = self.here();
-                    self.patch(j, end);
-                }
-                BinOp::Or => {
-                    self.expr(lhs);
-                    self.emit(Op::Dup);
-                    let j = self.emit(Op::JumpIfTrue(0));
-                    self.emit(Op::Pop);
-                    self.expr(rhs);
-                    let end = self.here();
-                    self.patch(j, end);
-                }
-                BinOp::Then => {
-                    self.expr(lhs);
-                    self.emit(Op::Not);
-                    self.emit(Op::Dup);
-                    let j = self.emit(Op::JumpIfTrue(0));
-                    self.emit(Op::Pop);
+                    if *op == BinOp::Then {
+                        self.emit(Op::Not);
+                    }
+                    let j = self.short_circuit(*op != BinOp::And);
                     self.expr(rhs);
                     let end = self.here();
                     self.patch(j, end);
@@ -482,7 +562,11 @@ impl<'a> Compiler<'a> {
                 other => {
                     self.expr(lhs);
                     self.expr(rhs);
-                    self.emit(Op::Bin(*other));
+                    if self.fuse && self.is_int(lhs) && self.is_int(rhs) {
+                        self.emit(Op::IntBin { op: *other, rhs: Operand::Stack });
+                    } else {
+                        self.emit(Op::Bin(*other));
+                    }
                 }
             },
             ExprKind::Contains { item, collection } => {

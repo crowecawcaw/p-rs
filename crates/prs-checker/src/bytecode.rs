@@ -141,6 +141,77 @@ pub enum Op {
         item_slot: u32,
         exit: u32,
     },
+
+    // ---- specialized and fused instructions -------------------------------------
+    //
+    // Each stands for the sequence of the instructions above in its documentation, with the
+    // same effects and errors, and counts as that many units of work. Instructions that
+    // may fail come last in the sequence, or are checked in sequence order, so the work
+    // bound is reached at the same point.
+    /// `Store` of a whole field (an empty path).
+    StoreField(u32),
+    /// `Default(value); StoreLocal(slot)`.
+    StoreLocalConst {
+        slot: u32,
+        value: crate::value::Value,
+    },
+    /// `LoadLocal(slot); TupleGet(index)`.
+    LocalTupleGet {
+        slot: u32,
+        index: u32,
+    },
+    /// `LoadLocal(slot); Sizeof`.
+    LocalSizeof(u32),
+    /// `LoadLocal(slot); MapGet { java_null }`: the map is on the stack, the key in `slot`.
+    MapGetLocal {
+        slot: u32,
+        java_null: bool,
+    },
+    /// `Keys; Sizeof`.
+    KeysSizeof,
+    /// `Keys; Contains`.
+    KeysContains,
+    /// `Keys; LoadLocal(slot); SeqGet`: `keys(map)[i]`.
+    KeyAtLocal(u32),
+    /// `Bin(op)` of two `int` operands, or `rhs; Bin(op)` when the right operand is a
+    /// local or a literal. Falls back to `Bin` for other values.
+    IntBin {
+        op: BinOp,
+        rhs: Operand,
+    },
+    /// `IntBin { op, rhs }; JumpIfFalse(target)` for a comparison `op`.
+    IntCmpJumpIfFalse {
+        op: BinOp,
+        rhs: Operand,
+        target: u32,
+    },
+    /// `Dup; JumpIfFalse(target); Pop` (`&&`): jumps keeping a false operand, else pops it.
+    JumpIfFalseElsePop(u32),
+    /// `Dup; JumpIfTrue(target); Pop` (`||`, `==>`).
+    JumpIfTrueElsePop(u32),
+    /// `PushNull; Return`.
+    ReturnNull,
+}
+
+/// The right operand of an [`Op::IntBin`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Operand {
+    /// On the operand stack, above the left operand.
+    Stack,
+    /// `LoadLocal(slot)`.
+    Local(u32),
+    /// `PushInt(value)`.
+    Int(i64),
+}
+
+impl Operand {
+    /// The units of work of the instruction that loads the operand.
+    pub fn work(self) -> u64 {
+        match self {
+            Operand::Stack => 0,
+            Operand::Local(_) | Operand::Int(_) => 1,
+        }
+    }
 }
 
 /// The compiled form of one root function.

@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use prs_sema::{BinOp, EventId, PType, Program};
 
-use crate::bytecode::{Op, PathElem, ReceiveCase, Root};
+use crate::bytecode::{Op, Operand, PathElem, ReceiveCase, Root};
 use crate::runtime::{
     ActiveIter, Actor, Event, Exception, Exec, ExecOutcome, MachineStatus, OpStatus, Pending, Runtime, SchedKind, Stop,
     Transition,
@@ -283,6 +283,110 @@ fn note_mutation(exec: &mut Exec, frame_idx: usize, root: Root) {
             exec.values[frame.base + slot as usize + 1] = Value::Int(-1);
         }
     }
+}
+
+/// `((PTuple)t)[i]`.
+fn tuple_get(t: &Value, i: u32, prog: &Program) -> Result<Value, Exception> {
+    match t {
+        Value::Tuple(t) => t.get(i as usize).cloned().ok_or_else(index_oor),
+        Value::NamedTuple(t) => t.values.get(i as usize).cloned().ok_or_else(index_oor),
+        Value::Null => Err(nre()),
+        other => Err(invalid_cast(other, "PChecker.Runtime.Values.PTuple", prog)),
+    }
+}
+
+/// `((PSeq)s)[i]`.
+fn seq_get(s: &Value, i: &Value, prog: &Program) -> Result<Value, Exception> {
+    match s {
+        Value::Seq(s) => {
+            let i = i.as_int();
+            if i < 0 || i as usize >= s.len() {
+                return Err(index_oor());
+            }
+            Ok(s[i as usize].clone())
+        }
+        Value::Null => Err(nre()),
+        other => Err(invalid_cast(other, "PChecker.Runtime.Values.PSeq", prog)),
+    }
+}
+
+/// `((PMap)m)[key]`; with `java_null`, a missing key reads as null.
+fn map_get(m: &Value, key: &Value, java_null: bool, prog: &Program) -> Result<Value, Exception> {
+    match m {
+        Value::Map(m) if java_null => Ok(m.get(key).cloned().unwrap_or(Value::Null)),
+        Value::Map(m) => m.get(key).cloned().ok_or_else(|| key_not_found(&key.to_display(prog))),
+        Value::Null => Err(nre()),
+        other => Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog)),
+    }
+}
+
+/// The map of `keys(m)` and `values(m)`.
+fn map_of<'a>(m: &'a Value, prog: &Program) -> Result<&'a crate::value::SlotMap, Exception> {
+    match m {
+        Value::Map(m) => Ok(m),
+        Value::Null => Err(nre()),
+        other => Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog)),
+    }
+}
+
+/// `sizeof(c)`.
+fn size_of(c: &Value) -> Result<Value, Exception> {
+    if c.is_null() {
+        return Err(nre());
+    }
+    Ok(Value::Int(c.count() as i64))
+}
+
+/// `Op::IntBin`: [`bin`] with the operations on two integers that cannot fail inlined.
+#[inline(always)]
+fn int_bin(op: BinOp, a: Value, b: Value, java: bool) -> Result<Value, Exception> {
+    if let (Value::Int(x), Value::Int(y)) = (&a, &b) {
+        let (x, y) = (*x, *y);
+        match op {
+            BinOp::Add => return Ok(Value::Int(x.wrapping_add(y))),
+            BinOp::Sub => return Ok(Value::Int(x.wrapping_sub(y))),
+            BinOp::Mul => return Ok(Value::Int(x.wrapping_mul(y))),
+            BinOp::Lt => return Ok(Value::Bool(x < y)),
+            BinOp::Le => return Ok(Value::Bool(x <= y)),
+            BinOp::Gt => return Ok(Value::Bool(x > y)),
+            BinOp::Ge => return Ok(Value::Bool(x >= y)),
+            BinOp::Eq => return Ok(Value::Bool(x == y)),
+            BinOp::Neq => return Ok(Value::Bool(x != y)),
+            _ => {}
+        }
+    }
+    bin(op, a, b, java)
+}
+
+/// The right operand of an `Op::IntBin`, taking it off the stack if it is there.
+#[inline(always)]
+fn operand(stack: &mut Vec<Value>, base: usize, rhs: Operand) -> Value {
+    match rhs {
+        Operand::Stack => pop(stack),
+        Operand::Local(slot) => stack[base + slot as usize].clone(),
+        Operand::Int(k) => Value::Int(k),
+    }
+}
+
+/// A binary operation (`Op::Bin`). P floats are Java `float`s in the PObserve backend.
+fn bin(op: BinOp, a: Value, b: Value, java: bool) -> Result<Value, Exception> {
+    Ok(match arith(op, a, b)? {
+        Value::Float(f) if java => Value::Float(f as f32 as f64),
+        r => r,
+    })
+}
+
+/// Leaves the innermost frame, handing `v` to its caller.
+fn return_value(exec: &mut Exec, v: Value) -> Flow {
+    let frame = exec.frames.pop().expect("a running frame");
+    exec.values.truncate(frame.base);
+    let depth = exec.frames.len();
+    exec.iters.retain(|it| it.frame < depth);
+    if depth == 0 {
+        return Flow::Finished(v);
+    }
+    exec.values.push(v);
+    Flow::Continue
 }
 
 fn arith(op: BinOp, a: Value, b: Value) -> Result<Value, Exception> {
@@ -571,14 +675,24 @@ impl<'p> Runtime<'p> {
         let limit = self.config.max_work_per_step;
         let prog = self.prog;
         let java = self.java_semantics();
+        // Counts `n` units of work. A fused instruction counts its first unit with the
+        // loop and the others before the part they stand for. The bound is checked as if
+        // the units were counted one at a time, so it is reported with the counter just
+        // over it.
+        macro_rules! charge {
+            ($n:expr) => {
+                *work += $n;
+                if limit > 0 && *work > limit {
+                    *work = (*work + 1 - $n).max(limit + 1);
+                    self.step_work = *work;
+                    let bug = self.work_bound_exceeded(actor);
+                    *work = self.step_work;
+                    return Err(bug);
+                }
+            };
+        }
         loop {
-            *work += 1;
-            if limit > 0 && *work > limit {
-                self.step_work = *work;
-                let bug = self.work_bound_exceeded(actor);
-                *work = self.step_work;
-                return Err(bug);
-            }
+            charge!(1);
             let stack = &mut exec.values;
             // every code block ends with a `Return`
             let op = &code.ops[pc];
@@ -606,6 +720,14 @@ impl<'p> Runtime<'p> {
                     let v = pop(stack);
                     stack[base + *s as usize] = v;
                 }
+                Op::StoreLocalConst { slot, value } => {
+                    charge!(1);
+                    stack[base + *slot as usize] = value.clone();
+                }
+                Op::StoreField(s) => {
+                    let v = pop(stack);
+                    self.fields_mut(actor)[*s as usize] = v;
+                }
                 Op::LoadField(s) => {
                     let v = self.fields_mut(actor)[*s as usize].clone();
                     stack.push(v);
@@ -627,29 +749,17 @@ impl<'p> Runtime<'p> {
                     stack.push(Value::NamedTuple(Rc::new(NamedTuple { names: names.clone(), values: vs })));
                 }
                 Op::TupleGet(i) => {
-                    let base = pop(stack);
-                    let v = match &base {
-                        Value::Tuple(t) => t.get(*i as usize).cloned().ok_or_else(index_oor)?,
-                        Value::NamedTuple(t) => t.values.get(*i as usize).cloned().ok_or_else(index_oor)?,
-                        Value::Null => return Err(nre().into()),
-                        other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PTuple", prog).into()),
-                    };
+                    let v = tuple_get(&pop(stack), *i, prog)?;
+                    stack.push(v);
+                }
+                Op::LocalTupleGet { slot, index } => {
+                    charge!(1);
+                    let v = tuple_get(&stack[base + *slot as usize], *index, prog)?;
                     stack.push(v);
                 }
                 Op::SeqGet => {
                     let idx = pop(stack);
-                    let base = pop(stack);
-                    let v = match &base {
-                        Value::Seq(s) => {
-                            let i = idx.as_int();
-                            if i < 0 || i as usize >= s.len() {
-                                return Err(index_oor().into());
-                            }
-                            s[i as usize].clone()
-                        }
-                        Value::Null => return Err(nre().into()),
-                        other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PSeq", prog).into()),
-                    };
+                    let v = seq_get(&pop(stack), &idx, prog)?;
                     stack.push(v);
                 }
                 Op::SetGet => {
@@ -670,21 +780,51 @@ impl<'p> Runtime<'p> {
                 }
                 Op::MapGet { java_null } => {
                     let key = pop(stack);
-                    let base = pop(stack);
-                    let v = match &base {
-                        Value::Map(m) if *java_null && java => m.get(&key).cloned().unwrap_or(Value::Null),
-                        Value::Map(m) => m.get(&key).cloned().ok_or_else(|| key_not_found(&key.to_display(prog)))?,
-                        Value::Null => return Err(nre().into()),
-                        other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
-                    };
+                    let v = map_get(&pop(stack), &key, *java_null && java, prog)?;
+                    stack.push(v);
+                }
+                Op::MapGetLocal { slot, java_null } => {
+                    charge!(1);
+                    let m = pop(stack);
+                    let v = map_get(&m, &stack[base + *slot as usize], *java_null && java, prog)?;
                     stack.push(v);
                 }
                 Op::Sizeof => {
-                    let base = pop(stack);
-                    if base.is_null() {
-                        return Err(nre().into());
+                    let v = size_of(&pop(stack))?;
+                    stack.push(v);
+                }
+                Op::LocalSizeof(slot) => {
+                    charge!(1);
+                    let v = size_of(&stack[base + *slot as usize])?;
+                    stack.push(v);
+                }
+                Op::KeysSizeof => {
+                    let m = pop(stack);
+                    let n = map_of(&m, prog)?.len();
+                    charge!(1);
+                    stack.push(Value::Int(n as i64));
+                }
+                Op::KeysContains => {
+                    let m = pop(stack);
+                    let m = map_of(&m, prog)?;
+                    charge!(1);
+                    let item = pop(stack);
+                    stack.push(Value::Bool(m.contains_key(&item)));
+                }
+                Op::KeyAtLocal(slot) => {
+                    let m = pop(stack);
+                    let m = map_of(&m, prog)?;
+                    charge!(2);
+                    let i = stack[base + *slot as usize].as_int();
+                    if i < 0 || i as usize >= m.len() {
+                        return Err(index_oor().into());
                     }
-                    stack.push(Value::Int(base.count() as i64));
+                    let key = if java {
+                        crate::javafmt::map_keys_in_java_order(m).swap_remove(i as usize)
+                    } else {
+                        m.key_at(i as usize).expect("index in range").clone()
+                    };
+                    stack.push(key);
                 }
                 Op::Contains => {
                     let coll = pop(stack);
@@ -708,13 +848,25 @@ impl<'p> Runtime<'p> {
                 Op::Bin(op) => {
                     let b = pop(stack);
                     let a = pop(stack);
-                    let r = arith(*op, a, b)?;
-                    // P floats are Java `float`s in the PObserve backend
-                    let r = match r {
-                        Value::Float(f) if java => Value::Float(f as f32 as f64),
-                        r => r,
-                    };
+                    let r = bin(*op, a, b, java)?;
                     stack.push(r);
+                }
+                Op::IntBin { op, rhs } => {
+                    charge!(rhs.work());
+                    let b = operand(stack, base, *rhs);
+                    let a = pop(stack);
+                    let r = int_bin(*op, a, b, java)?;
+                    stack.push(r);
+                }
+                Op::IntCmpJumpIfFalse { op, rhs, target } => {
+                    charge!(rhs.work());
+                    let b = operand(stack, base, *rhs);
+                    let a = pop(stack);
+                    let r = int_bin(*op, a, b, java)?;
+                    charge!(1);
+                    if !r.as_bool() {
+                        pc = *target as usize;
+                    }
                 }
                 Op::Neg => {
                     let v = match pop(stack) {
@@ -741,6 +893,24 @@ impl<'p> Runtime<'p> {
                 Op::JumpIfTrue(t) => {
                     if pop(stack).as_bool() {
                         pc = *t as usize;
+                    }
+                }
+                Op::JumpIfFalseElsePop(t) => {
+                    charge!(1);
+                    if !stack.last().expect("operand stack underflow").as_bool() {
+                        pc = *t as usize;
+                    } else {
+                        charge!(1);
+                        pop(stack);
+                    }
+                }
+                Op::JumpIfTrueElsePop(t) => {
+                    charge!(1);
+                    if stack.last().expect("operand stack underflow").as_bool() {
+                        pc = *t as usize;
+                    } else {
+                        charge!(1);
+                        pop(stack);
                     }
                 }
                 Op::Cast(ty) => check_cast(stack.last().expect("operand stack underflow"), ty, prog)?,
@@ -777,15 +947,11 @@ impl<'p> Runtime<'p> {
                 }
                 Op::Return => {
                     let v = pop(stack);
-                    let frame = exec.frames.pop().expect("a running frame");
-                    stack.truncate(frame.base);
-                    let depth = exec.frames.len();
-                    exec.iters.retain(|it| it.frame < depth);
-                    if depth == 0 {
-                        return Ok(Flow::Finished(v));
-                    }
-                    stack.push(v);
-                    return Ok(Flow::Continue);
+                    return Ok(return_value(exec, v));
+                }
+                Op::ReturnNull => {
+                    charge!(1);
+                    return Ok(return_value(exec, Value::Null));
                 }
                 Op::Store { root, path } => {
                     let rhs = pop(stack);
@@ -864,26 +1030,24 @@ impl<'p> Runtime<'p> {
         let stack = &mut exec.values;
         match op {
             Op::Keys => {
-                let v = match &pop(stack) {
-                    Value::Map(m) if self.java_semantics() => {
-                        Value::Seq(Rc::new(crate::javafmt::map_keys_in_java_order(m)))
-                    }
-                    Value::Map(m) => Value::Seq(Rc::new(m.keys().cloned().collect())),
-                    Value::Null => return Err(nre().into()),
-                    other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
+                let m = pop(stack);
+                let m = map_of(&m, prog)?;
+                let keys = if self.java_semantics() {
+                    crate::javafmt::map_keys_in_java_order(m)
+                } else {
+                    m.keys().cloned().collect()
                 };
-                stack.push(v);
+                stack.push(Value::Seq(Rc::new(keys)));
             }
             Op::Values => {
-                let v = match &pop(stack) {
-                    Value::Map(m) if self.java_semantics() => {
-                        Value::Seq(Rc::new(crate::javafmt::map_values_in_java_order(m)))
-                    }
-                    Value::Map(m) => Value::Seq(Rc::new(m.values().cloned().collect())),
-                    Value::Null => return Err(nre().into()),
-                    other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
+                let m = pop(stack);
+                let m = map_of(&m, prog)?;
+                let values = if self.java_semantics() {
+                    crate::javafmt::map_values_in_java_order(m)
+                } else {
+                    m.values().cloned().collect()
                 };
-                stack.push(v);
+                stack.push(Value::Seq(Rc::new(values)));
             }
             Op::CoerceInterface(iface) => {
                 let v = match pop(stack) {
@@ -1367,6 +1531,72 @@ fn foreign_missing(name: &str) -> Exception {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::compile::{compile_program, compile_program_plain, Code};
+    use crate::runtime::{Config, Setup};
+
+    fn analyze(src: &str) -> prs_sema::Analysis {
+        let mut sm = prs_syntax::SourceMap::new();
+        sm.add("model.p", src.to_string());
+        prs_sema::compile(&sm, &prs_sema::Options::default()).unwrap_or_else(|_| panic!("does not compile"))
+    }
+
+    /// The bug, log and final work count of the program's test under a work bound.
+    fn run(prog: &Program, code: &Code, max_work_per_step: u64) -> (Option<String>, Vec<String>, u64) {
+        let tc = prog.test_cases().into_iter().next().expect("a test case");
+        let (module, main) = prog.test_case_module(&tc);
+        let config = Config { max_work_per_step, ..Config::default() };
+        let rng = Rc::new(std::cell::RefCell::new(crate::random::RandomValueGenerator::new(0)));
+        let mut strategy = crate::strategy::RandomStrategy::new(1000, rng);
+        let mut rt = Runtime::new(prog, code, module, &config, &mut strategy, Setup::default());
+        rt.run_test(main.expect("a main machine"), &tc.name);
+        (rt.bug.clone(), rt.log.clone(), rt.step_work)
+    }
+
+    /// The specialized and fused instructions behave like the plain ones, and count the
+    /// same work: whatever the work bound, a run logs the same lines and ends in the same
+    /// way, be it the work bound or an exception.
+    #[test]
+    fn fused_instructions_behave_like_plain_ones() {
+        const BODY: &str = "
+            machine Main {
+              var m: map[int, int];
+              var total: int;
+              start state S {
+                entry {
+                  var i: int; var j: int; var k: int; var d: int;
+                  var t: (a: int, b: int);
+                  var s: seq[int];
+                  m[1] = 10; m[2] = 20; m[3] = 30;
+                  s += (0, 5); s += (1, 6);
+                  t = (a = 1, b = 2);
+                  while (i < 100000) {
+                    j = INDEX;
+                    k = keys(m)[j];
+                    if (k in keys(m) && sizeof(s) > 0 || t.a == 2) {
+                      total = total + m[k] + t.b - 1;
+                    }
+                    d = DIVISOR;
+                    total = total / d;
+                    print format(\"{0} {1}\", total, sizeof(keys(m)));
+                    helper();
+                    i = i + 1;
+                  }
+                }
+              }
+              fun helper() { var z: int; if (z >= 0) { z = 1; } }
+            }
+            test tc [main=Main]: { Main };";
+        // runs into the work bound; fails at `keys(m)[j]`; fails at `total / d`
+        for (index, divisor, bounds) in [("i % sizeof(keys(m))", "1", 2000), ("i", "1", 600), ("i % 3", "4 - i", 900)] {
+            let src = BODY.replace("INDEX", index).replace("DIVISOR", divisor);
+            let a = analyze(&src);
+            let (fused, plain) = (compile_program(&a.program), compile_program_plain(&a.program));
+            for bound in 1..bounds {
+                assert_eq!(run(&a.program, &fused, bound), run(&a.program, &plain, bound), "{} {}", index, bound);
+            }
+        }
+    }
 
     #[test]
     fn integer_division_overflow_throws() {
