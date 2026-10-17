@@ -139,6 +139,27 @@ system; the module is about 1 MB (about 320 KB gzipped).
   below). The small logs and upstream's outputs for them are vendored in
   `tests/upstream/PObserve` and checked in `crates/prs-compat/tests/observe_upstream.rs`.
 
+## Benchmarks
+
+`scripts/bench.py` runs `prs check` on six tutorial tests with fixed schedule counts and
+seed, and records total check time, schedules per second, compile time and (with
+`--instructions`, via Valgrind) instructions executed:
+
+```sh
+cargo build --release -p prs-cli
+python3 scripts/bench.py run --out bench.json
+python3 scripts/bench.py report --current bench.json --history old.jsonl
+```
+
+* Every commit on main: `.github/workflows/bench.yml` appends the result to `main.jsonl`
+  on the `benchmarks` branch and reports the change from the previous commit in the run
+  summary. Charts: [benchmarks page](https://crowecawcaw.github.io/p-rs/bench/).
+  Times are wall clock on a shared runner (about ±10% noise); the instruction counts,
+  stable to about 0.2%, tell a real change from noise.
+* Against upstream P: run the "Benchmark vs upstream P" workflow by hand. It installs P
+  from NuGet and runs both tools on the same runner and workloads, and appends the
+  comparison to `upstream.jsonl`.
+
 ## Known differences from upstream
 
 * Not implemented: the rl strategy and the PEx and PVerifier modes. Options for them are

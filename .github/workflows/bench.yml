@@ -1,0 +1,58 @@
+# Benchmarks every commit on main (scripts/bench.py) and appends the result to
+# main.jsonl on the `benchmarks` branch. The run summary compares the commit
+# with the previous one; the chart is at https://<owner>.github.io/<repo>/bench/.
+#
+# Wall-clock times on shared runners vary by 10-20% between runs, so each result
+# also stores the instructions executed (cachegrind), which do not. A manual run
+# on another branch reports against main's history without recording anything.
+
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One run at a time, all finish: every main commit gets an entry, in order.
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bench:
+    if: github.repository == 'crowecawcaw/p-rs'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Install Valgrind
+        run: sudo apt-get update -q && sudo apt-get install -yq valgrind
+      - name: Build
+        run: cargo build --release --locked -p prs-cli
+
+      - name: Run benchmarks
+        run: python3 scripts/bench.py run --cmd target/release/prs --instructions --out bench.json
+
+      - name: Report
+        run: |
+          git fetch -q --depth 1 origin benchmarks && git show FETCH_HEAD:main.jsonl > history.jsonl || touch history.jsonl
+          python3 scripts/bench.py report --current bench.json --history history.jsonl | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Record
+        if: github.ref == 'refs/heads/main'
+        run: ./.github/scripts/push-bench-data.sh append bench.json main.jsonl "Benchmark ${GITHUB_SHA::7}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench
+          path: bench.json
