@@ -125,3 +125,24 @@ fn workers_without_a_schedule_explore_none() {
     assert_eq!(merged.report.explored_fair_schedules + merged.report.explored_unfair_schedules, 2);
     assert_eq!(alone.len(), 2);
 }
+
+/// Two workers that hit a bug at the same moment, before either sees the other stop: the run
+/// still reports the one bug it ends at.
+#[test]
+fn simultaneous_bugs_report_one() {
+    let mut sm = prs_syntax::SourceMap::new();
+    sm.add(
+        "model.p",
+        "machine Main { start state S { entry { assert false, \"always\"; } } } test tc [main = Main]: { Main };",
+    );
+    let analysis = prs_sema::compile(&sm, &prs_sema::Options::default()).expect("compiles");
+    let tc = analysis.program.test_cases().into_iter().find(|t| t.name == "tc").unwrap();
+    let checker = Checker::new(&analysis.program);
+    let opts = CheckerOptions { iterations: 10, ..Default::default() };
+    // a pool per worker, so that neither is stopped by the other's bug
+    let parts = (0..2).map(|w| checker.explore(&tc, &opts, &WorkerPool::new(2), w, &mut Vec::new()).unwrap()).collect();
+    let result = checker.finish(&tc, &opts, parts);
+    assert_eq!(result.report.num_bugs, 1);
+    assert_eq!(result.report.bug_reports.len(), 1);
+    assert!(result.readable_trace.is_some());
+}

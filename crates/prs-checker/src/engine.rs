@@ -853,6 +853,12 @@ impl<'p> Checker<'p> {
     pub fn finish(&self, tc: &TestCase, opts: &CheckerOptions, parts: Vec<Exploration>) -> CheckResult {
         let several = parts.len() > 1;
         let Exploration { mut result, first_bug, time, .. } = merge(parts);
+        if several && !opts.full_exploration {
+            // the run ends at the first bug; one another worker hit before it stopped is not
+            // reported (the reporting worker's bug comes first)
+            result.report.num_bugs = result.report.num_bugs.min(1);
+            result.report.bug_reports.truncate(1);
+        }
         let Some(mut bug) = first_bug else { return result };
         if several {
             // the report of all workers, not only the one that found the bug
