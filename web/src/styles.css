@@ -183,8 +183,6 @@ button.diag {
 }
 .bug-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); margin-left: 6px; vertical-align: 1px; }
 .goto-short { display: none; }
-.log-downloads { display: flex; align-items: center; gap: 4px; padding: 6px var(--g) 0; font-size: 13px; color: var(--muted); }
-.log-downloads .downloads { margin-left: 0; }
 .downloads { margin-left: auto; display: flex; gap: 2px; align-items: center; }
 .download { text-decoration: none; font-size: 12px; padding: 8px; min-height: 32px; display: inline-flex; align-items: center; border-radius: 6px; color: var(--muted); }
 .download:hover { color: var(--accent); background: var(--active-line); }

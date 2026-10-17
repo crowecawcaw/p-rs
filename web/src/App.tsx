@@ -441,7 +441,6 @@ export function App() {
               />
             )}
             {tab === "trace" && result?.traceJson && <TraceView json={result.traceJson} onOpenLocation={openLocation} />}
-            {tab === "log" && narrow && downloads && <div className="log-downloads">Download {downloads}</div>}
             {tab === "log" && result?.traceText && <Console text={result.traceText} onOpenLocation={openLocation} />}
           </div>
         </section>
