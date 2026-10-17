@@ -16,6 +16,7 @@ use prs_sema::{
 use crate::bytecode::{CodeBlock, ReceiveCase, Root};
 use crate::compile::Code;
 use crate::coverage::Coverage;
+use crate::javafmt::JavaFormatter;
 use crate::jsonlog::{payload_key, to_dict, Details, JsonLog};
 use crate::strategy::{OpInfo, ScheduleStep, ScheduleTrace, Strategy, StrategyKind};
 use crate::timeline::{Timeline, TimelineConfig, VectorTime};
@@ -273,10 +274,6 @@ pub struct Config {
     pub assembly_name: String,
     /// How schedules are abstracted into timelines.
     pub timeline: TimelineConfig,
-    /// Run spec monitors with the semantics of upstream's Java backend, which PObserve
-    /// uses: `MessageFormat` formatting, Java `toString()`, 32-bit floats, `with`
-    /// functions before exit actions, and unhandled events reported as exceptions.
-    pub java_semantics: bool,
 }
 
 impl Default for Config {
@@ -293,7 +290,6 @@ impl Default for Config {
             logging: true,
             assembly_name: "PImplementation".into(),
             timeline: TimelineConfig::default(),
-            java_semantics: false,
         }
     }
 }
@@ -312,7 +308,7 @@ pub enum Actor {
 }
 
 /// Why execution stopped, as classified for PObserve (set when
-/// [`Config::java_semantics`] is on, or by an exception).
+/// [`Setup::java_semantics`] is on, or by an exception).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Failure {
     /// A failed `assert`; the message is `Assertion failure: <message>`.
@@ -365,9 +361,9 @@ impl Exception {
 
 /// What a run is given and records beyond its [`Config`]; everything is off by default.
 #[derive(Default)]
-pub struct Setup<'a> {
+pub struct Setup<'p> {
     /// Values of the test case's global parameters (`param`).
-    pub assignment: Option<&'a prs_sema::ParamAssignment>,
+    pub assignment: Option<&'p prs_sema::ParamAssignment>,
     /// Implementations of foreign functions.
     pub foreign: Option<Rc<dyn crate::foreign::ForeignFunctions>>,
     /// Time tracking (see `design/time/PROPOSAL.md`).
@@ -378,6 +374,10 @@ pub struct Setup<'a> {
     pub xml_trace: Option<u64>,
     /// Accumulate activity coverage.
     pub coverage: Option<Coverage>,
+    /// Run spec monitors with the semantics of upstream's Java backend, which PObserve uses:
+    /// `MessageFormat` formatting and Java `toString()` (by this formatter), 32-bit floats,
+    /// `with` functions before exit actions, and unhandled events reported as exceptions.
+    pub java_semantics: Option<&'p JavaFormatter<'p>>,
 }
 
 pub struct Runtime<'p> {
@@ -427,6 +427,8 @@ pub struct Runtime<'p> {
     pub(crate) handler_starts: u64,
     /// The first failure of this execution (see [`Failure`]).
     pub(crate) failure: Option<Failure>,
+    /// See [`Setup::java_semantics`].
+    pub(crate) java: Option<&'p JavaFormatter<'p>>,
     next_op_id: u64,
     action_names: Vec<String>,
     /// Scratch buffer for rendering `format` arguments, reused to avoid reallocating.
@@ -441,9 +443,9 @@ impl<'p> Runtime<'p> {
         module: &'p ModuleInfo,
         config: &'p Config,
         strategy: &'p mut dyn Strategy,
-        setup: Setup<'_>,
+        setup: Setup<'p>,
     ) -> Runtime<'p> {
-        let Setup { assignment, foreign, time, json_trace, xml_trace, coverage } = setup;
+        let Setup { assignment, foreign, time, json_trace, xml_trace, coverage, java_semantics } = setup;
         let mut globals: Vec<Value> =
             prog.global_params.iter().map(|v| default_value(&prog.var(*v).ty, prog)).collect();
         if let Some(a) = assignment {
@@ -491,10 +493,17 @@ impl<'p> Runtime<'p> {
             time: time.map(|o| Box::new(crate::time::TimeState::new(o))),
             handler_starts: 0,
             failure: None,
+            java: java_semantics,
             next_op_id: 0,
             action_names,
             format_buf: String::new(),
         }
+    }
+
+    /// Whether spec monitors run with the semantics of upstream's Java backend (see
+    /// [`Setup::java_semantics`]).
+    pub fn java_semantics(&self) -> bool {
+        self.java.is_some()
     }
 
     pub fn fun_name(&self, f: FunId) -> &str {
@@ -2070,7 +2079,7 @@ impl<'p> Runtime<'p> {
     }
 
     fn monitor_goto(&mut self, mon: usize, target: StateId, with: Option<FunId>, e: &Event) -> Result<(), Stop> {
-        if self.config.java_semantics {
+        if self.java_semantics() {
             // the generated handler is `{ with(p); gotoState(target); }`: the transition
             // function runs before the exit action
             if let Some(w) = with {
@@ -2432,7 +2441,7 @@ impl<'p> Runtime<'p> {
                 // ignored (exact or wildcard) events are dropped
                 Some(HandlerAction::Ignore) => return Ok(()),
                 // deferral is not supported by the Java backend: no handler is generated
-                Some(HandlerAction::Defer) | None if self.config.java_semantics => {
+                Some(HandlerAction::Defer) | None if self.java_semantics() => {
                     let state = self.state_name(Some(s));
                     let state = state.rsplit('.').next().unwrap_or(&state).to_string();
                     let event = self.prog.event(e.id).name.clone();

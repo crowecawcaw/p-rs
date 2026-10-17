@@ -583,8 +583,6 @@ pub struct Program {
     /// Every event except `null`, sorted by name (see [`Program::universal_events`]). Set once
     /// all events are declared.
     pub(crate) universal_events: Vec<EventId>,
-    /// Cache for backends that derive names from the program (filled on first use).
-    pub java_tuple_names: std::sync::OnceLock<std::collections::HashMap<String, String>>,
 }
 
 impl Program {

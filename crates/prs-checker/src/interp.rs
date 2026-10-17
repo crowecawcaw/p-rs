@@ -527,6 +527,30 @@ impl<'p> Runtime<'p> {
         Ok(self.choose_int(count as i32, &name)? as usize)
     }
 
+    /// P's `format(base, vals...)`, where the arguments have static types `types`.
+    fn format(&mut self, base: &str, vals: &[Value], types: &[PType]) -> Result<String, Exception> {
+        if let Some(java) = self.java {
+            return java.format(base, vals, types).map_err(|m| Exception::new("java.lang.IllegalArgumentException", m));
+        }
+        // render every argument into one reused buffer, then slice it
+        let buf = &mut self.format_buf;
+        buf.clear();
+        let mut ends = Vec::with_capacity(vals.len());
+        for v in vals {
+            v.write_display(buf, self.prog);
+            ends.push(buf.len());
+        }
+        let args: Vec<&str> = ends
+            .iter()
+            .scan(0, |start, &end| {
+                let arg = &buf[*start..end];
+                *start = end;
+                Some(arg)
+            })
+            .collect();
+        format_composite(base, &args).map_err(format_exception)
+    }
+
     /// Executes one instruction.
     fn step(&mut self, actor: Actor, exec: &mut Exec) -> Result<Flow, Fault> {
         let frame_idx = exec.frames.len() - 1;
@@ -555,7 +579,7 @@ impl<'p> Runtime<'p> {
             Op::PushNull => stack!().push(Value::Null),
             Op::PushBool(b) => stack!().push(Value::Bool(b)),
             Op::PushInt(i) => stack!().push(Value::Int(i)),
-            Op::PushFloat(f) if self.config.java_semantics => stack!().push(Value::Float(f as f32 as f64)),
+            Op::PushFloat(f) if self.java_semantics() => stack!().push(Value::Float(f as f32 as f64)),
             Op::PushFloat(f) => stack!().push(Value::Float(f)),
             Op::PushStr(s) => stack!().push(Value::Str(s)),
             Op::PushEvent(e) => stack!().push(Value::Event(e)),
@@ -643,9 +667,7 @@ impl<'p> Runtime<'p> {
                 let key = pop(&mut stack!());
                 let base = pop(&mut stack!());
                 let v = match &base {
-                    Value::Map(m) if java_null && self.config.java_semantics => {
-                        m.get(&key).cloned().unwrap_or(Value::Null)
-                    }
+                    Value::Map(m) if java_null && self.java_semantics() => m.get(&key).cloned().unwrap_or(Value::Null),
                     Value::Map(m) => m.get(&key).cloned().ok_or_else(|| key_not_found(&key.to_display(prog)))?,
                     Value::Null => return Err(nre().into()),
                     other => return Err(invalid_cast(other, "PChecker.Runtime.Values.PMap", prog).into()),
@@ -655,7 +677,7 @@ impl<'p> Runtime<'p> {
             Op::Keys => {
                 let base = pop(&mut stack!());
                 let v = match &base {
-                    Value::Map(m) if self.config.java_semantics => {
+                    Value::Map(m) if self.java_semantics() => {
                         Value::Seq(Rc::new(crate::javafmt::map_keys_in_java_order(m)))
                     }
                     Value::Map(m) => Value::Seq(Rc::new(m.keys().cloned().collect())),
@@ -667,7 +689,7 @@ impl<'p> Runtime<'p> {
             Op::Values => {
                 let base = pop(&mut stack!());
                 let v = match &base {
-                    Value::Map(m) if self.config.java_semantics => {
+                    Value::Map(m) if self.java_semantics() => {
                         Value::Seq(Rc::new(crate::javafmt::map_values_in_java_order(m)))
                     }
                     Value::Map(m) => Value::Seq(Rc::new(m.values().cloned().collect())),
@@ -700,38 +722,7 @@ impl<'p> Runtime<'p> {
             }
             Op::Format { base, nargs, types } => {
                 let vals = pop_n(&mut stack!(), nargs as usize);
-                let text = if self.config.java_semantics {
-                    // a string without arguments is a plain Java literal
-                    if nargs == 0 {
-                        base.to_string()
-                    } else {
-                        let args: Vec<String> = vals
-                            .iter()
-                            .zip(types.iter())
-                            .map(|(v, t)| crate::javafmt::format_arg(v, t, prog))
-                            .collect();
-                        crate::javafmt::message_format(&base, &args)
-                            .map_err(|m| Exception::new("java.lang.IllegalArgumentException", m))?
-                    }
-                } else {
-                    // render every argument into one reused buffer, then slice it
-                    let buf = &mut self.format_buf;
-                    buf.clear();
-                    let mut ends = Vec::with_capacity(vals.len());
-                    for v in &vals {
-                        v.write_display(buf, prog);
-                        ends.push(buf.len());
-                    }
-                    let args: Vec<&str> = ends
-                        .iter()
-                        .scan(0, |start, &end| {
-                            let arg = &buf[*start..end];
-                            *start = end;
-                            Some(arg)
-                        })
-                        .collect();
-                    format_composite(&base, &args).map_err(format_exception)?
-                };
+                let text = self.format(&base, &vals, &types)?;
                 stack!().push(Value::Str(Rc::from(text)));
             }
             Op::Bin(op) => {
@@ -740,7 +731,7 @@ impl<'p> Runtime<'p> {
                 let r = arith(op, a, b)?;
                 // P floats are Java `float`s in the PObserve backend
                 let r = match r {
-                    Value::Float(f) if self.config.java_semantics => Value::Float(f as f32 as f64),
+                    Value::Float(f) if self.java_semantics() => Value::Float(f as f32 as f64),
                     r => r,
                 };
                 stack!().push(r);
@@ -986,7 +977,7 @@ impl<'p> Runtime<'p> {
                 let msg = pop(&mut stack!());
                 let cond = pop(&mut stack!());
                 if !cond.as_bool() {
-                    if self.config.java_semantics {
+                    if self.java_semantics() {
                         // `Monitor.tryAssert`: a `PAssertionFailureException`
                         let text = format!("Assertion failure: {}", msg.to_display(prog));
                         self.failure.get_or_insert(crate::runtime::Failure::Assertion(text.clone()));
@@ -996,7 +987,7 @@ impl<'p> Runtime<'p> {
                     return Err(self.assertion_failure(text));
                 }
             }
-            Op::Print if self.config.java_semantics => {
+            Op::Print if self.java_semantics() => {
                 // the generated monitors log through a java.util.logging logger that is off
                 pop(&mut stack!());
             }

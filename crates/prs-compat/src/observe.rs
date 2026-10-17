@@ -138,7 +138,7 @@ pub fn run_with(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parse
         host.out_colored_line(l, Color::Red);
     }
     if let Err(Exit(code)) =
-        emit_report(host, prog, &report, &out_abs).and_then(|()| emit_metrics(host, &report.metrics, &out_abs))
+        emit_report(host, &spec, &report, &out_abs).and_then(|()| emit_metrics(host, &report.metrics, &out_abs))
     {
         return code;
     }
@@ -771,7 +771,7 @@ fn replay_file_name(key: &str) -> String {
 }
 
 /// `TrackErrors.emitErrorsReport`.
-fn emit_report(host: &mut dyn Host, prog: &Program, report: &Report, out: &str) -> Result<(), Exit> {
+fn emit_report(host: &mut dyn Host, spec: &Spec, report: &Report, out: &str) -> Result<(), Exit> {
     const RULE: &str = "-------------------------------------";
     if report.errors.is_empty() {
         host.out_line(RULE);
@@ -785,12 +785,12 @@ fn emit_report(host: &mut dyn Host, prog: &Program, report: &Report, out: &str) 
         match e.kind {
             ErrorKind::SpecViolation => {
                 host.out_colored_line(&format!("PObserve Spec Violation::\n{}", e.message), Color::Red);
-                write_replay(host, prog, e, out)?;
+                write_replay(host, spec, e, out)?;
             }
             ErrorKind::OutOfOrder => {
                 host.out_colored_line("PObserve Event Out of Order Exception::", Color::Red);
                 host.out_colored_line(&e.message, Color::Red);
-                write_replay(host, prog, e, out)?;
+                write_replay(host, spec, e, out)?;
             }
             ErrorKind::Parser => {
                 host.out_colored_line("PObserve Parser Exception::", Color::Red);
@@ -819,7 +819,7 @@ fn write_exception(host: &mut dyn Host, e: &ObserveError, path: &str) -> Result<
     Ok(())
 }
 
-fn write_replay(host: &mut dyn Host, prog: &Program, e: &ObserveError, out: &str) -> Result<(), Exit> {
+fn write_replay(host: &mut dyn Host, spec: &Spec, e: &ObserveError, out: &str) -> Result<(), Exit> {
     let Some(r) = &e.replay else { return Ok(()) };
     let path = join(out, &replay_file_name(&r.key));
     host.out_line(&format!(".. writing error log into file {}", path));
@@ -828,7 +828,7 @@ fn write_replay(host: &mut dyn Host, prog: &Program, e: &ObserveError, out: &str
         r.key, r.error_timestamp, e.message
     );
     for ev in &r.events {
-        text.push_str(&ev.to_java_string(prog));
+        text.push_str(&ev.to_java_string(spec));
         text.push('\n');
     }
     write_output(host, &path, &text)

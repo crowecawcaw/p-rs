@@ -492,7 +492,7 @@ impl<'p> Checker<'p> {
             time: time.cloned(),
             json_trace: json,
             xml_trace: xml.then_some(bug.test_task_id),
-            coverage: None,
+            ..Setup::default()
         };
         let mut rt = Runtime::new(self.prog, &self.code, module, &config, &mut strategy, setup);
         rt.run_test(main, &tc.name);
@@ -549,7 +549,6 @@ impl<'p> Checker<'p> {
             logging: is_replay || opts.verbose || opts.log_every_schedule,
             assembly_name: opts.assembly_name.clone(),
             timeline: opts.timeline,
-            java_semantics: false,
         };
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };
@@ -578,10 +577,10 @@ impl<'p> Checker<'p> {
                     foreign: self.foreign.clone(),
                     time: time.clone(),
                     json_trace: verbose_json.is_some(),
-                    xml_trace: None,
                     coverage: coverage_tables
                         .as_ref()
                         .map(|t| Coverage::new(t.clone(), result.coverage.take().unwrap_or_default())),
+                    ..Setup::default()
                 };
                 let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, setup);
                 rt.run_test(main, &tc.name);

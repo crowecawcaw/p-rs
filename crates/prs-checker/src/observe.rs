@@ -8,7 +8,7 @@
 //! check of that key and is reported with the last events seen for it (the replay window).
 //!
 //! Specs run with the semantics of upstream's Java backend
-//! ([`Config::java_semantics`](crate::runtime::Config::java_semantics)), so messages read
+//! ([`Setup::java_semantics`](crate::runtime::Setup::java_semantics)), so messages read
 //! as PObserve's do. Like the rest of the crate this module does no I/O: inputs are passed
 //! as strings and time comes from a caller-supplied clock.
 
@@ -18,7 +18,7 @@ use std::rc::Rc;
 use prs_sema::{EventId, MachineId, ModuleInfo, PType, Program};
 
 use crate::compile::{compile_program, Code};
-use crate::javafmt;
+use crate::javafmt::{self, JavaFormatter};
 use crate::runtime::{Config, Event, Failure, Runtime, Setup};
 use crate::strategy::{OpInfo, Strategy};
 use crate::value::{NamedTuple, Value};
@@ -68,12 +68,12 @@ pub struct ObservedEvent {
 
 impl ObservedEvent {
     /// `PObserveEvent.toString()`.
-    pub fn to_java_string(&self, prog: &Program) -> String {
+    pub fn to_java_string(&self, spec: &Spec) -> String {
         format!(
             "PObserveEvent{{partitionKey='{}', timestamp={}, event={}, logLine='{}', customPayload={}}}",
             self.key,
             javafmt::instant_nanos9(self.timestamp.secs, self.timestamp.nanos),
-            javafmt::event_to_string(prog, self.event, &self.payload),
+            spec.java.event_to_string(self.event, &self.payload),
             self.log_line.as_deref().unwrap_or("null"),
             self.custom_payload.as_deref().unwrap_or("null"),
         )
@@ -110,6 +110,7 @@ pub struct Spec<'p> {
     code: Code,
     module: ModuleInfo,
     config: Config,
+    java: JavaFormatter<'p>,
 }
 
 impl<'p> Spec<'p> {
@@ -125,7 +126,7 @@ impl<'p> Spec<'p> {
     }
 
     pub fn from_decl(prog: &'p Program, decl: MachineId) -> Spec<'p> {
-        let config = Config { logging: false, java_semantics: true, max_work_per_step: 0, ..Config::default() };
+        let config = Config { logging: false, max_work_per_step: 0, ..Config::default() };
         Spec {
             prog,
             decl,
@@ -133,6 +134,7 @@ impl<'p> Spec<'p> {
             code: compile_program(prog),
             module: ModuleInfo::default(),
             config,
+            java: JavaFormatter::new(prog),
         }
     }
 
@@ -484,7 +486,14 @@ impl<'p> Spec<'p> {
         log: &mut Vec<String>,
     ) -> KeyOutcome {
         let mut strategy = NoScheduling;
-        let mut rt = Runtime::new(self.prog, &self.code, &self.module, &self.config, &mut strategy, Setup::default());
+        let mut rt = Runtime::new(
+            self.prog,
+            &self.code,
+            &self.module,
+            &self.config,
+            &mut strategy,
+            Setup { java_semantics: Some(&self.java), ..Setup::default() },
+        );
         let mon = match rt.start_monitor(self.decl) {
             Ok(m) => m,
             Err(_) => return KeyOutcome::Fatal(self.failure_error(rt.failure.take(), None, log)),
@@ -507,7 +516,7 @@ impl<'p> Spec<'p> {
                     "Encountered an out of order event.\nEncountered an out of order event::\nTimestamp of last processed event: {}\nTimestamp of current event: {}\nError event details: {}",
                     prev.to_iso(),
                     ev.timestamp.to_iso(),
-                    ev.to_java_string(self.prog)
+                    ev.to_java_string(self)
                 );
                 return KeyOutcome::Error(ObserveError {
                     kind: ErrorKind::OutOfOrder,
