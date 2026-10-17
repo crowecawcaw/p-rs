@@ -142,6 +142,16 @@ fn dfs_reports_when_the_depth_bound_cut_the_search() {
 }
 
 #[test]
+fn dfs_statistics_count_the_schedule_that_found_the_bug() {
+    let src = "machine Main { start state Init { entry { assert $, \"first\"; } } }
+               test tcMain [main=Main]: { Main };";
+    let r = check(src, &opts("dfs", 0));
+    assert_eq!((r.report.num_bugs, r.report.explored_unfair_schedules), (1, 1));
+    let trace = ScheduleTrace::parse(r.schedule_trace.as_ref().unwrap()).unwrap();
+    assert_eq!(r.exhaustive.unwrap().max_depth, trace.steps.len());
+}
+
+#[test]
 fn rl_is_reproducible_finds_bugs_and_replays() {
     let src = clients("assert !(got[0] == 3 && got[1] == 2 && got[2] == 1), \"reversed\";");
     let a = check(&src, &opts("rl", 1000));

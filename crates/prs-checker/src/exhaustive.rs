@@ -64,7 +64,6 @@ pub struct ExhaustiveStrategy {
     /// Smallest depth each state was reached at.
     visited: HashMap<u64, usize>,
     stats: SearchStats,
-    pruned: bool,
     error: Option<String>,
 }
 
@@ -77,7 +76,6 @@ impl ExhaustiveStrategy {
             pos: 0,
             visited: HashMap::new(),
             stats: SearchStats::default(),
-            pruned: false,
             error: None,
         }
     }
@@ -131,11 +129,7 @@ impl Strategy for ExhaustiveStrategy {
     }
 
     fn prepare_next_iteration(&mut self) -> bool {
-        if self.pruned {
-            self.stats.pruned_schedules += 1;
-        }
         self.stats.max_depth = self.stats.max_depth.max(self.pos);
-        self.pruned = false;
         self.pos = 0;
         // backtrack to the deepest choice point with an untried alternative
         while let Some(c) = self.path.last_mut() {
@@ -184,7 +178,7 @@ impl Strategy for ExhaustiveStrategy {
     fn observe_state(&mut self, hash: u64) -> bool {
         match self.visited.get_mut(&hash) {
             Some(d) if *d <= self.pos => {
-                self.pruned = true;
+                self.stats.pruned_schedules += 1;
                 false
             }
             Some(d) => {
@@ -200,7 +194,9 @@ impl Strategy for ExhaustiveStrategy {
     }
 
     fn exhaustive_stats(&self) -> Option<SearchStats> {
-        Some(self.stats.clone())
+        // the last schedule counts even when no next iteration was prepared (a bug, the
+        // schedule limit or a timeout ended the search)
+        Some(SearchStats { max_depth: self.stats.max_depth.max(self.pos), ..self.stats.clone() })
     }
 }
 
