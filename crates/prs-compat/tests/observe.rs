@@ -426,3 +426,126 @@ fn spec_selection_errors() {
         assert!(h.stdout.starts_with(&format!("Failed parsing ::\n{}\n", msg)), "{:?}\n{}", args, h.stdout);
     }
 }
+
+const TIMED_SPEC: &str = r#"
+fun Now(): int;
+fun NowBest(): int;
+fun Mark(): int;
+fun Elapsed(m: int): int;
+fun ElapsedBest(m: int): int;
+event eBegin: int;
+event eEnd: (now: int, elapsed: int);
+spec Budget observes eBegin, eEnd {
+  var entryMark: int;
+  var requestMark: int;
+  start state Ready {
+    entry {
+      assert Now() == 0 && NowBest() == 0;
+      entryMark = Mark();
+      assert entryMark == 0;
+    }
+    on eBegin do (expected: int) {
+      assert Now() == expected && NowBest() == expected;
+      assert Elapsed(entryMark) == expected;
+      requestMark = Mark();
+      assert requestMark == 1;
+      goto Waiting;
+    }
+  }
+  state Waiting {
+    entry { assert Elapsed(requestMark) == 0; }
+    on eEnd do (expected: (now: int, elapsed: int)) {
+      assert Now() == expected.now && NowBest() == expected.now;
+      assert Elapsed(requestMark) == expected.elapsed;
+      assert ElapsedBest(requestMark) == expected.elapsed;
+      assert Elapsed(requestMark) <= 2000,
+        format("request took {0}us", Elapsed(requestMark));
+    }
+  }
+}
+"#;
+
+fn timed_host(source: &str, log: &str) -> MemHost {
+    let mut h = MemHost::new("/work");
+    h.add_file("timed.p", source);
+    h.add_file("run.log", log);
+    h
+}
+
+fn run_timed(h: &mut MemHost, extra: &[&str]) -> i32 {
+    let mut args = vec!["-pf", "timed.p", "--spec", "Budget", "-l", "run.log", "-o", "out"];
+    args.extend_from_slice(extra);
+    run(h, &args)
+}
+
+#[test]
+fn observed_clocks_use_sorted_timestamps_and_independent_stopwatches_per_key() {
+    // Deliberately shuffled, two independent keys, ISO nanoseconds and epoch millis.
+    // Equal timestamps and fractions within one microsecond do not advance the clock.
+    let log = r#"
+{"key":"a","timestamp":"2024-02-02T17:27:34.311999999Z","event":"eEnd","payload":{"now":1706894854311999,"elapsed":1999}}
+{"key":"b","timestamp":1706894855000,"event":"eBegin","payload":1706894855000000}
+{"key":"a","timestamp":"2024-02-02T17:27:34.310000001Z","event":"eBegin","payload":1706894854310000}
+{"key":"b","timestamp":1706894855002,"event":"eEnd","payload":{"now":1706894855002000,"elapsed":2000}}
+{"key":"a","timestamp":"2024-02-02T17:27:34.310000001Z","event":"eEnd","payload":{"now":1706894854310000,"elapsed":0}}
+{"key":"a","timestamp":"2024-02-02T17:27:34.310000999Z","event":"eEnd","payload":{"now":1706894854310000,"elapsed":0}}
+"#;
+    let mut h = timed_host(TIMED_SPEC, log);
+    assert_eq!(run_timed(&mut h, &[]), 0, "{}", h.stdout);
+    assert!(h.stdout.contains("Success! No bugs found."), "{}", h.stdout);
+}
+
+#[test]
+fn observed_budget_violations_report_real_duration_and_replay_timestamps() {
+    let log = r#"
+{"key":"slow","timestamp":1706894855000,"event":"eBegin","payload":1706894855000000}
+{"key":"slow","timestamp":1706894855003,"event":"eEnd","payload":{"now":1706894855003000,"elapsed":3000}}
+{"key":"fast","timestamp":1706894856000,"event":"eBegin","payload":1706894856000000}
+{"key":"fast","timestamp":1706894856001,"event":"eEnd","payload":{"now":1706894856001000,"elapsed":1000}}
+"#;
+    let mut h = timed_host(TIMED_SPEC, log);
+    assert_eq!(run_timed(&mut h, &["--json-report", "r.json"]), 2, "{}", h.stdout);
+    let report: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    assert_eq!(report["specs"][0]["verified_keys"], 1);
+    let err = &report["specs"][0]["errors"][0];
+    assert_eq!(err["kind"], "spec_violation");
+    assert!(err["message"].as_str().unwrap().ends_with("request took 3,000us"), "{}", err);
+    assert_eq!(err["events"][1]["timestamp"], "2024-02-02T17:27:35.003Z");
+    assert!(read(&h, "out/replayEvents_slow.log").contains("request took 3,000us"));
+}
+
+#[test]
+fn observed_time_errors_use_the_existing_diagnostics() {
+    for (declarations, call, expected) in [
+        ("fun Elapsed(m: int): int;", "assert Elapsed(0) == 0;", "not a handle returned by Mark()"),
+        ("fun Elapse(lo: int, hi: int);", "Elapse(1, 1);", "Elapse cannot be called from a monitor"),
+        ("fun ElapseCost(name: string);", "ElapseCost(\"work\");", "ElapseCost cannot be called from a monitor"),
+    ] {
+        let source = format!(
+            "{} event e; spec Budget observes e {{ start state S {{ on e do {{ {} }} }} }}",
+            declarations, call
+        );
+        let mut h = timed_host(&source, r#"{"event":"e","timestamp":1}"#);
+        assert_eq!(run_timed(&mut h, &[]), 3, "{}", h.stdout);
+        assert!(h.stdout.contains(expected), "{}", h.stdout);
+    }
+}
+
+#[test]
+fn observe_validates_time_signatures_even_without_events() {
+    let mut h = timed_host("fun Now(x: int): int; event e; spec Budget observes e { start state S {} }", "");
+    assert_eq!(run_timed(&mut h, &[]), 1, "{}", h.stdout);
+    assert!(h.stdout.contains("must be declared as fun Now(): int;"), "{}", h.stdout);
+}
+
+#[test]
+fn timed_observation_still_rejects_out_of_order_inputs() {
+    let log = r#"
+{"timestamp":10,"event":"eBegin","payload":10000}
+{"timestamp":9,"event":"eEnd","payload":{"now":9000,"elapsed":-1000}}
+"#;
+    let mut h = timed_host(TIMED_SPEC, log);
+    assert_eq!(run_timed(&mut h, &["--assumeInputsAreSorted"]), 3, "{}", h.stdout);
+    assert!(h.stdout.contains("PObserve Event Out of Order Exception"), "{}", h.stdout);
+    assert!(!h.stdout.contains("PObserve Spec Violation"), "{}", h.stdout);
+}
