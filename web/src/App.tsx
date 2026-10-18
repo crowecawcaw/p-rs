@@ -10,9 +10,9 @@ type Tab = "files" | "console" | "trace" | "log";
 
 const STRATEGIES: { label: string; args: string[] }[] = [
   { label: "random", args: [] },
-  { label: "pct (10)", args: ["--sch-pct", "10"] },
-  { label: "pos", args: ["--sch-pos"] },
-  { label: "feedback pct (10)", args: ["--sch-feedbackpct", "10"] },
+  { label: "pct (10)", args: ["--strategy", "pct:10"] },
+  { label: "pos", args: ["--strategy", "pos"] },
+  { label: "feedback pct (10)", args: ["--strategy", "feedback-pct:10"] },
 ];
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);

@@ -70,6 +70,7 @@ version = "0.1.0"
 name = "prs-wasm"
 version = "0.1.0"
 dependencies = [
+ "prs-cli",
  "prs-compat",
  "serde",
  "serde_json",

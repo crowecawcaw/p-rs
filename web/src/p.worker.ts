@@ -1,12 +1,11 @@
 /// <reference lib="webworker" />
-// Runs the WebAssembly build of the `p` tool. Each request starts from the user's
+// Runs the WebAssembly build of the `prs` tool. Each request starts from the user's
 // files in a fresh in-memory file system rooted at /work.
 import { loadP, type PTool, type PResult } from "../../crates/prs-wasm/js/prs.mjs";
 import wasmUrl from "./generated/prs.wasm?url";
 import type { CheckResult, CompileResult, Diagnostic, Files, Request, WorkerReply } from "./protocol";
 
 const ROOT = "/work";
-const PROJECT = "Playground";
 let tool: Promise<PTool> | undefined;
 
 function p(): Promise<PTool> {
@@ -21,7 +20,7 @@ function toFs(files: Files): Files {
 }
 
 function sourceArgs(files: Files): string[] {
-  return ["-pf", ...Object.keys(files).filter((f) => f.endsWith(".p")).sort(), "-pn", PROJECT];
+  return Object.keys(files).filter((f) => f.endsWith(".p")).sort();
 }
 
 const ERR_LOC = /\[([^\]\s]+\.p):(\d+):(\d+)\]\s*(.*)/;
@@ -44,14 +43,6 @@ function parseDiagnostics(text: string): Diagnostic[] {
   return out;
 }
 
-function stripBoilerplate(s: string): string {
-  return s
-    .split("\n")
-    .filter((l) => !l.startsWith("~~ [PTool]"))
-    .join("\n")
-    .trimEnd();
-}
-
 let cache: { key: string; out: PResult; tests: string[]; console: string; diagnostics: Diagnostic[] } | undefined;
 
 async function compile(files: Files) {
@@ -59,19 +50,9 @@ async function compile(files: Files) {
   if (cache?.key === key) return cache;
   const t = await p();
   // Type-checks the sources and lists the test cases.
-  const out = t.run(["check", ...sourceArgs(files), "--list-tests"], toFs(files), { seed: 0 });
-  const console = out.exitCode === 0 ? "" : stripBoilerplate(out.stdout + out.stderr);
-  let tests: string[] = [];
-  if (out.exitCode === 0) {
-    const lines = out.stdout.split("\n");
-    const start = lines.findIndex((l) => l.startsWith(".. List of test cases"));
-    if (start >= 0) {
-      for (const l of lines.slice(start + 1)) {
-        if (l.startsWith(".") || l.startsWith("~~") || !l.trim()) break;
-        tests.push(l.trim());
-      }
-    }
-  }
+  const out = t.run(["tests", ...sourceArgs(files)], toFs(files), { seed: 0 });
+  const console = out.exitCode === 0 ? "" : (out.stdout + out.stderr).trimEnd();
+  const tests = out.exitCode === 0 ? out.stdout.split("\n").filter((l) => l.trim()) : [];
   cache = { key, out, tests, console, diagnostics: parseDiagnostics(console) };
   return cache;
 }
@@ -95,13 +76,14 @@ async function handle(req: Request): Promise<CompileResult | CheckResult> {
       diagnostics: c.diagnostics, testCase: req.testCase, millis: performance.now() - t0,
     };
   }
-  const shown = ["check", "-tc", req.testCase, "-s", String(req.schedules), "--seed", String(req.seed), ...req.extraArgs];
-  const args = ["check", ...sourceArgs(req.files), "-tc", req.testCase, "-s", String(req.schedules), "--seed", String(req.seed), ...req.extraArgs];
+  const opts = ["-n", String(req.schedules), "--seed", String(req.seed), ...req.extraArgs];
+  const shown = ["check", req.testCase, ...opts];
+  const args = ["check", ...sourceArgs(req.files), req.testCase, ...opts];
   const r = (await p()).run(args, toFs(req.files), { seed: req.seed });
   const dir = `${ROOT}/PCheckerOutput/${req.testCase}/BugFinding/`;
   const find = (suffix: string) =>
     Object.entries(r.files).find(([k]) => k.startsWith(dir) && k.endsWith(suffix))?.[1];
-  const console = `$ p ${shown.join(" ")}\n` + stripBoilerplate(r.stdout + r.stderr);
+  const console = `$ prs ${shown.join(" ")}\n` + (r.stdout + r.stderr).trimEnd();
   return {
     kind: "check",
     ok: true,

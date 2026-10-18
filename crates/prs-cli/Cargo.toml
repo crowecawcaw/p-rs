@@ -6,18 +6,21 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "The `prs` command line tool (drop-in replacement for the upstream P tool)"
+description = "The `prs` command line tool, and `prs-compat`, a drop-in replacement for the upstream P tool"
 
 [[bin]]
 name = "prs"
 path = "src/main.rs"
 
+[[bin]]
+name = "prs-compat"
+path = "src/bin/prs-compat.rs"
+
 [dependencies]
 prs-compat = { workspace = true }
+prs-checker = { workspace = true }
 
 [lib]
 name = "prs_cli"
 path = "src/lib.rs"
 
-[dev-dependencies]
-prs-checker = { workspace = true }

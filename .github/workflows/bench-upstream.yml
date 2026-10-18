@@ -70,7 +70,7 @@ jobs:
           set -euo pipefail
           p_version=$(dotnet tool list --global | awk 'tolower($1) == "p" { print $2 }')
           prs_version=$(git describe --tags --always)
-          python3 scripts/bench.py run --cmd target/release/prs --tool prs --version "$prs_version" --runs "$RUNS" --out prs.json
+          python3 scripts/bench.py run --cmd target/release/prs-compat --tool prs --version "$prs_version" --runs "$RUNS" --out prs.json
           python3 scripts/bench.py run --cmd p --tool upstream --version "$p_version" --runs "$RUNS" --out upstream.json
           python3 scripts/bench.py compare prs.json upstream.json | tee -a "$GITHUB_STEP_SUMMARY"
           python3 -c 'import json; print(json.dumps({"prs": json.load(open("prs.json")), "upstream": json.load(open("upstream.json"))}))' > compare.json

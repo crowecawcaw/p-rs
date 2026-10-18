@@ -2,7 +2,7 @@
 //
 //   import { loadP } from "./prs.mjs";
 //   const p = await loadP(wasmBytesOrResponse);
-//   const r = p.run(["check", "-pf", "model.p", "-tc", "tcMain", "-s", "1000"], { "/work/model.p": source }, { seed: 42 });
+//   const r = p.run(["check", "model.p", "tcMain", "-n", "1000"], { "/work/model.p": source }, { seed: 42 });
 //   console.log(r.stdout, r.exitCode);
 
 export async function loadP(source) {
@@ -28,7 +28,7 @@ export async function loadP(source) {
   }
 
   return {
-    /** Runs `p <args>` over an in-memory file system ({absolutePath: text}). */
+    /** Runs `prs <args>` over an in-memory file system ({absolutePath: text}). */
     run(args, files = {}, { cwd = "/work", seed } = {}) {
       return call({ args, files, cwd, seed: seed ?? Math.floor(Math.random() * 2 ** 32) });
     },

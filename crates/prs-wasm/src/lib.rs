@@ -1,4 +1,4 @@
-//! WebAssembly entry point for the P tool.
+//! WebAssembly entry point for the `prs` tool.
 //!
 //! The module exposes a tiny C ABI (no wasm-bindgen needed):
 //!
@@ -7,9 +7,9 @@
 //!   buffer laid out as a little-endian `u32` length followed by UTF-8 JSON;
 //! * `prs_result_free(ptr)` releases a result buffer.
 //!
-//! A request is JSON: `{"args": ["check", "-tc", "t"], "files": {"path": "text"},
+//! A request is JSON: `{"args": ["check", "m.p", "tcMain"], "files": {"path": "text"},
 //! "cwd": "/work", "seed": 42}`. The command runs against an in-memory file system holding
-//! `files`; the response carries the exit code, console output and the complete file
+//! `files` and runs [`prs_cli::run`]; the response carries the exit code, console output and the complete file
 //! system afterwards (so a following request can pass it back in, e.g. to replay a
 //! schedule). `js/prs.mjs` wraps this for JavaScript.
 //!
@@ -66,7 +66,7 @@ pub fn run(req: Request) -> Response {
             return invalid_request(&format!("cannot add file {}: {}", path, e));
         }
     }
-    let exit_code = prs_compat::run(&req.args, &mut mem);
+    let exit_code = prs_cli::run(&req.args, &mut mem);
     let mut files = BTreeMap::new();
     for p in mem.files_under("/") {
         if let Ok(t) = mem.read_to_string(&p) {
@@ -145,8 +145,7 @@ mod tests {
             "/work/m.p".to_string(),
             "machine Main { start state S { entry { assert false, \"no\"; } } }".to_string(),
         );
-        let r =
-            run(Request { args: vec!["check".into(), "-pf".into(), "m.p".into()], files, cwd: None, seed: Some(7) });
+        let r = run(Request { args: vec!["check".into(), "m.p".into()], files, cwd: None, seed: Some(7) });
         assert_eq!(r.exit_code, 1, "{}", r.stdout);
         assert!(r.stdout.contains("Checker found a bug."), "{}", r.stdout);
         let trace = r.files.iter().find(|(k, _)| k.ends_with("_0_0.txt")).map(|(_, v)| v.clone()).unwrap();

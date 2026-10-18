@@ -1,4 +1,4 @@
-# Delivery latencies (`p check --latency PTst/latency.toml`).
+# Delivery latencies (`prs check --latency PTst/latency.toml`).
 # Ranges are "lo..hi" in us/ms/s.
 
 [profile.same-az]
@@ -11,6 +11,6 @@ extends = "same-az"
 eReq    = "60ms..90ms"
 eResp   = "60ms..90ms"
 
-# Which profile each test case uses unless --latency-profile overrides it.
+# Which profile each test case uses unless `--latency <file>:<profile>` names one.
 [tests]
 tcRetry = "same-az"

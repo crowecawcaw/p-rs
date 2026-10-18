@@ -1,19 +1,22 @@
 # p-rs
 
 A Rust implementation of the [P](https://github.com/p-org/P) language toolchain:
-parser, type checker and model checker in one `prs` binary, with no .NET, Java or
-code generation.
+parser, type checker and model checker, with no .NET, Java or code generation. It
+interprets P models directly instead of compiling them to C#, so there is no compile
+step.
 
-`prs` is a drop-in replacement for the upstream `p` tool. It reads `.pproj` files,
-accepts the same options, and writes the same console output, traces and output folders.
-It interprets P models directly instead of compiling them to C#, so there is no
-`p compile` step.
+There are two command line tools:
+
+* `prs`, with its own options, parallel workers and time tracking.
+* `prs-compat`, a drop-in replacement for the upstream `p` tool. It reads `.pproj`
+  files, accepts the same options, and writes the same console output, traces and
+  output folders.
 
 Try it without installing anything in the [P Playground](https://crowecawcaw.github.io/p-rs/).
 
 ## Status
 
-Early, but checks real models. `prs` passes upstream's compiler regression tests
+Early, but checks real models. prs passes upstream's compiler regression tests
 (424), checker suites (249) and tutorials, and reproduces upstream's golden traces and
 PObserve outputs. See [docs/development.md](docs/development.md#validation) for how this
 is tested.
@@ -23,35 +26,45 @@ is tested.
 There are no prebuilt binaries yet. With a Rust toolchain:
 
 ```sh
-cargo install --git https://github.com/crowecawcaw/p-rs prs-cli
+cargo install --git https://github.com/crowecawcaw/p-rs prs-cli   # installs prs and prs-compat
 ```
 
 ## Usage
 
-Run `prs` in a folder with a `.pproj` file, as you would `p`:
+Run `prs` in a folder with a `.pproj` file:
 
 ```sh
-prs check -tc tcMyTest -s 1000               # 1000 random schedules
-prs check -tc tcMyTest --replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
-prs check -pf model.p -tc tcMyTest           # .p files instead of a .pproj
-prs check --mode pex -tc tcMyTest            # exhaustive search
-prs check -tc tcMyTest -s 1000 --workers 1   # the schedules upstream explores for a --seed
+prs tests                                   # list the test cases
+prs check                                   # check every test case, 10000 schedules each
+prs check tcMyTest -n 1000                  # one test case, 1000 schedules
+prs check 'tcMy*' --time 5m                 # test cases matching a glob, for 5 minutes each
+prs check model.p tcMyTest                  # .p files instead of a .pproj
+prs check tcMyTest --strategy pct:10        # another search strategy
+prs check tcMyTest --exhaustive             # every scheduling and data choice
+prs replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
 ```
 
 `prs check` type-checks the sources itself and reports errors as `p compile` does.
-Bugs are written to `PCheckerOutput/` as upstream writes them.
+Bugs are written to `PCheckerOutput/` as upstream writes them. It exits with 0 when no
+bug is found, 1 when one is, and 2 on any other error. `prs <command> --help` lists the
+options.
 
-`prs check` explores schedules on one worker thread per CPU core (`--workers N` sets
-the number). The schedule count is split between the workers, each with its own seed;
-the first bug stops them all, and its `.schedule` file replays it as usual. The
-`random`, `pct`, `fairpct`, `probabilistic` and `pos` strategies use workers; the
-feedback strategies and `rl` (which learn from earlier schedules), PEx mode, `--replay`
-and `--verbose` run one worker.
+`prs check` explores schedules on one worker thread per CPU core (`-j N` sets the
+number). The schedule count is split between the workers, each with its own seed; the
+first bug stops them all, and its `.schedule` file replays it as usual. The `random`,
+`pct`, `fairpct`, `prob` and `pos` strategies use workers; the feedback strategies and
+`rl` (which learn from earlier schedules), `--exhaustive` and `--verbose` run one
+worker. With more than one worker, a given `--seed` explores different schedules than
+upstream, and which bug is reported can vary from run to run; `-j 1` explores exactly
+upstream's schedules.
 
-PEx mode (`--mode pex`) explores every scheduling choice and every `$` / `choose`
-value by depth-first search, skipping states it has already seen. Its report says
-whether the search finished or hit the `--max-steps` bound. Time tracking is not
-supported in this mode yet.
+`--exhaustive` explores every scheduling choice and every `$` / `choose` value by
+depth-first search, skipping states it has already seen. Its report says whether the
+search finished or hit the `--max-steps` bound. Time tracking is not supported in this
+mode yet.
+
+Time tracking (`--latency <file>[:<profile>]`, `--timed`) checks timeouts and latency
+budgets; see [design/time](design/time/RetryBudget/README.md).
 
 `prs observe` replaces [PObserve](https://github.com/p-org/P/tree/master/Src/PObserve):
 it checks logs from a running system against a project's spec monitors, without jars.
@@ -63,6 +76,13 @@ prs observe --spec BankBalanceCorrect -l logs/
 See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 [docs/library.md](docs/library.md) for using the crates from Rust.
 
+To use prs in place of upstream P, in scripts written for `p`, run `prs-compat` (or
+alias it to `p`):
+
+```sh
+prs-compat check -tc tcMyTest -s 1000
+```
+
 ## Goals
 
 1. Simplify or eliminate the toolchain for working with P models.
@@ -72,10 +92,13 @@ See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 
 ## Compatibility
 
+This section is about `prs-compat`. `prs` checks the same way and writes the same
+files, with its own options.
+
 **Exact** (drop-in):
 
-* `prs check`, `prs merge-scenario-coverage` and `prs observe` options, help, console
-  output and exit codes.
+* `check`, `merge-scenario-coverage` and `observe` options, help, console output and
+  exit codes.
 * Parse and type error messages.
 * Bug reports, assertion and liveness messages.
 * Trace files (`.txt`, `.trace.json`, `.schedule`), coverage reports, output folder
@@ -87,9 +110,9 @@ See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 **Functional** (same result, details differ):
 
 * Findings may be reported in a different order.
-* With more than one worker (`--workers`, by default one per CPU core), a given `--seed`
-  explores different schedules than upstream, and which bug is reported can vary from run
-  to run. `--workers 1` explores exactly upstream's schedules.
+* `check` reads P sources, not a compiled `.dll`: a `.pproj` or `.p` file as its path,
+  `--pproj`, `--pfiles` and `--projname` (upstream: options of `p compile`), or else the
+  `.pproj` or `.p` files in the current folder.
 * Source discovery is logged differently, since there is no compiled output to find.
 * Files are enumerated in sorted order; elapsed time and memory figures differ.
 * An action that runs forever without reaching a scheduling point is reported as a bug
@@ -97,24 +120,22 @@ See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 * Nesting deeper than 128 levels is a parse error, `nesting is too deep` (upstream has
   no limit). Blocks, statements, expressions, types and each operand of an operator
   chain such as `a + b + c` count a level; the upstream tests nest at most 16 deep.
-* `prs check` exits with 1 if any of the test cases matching `--testcase` finds a bug
-  (upstream: the last one's exit code), `--timeout 0` disables the timeout (upstream
-  explores forever) and `--liveness-temperature-threshold` is honored (upstream fails).
-* `prs merge-scenario-coverage --help` prints its usage (upstream looks for a directory
+* `merge-scenario-coverage --help` prints its usage (upstream looks for a directory
   named `--help`).
-* `prs observe` reports a null dereference with its own message.
+* `observe` reports a null dereference with its own message.
 * Foreign functions and log parsers are written in Rust, not C# or Java.
 
 **Not supported yet**:
 
 * PVerifier mode.
-* `prs observe` event filters (`--filters`), socket mode and `SERIALIZEDEVENTS` input.
+* `observe` event filters (`--filters`), socket mode and `SERIALIZEDEVENTS` input.
+* `--memout` is accepted and ignored.
 * `--graph` and `--graph-bug` are accepted but, as upstream, write nothing.
 
 **Out of scope**:
 
-* `p compile` and its output (`PGenerated/`, `.dll`, jars). `prs compile` prints a
-  warning and exits 0; `OutputDir` and `Target` in `.pproj` files are ignored.
+* `p compile` and its output (`PGenerated/`, `.dll`, jars). There is no `compile`
+  command; `OutputDir` and `Target` in `.pproj` files are ignored.
 * .NET and Java stack frames in exception reports, traces and `UnknownError_N.txt`.
 * Foreign code in C# or Java, and PObserve jars (`--jars`).
 

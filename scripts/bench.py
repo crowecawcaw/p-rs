@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Benchmarks `p check` on the tutorial projects.
 
-  scripts/bench.py run --cmd target/release/prs --out result.json [--instructions]
+  scripts/bench.py run --cmd target/release/prs-compat --out result.json [--instructions]
   scripts/bench.py run --cmd "p" --tool upstream --out upstream.json
   scripts/bench.py report --current result.json [--history main.jsonl]
   scripts/bench.py compare prs.json upstream.json
 
 `run` copies each project to a temp folder and runs `check` with a fixed test,
-schedule count and seed, with one worker (`--workers 1`, so that prs explores
-the schedules upstream does; `--workers N` measures N workers instead). prs has
+schedule count and seed. `prs-compat` runs one worker and explores the schedules
+upstream does; `--cmd target/release/prs --workers N` measures N workers. prs has
 no compile step (`check` type-checks the sources itself); upstream P compiles
 each project once first, and that compile time is recorded separately. The seed fixes which
 schedules are explored, so between commits only the speed changes. For each
@@ -94,6 +94,19 @@ def instructions(cmd, args, cwd):
     return int(m.group(1).replace(",", ""))
 
 
+def check_args(opts, cmd, test, n):
+    """The `check` arguments for the command benchmarked."""
+    upstream_style = ["check", "-tc", test, "-s", str(n), "--seed", str(SEED)]
+    if opts.tool == "upstream" or Path(cmd[0]).name == "prs-compat":
+        if opts.workers != 1:
+            sys.exit("--workers needs the prs binary; prs-compat and upstream P run one worker")
+        return upstream_style
+    if (Path(cmd[0]).parent / "prs-compat").exists():
+        return ["check", test, "-n", str(n), "--seed", str(SEED), "-j", str(opts.workers)]
+    # a prs binary from before prs-compat existed: upstream's options and --workers
+    return upstream_style + ["--workers", str(opts.workers)]
+
+
 def run(opts):
     cmd = shlex.split(opts.cmd)
     if not shutil.which(cmd[0]) and not Path(cmd[0]).exists():
@@ -114,9 +127,7 @@ def run(opts):
                 compiled[project] = time.perf_counter() - t0
                 if r.returncode != 0:
                     sys.exit(f"{project}: compile failed\n{r.stdout}{r.stderr}")
-            args = ["check", "-tc", test, "-s", str(n), "--seed", str(SEED)]
-            if opts.tool != "upstream":
-                args += ["--workers", str(opts.workers)]
+            args = check_args(opts, cmd, test, n)
             times, schedules, bugs = [], None, None
             for i in range(opts.runs):
                 print(f"{name}: run {i + 1}/{opts.runs}", file=sys.stderr, flush=True)
@@ -258,14 +269,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd_name", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--cmd", default="target/release/prs", help="the p command to benchmark")
+    r.add_argument("--cmd", default="target/release/prs-compat", help="the p command to benchmark")
     r.add_argument("--tool", default="prs", help="label stored in the result: prs or upstream")
     r.add_argument("--version", default="", help="version label stored in the result")
     r.add_argument("--commit", default="HEAD", help="commit the binary was built from (default HEAD)")
     r.add_argument("--out", required=True)
     r.add_argument("--runs", type=int, default=5)
     r.add_argument("--workers", type=int, default=1,
-                   help="prs --workers (default 1: the schedules upstream explores, comparable with history)")
+                   help="workers, with the prs binary (default 1: the schedules upstream explores, comparable with history)")
     r.add_argument("--instructions", action="store_true", help="also count instructions with cachegrind")
     r.add_argument("--only", nargs="*", help="run only workloads whose project name contains one of these")
     r.set_defaults(fn=run)
