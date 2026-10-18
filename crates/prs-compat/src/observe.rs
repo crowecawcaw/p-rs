@@ -70,11 +70,13 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
             return cmdline_error(host, &m);
         }
     }
-    let mut spec = match select_spec(prog, &cfg.spec, &loaded.java_package) {
+    let mut specs = match select_specs(prog, &cfg, &loaded.java_package) {
         Ok(s) => s,
         Err(m) => return cmdline_error(host, &m),
     };
-    spec.java_package = loaded.java_package.clone();
+    for spec in &mut specs {
+        spec.java_package = loaded.java_package.clone();
+    }
     if !cfg.filters.is_empty() {
         return cmdline_error(host, "FILTER not found: event filters (--filters) are not supported by p observe.");
     }
@@ -84,6 +86,7 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         return cmdline_error(host, &format!("Failed to create output directory ({}).", output_dir));
     }
     let parser = parsers[parser_idx].as_ref();
+    let spec_names: Vec<String> = specs.iter().map(|s| s.name().to_string()).collect();
 
     // validation succeeded: print the configuration
     host.out_line("Current PObserve configuration:");
@@ -93,15 +96,19 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
     line("inputKind", cfg.input_kind.name());
     line(loaded.source_option, &loaded.source_value);
     line("parserName", cfg.parser.as_deref().unwrap_or("null"));
-    line("specificationName", &cfg.spec);
+    line("specificationName", &spec_names.join(", "));
     line("replayWindowSize", &cfg.replay_window.to_string());
     line("logDelimiter", &parser.log_delimiter().replace('\n', "\\n"));
     c.push('}');
     host.out_line(&c);
 
     // read the logs
-    let opts =
-        ObserveOptions { replay_window: cfg.replay_window, assume_sorted: cfg.assume_sorted, keys: cfg.keys.clone() };
+    let opts = ObserveOptions {
+        replay_window: cfg.replay_window,
+        assume_sorted: cfg.assume_sorted,
+        keys: cfg.keys.clone(),
+        check_hot: cfg.check_hot,
+    };
     let mut inputs = Vec::new();
     let mut read_error = None;
     for f in &cfg.log_files {
@@ -123,33 +130,59 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
             },
         }
     }
-    let report = match read_error {
-        // upstream: the reader's exception escapes the stream and ends the run
-        Some(m) => Report {
-            errors: vec![ObserveError {
-                kind: ErrorKind::Unknown,
-                detail: format!("java.lang.RuntimeException: {}", m),
-                message: m,
-                replay: None,
-            }],
-            metrics: Metrics { unknown_errors: 1, ..Default::default() },
-            log: Vec::new(),
-        },
-        None => {
-            let clock_host: &dyn Host = host;
-            let mut clock = || clock_host.now();
-            spec.observe(&inputs, parser, &opts, &mut clock)
+
+    // check each spec; with several, each writes its files to a folder of its own
+    let several = specs.len() > 1;
+    let mut reports = Vec::new();
+    for spec in &specs {
+        let report = match &read_error {
+            // upstream: the reader's exception escapes the stream and ends the run
+            Some(m) => Report {
+                errors: vec![ObserveError {
+                    cause: None,
+                    kind: ErrorKind::Unknown,
+                    detail: format!("java.lang.RuntimeException: {}", m),
+                    message: m.clone(),
+                    replay: None,
+                }],
+                metrics: Metrics { unknown_errors: 1, ..Default::default() },
+                log: Vec::new(),
+            },
+            None => {
+                let clock_host: &dyn Host = host;
+                let mut clock = || clock_host.now();
+                spec.observe(&inputs, parser, &opts, &mut clock)
+            }
+        };
+        let spec_out = if several { join(&out_abs, spec.name()) } else { out_abs.clone() };
+        if several {
+            host.out_line(&format!("Checking spec {}", spec.name()));
+            if host.create_dir_all(Path::new(&spec_out)).is_err() {
+                return cmdline_error(host, &format!("Failed to create output directory ({}).", spec_out));
+            }
         }
-    };
-    for l in &report.log {
-        host.out_colored_line(l, Color::Red);
+        for l in &report.log {
+            host.out_colored_line(l, Color::Red);
+        }
+        if let Err(Exit(code)) =
+            emit_report(host, spec, &report, &spec_out).and_then(|()| emit_metrics(host, &report.metrics, &spec_out))
+        {
+            return code;
+        }
+        reports.push(report);
+        if read_error.is_some() {
+            break;
+        }
     }
-    if let Err(Exit(code)) =
-        emit_report(host, &spec, &report, &out_abs).and_then(|()| emit_metrics(host, &report.metrics, &out_abs))
-    {
-        return code;
+    let n: u64 = reports.iter().map(|r| r.error_count()).sum();
+    let all = Report { errors: reports.iter().flat_map(|r| r.errors.iter().cloned()).collect(), ..Default::default() };
+    let code = exit_status(&all);
+    if let Some(path) = &cfg.json_report {
+        let text = json_report(&specs, &reports, code);
+        if let Err(Exit(c)) = write_output(host, path, &text) {
+            return c;
+        }
     }
-    let n = report.error_count();
     if n > 0 {
         host.out_colored_line(&format!("PObserve run completed with {} error(s)", n), Color::Red);
         host.out_colored_line(&format!("Run details and replay event logs can be found in {}", out_abs), Color::Red);
@@ -157,7 +190,65 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         host.out_line(&format!("PObserve run completed with {} error(s)", n));
         host.out_line(&format!("Run details can be found in {}", out_abs));
     }
-    exit_status(&report)
+    code
+}
+
+/// The machine-readable result written by `--json-report` (a prs extension): per spec, the
+/// errors with the key and the log entries of the events leading up to each one.
+fn json_report(specs: &[Spec], reports: &[Report], exit_code: i32) -> String {
+    let specs: Vec<Json> = specs
+        .iter()
+        .zip(reports)
+        .map(|(spec, r)| {
+            let errors: Vec<Json> = r
+                .errors
+                .iter()
+                .map(|e| {
+                    let kind = match e.kind {
+                        ErrorKind::SpecViolation => "spec_violation",
+                        ErrorKind::OutOfOrder => "out_of_order",
+                        ErrorKind::Parser => "parser",
+                        ErrorKind::Unknown => "unknown",
+                    };
+                    let (key, events) = match &e.replay {
+                        Some(rp) => (
+                            Json::from(rp.key.clone()),
+                            rp.events
+                                .iter()
+                                .map(|ev| {
+                                    serde_json::json!({
+                                        "key": ev.key,
+                                        "timestamp": ev.timestamp.to_iso(),
+                                        "event": spec.prog.event(ev.event).name,
+                                        "log_line": ev.log_line,
+                                    })
+                                })
+                                .collect(),
+                        ),
+                        None => (Json::Null, Vec::new()),
+                    };
+                    serde_json::json!({
+                        "kind": kind,
+                        "key": key,
+                        "message": e.message,
+                        "cause": e.cause,
+                        "events": events,
+                    })
+                })
+                .collect();
+            serde_json::json!({
+                "spec": spec.name(),
+                "events_read": r.metrics.events_read,
+                "partition_keys": r.metrics.partition_keys,
+                "verified_keys": r.metrics.verified_keys,
+                "errors": errors,
+            })
+        })
+        .collect();
+    let mut text = serde_json::to_string_pretty(&serde_json::json!({ "exit_code": exit_code, "specs": specs }))
+        .unwrap_or_default();
+    text.push('\n');
+    text
 }
 
 /// `TrackErrors.getExitStatus`.
@@ -186,9 +277,18 @@ fn cmdline_error(host: &mut dyn Host, msg: &str, usage: &str) -> i32 {
 /// The JCommander usage text, with `--pproj`/`--pfiles` in place of `--jars`.
 pub const USAGE: &str = "Usage: p observe [options]
   Options:
+    --all-specs
+      Check every spec in the P sources (prs extension)
+      Default: false
     --assumeInputsAreSorted
       Assume that the input files are already sorted
       Default: false
+    --check-hot
+      Report a key whose spec is in a hot state after its last event (prs\x20
+      extension)
+      Default: false
+    --exclude-specs
+      Specs --all-specs leaves out (prs extension)
     --filters, -f
       pobserve event filter exact class names
     --help, -h
@@ -199,6 +299,8 @@ pub const USAGE: &str = "Usage: p observe [options]
     --inputkind, -ik
       Input log kind {TEXT or JSON}
       Possible Values: [JSON, TEXT, SERIALIZEDEVENTS]
+    --json-report
+      Write the result as JSON to this file (prs extension)
     --keyListFile
       Path to file containing list of keys(one key per line) to be filtered\x20
       and verified
@@ -225,8 +327,9 @@ pub const USAGE: &str = "Usage: p observe [options]
     --socket-mode
       Enable socket command API mode
       Default: false
-  * --spec
-      Name of the P specification to be checked on the logs
+    --spec
+      Names of the P specifications to be checked on the logs (one, as\x20
+      upstream, or several)
 
 ";
 
@@ -249,7 +352,16 @@ impl InputKind {
 /// The validated command line (`PObserveConfig`).
 #[derive(Debug, Clone)]
 pub struct ObserveConfig {
-    pub spec: String,
+    /// `--spec`: one name, as upstream, or several (a prs extension).
+    pub specs: Vec<String>,
+    /// `--all-specs`: every spec machine (a prs extension).
+    pub all_specs: bool,
+    /// `--exclude-specs`: specs `--all-specs` leaves out.
+    pub exclude_specs: Vec<String>,
+    /// `--json-report`: file to write the result to as JSON.
+    pub json_report: Option<String>,
+    /// `--check-hot`: report specs left in a hot state.
+    pub check_hot: bool,
     pub parser: Option<String>,
     pub parser_configuration: Option<String>,
     pub filters: Vec<String>,
@@ -269,11 +381,18 @@ enum Arity {
     Flag,
     One,
     Variable,
+    /// Like `Variable`, but stops at any token starting with `-`, so `--spec A --jars x`
+    /// still reports `--jars` as upstream does.
+    Names,
 }
 
 const OPTIONS: &[(&[&str], Arity)] = &[
     (&["--help", "-h"], Arity::Flag),
-    (&["--spec"], Arity::One),
+    (&["--spec"], Arity::Names),
+    (&["--all-specs"], Arity::Flag),
+    (&["--exclude-specs"], Arity::Names),
+    (&["--json-report"], Arity::One),
+    (&["--check-hot"], Arity::Flag),
     (&["--parser", "-p"], Arity::One),
     (&["--parserConfiguration", "-pc"], Arity::One),
     (&["--filters", "-f"], Arity::Variable),
@@ -321,7 +440,11 @@ fn validate_file_path(host: &dyn Host, name: &str, value: &str) -> Result<PathBu
 /// `Ok(None)` means help was requested.
 pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<ObserveConfig>, String> {
     let mut cfg = ObserveConfig {
-        spec: String::new(),
+        specs: Vec::new(),
+        all_specs: false,
+        exclude_specs: Vec::new(),
+        json_report: None,
+        check_hot: false,
         parser: None,
         parser_configuration: None,
         filters: Vec::new(),
@@ -362,8 +485,11 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                 values.push(args[i].clone());
                 i += 1;
             }
-            Arity::Variable => {
-                while i < args.len() && option(&args[i]).is_none() {
+            Arity::Variable | Arity::Names => {
+                while i < args.len()
+                    && option(&args[i]).is_none()
+                    && !(arity == Arity::Names && !values.is_empty() && args[i].starts_with('-'))
+                {
                     values.push(args[i].clone());
                     i += 1;
                 }
@@ -378,9 +504,18 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                 "--help" => help = true,
                 "--spec" => {
                     validate_classname(tok, &v)?;
-                    cfg.spec = v;
+                    if !cfg.specs.contains(&v) {
+                        cfg.specs.push(v);
+                    }
                     spec_given = true;
                 }
+                "--all-specs" => cfg.all_specs = true,
+                "--exclude-specs" => {
+                    validate_classname(tok, &v)?;
+                    cfg.exclude_specs.push(v);
+                }
+                "--json-report" => cfg.json_report = Some(v),
+                "--check-hot" => cfg.check_hot = true,
                 "--parser" => {
                     validate_classname(tok, &v)?;
                     cfg.parser = Some(v);
@@ -476,8 +611,14 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
     if help {
         return Ok(None);
     }
-    if !spec_given {
+    if !spec_given && !cfg.all_specs {
         return Err("The following option is required: [--spec]".into());
+    }
+    if spec_given && cfg.all_specs {
+        return Err("--spec and --all-specs cannot be combined.".into());
+    }
+    if !cfg.exclude_specs.is_empty() && !cfg.all_specs {
+        return Err("--exclude-specs needs --all-specs.".into());
     }
     // PObserveConfig.validateAndLoadPObserveConfig
     if socket_mode {
@@ -707,6 +848,31 @@ fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, Stri
         source_option: option,
         source_value: value,
     })
+}
+
+/// The specs to check: each `--spec`, or with `--all-specs` every spec machine but the
+/// excluded ones.
+fn select_specs<'p>(prog: &'p Program, cfg: &ObserveConfig, package: &str) -> Result<Vec<Spec<'p>>, String> {
+    if !cfg.all_specs {
+        return cfg.specs.iter().map(|n| select_spec(prog, n, package)).collect();
+    }
+    let is_spec = |m: &&prs_sema::MachineDecl| m.kind == MachineKind::Spec;
+    for x in &cfg.exclude_specs {
+        if !prog.machines.iter().filter(is_spec).any(|m| &m.name == x) {
+            return Err(format!("--exclude-specs: there is no spec named {}.", x));
+        }
+    }
+    let specs: Vec<Spec> = prog
+        .machines
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.kind == MachineKind::Spec && !cfg.exclude_specs.contains(&m.name))
+        .map(|(i, _)| Spec::from_decl(prog, prs_sema::MachineId(i as u32)))
+        .collect();
+    if specs.is_empty() {
+        return Err("--all-specs: the P sources declare no specs to check.".into());
+    }
+    Ok(specs)
 }
 
 /// `CreateInstanceFromJar.getInstance(SPECIFICATION_SUPPLIER, name)`: the spec machine whose

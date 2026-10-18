@@ -966,6 +966,13 @@ impl<'p> Runtime<'p> {
         }
     }
 
+    /// The name of the hot state monitor `mon` is in, if it is in one.
+    pub fn monitor_hot_state(&self, mon: usize) -> Option<&str> {
+        let s = self.monitors.get(mon)?.state?;
+        let st = self.prog.state(s);
+        (st.temperature == Temperature::Hot).then_some(st.name.as_str())
+    }
+
     /// Checks monitors for liveness violations once a schedule is fully explored.
     pub fn check_hot_monitors_at_termination(&mut self) {
         if !self.fully_explored || self.bug.is_some() {

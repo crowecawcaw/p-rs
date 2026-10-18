@@ -1,0 +1,141 @@
+# The Python package (python/): tests on PRs and main; wheels with the prs binary for
+# five platforms; publishing to PyPI when release.yml calls this workflow.
+
+name: Python
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build wheels for (vX.Y.Z)"
+        required: true
+        type: string
+      publish:
+        description: "Publish the wheels to PyPI"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-${{ github.event.pull_request.number || inputs.tag || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    if: ${{ !inputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.9", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: python
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: false
+      - name: Install the package (builds the binary)
+        run: pip install ./python pytest
+      - name: Test
+        working-directory: python
+        run: python -m pytest -p no:cacheprovider
+
+  wheels:
+    name: wheel (${{ matrix.target }})
+    if: ${{ inputs.tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, manylinux: "2_17" }
+          - { os: ubuntu-latest, target: aarch64-unknown-linux-gnu, manylinux: "2_17" }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Use the release version
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          # wheels take their version from prs-cli, which otherwise stays at the workspace's
+          sed -i.bak "s/^version.workspace = true/version = \"${TAG#v}\"/" crates/prs-cli/Cargo.toml
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux || 'auto' }}
+          working-directory: python
+          args: --release --out dist
+      - uses: actions/upload-artifact@v5
+        with:
+          name: wheel-${{ matrix.target }}
+          path: python/dist
+
+  sdist:
+    name: sdist
+    if: ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Use the release version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: sed -i "s/^version.workspace = true/version = \"${TAG#v}\"/" crates/prs-cli/Cargo.toml
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          working-directory: python
+          args: --out dist
+      - uses: actions/upload-artifact@v5
+        with:
+          name: sdist
+          path: python/dist
+
+  publish:
+    name: Publish to PyPI
+    if: ${{ inputs.tag && inputs.publish }}
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: write # attach the wheels to the GitHub release
+      id-token: write # PyPI trusted publishing
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Attach to the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true

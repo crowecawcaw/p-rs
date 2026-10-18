@@ -29,6 +29,11 @@ The workflow:
    If that fails (for example an expired token), the release gets GitHub's
    generated notes instead and the run still succeeds.
 
+5. **Python**: builds the `p-rs` Python package (`python/`): wheels with the `prs`
+   binary for Linux (x86-64, ARM), macOS (Intel, Apple Silicon) and Windows, plus an
+   sdist. They are attached to the GitHub release and published to PyPI. The wheels
+   take the release's version. A version already on PyPI is skipped.
+
 ## Fix a release's notes
 
 Actions → **Update release notes** → enter the tag. It regenerates the notes with
@@ -47,5 +52,12 @@ Only the `p-rs` crate is published. The `prs-*` crates are not.
 
   The `release` environment must allow the `main` branch. No crates.io token is
   stored in GitHub; the auth action gets a short-lived token and revokes it after.
+- PyPI trusted publishing for `p-rs` (set up once on pypi.org, as a pending
+  publisher before the first release) trusts:
+  - Repository: `crowecawcaw/p-rs`
+  - Workflow: `release.yml`
+  - Environment: `pypi`
+
+  Create the `pypi` environment in the repository settings.
 - The `CLAUDE_CODE_OAUTH_TOKEN` repository secret, for release notes. Create it
   with `claude setup-token`; it lasts about a year.

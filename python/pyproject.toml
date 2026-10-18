@@ -1,0 +1,44 @@
+# The Python package: `emit` for application code, `check_spec` for tests, a pytest
+# plugin, and the `prs` binary itself. See docs/python.md.
+#
+#   pip install ./python          # builds the binary with cargo
+#   maturin build -m python/pyproject.toml --release   # a wheel
+
+[build-system]
+requires = ["maturin>=1.5,<2"]
+build-backend = "maturin"
+
+[project]
+name = "p-rs"
+description = "Check P specs against events from your Python tests"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT OR Apache-2.0" }
+dynamic = ["version"]
+# tomllib is in the standard library from 3.11
+dependencies = ["tomli>=1.1; python_version < '3.11'"]
+classifiers = [
+  "Framework :: Pytest",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Rust",
+  "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+Repository = "https://github.com/crowecawcaw/p-rs"
+Documentation = "https://github.com/crowecawcaw/p-rs/blob/main/docs/python.md"
+
+[project.entry-points.pytest11]
+prs = "prs.pytest_plugin"
+
+[tool.maturin]
+bindings = "bin"                                 # ships the executable, no bindings
+manifest-path = "../crates/prs-cli/Cargo.toml"
+python-source = "src"
+module-name = "prs"
+strip = true
+exclude = ["**/__pycache__/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pytester_example_dir = "tests/examples"
