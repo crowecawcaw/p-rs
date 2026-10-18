@@ -46,7 +46,7 @@ interface Props {
 
 export function PEditor({ path, value, diagnostics, jump, onChange, onRun }: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const view = useRef<EditorView>();
+  const view = useRef<EditorView | undefined>(undefined);
   const states = useRef(new Map<string, EditorState>());
   const current = useRef(path);
   const handlers = useRef({ onChange, onRun });
