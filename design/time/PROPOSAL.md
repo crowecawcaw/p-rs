@@ -12,7 +12,7 @@ v5 changes (review of v4): under `--timed`, overlapping candidates (and a
 default handler against an overlapping event) are a recorded nondeterministic
 choice instead of a fixed pick; passes are sound only under `--timed`; a replay
 without time lines ignores the time options; profile names are validated.
-Observing production traces is tracked separately (`p observe`, issues #1 and #2).
+Observing production traces is implemented by `prs observe` (see `docs/observe.md`).
 
 ## Motivation and scope
 
@@ -297,8 +297,8 @@ line, and diverge.
 * measuring the collapse policy;
 * porting the Raft and FailureDetector tutorials, then deciding whether to keep
   going;
-* time in `p observe` (issues #1 and #2): checking budgets against the
-  timestamps of production traces.
+* **done:** time in `prs observe` (issues #1 and #2): checking budgets against
+  production trace timestamps as exact epoch microseconds, with per-key stopwatches.
 
 **Later, only if Phase 2 pays off:** native syntax (`examples/`).
 

@@ -2111,7 +2111,8 @@ impl<'p> Runtime<'p> {
         self.monitor_enter_state(mon, e)
     }
 
-    /// `Monitor.MonitorEvent`.
+    /// `Monitor.MonitorEvent`. With no sender, the monitor reads the event stamp
+    /// as its clock (used for recorded observations).
     pub fn monitor_event(&mut self, mon: usize, e: Event, sender_idx: Option<usize>) -> Result<(), Stop> {
         let sender: Option<Rc<str>> = sender_idx.map(|i| self.machines[i].name.clone());
         self.cov_monitor_process(mon, e.id, sender_idx);
@@ -2163,10 +2164,14 @@ impl<'p> Runtime<'p> {
                 None,
             );
         }
-        let prev = self.time.as_mut().map(|t| std::mem::replace(&mut t.observer, sender_idx));
+        let prev = self.time.as_mut().map(|t| {
+            let clock =
+                sender_idx.map(|i| self.machines[i].clock.clone()).or_else(|| e.stamp.as_ref().map(|s| s.at.clone()));
+            std::mem::replace(&mut t.observer_clock, clock)
+        });
         let r = self.monitor_handle_event(mon, e);
         if let (Some(t), Some(p)) = (self.time.as_mut(), prev) {
-            t.observer = p;
+            t.observer_clock = p;
         }
         r
     }
@@ -2344,11 +2349,10 @@ impl<'p> Runtime<'p> {
 
     /// The clock an actor reads: its own, or for a monitor the observed machine's.
     pub fn actor_clock(&self, actor: Actor) -> crate::time::Time {
-        let m = match actor {
-            Actor::Machine(m) => Some(m),
-            Actor::Monitor(_) => self.time.as_ref().and_then(|t| t.observer),
-        };
-        m.map(|m| self.machines[m].clock.clone()).unwrap_or_default()
+        match actor {
+            Actor::Machine(m) => self.machines[m].clock.clone(),
+            Actor::Monitor(_) => self.time.as_ref().and_then(|t| t.observer_clock.clone()).unwrap_or_default(),
+        }
     }
 
     /// The natively implemented time functions; `None` if `name` is not one of them.

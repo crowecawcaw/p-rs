@@ -524,39 +524,10 @@ impl<'p> Checker<'p> {
         self
     }
 
-    /// Whether the program declares time functions; errors on a wrong declaration.
-    fn declares_time(&self) -> Result<bool, String> {
-        use prs_sema::PType;
-        let prog = self.prog;
-        let mut declares = false;
-        for f in prog.funs.iter().filter(|f| f.owner.is_none() && f.is_foreign()) {
-            let Some(sig) = crate::time::time_signature(&f.name) else { continue };
-            declares = true;
-            let params: Vec<&PType> = f.params.iter().map(|v| &prog.var(*v).ty).collect();
-            let want = |t: &str| match t {
-                "int" => PType::Int,
-                "string" => PType::String,
-                _ => PType::Null,
-            };
-            let (want_params, want_ret) = sig;
-            let ok = params.len() == want_params.len()
-                && params.iter().zip(want_params).all(|(p, w)| **p == want(w))
-                && f.ret == want(want_ret);
-            if !ok {
-                return Err(format!(
-                    "foreign function '{}' is a time function and must be declared as {}",
-                    f.name,
-                    crate::time::time_declaration(&f.name)
-                ));
-            }
-        }
-        Ok(declares)
-    }
-
     /// Time tracking for `tc`: active when the program declares one of the time
     /// functions or a latency file or `--timed` is given. Checks the profile's names.
     fn time_options(&self, tc: &TestCase, opts: &CheckerOptions) -> Result<Option<crate::time::TimeOptions>, String> {
-        let declares = self.declares_time()?;
+        let declares = crate::time::declares_time(self.prog)?;
         if !declares && opts.latency.is_none() && !opts.timed {
             return Ok(None);
         }
@@ -653,7 +624,7 @@ impl<'p> Checker<'p> {
             Some((header, t)) => {
                 let o = crate::time::TimeOptions::from_schedule(header, &t.latency)
                     .map_err(|e| format!("the schedule's time settings: {}", e))?;
-                self.declares_time()?;
+                crate::time::declares_time(self.prog)?;
                 self.check_profile(o.profile.as_ref())?;
                 Some(o)
             }

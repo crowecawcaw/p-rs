@@ -21,6 +21,7 @@ use crate::compile::{compile_program, Code};
 use crate::javafmt::{self, JavaFormatter};
 use crate::runtime::{Config, Event, Failure, Runtime, Setup};
 use crate::strategy::{OpInfo, Strategy};
+use crate::time::{declares_time, Stamp, Time, TimeOptions};
 use crate::value::{NamedTuple, Value};
 
 /// A point in time (`java.time.Instant`): seconds since the epoch plus nanoseconds.
@@ -44,6 +45,13 @@ impl Timestamp {
     /// `Instant.toEpochMilli`, saturating where Java would throw.
     pub fn to_millis(&self) -> i64 {
         self.secs.saturating_mul(1000).saturating_add(i64::from(self.nanos / 1_000_000))
+    }
+
+    /// Epoch microseconds for the P time functions. Sub-microsecond precision is
+    /// truncated toward the preceding microsecond; values outside `int` saturate.
+    pub fn to_micros(&self) -> i64 {
+        (i128::from(self.secs) * 1_000_000 + i128::from(self.nanos / 1000))
+            .clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64
     }
 
     /// `Instant.toString()`.
@@ -110,6 +118,7 @@ pub struct Spec<'p> {
     code: Code,
     module: ModuleInfo,
     config: Config,
+    time: Result<bool, String>,
     java: JavaFormatter<'p>,
 }
 
@@ -134,6 +143,7 @@ impl<'p> Spec<'p> {
             code: compile_program(prog),
             module: ModuleInfo::default(),
             config,
+            time: declares_time(prog),
             java: JavaFormatter::new(prog),
         }
     }
@@ -498,6 +508,7 @@ impl<'p> Spec<'p> {
         clock: &mut dyn FnMut() -> f64,
         log: &mut Vec<String>,
     ) -> KeyOutcome {
+        let time = self.time == Ok(true);
         let mut strategy = NoScheduling;
         let mut rt = Runtime::new(
             self.prog,
@@ -505,7 +516,7 @@ impl<'p> Spec<'p> {
             &self.module,
             &self.config,
             &mut strategy,
-            Setup { java_semantics: Some(&self.java), ..Setup::default() },
+            Setup { java_semantics: Some(&self.java), time: time.then(TimeOptions::default), ..Setup::default() },
         );
         let mon = match rt.start_monitor(self.decl) {
             Ok(m) => m,
@@ -541,7 +552,8 @@ impl<'p> Spec<'p> {
             }
             prev = ev.timestamp;
             let start = (clock() * 1000.0).floor() as i64;
-            let e = Event { id: ev.event, payload: ev.payload.clone(), stamp: None, vt: None };
+            let stamp = time.then(|| Rc::new(Stamp { at: Time::point(ev.timestamp.to_micros()), sender: 0 }));
+            let e = Event { id: ev.event, payload: ev.payload.clone(), stamp, vt: None };
             rt.step_work = 0;
             if rt.monitor_event(mon, e, None).is_err() {
                 return KeyOutcome::Error(self.failure_error(rt.failure.take(), Some(make_replay(&replay)), log));
@@ -583,6 +595,11 @@ impl<'p> Spec<'p> {
     ) -> Report {
         let mut report = Report::default();
         let start = clock();
+        if let Err(message) = &self.time {
+            report.metrics.unknown_errors = 1;
+            report.errors.push(self.failure_error(Some(Failure::Other(message.clone())), None, &mut report.log));
+            return report;
+        }
         let keys: std::collections::HashSet<&str> = opts.keys.iter().map(|s| s.as_str()).collect();
 
         // parse, keeping the events the spec observes
@@ -710,6 +727,19 @@ mod tests {
         assert_eq!(split_entries("a\n b \r\nc", "\n"), vec!["a", "b", "c"]);
         assert_eq!(split_entries("a\nb\n--\nc\n--\nd\n", "\n--\n"), vec!["a\nb", "c"]);
         assert_eq!(split_entries("a;;b;", ";;"), vec!["a", "b;"]);
+    }
+
+    #[test]
+    fn microseconds_preserve_precision_and_saturate_at_int_bounds() {
+        assert_eq!(Timestamp::from_millis(1706894854333).to_micros(), 1706894854333000);
+        assert_eq!(Timestamp::new(1, 123_456_789).to_micros(), 1_123_456);
+        assert_eq!(Timestamp::new(-1, 999_999_999).to_micros(), -1);
+        assert_eq!(Timestamp::new(i64::MAX, 0).to_micros(), i64::MAX);
+        assert_eq!(Timestamp::new(i64::MIN, 0).to_micros(), i64::MIN);
+        let secs = i64::MIN.div_euclid(1_000_000);
+        let nanos = (i64::MIN.rem_euclid(1_000_000) * 1000) as u32;
+        assert_eq!(Timestamp::new(secs, nanos).to_micros(), i64::MIN);
+        assert_eq!(Timestamp::new(secs, nanos + 1000).to_micros(), i64::MIN + 1);
     }
 
     #[test]

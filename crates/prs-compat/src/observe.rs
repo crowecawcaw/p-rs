@@ -842,6 +842,7 @@ fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, Stri
         return Err("The P specification does not type-check.".into());
     }
     let program = r.map(|a| a.program).map_err(|_| "The P specification does not type-check.".to_string())?;
+    prs_checker::time::declares_time(&program)?;
     Ok(Loaded {
         program,
         java_package: package.unwrap_or_else(|| format!("{}.pobserve", project_name)),

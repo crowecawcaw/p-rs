@@ -218,8 +218,8 @@ pub struct TimeState {
     pub syms: Symbols,
     /// `Mark()` handles.
     pub marks: Vec<Time>,
-    /// The machine whose send or announce a monitor is currently observing.
-    pub observer: Option<usize>,
+    /// The clock of the send, announce or recorded event a monitor is observing.
+    pub observer_clock: Option<Time>,
 }
 
 impl TimeState {
@@ -274,6 +274,34 @@ pub fn time_declaration(name: &str) -> String {
     let ps: Vec<String> = params.iter().zip(names).map(|(t, n)| format!("{}: {}", n, t)).collect();
     let ret = if ret == "void" { String::new() } else { format!(": {}", ret) };
     format!("fun {}({}){};", name, ps.join(", "), ret)
+}
+
+/// Whether the program declares time functions; errors on a wrong declaration.
+pub fn declares_time(prog: &prs_sema::Program) -> Result<bool, String> {
+    use prs_sema::PType;
+    let mut declares = false;
+    for f in prog.funs.iter().filter(|f| f.owner.is_none() && f.is_foreign()) {
+        let Some(sig) = time_signature(&f.name) else { continue };
+        declares = true;
+        let params: Vec<&PType> = f.params.iter().map(|v| &prog.var(*v).ty).collect();
+        let want = |t: &str| match t {
+            "int" => PType::Int,
+            "string" => PType::String,
+            _ => PType::Null,
+        };
+        let (want_params, want_ret) = sig;
+        let ok = params.len() == want_params.len()
+            && params.iter().zip(want_params).all(|(p, w)| **p == want(w))
+            && f.ret == want(want_ret);
+        if !ok {
+            return Err(format!(
+                "foreign function '{}' is a time function and must be declared as {}",
+                f.name,
+                time_declaration(&f.name)
+            ));
+        }
+    }
+    Ok(declares)
 }
 
 // ---- profiles ------------------------------------------------------------------------

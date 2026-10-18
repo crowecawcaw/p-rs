@@ -77,3 +77,36 @@ Other log formats need a parser written in Rust: implement
 `prs_checker::observe::Parser` and run `prs_compat::observe::run_with(args, host, parsers)`.
 `crates/prs-cli/examples/observe_regression.rs` is a worked example; it ports
 upstream's regression parsers.
+
+## Time and latency budgets
+
+Specs can declare the same global foreign time functions used by `prs check`:
+
+```p
+fun Now(): int;
+fun NowBest(): int;
+fun Mark(): int;
+fun Elapsed(m: int): int;
+fun ElapsedBest(m: int): int;
+```
+
+Time tracking is enabled automatically by these declarations; signatures are checked
+as in `prs check`. During each observed event, `Now()` and `NowBest()` return its
+log timestamp in **epoch microseconds**. ISO-8601 timestamps retain microsecond
+precision (nanoseconds are rounded down); numeric timestamps remain epoch
+milliseconds in the log format and are converted to microseconds. Values outside
+the P `int` range saturate. Ordering still uses the full timestamp precision.
+
+`Mark()` saves the current clock and returns a handle. `Elapsed(m)` and
+`ElapsedBest(m)` return the exact difference from that mark in microseconds, so an
+existing budget assertion such as `assert Elapsed(m) <= 2000` checks the recorded
+duration. Each partition key has a fresh monitor and its own handles, starting at
+zero. The spec's start entry action reads time zero; mark request starts in their
+event handlers to measure request duration. State transitions and raised events
+within a handler keep that observed event's clock.
+
+`Elapse` and `ElapseCost` cannot be called from a monitor, as in `prs check`.
+Observation uses recorded timestamps and takes no latency profile or `--timed`
+option. Logs without timestamps keep the parser's existing default of epoch zero;
+provide timestamps to check meaningful budgets. `PTrace` currently has no time
+entries, so its observations also use zero.
