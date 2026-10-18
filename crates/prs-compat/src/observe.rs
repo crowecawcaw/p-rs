@@ -40,11 +40,18 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
 /// Runs `p observe` with additional parsers (selected by `--parser <name>`). When `--parser`
 /// is not given and exactly one extra parser is passed, that one is used.
 pub fn run_with(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parser>>) -> i32 {
+    run_named(args, host, parsers, "p observe")
+}
+
+/// [`run_with`], naming the command `command` in its usage text.
+pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parser>>, command: &str) -> i32 {
     let mut parsers = parsers;
+    let usage = USAGE.replacen("p observe", command, 1);
+    let cmdline_error = |host: &mut dyn Host, m: &str| cmdline_error(host, m, &usage);
     let cfg = match parse_args(args, host) {
         Ok(Some(c)) => c,
         Ok(None) => {
-            host.write(Stream::Out, USAGE, None);
+            host.write(Stream::Out, &usage, None);
             return EXIT_SUCCESS;
         }
         Err(m) => return cmdline_error(host, &m),
@@ -167,10 +174,10 @@ pub fn exit_status(report: &Report) -> i32 {
     }
 }
 
-fn cmdline_error(host: &mut dyn Host, msg: &str) -> i32 {
+fn cmdline_error(host: &mut dyn Host, msg: &str, usage: &str) -> i32 {
     host.out_colored_line("Failed parsing ::", Color::Red);
     host.out_colored_line(msg, Color::Red);
-    host.write(Stream::Out, USAGE, None);
+    host.write(Stream::Out, usage, None);
     EXIT_CMDLINE_ERROR
 }
 

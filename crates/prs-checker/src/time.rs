@@ -442,7 +442,7 @@ impl ProfileSet {
         Ok(ProfileSet { profiles, tests })
     }
 
-    /// The profile to use for `test`: `explicit` (from `--latency-profile`) if given,
+    /// The profile to use for `test`: `explicit` (from `--latency <file>:<profile>`) if given,
     /// else the `[tests]` entry.
     pub fn for_test(&self, test: &str, explicit: Option<&str>) -> Result<Option<&Profile>, String> {
         match explicit {

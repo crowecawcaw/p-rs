@@ -7,24 +7,28 @@
 //! commands read the P sources directly. Everything goes through a [`Host`](host::Host), so
 //! the commands also run in-memory (tests, browsers).
 //!
+//! [`check`], [`project`] and [`scenario`] also expose the steps of `p check` (resolving
+//! sources, type-checking, checking one test case, replaying a schedule) for front ends
+//! with their own command line, such as `prs`.
+//!
 //! Known differences from upstream are listed in the repository README.
 
 mod argparse;
-mod check;
+pub mod check;
 pub mod host;
 pub mod observe;
 mod pproj;
-mod project;
-mod scenario;
+pub mod project;
+pub mod scenario;
 mod sci;
 
 use std::path::Path;
 
 use host::{Color, Host, HostExt, Stream};
 
-/// Process exit requested (`Environment.Exit(code)`).
+/// Process exit requested (`Environment.Exit(code)`); the problem has been reported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Exit(i32);
+pub struct Exit(pub i32);
 
 /// `Error.ReportAndExit`: `Error: {msg}` on stderr, exit code 1.
 fn report_and_exit(host: &mut dyn Host, msg: &str) -> Exit {
@@ -62,14 +66,6 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
         Some((cmd, rest)) => match cmd.to_lowercase().as_str() {
             // PObserve is its own tool upstream: its output has no P tool banner
             "observe" => return observe::run(rest, host),
-            // Accepted so scripts running `p compile && p check` keep working
-            "compile" => {
-                host.out_colored_line(
-                    "Warning: `compile` does nothing and exists only for compatibility; prs checks P sources directly. Run `p check` (it reads the *.pproj or *.p files).",
-                    Color::Yellow,
-                );
-                0
-            }
             "check" => check::run(rest, host),
             "merge-scenario-coverage" => scenario::run_merge(rest, host),
             "version" | "-v" | "-version" | "--version" => {

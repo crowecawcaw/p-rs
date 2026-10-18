@@ -107,11 +107,17 @@ fn type_errors_are_reported() {
 }
 
 #[test]
-fn compile_is_a_no_op() {
+fn there_is_no_compile_command() {
     let mut h = MemHost::new("/w");
     h.add_file("m.p", "machine M { start state S { } }");
     assert_eq!(run(&mut h, &["compile", "-pf", "m.p"]), 0);
-    assert!(h.stdout.contains("Warning: `compile` does nothing"), "{}", h.stdout);
+    assert!(
+        h.stdout.starts_with(
+            "Expected (check | observe | merge-scenario-coverage) as the command input but received `compile`"
+        ),
+        "{}",
+        h.stdout
+    );
     assert_eq!(h.files_under("/w").len(), 1, "compile wrote files");
     assert_eq!(run(&mut h, &["check", "out/PChecker/net8.0/X.dll"]), 1);
     assert!(h.stderr.contains("there is no compiled file"), "{}", h.stderr);
@@ -208,31 +214,38 @@ fn failing_then_passing() -> MemHost {
 }
 
 #[test]
-fn liveness_temperature_threshold_is_accepted() {
+fn liveness_temperature_threshold_is_rejected_as_upstream_does() {
     let mut h = failing_then_passing();
-    assert_eq!(
-        run(&mut h, &["check", "m.p", "-tc", "tcA", "--liveness-temperature-threshold", "7"]),
-        1,
-        "{}",
-        h.stderr
-    );
-    let schedule = h.read_to_string(Path::new("PCheckerOutput/tcA/BugFinding/generatedOutput_0_0.schedule")).unwrap();
-    assert!(schedule.contains("--liveness-temperature-threshold:7\n"), "{}", schedule);
+    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tcA", "--liveness-temperature-threshold", "7"]), 1);
+    assert!(h.stdout.starts_with("usage: p check path [--help]"), "{}", h.stdout);
+    assert_eq!(h.stderr, "Error: Unhandled parsed argument: 'liveness-temperature-threshold'\n");
 }
 
 #[test]
-fn a_bug_in_any_matching_test_case_fails_the_run() {
+fn the_last_matching_test_case_sets_the_exit_code() {
     let mut h = failing_then_passing();
-    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tc"]), 1, "{}", h.stdout);
+    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tc"]), 0, "{}", h.stdout);
     assert!(h.stdout.contains("Checker found a bug."), "{}", h.stdout);
     assert!(h.stdout.contains(".. Test case :: tcB"), "{}", h.stdout);
+    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tcA"]), 1, "{}", h.stdout);
 }
 
 #[test]
 fn zero_timeout_means_no_timeout() {
     let mut h = failing_then_passing();
-    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tcB", "-t", "0"]), 0, "{}", h.stdout);
-    assert!(h.stdout.contains("..... Explored 1 schedule"), "{}", h.stdout);
+    assert_eq!(run(&mut h, &["check", "m.p", "-tc", "tcB", "-t", "0", "-s", "3"]), 0, "{}", h.stdout);
+    assert!(h.stdout.contains("..... Explored 3 schedules"), "{}", h.stdout);
+    assert!(!h.stdout.contains("timed out"), "{}", h.stdout);
+}
+
+#[test]
+fn prs_extensions_are_not_options() {
+    let mut h = failing_then_passing();
+    for flag in ["--workers", "--latency", "--latency-profile"] {
+        assert_eq!(run(&mut h, &["check", "m.p", flag, "1"]), 1, "{}", flag);
+        assert_eq!(h.stderr, format!("Error: Unexpected argument: '{}'\n", flag));
+    }
+    assert_eq!(run(&mut h, &["check", "m.p", "--timed"]), 1);
 }
 
 #[test]

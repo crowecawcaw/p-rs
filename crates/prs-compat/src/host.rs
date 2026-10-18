@@ -2,7 +2,7 @@
 //!
 //! Commands never touch `std::fs`, `std::time` or `std::process` directly so that the crate
 //! also runs in a browser. [`MemHost`] is an in-memory implementation for tests and wasm;
-//! the `prs` binary supplies a native one.
+//! the `prs-cli` crate supplies a native one.
 
 use std::collections::BTreeMap;
 use std::io;
@@ -49,7 +49,7 @@ pub trait Host {
     /// Seconds since the Unix epoch (wall-clock time, for timestamped names), or 0 if unknown.
     fn unix_time(&self) -> f64;
     /// Threads for checking schedules in parallel; `None` (the default) when the host has
-    /// none, and `prs check` then runs a single worker.
+    /// none, and checks then run a single worker.
     fn threads(&self) -> Option<Threads> {
         None
     }

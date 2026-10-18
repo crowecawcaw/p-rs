@@ -66,9 +66,11 @@ jobs:
         run: cargo build --release --locked -p prs-cli
 
       - name: Run benchmarks
-        run: >-
-          python3 scripts/bench.py run --cmd ${{ steps.src.outputs.dir }}/target/release/prs
-          --commit ${{ steps.src.outputs.commit }} --instructions --out bench.json
+        run: |
+          bin=${{ steps.src.outputs.dir }}/target/release
+          # commits before prs-compat have only prs, with upstream's options
+          cmd=$bin/prs-compat; [ -x "$cmd" ] || cmd=$bin/prs
+          python3 scripts/bench.py run --cmd "$cmd" --commit ${{ steps.src.outputs.commit }} --instructions --out bench.json
 
       - name: Report
         run: |

@@ -7,17 +7,17 @@ Sample 5 of `../examples/` rewritten with no new syntax. The extension is:
 | `Now()`, `NowBest()`, `Elapse(lo, hi)`, `Mark()`, `Elapsed(m)`, `ElapsedBest(m)` | foreign functions in `PSrc/Time.p` |
 | One-shot `Timer` | plain P in `PSrc/Timer.p` |
 | Delivery latencies | `PTst/latency.toml` |
-| Time-ordered scheduling | `p check --timed` |
+| Time-ordered scheduling | `prs check --timed` |
 
 Runs with the current build:
 
 ```
-$ p check -tc tcRetry -s 1000                        # no latency file
+$ prs check tcRetry -n 1000                        # no latency file
 <ErrorLog> Assertion Failed: PSpec/Budget.p:7:7 resolved (ok = False) after up to 1050000us; deadline is 1000000us
 ... Found 1 bug.
 
-$ p check -tc tcRetry -s 1000 --latency PTst/latency.toml          # same bug
-$ p check -tc tcRetry -s 1000 --latency PTst/latency.toml --timed  # same bug
+$ prs check tcRetry -n 1000 --latency PTst/latency.toml          # same bug
+$ prs check tcRetry -n 1000 --latency PTst/latency.toml --timed  # same bug
 ```
 
 Time is tracked as soon as the model declares the time functions: the timer
@@ -31,7 +31,7 @@ in all three modes. The slowest successful path is the third attempt answered
 at the last moment: 750ms + 2 + 36 + 2 = 790ms.
 
 The bug's `.schedule` file records the time mode and the resolved profile
-(`--prs-time:` and `--prs-latency:` lines), so `p check --replay` needs no
+(`--prs-time:` and `--prs-latency:` lines), so `prs replay` needs no
 other options.
 
 ## What `--timed` changes here

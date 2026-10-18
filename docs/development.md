@@ -9,15 +9,16 @@ The commands to build, test and lint are in [AGENTS.md](../AGENTS.md).
 | `prs-syntax` | Lexer, parser and AST. |
 | `prs-sema` | Name resolution and type checking; produces a typed program. |
 | `prs-checker` | Interpreter, schedulers, PEx search, monitors, traces, foreign functions and log checking. |
-| `prs-compat` | The upstream-compatible command line: options, `.pproj` files, console output, output folders and exit codes. Runs against a pluggable host (native or in-memory). |
-| `prs-cli` | The `prs` binary. |
+| `prs-compat` | The upstream-compatible command line: options, `.pproj` files, console output, output folders and exit codes; also the steps of a check (sources, type checking, one test case, replay) for other front ends. Runs against a pluggable host (native or in-memory). |
+| `prs-cli` | The `prs` command line, the native host, and the `prs` and `prs-compat` binaries. |
 | `prs-wasm` | WebAssembly module and JavaScript wrapper. |
 | `p-rs` | Placeholder that reserves the name on crates.io. |
 
 The core crates use no file system, process or threading APIs, so they build for
 `wasm32-unknown-unknown` unchanged. `prs-compat` reaches all of these through its `Host`;
 the threads for `prs check --workers` come from `Host::threads`, which only the native
-host provides, so the WebAssembly module runs one worker.
+host provides, so the WebAssembly module (which runs the `prs` command line) uses one
+worker.
 
 ## WebAssembly
 
@@ -55,10 +56,10 @@ Upstream's test suites are vendored in `tests/upstream`.
 
 ## Benchmarks
 
-`scripts/bench.py` runs `prs check` on six tutorial tests with fixed schedule counts
-and seed, on one worker (`--workers 1`) so that the schedules match upstream's and
-history; `run --workers N` measures N workers. It records check time, schedules per
-second and, with `--instructions` (via Valgrind), instructions executed.
+`scripts/bench.py` runs `prs-compat check` on six tutorial tests with fixed schedule
+counts and seed, on one worker, so that the schedules match upstream's and history;
+`run --cmd target/release/prs --workers N` measures N workers. It records check time,
+schedules per second and, with `--instructions` (via Valgrind), instructions executed.
 
 ```sh
 cargo build --release -p prs-cli

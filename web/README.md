@@ -12,5 +12,5 @@ npm run build    # production build in dist/
 
 - Demo models come straight from the repository (`tests/upstream/Tutorial`,
   `design/time/RetryBudget`, `web/demos`); see `src/demos.ts`.
-- Projects are checked with `p check -pf <every .p file>`, so `.pproj` files are not used.
+- Projects are checked with `prs check <every .p file> <test>`, so `.pproj` files are not used.
 - `.github/workflows/pages.yml` publishes `main` to GitHub Pages and maintainer PRs to `pr/<number>/`.

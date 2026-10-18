@@ -67,7 +67,7 @@ pub struct CheckerOptions {
     pub assembly_name: String,
     /// Latency profiles (`--latency`); see `design/time/PROPOSAL.md`.
     pub latency: Option<Arc<crate::time::ProfileSet>>,
-    /// `--latency-profile`: the profile to use instead of the `[tests]` entry.
+    /// The profile to use instead of the `[tests]` entry (`--latency <file>:<profile>`).
     pub latency_profile: Option<String>,
     /// `--timed`: time-aware scheduling.
     pub timed: bool,
@@ -565,7 +565,7 @@ impl<'p> Checker<'p> {
                 Some(p) => Some(p.clone()),
                 None => {
                     return Err(format!(
-                        "test case '{}' has no latency profile: add it to [tests] in the latency file or pass --latency-profile",
+                        "test case '{}' has no latency profile: add it to [tests] in the latency file or name one with --latency <file>:<profile>",
                         tc.name
                     ))
                 }
