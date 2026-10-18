@@ -304,11 +304,14 @@ pub struct ObserveOptions {
     pub assume_sorted: bool,
     /// Only check these keys (`--keys`, `--keyListFile`); empty = all keys.
     pub keys: Vec<String>,
+    /// Report a key whose spec is left in a hot state after its last event, as `prs check`
+    /// does at the end of an execution (`--check-hot`, a prs extension).
+    pub check_hot: bool,
 }
 
 impl Default for ObserveOptions {
     fn default() -> Self {
-        ObserveOptions { replay_window: 100, assume_sorted: false, keys: Vec::new() }
+        ObserveOptions { replay_window: 100, assume_sorted: false, keys: Vec::new(), check_hot: false }
     }
 }
 
@@ -341,6 +344,8 @@ pub struct ObserveError {
     /// `toString()` of the upstream exception: the first line of its stack trace.
     pub detail: String,
     pub replay: Option<Replay>,
+    /// Why the parser rejected the entry, for parser errors (upstream reports only the entry).
+    pub cause: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -440,6 +445,7 @@ impl<'p> Spec<'p> {
     fn failure_error(&self, failure: Option<Failure>, replay: Option<Replay>, log: &mut Vec<String>) -> ObserveError {
         match failure {
             Some(Failure::Assertion(m)) => ObserveError {
+                cause: None,
                 kind: ErrorKind::SpecViolation,
                 detail: format!("pobserve.runtime.exceptions.PAssertionFailureException: {}", m),
                 message: m,
@@ -448,6 +454,7 @@ impl<'p> Spec<'p> {
             Some(Failure::Unhandled { state, event }) => {
                 log.push(format!("prt.State[{}] missing event handler for {}", state, event));
                 ObserveError {
+                    cause: None,
                     kind: ErrorKind::Unknown,
                     message: "null".into(),
                     detail: format!(
@@ -457,16 +464,22 @@ impl<'p> Spec<'p> {
                     replay,
                 }
             }
-            Some(Failure::Exception(ty, m)) => {
-                ObserveError { kind: ErrorKind::Unknown, detail: format!("{}: {}", ty, m), message: m, replay }
-            }
+            Some(Failure::Exception(ty, m)) => ObserveError {
+                cause: None,
+                kind: ErrorKind::Unknown,
+                detail: format!("{}: {}", ty, m),
+                message: m,
+                replay,
+            },
             Some(Failure::Other(m)) => ObserveError {
+                cause: None,
                 kind: ErrorKind::Unknown,
                 detail: format!("java.lang.RuntimeException: {}", m),
                 message: m,
                 replay,
             },
             None => ObserveError {
+                cause: None,
                 kind: ErrorKind::Unknown,
                 message: "null".into(),
                 detail: "java.lang.RuntimeException".into(),
@@ -519,6 +532,7 @@ impl<'p> Spec<'p> {
                     ev.to_java_string(self)
                 );
                 return KeyOutcome::Error(ObserveError {
+                    cause: None,
                     kind: ErrorKind::OutOfOrder,
                     detail: format!("pobserve.commons.exceptions.PObserveEventOutOfOrderException: {}", message),
                     message,
@@ -537,6 +551,22 @@ impl<'p> Spec<'p> {
                 m.verified += 1;
                 m.total_ms += ms;
                 m.max_ms = m.max_ms.max(ms);
+            }
+        }
+        if opts.check_hot {
+            if let Some(state) = rt.monitor_hot_state(mon) {
+                let message = format!(
+                    "{} detected liveness bug in hot state '{}' at the end of program execution.",
+                    rt.monitor_full_name(mon),
+                    state
+                );
+                return KeyOutcome::Error(ObserveError {
+                    cause: None,
+                    kind: ErrorKind::SpecViolation,
+                    detail: format!("pobserve.runtime.exceptions.PAssertionFailureException: {}", message),
+                    message,
+                    replay: Some(make_replay(&replay)),
+                });
             }
         }
         KeyOutcome::Ok
@@ -569,7 +599,7 @@ impl<'p> Spec<'p> {
                             }
                         }
                     }
-                    Err(_) => {
+                    Err(cause) => {
                         report.metrics.parser_errors += 1;
                         report.log.push("Parser Exception::".into());
                         report.log.push(format!("Exception occurred while parsing log line: {}", entry));
@@ -578,6 +608,7 @@ impl<'p> Spec<'p> {
                             message: entry.clone(),
                             detail: format!("pobserve.commons.exceptions.PObserveLogParsingException: {}", entry),
                             replay: None,
+                            cause: Some(cause),
                         });
                     }
                 }

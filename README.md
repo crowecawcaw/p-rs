@@ -87,6 +87,10 @@ alias it to `p`):
 prs-compat check -tc tcMyTest -s 1000
 ```
 
+From Python, the `p-rs` package ([`python/`](python)) checks specs against events your
+code emits during its ordinary pytest tests, and installs the `prs` binary. See
+[docs/python.md](docs/python.md).
+
 ## Goals
 
 1. Simplify or eliminate the toolchain for working with P models.
@@ -127,6 +131,9 @@ files, with its own options.
 * `merge-scenario-coverage --help` prints its usage (upstream looks for a directory
   named `--help`).
 * `observe` reports a null dereference with its own message.
+* `observe` extensions: several names after `--spec`, `--all-specs`,
+  `--exclude-specs`, `--json-report` and `--check-hot`. Runs that use none of them are
+  unchanged.
 * Foreign functions and log parsers are written in Rust, not C# or Java.
 
 **Not supported yet**:

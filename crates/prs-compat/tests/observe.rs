@@ -305,3 +305,124 @@ fn custom_parsers_plug_in() {
 fn regression_parsers_compile() {
     assert_eq!(support::pobserve_parsers::all().len(), 6);
 }
+
+const LOCK: &str = r#"
+event eEnter: (client: string);
+event eExit: (client: string);
+event eRequest: (client: string);
+event eGrant: (client: string);
+
+spec MutualExclusion observes eEnter, eExit {
+  var holder: string;
+  start state Free {
+    on eEnter do (p: (client: string)) { holder = p.client; goto Held; }
+  }
+  state Held {
+    on eEnter do (p: (client: string)) {
+      assert false, format("{0} entered while {1} is inside", p.client, holder);
+    }
+    on eExit goto Free;
+  }
+}
+
+spec RequestsGranted observes eRequest, eGrant {
+  start cold state Idle { on eRequest goto Waiting; ignore eGrant; }
+  hot state Waiting { on eGrant goto Idle; ignore eRequest; }
+}
+"#;
+
+fn lock_line(key: &str, ts: &str, event: &str, client: &str) -> String {
+    format!(
+        r#"{{"key": "{}", "timestamp": "{}", "event": "{}", "payload": {{"client": "{}"}}, "src": "x.py:1"}}"#,
+        key, ts, event, client
+    )
+}
+
+fn lock_host(lines: &[String]) -> MemHost {
+    let mut h = MemHost::new("/work");
+    h.add_file("lock.p", LOCK);
+    h.add_file("run.log", &lines.join("\n"));
+    h
+}
+
+#[test]
+fn several_specs_in_one_run() {
+    let lines = [
+        lock_line("L1", "2026-10-18T00:00:00.000000001Z", "eEnter", "c1"),
+        lock_line("L1", "2026-10-18T00:00:00.000000002Z", "eEnter", "c2"),
+        lock_line("L1", "2026-10-18T00:00:00.000000003Z", "eRequest", "c3"),
+    ];
+    let mut h = lock_host(&lines);
+    let base = ["-pf", "lock.p", "-l", "run.log", "-o", "out"];
+    let args = |extra: &[&'static str]| -> Vec<&str> { extra.iter().copied().chain(base.iter().copied()).collect() };
+
+    // both named: one violation, no liveness check
+    assert_eq!(run(&mut h, &args(&["--spec", "MutualExclusion", "RequestsGranted"])), 2, "{}", h.stdout);
+    assert!(h.stdout.contains("specificationName    = MutualExclusion, RequestsGranted"), "{}", h.stdout);
+    assert!(h.stdout.contains("Checking spec RequestsGranted"));
+    assert!(h.stdout.contains("c2 entered while c1 is inside"));
+    assert!(h.stdout.contains("PObserve run completed with 1 error(s)"));
+    assert!(read(&h, "/work/out/MutualExclusion/replayEvents_L1.log").contains("c2 entered"));
+    assert!(read(&h, "/work/out/RequestsGranted/PObserveMetrics.txt").contains("eRequest"));
+
+    // all specs, with the hot-state check
+    assert_eq!(run(&mut h, &args(&["--all-specs", "--check-hot", "--json-report", "r.json"])), 2);
+    let r: serde_json::Value = serde_json::from_str(&read(&h, "/work/r.json")).unwrap();
+    assert_eq!(r["exit_code"], 2);
+    let specs = r["specs"].as_array().unwrap();
+    assert_eq!(specs.len(), 2);
+    assert_eq!(specs[0]["spec"], "MutualExclusion");
+    let e = &specs[0]["errors"][0];
+    assert_eq!(e["kind"], "spec_violation");
+    assert_eq!(e["key"], "L1");
+    assert_eq!(e["message"], "Assertion failure: lock.p:14:7 c2 entered while c1 is inside");
+    let evs = e["events"].as_array().unwrap();
+    assert_eq!(evs.len(), 2);
+    assert_eq!(evs[1]["event"], "eEnter");
+    assert_eq!(evs[1]["timestamp"], "2026-10-18T00:00:00.000000002Z");
+    assert!(evs[1]["log_line"].as_str().unwrap().contains(r#""src": "x.py:1""#));
+    let hot = &specs[1]["errors"][0];
+    assert_eq!(
+        hot["message"],
+        "PImplementation.RequestsGranted detected liveness bug in hot state 'Waiting' at the end of program execution."
+    );
+
+    // exclusions
+    assert_eq!(run(&mut h, &args(&["--all-specs", "--exclude-specs", "MutualExclusion", "--check-hot"])), 2);
+    assert!(!h.stdout.contains("Checking spec"), "{}", h.stdout);
+    assert!(h.stdout.contains("hot state 'Waiting'"));
+    assert_eq!(run(&mut h, &args(&["--all-specs", "--exclude-specs", "MutualExclusion"])), 0, "{}", h.stdout);
+}
+
+#[test]
+fn clean_runs_write_an_empty_json_report() {
+    let lines = [
+        lock_line("L1", "2026-10-18T00:00:00.000000001Z", "eEnter", "c1"),
+        lock_line("L1", "2026-10-18T00:00:00.000000002Z", "eExit", "c1"),
+        lock_line("L1", "2026-10-18T00:00:00.000000003Z", "eRequest", "c3"),
+        lock_line("L1", "2026-10-18T00:00:00.000000004Z", "eGrant", "c3"),
+    ];
+    let mut h = lock_host(&lines);
+    let code =
+        run(&mut h, &["--all-specs", "--check-hot", "--json-report", "r.json", "-pf", "lock.p", "-l", "run.log"]);
+    assert_eq!(code, 0, "{}", h.stdout);
+    let r: serde_json::Value = serde_json::from_str(&read(&h, "/work/r.json")).unwrap();
+    assert_eq!(r["exit_code"], 0);
+    assert_eq!(r["specs"][0]["events_read"], 2);
+    assert_eq!(r["specs"][1]["errors"].as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn spec_selection_errors() {
+    let mut h = lock_host(&[]);
+    let cases: &[(&[&str], &str)] = &[
+        (&["--spec", "MutualExclusion", "--all-specs"], "--spec and --all-specs cannot be combined."),
+        (&["--spec", "MutualExclusion", "--exclude-specs", "X"], "--exclude-specs needs --all-specs."),
+        (&["--all-specs", "--exclude-specs", "Nope"], "--exclude-specs: there is no spec named Nope."),
+    ];
+    for (args, msg) in cases {
+        let args: Vec<&str> = args.iter().copied().chain(["-pf", "lock.p", "-l", "run.log"]).collect();
+        assert_eq!(run(&mut h, &args), 1, "{:?}", args);
+        assert!(h.stdout.starts_with(&format!("Failed parsing ::\n{}\n", msg)), "{:?}\n{}", args, h.stdout);
+    }
+}
