@@ -13,14 +13,18 @@ no compile step (`check` type-checks the sources itself); upstream P compiles
 each project once first, and that compile time is recorded separately. The seed fixes which
 schedules are explored, so between commits only the speed changes. For each
 workload it records the median wall-clock time of the check over --runs runs,
-the schedules explored, schedules per second (schedules / median time) and,
-with --instructions, the instructions executed (one run under Valgrind's
+the schedules explored, schedules per second (schedules / median time), the
+median time of a one-schedule check (startup: parsing, type checking and, for
+upstream, .NET start and JIT) and warm schedules per second (the schedules after
+the first over the time after startup) and, with --instructions, the instructions executed (one run under Valgrind's
 cachegrind). Instruction counts are stable on shared CI runners, so they are
 kept to tell a real change from runner noise; wall-clock time is what reports
 show.
 
 `report` prints a markdown table comparing a result with the previous entry in a
-history file (one JSON result per line). `compare` prints prs vs upstream.
+history file (one JSON result per line). `compare` prints prs vs upstream, led by
+a one-line summary for Raft (HEADLINE), the slowest model per schedule, as quoted
+in the README.
 """
 import argparse
 import datetime
@@ -52,6 +56,9 @@ WORKLOADS = [
     ("6_Raft", "oneClientFiveServersReliable", 120),
 ]
 
+
+# The workload `compare` sums up in one line: the model with the longest schedules.
+HEADLINE = "6_Raft"
 
 TIMEOUT = 900  # seconds per command; a hung tool fails the run instead of the job
 
@@ -139,6 +146,16 @@ def run(opts):
                 if schedules is None:
                     sys.exit(f"{name}: no schedule count in output\n{r.stdout[-2000:]}{r.stderr[-2000:]}")
             check_s = statistics.median(times)
+            # Startup: a check of one schedule. The rest of the time is warm.
+            one = check_args(opts, cmd, test, 1)
+            startup = []
+            for i in range(opts.runs):
+                print(f"{name}: startup run {i + 1}/{opts.runs}", file=sys.stderr, flush=True)
+                shutil.rmtree(proj / "PCheckerOutput", ignore_errors=True)
+                t0 = time.perf_counter()
+                sh([*cmd, *one], proj)
+                startup.append(time.perf_counter() - t0)
+            startup_s = statistics.median(startup)
             res = {
                 "name": name,
                 "project": project,
@@ -149,6 +166,8 @@ def run(opts):
                 "check_s_min": round(min(times), 4),
                 "check_s_max": round(max(times), 4),
                 "schedules_per_s": round(schedules / check_s, 1),
+                "startup_s": round(startup_s, 4),
+                "warm_schedules_per_s": round((schedules - 1) / max(check_s - startup_s, 1e-9), 1),
             }
             if project in compiled:
                 res["compile_s"] = round(compiled[project], 4)
@@ -246,21 +265,30 @@ def compare(opts):
     prs = json.loads(Path(opts.prs).read_text())
     up = json.loads(Path(opts.upstream).read_text())
     upr = {r["name"]: r for r in up["results"]}
-    out = [f"### prs {prs['version'] or prs['commit'][:7]} vs upstream P {up['version']}", "",
-           f"Same runner, same tests, schedule counts and seed. Wall clock, median of {prs['runs']} runs. "
-           "Speedup = upstream time / prs time. prs type-checks inside `check`; "
-           "P compiles first (P compile).", "",
-           "| workload | schedules | prs time | P time | speedup | prs sched/s | P sched/s | P compile |",
-           "|---|---:|---:|---:|---:|---:|---:|---:|"]
+    out = [f"### prs {prs['version'] or prs['commit'][:7]} vs upstream P {up['version']}", ""]
+    hp = next((r for r in prs["results"] if r["project"] == HEADLINE), None)
+    hu = upr.get(hp["name"]) if hp else None
+    if hp and hu and "warm_schedules_per_s" in hp and "warm_schedules_per_s" in hu:
+        up_total = hu["compile_s"] + hu["check_s"]
+        out += [f"Checking the Raft tutorial ({hp['schedules']} schedules) takes {hp['check_s']:.1f} s with prs "
+                f"and {up_total:.0f} s with P {up['version']} ({up_total / hp['check_s']:.0f}× longer, "
+                f"including {hu['compile_s']:.0f} s to compile); once warmed up, prs checks "
+                f"{hp['warm_schedules_per_s']:,.0f} schedules per second and P {hu['warm_schedules_per_s']:,.1f}.", ""]
+    out += [f"Same runner, same tests, schedule counts and seed. Wall clock, median of {prs['runs']} runs. "
+            "Speedup = upstream time / prs time. prs type-checks inside `check`; "
+            "P compiles first (P compile). Warm = schedules per second after a one-schedule check's time.", "",
+            "| workload | schedules | prs time | P time | speedup | prs sched/s | P sched/s | prs warm | P warm | P compile |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     rows = [(r, upr.get(r["name"])) for r in prs["results"]]
     rows.append(({"name": "**total**", **prs["total"]}, up["total"]))
     same = [r["name"] for r in prs["results"]] == [r["name"] for r in up["results"]]
     for p, u in rows:
         if not u or (p["name"] == "**total**" and not same):
             continue
-        out.append("| {} | {} | {:.3f} s | {:.3f} s | {:.1f}× | {:,.0f} | {:,.0f} | {:.2f} s |".format(
+        warm = lambda r: f"{r['warm_schedules_per_s']:,.1f}" if "warm_schedules_per_s" in r else ""
+        out.append("| {} | {} | {:.3f} s | {:.3f} s | {:.1f}× | {:,.0f} | {:,.0f} | {} | {} | {:.2f} s |".format(
             p["name"], p["schedules"], p["check_s"], u["check_s"], u["check_s"] / p["check_s"],
-            p["schedules_per_s"], u["schedules_per_s"], u["compile_s"]))
+            p["schedules_per_s"], u["schedules_per_s"], warm(p), warm(u), u["compile_s"]))
     out += ["", f"Runner: {prs['runner']['cpu']}."]
     print("\n".join(out))
 
