@@ -59,7 +59,8 @@ Upstream's test suites are vendored in `tests/upstream`.
 `scripts/bench.py` runs `prs-compat check` on six tutorial tests with fixed schedule
 counts and seed, on one worker, so that the schedules match upstream's and history;
 `run --cmd target/release/prs --workers N` measures N workers. It records check time,
-schedules per second and, with `--instructions` (via Valgrind), instructions executed.
+schedules per second, startup time (a one-schedule check) and warm schedules per second
+(after startup) and, with `--instructions` (via Valgrind), instructions executed.
 
 ```sh
 cargo build --release -p prs-cli
