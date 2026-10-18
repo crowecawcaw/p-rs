@@ -1,159 +1,158 @@
-# p-next
+# p-rs
 
-A pure Rust implementation of the [P](https://github.com/p-org/P) modeling language
-toolchain: parser, type checker and model checker. No .NET and no code generation: P
-models are checked directly by an interpreter driven by a controlled, reproducible
-scheduler, with the same bug-finding semantics as the upstream checker.
+A Rust implementation of the [P](https://github.com/p-org/P) language toolchain:
+parser, type checker and model checker, with no .NET, Java or code generation. It
+interprets P models directly instead of compiling them to C#, so there is no compile
+step.
 
-## Crates
+There are two command line tools:
 
-| Crate | Purpose |
-|---|---|
-| `pnext-syntax` | Lexer, parser and AST. |
-| `pnext-sema` | Name resolution, type checking, machine and module-system rules; produces a typed program. Diagnostics match upstream's. |
-| `pnext-checker` | Values, bytecode interpreter, scheduling strategies (random, pct, fairpct, probabilistic, pos, feedback, feedbackpct, feedbackpos, rl, replay), exhaustive search (PEx mode), safety and liveness monitors, deadlock detection, text/JSON traces, foreign functions, runtime monitoring of event logs (`observe`). |
-| `pnext-compat` | Drop-in compatibility with the upstream `p` tool: `p compile` / `p check` / `p merge-scenario-coverage` options, `p observe` as a drop-in for PObserve, help, `.pproj` files, console output, output folders, trace files and exit codes. Runs against a pluggable host (native or in-memory). |
-| `pnext-cli` | The `p` binary. |
-| `pnext-wasm` | WebAssembly module plus a JavaScript wrapper to run `p` in a browser or Node.js. |
+* `prs`, with its own options, parallel workers and time tracking.
+* `prs-compat`, a drop-in replacement for the upstream `p` tool. It reads `.pproj`
+  files, accepts the same options, and writes the same console output, traces and
+  output folders.
 
-Try it in the browser: the [P Playground](https://crowecawcaw.github.io/p-rs/) (source in `web/`).
+Try it without installing anything in the [P Playground](https://crowecawcaw.github.io/p-rs/).
 
-The core crates use no file system, process or threading APIs and build for
-`wasm32-unknown-unknown` unchanged.
+## Status
 
-## Using the `p` tool
+Early, but checks real models. prs passes upstream's compiler regression tests
+(424), checker suites (249) and tutorials, and reproduces upstream's golden traces and
+PObserve outputs. See [docs/development.md](docs/development.md#validation) for how this
+is tested.
 
-```sh
-cargo build --release -p pnext-cli      # produces target/release/p
-cd MyProject                            # a folder with a .pproj file
-p compile
-p check -tc tcMyTest -s 1000
-p check -tc tcMyTest --replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
-```
+## Install
 
-Options, messages, output layout (`PCheckerOutput/<test>/BugFinding/` with history
-rotation) and trace files (`.txt`, `.trace.json`, `.schedule`) follow upstream. `p compile`
-writes `PGenerated/PChecker/<Project>.pnext`, a self-contained snapshot of the
-type-checked sources, which `p check` finds the way upstream finds its `.dll` (an
-upstream-style `.dll` path is also accepted and mapped to the `.pnext` next to it).
-
-### Exhaustive checking (PEx mode)
+There are no prebuilt binaries yet. With a Rust toolchain:
 
 ```sh
-p compile --mode pex                    # same compiled file, written to PGenerated/PEx/
-p check --mode pex -tc tcMyTest         # --sch-pex dfs for a fixed order; -s / -t to bound it
+cargo install --git https://github.com/crowecawcaw/p-rs prs-cli   # installs prs and prs-compat
 ```
 
-PEx mode explores every behaviour of the test (every scheduling choice and every `$` /
-`choose` value) by depth-first search, skipping program states it has already explored.
-The report says whether the search finished, so "no bug found" means there is none within
-the step bound (`--max-steps`), or that it stopped early. Bugs produce the usual trace and
-`.schedule` files, which `--replay` reproduces. Liveness is checked for schedules that
-end; time tracking is not supported in this mode yet.
+## Usage
 
-`--sch-rl` selects the Q-learning scheduler (from Coyote): random testing that favours
-choices leading to program states it has seen less often. Runs are reproducible from
-`--seed`.
-
-## Checking logs: `p observe`
-
-`p observe` is [PObserve](https://github.com/p-org/P/tree/master/Src/PObserve): it
-checks events recorded by a running system against the spec monitors of a P project.
+Run `prs` in a folder with a `.pproj` file:
 
 ```sh
-cd MyProject                            # a folder with a .pproj file
-p observe --spec BankBalanceCorrect -l logs/            # JSON lines, see below
-p observe --spec BankBalanceCorrect -l trace.json -i JSON   # a P JSON trace
-p observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log --keys 7 9
+prs tests                                   # list the test cases
+prs check                                   # check every test case, 10000 schedules each
+prs check tcMyTest -n 1000                  # one test case, 1000 schedules
+prs check 'tcMy*' --time 5m                 # test cases matching a glob, for 5 minutes each
+prs check model.p tcMyTest                  # .p files instead of a .pproj
+prs check tcMyTest --strategy pct:10        # another search strategy
+prs check tcMyTest --exhaustive             # every scheduling and data choice
+prs replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
 ```
 
-Options, console output, `PObserve-<date>/` output (replay logs, `ParserError_N.txt`,
-`UnknownError_N.txt`, `PObserveMetrics.txt`) and exit codes (0 ok, 1 command line,
-2 spec violation, 3 internal error, 4 parser errors only) follow upstream. The difference
-is where the spec comes from: there is no `p compile --mode pobserve` and no `--jars`.
-The P sources are type-checked in memory, from the `.pproj` in the current folder,
-`-pp/--pproj <file>` or `-pf/--pfiles <files>`.
+`prs check` type-checks the sources itself and reports errors as `p compile` does.
+Bugs are written to `PCheckerOutput/` as upstream writes them. It exits with 0 when no
+bug is found, 1 when one is, and 2 on any other error. `prs <command> --help` lists the
+options.
 
-Parsers turn log entries into events. Two are built in:
+`prs check` explores schedules on one worker thread per CPU core (`-j N` sets the
+number). The schedule count is split between the workers, each with its own seed; the
+first bug stops them all, and its `.schedule` file replays it as usual. The `random`,
+`pct`, `fairpct`, `prob` and `pos` strategies use workers; the feedback strategies and
+`rl` (which learn from earlier schedules), `--exhaustive` and `--verbose` run one
+worker. With more than one worker, a given `--seed` explores different schedules than
+upstream, and which bug is reported can vary from run to run; `-j 1` explores exactly
+upstream's schedules.
 
-* `JsonLines` (default for `-i TEXT`): one JSON object per line,
-  `{"key": "7", "timestamp": 1700000000000, "event": "eWithDraw", "payload": {...}}`.
-  The timestamp is epoch milliseconds or ISO-8601; payloads are matched against the
-  event's payload type. `-pc '{"key": "ctx.account", "event": "type"}'` remaps the
-  fields (dotted paths).
-* `PTrace` (default for `-i JSON`): the `.trace.json` of `p check`, checking its sends
-  and announcements.
+`--exhaustive` explores every scheduling choice and every `$` / `choose` value by
+depth-first search, skipping states it has already seen. Its report says whether the
+search finished or hit the `--max-steps` bound. Time tracking is not supported in this
+mode yet.
 
-Other log formats need a parser in Rust: implement `pnext_checker::observe::Parser` and
-run `pnext_compat::observe::run_with(args, host, parsers)` (see
-`crates/pnext-cli/examples/observe_regression.rs`, which ports upstream's regression
-parsers).
+Time tracking (`--latency <file>[:<profile>]`, `--timed`) checks timeouts and latency
+budgets; see [design/time](design/time/RetryBudget/README.md).
 
-## Using the library
-
-```rust
-let mut sm = pnext_syntax::SourceMap::new();
-sm.add("model.p", source);
-let analysis = pnext_sema::compile(&sm, &pnext_sema::Options::default())?;
-let tc = analysis.program.test_cases().into_iter().find(|t| t.name == "tcMain").unwrap();
-let checker = pnext_checker::engine::Checker::new(&analysis.program);
-let opts = pnext_checker::engine::CheckerOptions { iterations: 1000, seed: 42, ..Default::default() };
-let result = checker.check(&tc, &opts, &mut Vec::<String>::new())?;
-println!("{} bug(s)", result.report.num_bugs);
-```
-
-Logs are checked with `pnext_checker::observe::Spec::new(&program, "MySpec")?.observe(...)`,
-which takes the log entries, a `Parser` and `ObserveOptions` and returns a `Report`.
-
-Foreign types and functions are supplied in Rust through
-`pnext_checker::foreign::ForeignFunctions` (see `crates/pnext-checker/tests/foreign.rs`,
-which ports the PriorityQueue tutorial's C# code).
-
-## In the browser
+`prs observe` replaces [PObserve](https://github.com/p-org/P/tree/master/Src/PObserve):
+it checks logs from a running system against a project's spec monitors, without jars.
 
 ```sh
-rustup target add wasm32-unknown-unknown
-cargo build --profile wasm --target wasm32-unknown-unknown -p pnext-wasm
-node crates/pnext-wasm/js/smoke.mjs target/wasm32-unknown-unknown/wasm/pnext_wasm.wasm
+prs observe --spec BankBalanceCorrect -l logs/
 ```
 
-`crates/pnext-wasm/js/pnext.mjs` exposes `run(args, files)` over an in-memory file
-system; the module is about 1 MB (about 320 KB gzipped).
+See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
+[docs/library.md](docs/library.md) for using the crates from Rust.
 
-## Validation
+To use prs in place of upstream P, in scripts written for `p`, run `prs-compat` (or
+alias it to `p`):
 
-* `pnext-sema`: all 424 upstream regression tests compile or fail to compile as
-  upstream expects (`cargo run --release -p pnext-sema --example corpus -- tests/upstream/RegressionTests`).
-* `pnext-checker`: all 249 tests of the suites upstream's harness runs find a bug exactly
-  when upstream expects one, with upstream's settings (1000 schedules, 1000 steps)
-  across seeds (`cargo run --release -p pnext-checker --example corpus -- <suite dir>`);
-  a faster version runs in `cargo test`.
-* Tutorials: `cargo run --release -p pnext-checker --example tutorials -- tests/upstream/Tutorial`
-  mirrors upstream's tutorial CI and reports the same three failing test cases.
-* Traces: the readable and JSON traces contain upstream's golden files
-  (`tests/upstream/CorrectLogs`), checked in `crates/pnext-compat/tests/cli.rs`.
-* `p observe`: `scripts/compare-pobserve.py` runs upstream PObserve and `p observe` on
-  all 96 logs of upstream's PObserve regression suite, with and without
-  `--assumeInputsAreSorted`. All 192 runs give the same exit code, and 186 give identical
-  console output and output files. The other 6 differ only in a null-pointer message (see
-  below). The small logs and upstream's outputs for them are vendored in
-  `tests/upstream/PObserve` and checked in `crates/pnext-compat/tests/observe_upstream.rs`.
+```sh
+prs-compat check -tc tcMyTest -s 1000
+```
 
-## Known differences from upstream
+## Goals
 
-* Not implemented: the rl strategy and the PEx and PVerifier modes. Options for them are
-  accepted; choosing an unimplemented strategy reports an error. `--graph` and `--graph-bug` are accepted and, as upstream,
-  write nothing.
-* .NET stack frames (in exception reports and in `ExceptionThrown` / `ExceptionHandled`
-  trace elements) cannot be reproduced and are omitted.
-* Foreign code in C# or Java cannot run; provide foreign functions in Rust.
+1. Simplify or eliminate the toolchain for working with P models.
+2. Stay compatible with the official P tools: exact, drop-in compatibility where
+   feasible; functional compatibility where expedient; anything else is listed as out of
+   scope. See [Compatibility](#compatibility).
+
+## Compatibility
+
+This section is about `prs-compat`. `prs` checks the same way and writes the same
+files, with its own options.
+
+**Exact** (drop-in):
+
+* `check`, `merge-scenario-coverage` and `observe` options, help, console output and
+  exit codes.
+* Parse and type error messages.
+* Bug reports, assertion and liveness messages.
+* Trace files (`.txt`, `.trace.json`, `.schedule`), coverage reports, output folder
+  layout and history rotation.
+* `.pproj` files.
+* PObserve output files (replay logs, `ParserError_N.txt`, `UnknownError_N.txt`,
+  `PObserveMetrics.txt`).
+
+**Functional** (same result, details differ):
+
+* Findings may be reported in a different order.
+* `check` reads P sources, not a compiled `.dll`: a `.pproj` or `.p` file as its path,
+  `--pproj`, `--pfiles` and `--projname` (upstream: options of `p compile`), or else the
+  `.pproj` or `.p` files in the current folder.
+* Source discovery is logged differently, since there is no compiled output to find.
+* Files are enumerated in sorted order; elapsed time and memory figures differ.
 * An action that runs forever without reaching a scheduling point is reported as a bug
   (upstream hangs).
-* File enumeration order is sorted (upstream uses the OS order), and elapsed time and
-  memory figures naturally differ.
-* `p observe`: specs come from P sources, not jars (no `--jars`), and parsers are written
-  in Rust. Event filters (`--filters`), socket mode and `SERIALIZEDEVENTS` input are not
-  supported and are reported as command-line errors. Java stack frames are omitted from
-  `UnknownError_N.txt`. Java's message for a null dereference names a variable of the
-  generated Java code (`because "TMP_tmp2_12" is null`). That name cannot be reproduced,
-  so `p observe` reports a null dereference with its own message.
+* Nesting deeper than 128 levels is a parse error, `nesting is too deep` (upstream has
+  no limit). Blocks, statements, expressions, types and each operand of an operator
+  chain such as `a + b + c` count a level; the upstream tests nest at most 16 deep.
+* `merge-scenario-coverage --help` prints its usage (upstream looks for a directory
+  named `--help`).
+* `observe` reports a null dereference with its own message.
+* Foreign functions and log parsers are written in Rust, not C# or Java.
+
+**Not supported yet**:
+
+* PVerifier mode.
+* `observe` event filters (`--filters`), socket mode and `SERIALIZEDEVENTS` input.
+* `--memout` is accepted and ignored.
+* `--graph` and `--graph-bug` are accepted but, as upstream, write nothing.
+
+**Out of scope**:
+
+* `p compile` and its output (`PGenerated/`, `.dll`, jars). There is no `compile`
+  command; `OutputDir` and `Target` in `.pproj` files are ignored.
+* .NET and Java stack frames in exception reports, traces and `UnknownError_N.txt`.
+* Foreign code in C# or Java, and PObserve jars (`--jars`).
+
+## Contributing
+
+See [docs/development.md](docs/development.md) for the crate layout, tests and
+benchmarks, and [AGENTS.md](AGENTS.md) for the commands to run before sending a change.
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
+[MIT license](LICENSE-MIT), at your option.
+
+Parts of p-rs, including the tests vendored in `tests/upstream`, are derived from
+[P](https://github.com/p-org/P) and remain under
+[P's MIT license](tests/upstream/LICENSE.txt) (Copyright (c) 2015 P Developers).
+
+Unless you explicitly state otherwise, any contribution you submit for inclusion in
+this project, as defined in the Apache-2.0 license, is dual licensed as above, without
+any additional terms or conditions.

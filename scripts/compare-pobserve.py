@@ -3,12 +3,12 @@
 
     UPSTREAM_POBSERVE="java -cp PObserveCommons-1.0.0.jar:PObserve-1.0.0.jar pobserve.PObserve" \
     UPSTREAM_JARS=regression.jar \
-    PNEXT_OBSERVE=target/release/examples/observe_regression \
+    PRS_OBSERVE_BIN=target/release/examples/observe_regression \
     scripts/compare-pobserve.py <P checkout>/Src/PObserve/PObserveRegressionTesting/src [filter]
 
 UPSTREAM_JARS is a jar built from the regression project (its generated spec classes plus
-the TestCase parsers). PNEXT_OBSERVE is `p observe` with the Rust ports of those parsers
-(`cargo build --release -p pnext-cli --example observe_regression`).
+the TestCase parsers). PRS_OBSERVE_BIN is `p observe` with the Rust ports of those parsers
+(`cargo build --release -p prs-cli --example observe_regression`).
 
 Every log file and log directory of the happy and error suites runs through both tools,
 with and without --assumeInputsAreSorted. Compared: exit code, console output, and every
@@ -99,7 +99,7 @@ def main():
     filt = sys.argv[2] if len(sys.argv) > 2 else ""
     up = shlex.split(os.environ["UPSTREAM_POBSERVE"])
     jars = os.path.abspath(os.environ["UPSTREAM_JARS"])
-    pn = [os.path.abspath(os.environ.get("PNEXT_OBSERVE", "target/release/examples/observe_regression"))]
+    pn = [os.path.abspath(os.environ.get("PRS_OBSERVE_BIN", "target/release/examples/observe_regression"))]
     pproj = os.path.join(src, "main/java/pobserve/testing/spec/p_specs.pproj")
     logs = os.path.join(src, "resources/logs/unit-test-logs")
     total = same = 0

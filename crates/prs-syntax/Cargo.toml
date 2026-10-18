@@ -1,0 +1,11 @@
+[package]
+name = "prs-syntax"
+version.workspace = true
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Lexer, parser and AST for the P modeling language"
+
+[dependencies]

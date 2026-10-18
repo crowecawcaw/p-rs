@@ -1,11 +1,12 @@
 [package]
 name = "p-rs"
 version = "0.0.1"
-edition = "2021"
-license = "MIT"
+edition.workspace = true
+license.workspace = true
 description = "Placeholder for the P modeling language toolchain in Rust"
-repository = "https://github.com/crowecawcaw/p-rs"
+repository.workspace = true
+rust-version.workspace = true
 readme = "README.md"
-include = ["Cargo.toml", "README.md", "src/lib.rs"]
+include = ["Cargo.toml", "README.md", "LICENSE-MIT", "LICENSE-APACHE", "src/lib.rs"]
 
 [dependencies]

@@ -1,0 +1,87 @@
+# Benchmarks prs against the upstream P tool (from NuGet) on the same runner,
+# with the same tests, schedule counts and seed (scripts/bench.py). Manual for
+# now: Actions -> Benchmark vs upstream P -> Run workflow.
+#
+# The comparison goes to the run summary and is appended to upstream.jsonl on the
+# `benchmarks` branch (runs on main only). Wall clock only: total check time,
+# schedules per second, and upstream's compile time (prs has no compile step).
+
+name: Benchmark vs upstream P
+
+on:
+  workflow_dispatch:
+    inputs:
+      p_version:
+        description: "Upstream P version from NuGet (empty = latest)"
+        required: false
+        default: ""
+      dotnet_version:
+        description: ".NET SDK the P tool needs"
+        required: false
+        default: "8.0.x"
+      runs:
+        description: "Runs per workload (the median is reported)"
+        required: false
+        default: "5" # upstream takes ~15 min at 5 runs
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bench-upstream
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  bench:
+    if: github.repository == 'crowecawcaw/p-rs'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # tags, for the prs version label
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench
+          save-if: false
+      - name: Build prs
+        run: cargo build --release --locked -p prs-cli
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet_version }}
+      - name: Install upstream P
+        env:
+          P_VERSION: ${{ inputs.p_version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$P_VERSION" ]; then dotnet tool install --global P --version "$P_VERSION"; else dotnet tool install --global P; fi
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Run benchmarks
+        env:
+          RUNS: ${{ inputs.runs }}
+        run: |
+          set -euo pipefail
+          p_version=$(dotnet tool list --global | awk 'tolower($1) == "p" { print $2 }')
+          prs_version=$(git describe --tags --always)
+          python3 scripts/bench.py run --cmd target/release/prs-compat --tool prs --version "$prs_version" --runs "$RUNS" --out prs.json
+          python3 scripts/bench.py run --cmd p --tool upstream --version "$p_version" --runs "$RUNS" --out upstream.json
+          python3 scripts/bench.py compare prs.json upstream.json | tee -a "$GITHUB_STEP_SUMMARY"
+          python3 -c 'import json; print(json.dumps({"prs": json.load(open("prs.json")), "upstream": json.load(open("upstream.json"))}))' > compare.json
+
+      - name: Record
+        if: github.ref == 'refs/heads/main'
+        run: ./.github/scripts/push-bench-data.sh append compare.json upstream.jsonl "Upstream benchmark ${GITHUB_SHA::7}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-upstream
+          path: |
+            prs.json
+            upstream.json

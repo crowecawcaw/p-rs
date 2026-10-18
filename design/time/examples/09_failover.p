@@ -150,4 +150,4 @@ machine Main {
 }
 
 test tcFailover [main=Main]: { Main, Client, Directory, Node };
-// p check -tc tcFailover --timed
+// prs check tcFailover --timed

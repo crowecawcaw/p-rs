@@ -1,9 +1,9 @@
 # Release-note instructions
 
-You are writing release notes for **p-next** (repo `p-rs`), a pure Rust
+You are writing release notes for **p-rs** (repo `p-rs`), a pure Rust
 implementation of the P modeling language toolchain: parser, type checker and
 model checker, the `p` command-line tool, a WebAssembly build, and a browser
-playground. Users write P models and run `p compile` / `p check`, embed the
+playground. Users write P models and run `p check`, embed the
 crates as a library, or use the playground.
 
 You get a context document listing every change that landed on `main` in this
@@ -23,7 +23,7 @@ each one through before deciding.
 - Model-checker behavior: scheduling strategies, bug finding, liveness,
   deadlock detection, replay
 - Fixes where behavior now matches upstream P where it previously did not
-- New or changed public library API in the `pnext-*` crates or the WASM/JS wrapper
+- New or changed public library API in the `prs-*` crates or the WASM/JS wrapper
 - Playground features and fixes that users can see
 - Breaking changes and deprecations
 - Performance improvements a user would notice

@@ -34,7 +34,7 @@ The workflow:
 Actions → **Update release notes** → enter the tag. It regenerates the notes with
 Claude and replaces them on the release. Tick *dry run* to only print them.
 
-Only the `p-rs` crate is published. The `pnext-*` crates are not.
+Only the `p-rs` crate is published. The `prs-*` crates are not.
 
 ## Requirements
 
