@@ -5,6 +5,10 @@ parser, type checker and model checker, with no .NET, Java or code generation. I
 interprets P models directly instead of compiling them to C#, so there is no compile
 step.
 
+Checking the Raft tutorial (120 schedules) takes 0.4 s with prs and 38 s with P 3.1.0,
+including 4 s to compile; warmed up, prs checks 290 schedules per second and P 4
+([benchmarks](docs/development.md#benchmarks)).
+
 There are two command line tools:
 
 * `prs`, with its own options, parallel workers and time tracking.
