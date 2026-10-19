@@ -1,12 +1,12 @@
 mod support;
 
 use inventory_integration_example::{Error, Event};
-use support::Recorder;
+use support::{inventory, model, record};
 
 #[test]
 fn selected_test_checks_its_own_recording() {
-    let recorder = Recorder::default();
-    let mut inventory = recorder.inventory();
+    let recorder = model().recording();
+    let mut inventory = inventory(recorder.sink());
     // Seed after connecting the recorder: the monitor needs initial stock.
     inventory.stock("coffee", 3).unwrap();
     inventory.reserve("coffee", "order-1", 2).unwrap();
@@ -17,8 +17,8 @@ fn selected_test_checks_its_own_recording() {
 
 #[test]
 fn rejected_requests_emit_nothing() {
-    let recorder = Recorder::default();
-    let mut inventory = recorder.inventory();
+    let recorder = model().recording();
+    let mut inventory = inventory(recorder.sink());
     inventory.stock("coffee", 3).unwrap();
     let before = recorder.len();
     assert_eq!(inventory.reserve("coffee", "large", 4), Err(Error::InsufficientStock));
@@ -30,12 +30,12 @@ fn rejected_requests_emit_nothing() {
 
 #[test]
 fn negative_control_detects_overselling() {
-    let recorder = Recorder::default();
-    let mut inventory = recorder.inventory();
+    let recorder = model().recording();
+    let mut inventory = inventory(recorder.sink());
     inventory.stock("coffee", 3).unwrap();
     inventory.reserve("coffee", "order-1", 2).unwrap();
     // Simulate the event an overselling regression would produce.
-    recorder.record(Event::Reserved { sku: "coffee".into(), order: "order-2".into(), units: 2 });
+    record(&recorder.sink(), Event::Reserved { sku: "coffee".into(), order: "order-2".into(), units: 2 });
     let error = recorder.check().expect_err("the spec must reject the broken trace");
-    assert!(error.contains("reservation exceeds available stock"), "{error}");
+    assert!(error.to_string().contains("reservation exceeds available stock"), "{error}");
 }

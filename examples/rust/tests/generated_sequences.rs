@@ -2,7 +2,7 @@ mod support;
 
 use inventory_integration_example::Error;
 use proptest::prelude::*;
-use support::Recorder;
+use support::{inventory, model};
 
 #[derive(Clone, Debug)]
 enum Command {
@@ -25,8 +25,8 @@ proptest! {
     fn generated_stateful_operations(commands in prop::collection::vec(command(), 1..41)) {
         // This scope runs afresh for EVERY generated case AND shrink attempt,
         // not once for the enclosing #[test]. Never reuse inventory or recorder.
-        let recorder = Recorder::default();
-        let mut inventory = recorder.inventory();
+        let recorder = model().recording();
+        let mut inventory = inventory(recorder.sink());
         inventory.stock("coffee", 3).unwrap();
         inventory.stock("tea", 2).unwrap();
         for command in &commands {
