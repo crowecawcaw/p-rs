@@ -109,6 +109,21 @@ pub trait Parser {
     /// `Err` counts as a parser error for this entry only. As upstream, the report names the
     /// entry, not the error message.
     fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String>;
+
+    /// [`parse`](Parser::parse), also naming the events in the entry that no loaded P source
+    /// declares, for [`ObserveOptions::unknown_events`]. Parsers that drop such events
+    /// silently should override this; the default reports none.
+    fn parse_entry(&self, entry: &str, spec: &Spec) -> Result<ParsedEntry, String> {
+        Ok(ParsedEntry { events: self.parse(entry, spec)?, unknown_events: Vec::new() })
+    }
+}
+
+/// What a parser recovered from one log entry.
+#[derive(Debug, Clone, Default)]
+pub struct ParsedEntry {
+    pub events: Vec<ObservedEvent>,
+    /// Names of events in the entry that the P sources do not declare.
+    pub unknown_events: Vec<String>,
 }
 
 /// A spec monitor ready to check events, plus helpers parsers use to build them.
@@ -324,6 +339,160 @@ pub struct ObserveOptions {
     /// Reject a completed observation with no successfully checked relevant events.
     /// Applied independently to every selected spec, after key filtering.
     pub strict: bool,
+    /// What to do with event names no loaded P source declares (`--unknown-events`, a prs
+    /// extension). Declared events the spec does not observe are always ignored.
+    pub unknown_events: UnknownEvents,
+    /// Names of the inputs, in order, used to locate unknown events (file paths, `stdin`).
+    /// Unnamed inputs read as `input <n>`.
+    pub input_names: Vec<String>,
+}
+
+/// The policy for event names that no loaded P source declares.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum UnknownEvents {
+    /// Drop them, as upstream PObserve does.
+    #[default]
+    Ignore,
+    /// Report each distinct name once in [`Report::warnings`]; the result is unchanged.
+    Warn,
+    /// Report each distinct name once as an [`ErrorKind::UnknownEvent`] error.
+    Error,
+}
+
+impl UnknownEvents {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            UnknownEvents::Ignore => "ignore",
+            UnknownEvents::Warn => "warn",
+            UnknownEvents::Error => "error",
+        }
+    }
+}
+
+impl std::str::FromStr for UnknownEvents {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "ignore" => Ok(UnknownEvents::Ignore),
+            "warn" => Ok(UnknownEvents::Warn),
+            "error" => Ok(UnknownEvents::Error),
+            _ => Err(format!("unknown-events must be ignore, warn or error, not '{}'", s)),
+        }
+    }
+}
+
+/// An event name no loaded P source declares, seen in the input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownEvent {
+    pub name: String,
+    /// Occurrences in the checked input.
+    pub count: u64,
+    /// Where it first appeared: `<input>:<line>`, or `<input> entry <n>` for parsers whose
+    /// entries are not single lines.
+    pub location: String,
+    /// A declared event with a similar name.
+    pub suggestion: Option<String>,
+}
+
+impl UnknownEvent {
+    pub fn message(&self) -> String {
+        let mut m = format!(
+            "Unknown event '{}': not declared in the P sources ({} occurrence{}, first at {})",
+            self.name,
+            self.count,
+            if self.count == 1 { "" } else { "s" },
+            self.location
+        );
+        if let Some(s) = &self.suggestion {
+            m.push_str(&format!("; did you mean {}?", s));
+        }
+        m
+    }
+
+    fn error(&self) -> ObserveError {
+        let message = self.message();
+        ObserveError { kind: ErrorKind::UnknownEvent, detail: message.clone(), message, replay: None, cause: None }
+    }
+}
+
+/// Distinct unknown event names in the order first seen.
+#[derive(Debug, Default)]
+struct UnknownTracker {
+    seen: Vec<UnknownEvent>,
+}
+
+impl UnknownTracker {
+    /// Counts `name`; `true` the first time it is seen.
+    fn note(&mut self, prog: &Program, name: &str, location: impl FnOnce() -> String) -> bool {
+        if let Some(u) = self.seen.iter_mut().find(|u| u.name == name) {
+            u.count += 1;
+            return false;
+        }
+        self.seen.push(UnknownEvent {
+            name: name.to_string(),
+            count: 1,
+            location: location(),
+            suggestion: suggest_event(prog, name),
+        });
+        true
+    }
+
+    /// Records the names in `report` according to `policy`.
+    fn report(self, policy: UnknownEvents, report: &mut Report) {
+        for u in self.seen {
+            match policy {
+                UnknownEvents::Ignore => continue,
+                UnknownEvents::Warn => report.warnings.push(u.message()),
+                UnknownEvents::Error => {
+                    report.metrics.unknown_event_errors += 1;
+                    report.errors.push(u.error());
+                }
+            }
+            report.unknown_events.push(u);
+        }
+    }
+}
+
+/// Where entry `entry` (0-based) of input `input` is, for messages.
+fn entry_location(opts: &ObserveOptions, parser: &dyn Parser, input: usize, entry: usize) -> String {
+    let name = opts.input_names.get(input).cloned().unwrap_or_else(|| format!("input {}", input + 1));
+    if parser.log_delimiter().replace("\\n", "\n") == "\n" {
+        format!("{}:{}", name, entry + 1)
+    } else {
+        format!("{} entry {}", name, entry + 1)
+    }
+}
+
+/// The declared event closest to `name`, if it is close enough to be a likely misspelling.
+pub fn suggest_event(prog: &Program, name: &str) -> Option<String> {
+    let lower = name.to_lowercase();
+    let limit = (name.chars().count() / 3).clamp(1, 3);
+    prog.events
+        .iter()
+        .map(|e| e.name.as_str())
+        .filter(|n| *n != "null" && *n != "halt")
+        .map(|n| (edit_distance(&lower, &n.to_lowercase()), n))
+        .filter(|(d, _)| *d <= limit)
+        .min_by_key(|(d, _)| *d)
+        .map(|(_, n)| n.to_string())
+}
+
+/// Levenshtein distance, counting an adjacent transposition as one edit.
+fn edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let mut d: Vec<Vec<usize>> =
+        (0..=a.len()).map(|i| (0..=b.len()).map(|j| if i == 0 { j } else { i }).collect()).collect();
+    for i in 1..=a.len() {
+        for j in 1..=b.len() {
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            d[i][j] = (d[i - 1][j] + 1).min(d[i][j - 1] + 1).min(d[i - 1][j - 1] + cost);
+            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+                d[i][j] = d[i][j].min(d[i - 2][j - 2] + 1);
+            }
+        }
+    }
+    d[a.len()][b.len()]
 }
 
 impl Default for ObserveOptions {
@@ -335,6 +504,8 @@ impl Default for ObserveOptions {
             check_hot: false,
             coverage: false,
             strict: false,
+            unknown_events: UnknownEvents::Ignore,
+            input_names: Vec::new(),
         }
     }
 }
@@ -351,6 +522,8 @@ pub enum ErrorKind {
     Parser,
     /// Anything else, e.g. an event the spec's current state does not handle.
     Unknown,
+    /// An event name no loaded P source declares, with `--unknown-events error`.
+    UnknownEvent,
 }
 
 /// The events of one key leading up to an error (`PObserveReplayEvents`).
@@ -401,6 +574,7 @@ pub struct Metrics {
     pub out_of_order_errors: u64,
     pub unknown_errors: u64,
     pub validation_errors: u64,
+    pub unknown_event_errors: u64,
     pub events_read: u64,
     /// Per observed event type, in the order upstream prints them.
     pub events: Vec<EventMetrics>,
@@ -423,12 +597,17 @@ pub struct Report {
     pub metrics: Metrics,
     /// Error-level messages logged while running (parser exceptions, unhandled events).
     pub log: Vec<String>,
+    /// Undeclared event names, unless [`UnknownEvents::Ignore`].
+    pub unknown_events: Vec<UnknownEvent>,
+    /// Messages that do not change the result, e.g. with [`UnknownEvents::Warn`].
+    pub warnings: Vec<String>,
 }
 
 impl Report {
     /// PObserve-compatible status: 0 success, 2 safety/liveness violation,
-    /// 3 validation/ordering/internal error, or 4 parser error. A secondary
-    /// strict validation failure does not mask a violation from another spec.
+    /// 3 validation/ordering/internal/unknown-event error, or 4 parser error. A secondary
+    /// strict validation failure does not mask a violation from another spec; an unknown
+    /// event name (with [`UnknownEvents::Error`]) does, since the input is not trustworthy.
     pub fn exit_status(&self) -> i32 {
         Self::errors_exit_status(&self.errors)
     }
@@ -437,7 +616,10 @@ impl Report {
     pub fn errors_exit_status(errors: &[ObserveError]) -> i32 {
         if errors.is_empty() {
             0
-        } else if errors.iter().any(|e| matches!(e.kind, ErrorKind::Unknown | ErrorKind::OutOfOrder)) {
+        } else if errors
+            .iter()
+            .any(|e| matches!(e.kind, ErrorKind::Unknown | ErrorKind::OutOfOrder | ErrorKind::UnknownEvent))
+        {
             3
         } else if errors.iter().any(|e| e.kind == ErrorKind::SpecViolation) {
             2
@@ -468,6 +650,7 @@ impl Report {
             + self.metrics.out_of_order_errors
             + self.metrics.unknown_errors
             + self.metrics.validation_errors
+            + self.metrics.unknown_event_errors
     }
 }
 
@@ -676,11 +859,20 @@ impl<'p> Spec<'p> {
 
         // parse, keeping the events the spec observes
         let mut per_file: Vec<Vec<ObservedEvent>> = Vec::new();
-        for entries in inputs {
+        let mut unknown = UnknownTracker::default();
+        for (input, entries) in inputs.iter().enumerate() {
             let mut evs = Vec::new();
-            for entry in entries {
-                match parser.parse(entry, self) {
-                    Ok(v) => {
+            for (index, entry) in entries.iter().enumerate() {
+                let parsed = if opts.unknown_events == UnknownEvents::Ignore {
+                    parser.parse(entry, self).map(|events| ParsedEntry { events, unknown_events: Vec::new() })
+                } else {
+                    parser.parse_entry(entry, self)
+                };
+                match parsed {
+                    Ok(ParsedEntry { events: v, unknown_events }) => {
+                        for name in unknown_events {
+                            unknown.note(self.prog, &name, || entry_location(opts, parser, input, index));
+                        }
                         for e in v {
                             if self.observes_event(e.event) && (keys.is_empty() || keys.contains(e.key.as_str())) {
                                 report.metrics.events_read += 1;
@@ -704,6 +896,7 @@ impl<'p> Spec<'p> {
             }
             per_file.push(evs);
         }
+        unknown.report(opts.unknown_events, &mut report);
         let all: Vec<ObservedEvent> =
             if opts.assume_sorted { merge_sorted(per_file) } else { per_file.into_iter().flatten().collect() };
 
@@ -783,6 +976,9 @@ pub struct ObserveSession<'s> {
     report: Report,
     started: f64,
     coverage_tables: Option<Rc<CoverageTables>>,
+    /// Entries pushed so far, to locate unknown events.
+    entries: usize,
+    unknown: UnknownTracker,
 }
 
 impl<'s> ObserveSession<'s> {
@@ -813,7 +1009,17 @@ impl<'s> ObserveSession<'s> {
             report.metrics.unknown_errors = 1;
             report.errors.push(spec.failure_error(Some(Failure::Other(message.clone())), None, &mut report.log));
         }
-        Self { spec, rt, opts, keys: HashMap::new(), report, started: now, coverage_tables }
+        Self {
+            spec,
+            rt,
+            opts,
+            keys: HashMap::new(),
+            report,
+            started: now,
+            coverage_tables,
+            entries: 0,
+            unknown: UnknownTracker::default(),
+        }
     }
 
     pub fn failed(&self) -> bool {
@@ -827,6 +1033,7 @@ impl<'s> ObserveSession<'s> {
             ErrorKind::OutOfOrder => self.report.metrics.out_of_order_errors += 1,
             ErrorKind::Unknown => self.report.metrics.unknown_errors += 1,
             ErrorKind::Validation => self.report.metrics.validation_errors += 1,
+            ErrorKind::UnknownEvent => self.report.metrics.unknown_event_errors += 1,
         }
         self.report.errors.push(error);
     }
@@ -844,8 +1051,28 @@ impl<'s> ObserveSession<'s> {
         if self.failed() {
             return false;
         }
-        let events = match parser.parse(java_trim(entry), self.spec) {
-            Ok(events) => events,
+        self.entries += 1;
+        let parsed = if self.opts.unknown_events == UnknownEvents::Ignore {
+            parser.parse(java_trim(entry), self.spec).map(|events| ParsedEntry { events, unknown_events: Vec::new() })
+        } else {
+            parser.parse_entry(java_trim(entry), self.spec)
+        };
+        let events = match parsed {
+            Ok(ParsedEntry { events, unknown_events }) => {
+                for name in unknown_events {
+                    let line = self.entries - 1;
+                    let (opts, prog) = (&self.opts, self.spec.prog);
+                    let first = self.unknown.note(prog, &name, || entry_location(opts, parser, 0, line));
+                    if first && self.opts.unknown_events == UnknownEvents::Error {
+                        // stop at the first unknown name: report it with what is known so far
+                        let error = self.unknown.seen.last().expect("just noted").error();
+                        self.report.unknown_events.push(self.unknown.seen.pop().expect("just noted"));
+                        self.fail(error);
+                        return false;
+                    }
+                }
+                events
+            }
             Err(cause) => {
                 self.fail(ObserveError {
                     kind: ErrorKind::Parser,
@@ -926,6 +1153,7 @@ impl<'s> ObserveSession<'s> {
     }
 
     fn finish_inner(mut self, eof: bool, sibling_failed: bool, now: f64) -> Report {
+        std::mem::take(&mut self.unknown).report(self.opts.unknown_events, &mut self.report);
         if !self.failed() && eof {
             for (key, (mon, _, events)) in &self.keys {
                 if self.opts.check_hot {

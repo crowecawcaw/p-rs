@@ -155,3 +155,16 @@ fn strict_live_validates_at_eof_without_implying_hot_checks() {
     assert!(report.contains("spec_violation"));
     assert!(!report.contains("\"kind\": \"validation\""));
 }
+
+#[test]
+fn unknown_event_error_stops_at_the_first_undeclared_name() {
+    let input = "{\"event\":\"Stock\",\"payload\":1}\n{\"event\":\"Stokc\",\"payload\":1}\n";
+    let (code, output, report) = run(input, false, &["--unknown-events", "error"]);
+    assert_eq!(code, 2, "{output}");
+    assert!(output.contains("first at stdin:2); did you mean Stock?"), "{output}");
+    assert!(report.contains("\"kind\": \"unknown_event\""));
+    assert!(report.contains("\"input_complete\": false"));
+    // declared events another spec observes are not unknown
+    let (code, output, _) = run("{\"event\":\"Done\"}\n", true, &["--unknown-events", "error", "--spec", "Other"]);
+    assert_eq!(code, 0, "{output}");
+}

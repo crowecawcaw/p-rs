@@ -130,6 +130,7 @@ impl ObserveCoverageReport {
                     crate::observe::ErrorKind::Parser => "parser",
                     crate::observe::ErrorKind::Validation => "validation",
                     crate::observe::ErrorKind::OutOfOrder => "out_of_order",
+                    crate::observe::ErrorKind::UnknownEvent => "unknown_event",
                     _ => "unknown",
                 },
                     "message": e.message, "detail": e.detail, "cause": e.cause})).collect::<Vec<_>>() }]
