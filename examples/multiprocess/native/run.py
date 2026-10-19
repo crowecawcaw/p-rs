@@ -16,13 +16,14 @@ from harness import run_scenario
 class SubprocessBackend:
     """The launch/cleanup adapter to replace for your own service executables."""
 
-    def start(self, name, database, broken, stderr):
+    def start(self, name, database, events, broken, stderr):
+        # The worker inherits the pipe's write end and opens it by its /dev/fd path.
         command = [sys.executable, "-u", str(COMMON / "worker.py"),
-                   "--db", str(database), "--name", name]
+                   "--db", str(database), "--name", name, "--events", "/dev/fd/%d" % events]
         if broken:
             command.append("--allow-oversell")
         return subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                stderr=stderr, text=True)
+                                stderr=stderr, text=True, pass_fds=[events])
 
     def alive(self, name, process):
         return process.poll() is None

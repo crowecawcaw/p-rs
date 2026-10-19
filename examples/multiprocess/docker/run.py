@@ -20,13 +20,17 @@ class DockerBackend:
     def container(self, name):
         return self.prefix + name
 
-    def start(self, name, database, broken, stderr):
+    def start(self, name, database, events, broken, stderr):
+        # Docker forwards only a container's stdin, stdout and stderr, and a pipe cannot
+        # cross into the VM that Docker Desktop and similar tools run containers in. So the
+        # worker writes events to its stderr, which `docker run` copies into the pipe. A
+        # crash traceback then reaches the observer, which fails the run with a parser error.
         args = ["docker", "run", "--interactive", "--name", self.container(name),
                 "--network", "none", "--mount", "type=bind,src=%s,dst=/data" % database.parent,
-                self.image, "--db", "/data/" + database.name, "--name", name]
+                self.image, "--db", "/data/" + database.name, "--name", name, "--events", "/dev/stderr"]
         if broken:
             args.append("--allow-oversell")
-        return subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr, text=True)
+        return subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=events, text=True)
 
     def alive(self, name, process):
         state = subprocess.run(["docker", "inspect", "--format", "{{.State.Running}}", self.container(name)],

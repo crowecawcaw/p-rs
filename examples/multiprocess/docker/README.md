@@ -2,7 +2,7 @@
 
 Run two long-lived inventory workers in separate containers. Both modify the
 same SQLite inventory database and emit their committed application events. A
-host-side supervisor forwards their combined history to `prs observe`, checks
+host-side `prs observe` reads each container's events, the supervisor checks
 its exit status, and removes both containers when observation fails. This is a
 small example of checking services while an external test driver runs them.
 
@@ -71,11 +71,17 @@ A releases, B reserves 2, and B releases. Rejected operations change no state
 and emit no event. Each worker therefore emits successful operations. Workers
 stay alive waiting for their next command between operations.
 
-For the healthy run, the supervisor stops and reaps the workers, verifies no
-outbox sequence gaps remain, then closes observer stdin. EOF completes the
-history and produces the final report. For the faulty run, it leaves both
-workers waiting for commands. `--stdin --fail-fast` makes the observer return
-on the violating event **before EOF**. The supervisor confirms both actual
+Each container writes its events to its stderr, which `docker run` copies into
+a pipe the observer reads. Docker forwards only a container's stdin, stdout and
+stderr, and a named pipe in a bind mount does not cross into the VM that Docker
+Desktop and similar tools run containers in, so stderr is the portable channel.
+Anything else a container writes there, such as a crash traceback, reaches the
+observer and fails the run with a parser error showing that line.
+
+For the healthy run, the supervisor stops and reaps the workers. Their exits end
+the pipes, and the observer completes the history at EOF and writes the final
+report. For the faulty run, it leaves both workers waiting for commands.
+`--fail-fast` makes the observer return on the violating event **before EOF**. The supervisor confirms both actual
 containers are running, then forcibly removes them and reaps their launchers.
 Every exit path uses the same cleanup and verifies containers are absent; killing
 only a `docker run` client is insufficient to remove a container.
@@ -84,7 +90,8 @@ The example invokes the equivalent of:
 
 ```sh
 prs observe --pfiles examples/multiprocess/specs/inventory.p \
-  --spec InventoryCorrect --stdin --fail-fast --strict --coverage \
+  --spec InventoryCorrect --live /dev/fd/5 --live /dev/fd/7 --sequence seq \
+  --fail-fast --strict --coverage --record events.jsonl \
   --json-report report.json --outputDir observe
 ```
 
@@ -100,8 +107,8 @@ suite is only appropriate for this explicitly expected-defect case.
 Each operation runs under SQLite `BEGIN IMMEDIATE`. Business state and its
 outbox row commit atomically. Workers publish the row only after commit. The
 outbox's monotonically increasing sequence is assigned inside the transaction;
-the supervisor buffers arrivals until the next contiguous sequence is available,
-then forwards JSON lines in commit order. The sequence also serves as a logical
+with `--sequence seq` the observer checks events in that order, whichever
+container's pipe delivers them first, and fails on a duplicate or a gap. The sequence also serves as a logical
 event timestamp. Per-process clocks and pipe-arrival order cannot establish a
 shared history. In this example the driver deliberately coordinates operations
 to exercise a reproducible cross-worker history; it is not a concurrent schedule
@@ -130,9 +137,8 @@ then a concise JSON result. The artifacts directory retains:
 
 | File | Contents |
 | --- | --- |
-| `events.jsonl` | Combined committed event stream sent to the observer |
-| `worker-a.stdout`, `worker-b.stdout` | Each producer's event and control messages |
-| `worker-a.stderr`, `worker-b.stderr` | Worker/container diagnostics |
+| `events.jsonl` | Committed events in the order the observer checked them (`--record`) |
+| `worker-a.stdout`, `worker-b.stdout` | Each worker's replies (`ready`, `ack`) |
 | `observer.stdout`, `observer.stderr` | Full checker output |
 | `report.json` | Structured violations and observed monitor coverage |
 | `result.json` | Supervisor result, exit statuses, emitters, and cleanup evidence |

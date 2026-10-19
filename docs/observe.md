@@ -17,6 +17,7 @@ or `-pf/--pfiles <files>`.
 prs observe --spec BankBalanceCorrect -l logs/                 # JSON lines
 prs observe --spec BankBalanceCorrect -l trace.json -i JSON    # a P JSON trace
 prs observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log --keys 7 9
+prs observe --spec BankBalanceCorrect -l a.log b.log -l "archive/**/*.log"
 ```
 
 ## prs extensions
@@ -33,6 +34,10 @@ These options are not in PObserve; runs that do not use them behave as upstream.
 | `--strict` | Require at least one successfully checked relevant event per selected spec, after key filtering. |
 | `--unknown-events ignore\|warn\|error` | What to do with event names no loaded P source declares (default `ignore`, as PObserve). See [Unknown event names](#unknown-event-names). |
 | `--coverage` | Report observed monitor state and handler coverage, including in JSON when requested. |
+| `-l A B ...`, repeated `-l`, glob patterns | Read several log files, directories and patterns as one input set ([below](#several-logs-and-glob-patterns)). |
+| `--live PATH` | Check a live stream (a pipe, named pipe or file; `-` is stdin) until it ends. Repeatable with `--sequence`. `--stdin` is `--live -`. |
+| `--sequence FIELD` | Check live lines in the order of a global sequence number in each line. |
+| `--record FILE` | Write the checked live lines to `FILE`, in check order. |
 
 ```json
 {
@@ -77,6 +82,34 @@ Parsers turn log entries into events. Two are built in:
   fields (dotted paths).
 * `PTrace` (default for `-i JSON`): the `.trace.json` written by `prs check`, checking
   its sends and announcements.
+
+## Several logs and glob patterns
+
+`-l` takes one or more values and can be repeated: `-l a.log b.log -l more/` reads
+the same files as `-l a.log -l b.log -l more/`. Each value is a file, a directory
+(its files, not its subdirectories) or a glob pattern. All files form one input set,
+combined as the files of one directory are: each key's events are sorted by
+timestamp (equal timestamps keep file order), or merged in order with
+`--assumeInputsAreSorted`. A file named more than once is read once.
+
+prs expands patterns itself, so quote them to keep the shell from doing it. This
+also works in cmd and PowerShell, which don't expand patterns, and avoids
+command-line length limits with large log sets:
+
+```sh
+prs observe --spec BankBalanceCorrect -l "logs/**/*.log"
+```
+
+`*`, `?` and `[abc]` / `[a-z]` / `[!abc]` match within one path component, and `**`
+matches any number of directories, including none. `*`, `?` and `**` skip names
+starting with `.`. A matched directory reads its files, as `-l dir` does. Matches
+are sorted. A pattern that matches nothing is an error, like a missing path. A value
+that exists as written is taken as given, so arguments the shell already expanded
+read the same as a quoted pattern.
+
+Rust callers use the same code: `prs_checker::observe_inputs::read_logs(&StdFiles,
+cwd, &paths, "\n")` returns the inputs `Spec::observe` takes, and `log_paths` returns
+only the file list.
 
 ## Custom parsers
 
@@ -155,25 +188,55 @@ sets, `merge(&other)` for test-suite unions, `render_text()` for human output, a
 
 ## Live checks for external tests
 
-Use `--stdin --fail-fast` to check newline-delimited events while a test or service is
-still running:
+Use `--live` (or `--stdin`, the same as `--live -`) with `--fail-fast` to check
+newline-delimited events while a test or service is still running:
 
 ```sh
 producer | prs observe --pfiles inventory.p --spec Inventory \
   --stdin --fail-fast --check-hot --json-report observe.json
 ```
 
-The producer must flush each complete line. Unlike batch log observation, live
-observation does not sort: timestamps must be nondecreasing **within each partition
-key** (equal timestamps are allowed). Merge events from several producers into one
-ordered stream before writing stdin. Separate keys may interleave freely.
+`--live PATH` reads a stream until it ends: stdin (`-`), a pipe such as
+`/dev/fd/5`, a named pipe made with `mkfifo`, or a file (read to its current end,
+so not one that a producer is still appending to). The producer must flush each
+complete line. Unlike batch log observation, live observation does not sort:
+timestamps must be nondecreasing **within each partition key** (equal timestamps
+are allowed). Separate keys may interleave freely.
 
-The observer checks each line before requesting the next one. Its first parser,
-ordering, monitor initialization or spec error stops the run and produces the usual
-human diagnostics and JSON report, even if stdin remains open. Every selected spec
-sees the current line before the observer stops. Replay storage retains only the last
-`--replaySize` events per key, alongside each key's monitor state. The observer retains
-monitor state for every encountered key until the run ends.
+### Several producers
+
+Give each producer its own stream and order them with `--sequence`:
+
+```sh
+prs observe --pfiles inventory.p --spec Inventory \
+  --live a.events --live b.events --sequence seq \
+  --fail-fast --strict --record events.jsonl --json-report observe.json
+```
+
+`--sequence FIELD` names a JSON field (a dotted path such as `meta.seq`) holding a
+global sequence number, such as a database outbox assigns. Numbers start at 1 and
+leave no gaps across all streams and keys. Event *n* is checked as soon as events 1
+to *n*-1 have been, whichever stream they came from, so an idle producer that is
+still running never delays checking the others. Every non-blank line needs a
+number, including events the spec doesn't observe. The run fails, with JSON kind
+`unknown` and native exit code 2, on a line without a whole number, a duplicate
+number, more than 10,000 lines waiting behind a missing number, or a missing
+number when every stream has ended. Several `--live` inputs require `--sequence`;
+ordering several streams by timestamp alone is not supported yet.
+
+`--record FILE` writes the lines in the order they were checked, one per line,
+when the observer finishes. It keeps a reproducible copy of a live run that
+`-l FILE` can check again later.
+
+### Stopping
+
+The observer finishes once **every** stream has ended (EOF), or at its first
+parser, ordering, sequence, monitor initialization or spec error, even while
+streams remain open. Every selected spec sees the current line before the observer
+stops. The observer reads at most one line ahead of the one it is checking on each
+stream. Replay storage retains only the last `--replaySize` events per key,
+alongside each key's monitor state. The observer retains monitor state for every
+encountered key until the run ends.
 
 At EOF, `--check-hot` checks monitors for unfinished hot states. Hot states do not
 fail a live, incomplete stream. An early failure reports only the consumed prefix;
@@ -181,18 +244,24 @@ JSON includes `input_complete: false` and `stop_reason: "error"`. At EOF these a
 `true` and `"eof"`, including when an EOF liveness check fails. Coverage, when enabled,
 describes the checked prefix.
 
-Live mode requires both flags, TEXT input, and a newline-delimited parser; it cannot
-be combined with `--logs`. Existing batch observation retains its sorting behavior.
-`prs` returns 1 for a spec violation and 2 for parser, ordering or transport errors.
+Live mode requires `--fail-fast`, TEXT input, and a newline-delimited parser; it
+cannot be combined with `--logs`. Existing batch observation retains its sorting
+behavior. `prs` returns 1 for a spec violation and 2 for parser, ordering, sequence
+or transport errors.
 
-For external tests, run the observer under a supervisor that streams events, watches
-its exit status, terminates child processes on failure, and closes stdin only after
-all producers finish successfully. The observer does not terminate the producers
-itself. A shell pipeline alone cannot reliably supervise long-running children.
+For external tests, run the observer under a supervisor that starts the observer
+before the producers, watches its exit status, terminates the producers on failure,
+and otherwise lets their exits end the streams. The observer does not terminate the
+producers itself. A shell pipeline alone cannot reliably supervise long-running
+children. [examples/multiprocess](../examples/multiprocess/native/README.md) is a
+complete supervisor for two worker processes, natively and in Docker.
 
 Embedding applications can use `ObserveSession` to push one entry at a time and
 inspect `failed()`, then `finish(eof, now)` to collect a report. Give each selected
 spec its own session and feed all sessions before reading another line.
+`prs_checker::observe_inputs` has the pieces `--live` uses: `SequenceMerger` orders
+lines by sequence number, and `observe_live` feeds a `LiveSource` of several streams
+to the sessions.
 
 ### Combining coverage across tests and processes
 
@@ -294,7 +363,8 @@ accept names that only other tooling uses, declare them in a P file
 (`event eAuditTrail;`) or use `warn`. `--strict` does not imply `--unknown-events`.
 
 Locations are `<file>:<line>` (or `<file> entry <n>` for parsers whose entries span
-lines), and `stdin:<line>` for live input. The built-in parsers report undeclared
+lines), and `stdin:<line>` or `<live path>:<line>` for live input, counting each
+stream's own lines. The built-in parsers report undeclared
 names; a custom Rust `Parser` does so by overriding `parse_entry`. Rust callers set
 `ObserveOptions.unknown_events` (with `input_names` for locations), for both
 `Spec::observe` and `ObserveSession`.
