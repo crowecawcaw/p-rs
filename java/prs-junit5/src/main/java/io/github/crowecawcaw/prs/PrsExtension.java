@@ -1,8 +1,11 @@
 package io.github.crowecawcaw.prs;
 
+import java.lang.reflect.AnnotatedElement;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -11,46 +14,120 @@ import org.junit.jupiter.api.extension.LifecycleMethodExecutionExceptionHandler;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
 
-/** Automatic observation around each Jupiter invocation, including fixture setup and teardown. */
+/**
+ * Checks each Jupiter test, including its {@code @BeforeEach} and {@code @AfterEach}: a
+ * recording starts before them and is checked after them.
+ *
+ * <p>Register it with {@code @RegisterExtension} and {@link #builder()}, with
+ * {@code @ExtendWith(PrsExtension.class)}, or for every test class with
+ * {@code junit.jupiter.extensions.autodetection.enabled=true}. The last two read their
+ * settings from {@code prs.properties} (or {@code prs.*} keys in
+ * {@code junit-platform.properties}) and the {@code PRS_*} environment variables.
+ */
 public final class PrsExtension implements BeforeEachCallback, AfterEachCallback, ParameterResolver,
         TestExecutionExceptionHandler, LifecycleMethodExecutionExceptionHandler {
     private static final ExtensionContext.Namespace ROOT = ExtensionContext.Namespace.create(PrsExtension.class, "coverage");
     private final ExtensionContext.Namespace namespace = ExtensionContext.Namespace.create(PrsExtension.class, this);
-    private final PrsObserver observer;
-    private final Path destination;
+    private final boolean explicit;
     private final String name;
+    private volatile PrsObserver observer;
+
+    /** Settings from the config file and environment; used by {@code @ExtendWith} and autodetection. */
+    public PrsExtension() {
+        explicit = false;
+        name = "prs";
+    }
 
     private PrsExtension(Builder builder) {
+        explicit = true;
         observer = builder.observer.build();
-        destination = builder.destination == null ? null : builder.destination.toAbsolutePath().normalize();
         name = PrsObserver.nonempty(builder.name, "extension name");
     }
 
     public static Builder builder() { return new Builder(); }
 
+    private PrsObserver observer() {
+        var current = observer;
+        if (current == null) {
+            synchronized (this) {
+                if (observer == null) observer = PrsObserver.builder().build();
+                current = observer;
+            }
+        }
+        return current;
+    }
+
+    /** A configured instance on the test class replaces this one (autodetected or {@code @ExtendWith}). */
+    private boolean steppingAside(ExtensionContext context) {
+        if (explicit) return false;
+        for (Class<?> type = context.getRequiredTestClass(); type != null; type = type.getEnclosingClass()) {
+            for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+                for (var field : c.getDeclaredFields()) {
+                    if (PrsExtension.class.isAssignableFrom(field.getType()) && field.isAnnotationPresent(RegisterExtension.class))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static Prs annotation(ExtensionContext context) {
+        var method = context.getTestMethod().map(m -> m.getAnnotation(Prs.class)).orElse(null);
+        if (method != null) return method;
+        for (Class<?> type = context.getRequiredTestClass(); type != null; type = type.getEnclosingClass()) {
+            var found = ((AnnotatedElement) type).getAnnotation(Prs.class);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
     @Override public void beforeEach(ExtensionContext context) {
+        if (steppingAside(context)) return;
+        var config = observer();
+        var options = annotation(context);
+        String label = context.getUniqueId() + " [" + name + "] " + context.getDisplayName();
+        boolean recorded = switch (config.mode()) {
+            case AUTO -> true;
+            case MARKED -> options != null;
+            case OFF -> false;
+        };
+        List<String> skip = options == null ? List.of() : Arrays.asList(options.skip());
+        var effective = recorded && !skip.contains(Prs.ALL)
+                ? config.narrowed(skip, options != null && options.checkHot()).orElse(null) : null;
+        if (effective == null) {
+            var state = new State(null, label);
+            state.binding = Routing.detach(); // PrsEmit in this test goes to no other test's recording
+            context.getStore(namespace).put("state", state);
+            return;
+        }
         CoverageCollector coverage = null;
-        if (destination != null) {
+        var destination = effective.coverageDestination();
+        if (destination.isPresent()) {
             var registry = context.getRoot().getStore(ROOT).getOrComputeIfAbsent(
                     "registry", ignored -> new CoverageRegistry(), CoverageRegistry.class);
-            coverage = registry.collector(observer, destination);
+            coverage = registry.collector(effective, destination.get());
         }
-        String label = context.getUniqueId() + " [" + name + "] " + context.getDisplayName();
-        var recording = coverage == null ? observer.recording(label) : observer.recording(label, coverage);
-        context.getStore(namespace).put("state", new State(recording));
+        var recording = coverage == null ? effective.recording(label) : effective.recording(label, coverage);
+        context.getStore(namespace).put("state", new State(recording, label));
     }
 
     @Override public void afterEach(ExtensionContext context) {
         var state = context.getStore(namespace).remove("state", State.class);
         if (state == null) return; // A preceding callback may have failed before our setup.
+        if (state.recording == null) {
+            Routing.restore(state.binding);
+            if (state.inert != null) state.inert.close();
+            return;
+        }
         try {
             state.recording.close();
-        } catch (ObservationFailure failure) {
+        } catch (SpecViolation | SetupError failure) {
             var primary = state.primary != null ? state.primary : context.getExecutionException().orElse(null);
             if (primary != null && !(primary instanceof org.opentest4j.TestAbortedException)) {
-                primary.addSuppressed(failure);
+                primary.addSuppressed(failure); // the test already failed: attach, never replace
             } else {
                 if (primary != null) failure.addSuppressed(primary);
                 throw failure;
@@ -60,6 +137,7 @@ public final class PrsExtension implements BeforeEachCallback, AfterEachCallback
 
     @Override public boolean supportsParameter(ParameterContext parameter, ExtensionContext context) {
         if (parameter.getParameter().getType() != Recording.class) return false;
+        if (context.getTestClass().isPresent() && steppingAside(context)) return false;
         var qualifier = parameter.findAnnotation(PrsRecording.class);
         return qualifier.isEmpty() || qualifier.get().value().equals(name);
     }
@@ -68,7 +146,9 @@ public final class PrsExtension implements BeforeEachCallback, AfterEachCallback
         var state = context.getStore(namespace).get("state", State.class);
         if (state == null) throw new ParameterResolutionException("Recording injection is available only in @BeforeEach, "
                 + "test methods and @AfterEach; use explicit observer.recording(...) in constructors/@BeforeAll");
-        return state.recording;
+        if (state.recording != null) return state.recording;
+        if (state.inert == null) state.inert = Recording.inert(state.label); // not checked: off, unmarked or skipped
+        return state.inert;
     }
 
     private void remember(ExtensionContext context, Throwable error) throws Throwable {
@@ -89,8 +169,14 @@ public final class PrsExtension implements BeforeEachCallback, AfterEachCallback
 
     private static final class State {
         private final Recording recording;
+        private final String label;
+        private Recording inert;
+        private Object binding;
         private Throwable primary;
-        private State(Recording recording) { this.recording = recording; }
+        private State(Recording recording, String label) {
+            this.recording = recording;
+            this.label = label;
+        }
     }
 
     private static final class CoverageRegistry implements ExtensionContext.Store.CloseableResource {
@@ -110,10 +196,10 @@ public final class PrsExtension implements BeforeEachCallback, AfterEachCallback
         }
 
         @Override public synchronized void close() {
-            ObservationFailure failure = null;
+            RuntimeException failure = null;
             for (var entry : entries.values()) {
                 try { entry.collector.close(); }
-                catch (ObservationFailure error) {
+                catch (RuntimeException error) {
                     if (failure == null) failure = error;
                     else failure.addSuppressed(error);
                 }
@@ -124,19 +210,26 @@ public final class PrsExtension implements BeforeEachCallback, AfterEachCallback
 
     public static final class Builder {
         private final PrsObserver.Builder observer = PrsObserver.builder();
-        private Path destination;
         private String name = "prs";
 
         private Builder() {}
         public Builder specFiles(Path... values) { observer.specFiles(values); return this; }
+        public Builder specFiles(String... values) { observer.specFiles(values); return this; }
         public Builder specs(String... values) { observer.specs(values); return this; }
+        public Builder exclude(String... values) { observer.exclude(values); return this; }
         public Builder binary(String value) { observer.binary(value); return this; }
         public Builder artifacts(Path value) { observer.artifacts(value); return this; }
         public Builder timeout(Duration value) { observer.timeout(value); return this; }
         public Builder strict(boolean value) { observer.strict(value); return this; }
         public Builder checkHot(boolean value) { observer.checkHot(value); return this; }
-        public Builder coverage(Path value) { destination = java.util.Objects.requireNonNull(value); return this; }
+        public Builder unknownEvents(UnknownEvents value) { observer.unknownEvents(value); return this; }
+        /** Suite coverage JSON, written once when the test run ends. Default: {@code PRS_COVERAGE}. */
+        public Builder coverage(Path value) { observer.coverage(value); return this; }
+        /** Default: {@code PRS_MODE}, then the config file, then {@link Mode#AUTO}. */
+        public Builder mode(Mode value) { observer.mode(value); return this; }
+        /** Distinguishes several extensions on one class; qualify parameters with {@code @PrsRecording(name)}. */
         public Builder name(String value) { name = value; return this; }
+        Builder config(PrsConfig value) { observer.config(value); return this; }
         public PrsExtension build() { return new PrsExtension(this); }
     }
 }

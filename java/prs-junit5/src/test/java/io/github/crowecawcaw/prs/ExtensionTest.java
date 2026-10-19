@@ -30,8 +30,13 @@ class ExtensionTest {
     }
 
     private TestExecutionSummary run(boolean parallel, Class<?>... classes) {
+        return run(parallel, false, classes);
+    }
+
+    private TestExecutionSummary run(boolean parallel, boolean autodetect, Class<?>... classes) {
         root = temporary;
         var request = LauncherDiscoveryRequestBuilder.request();
+        request.configurationParameter("junit.jupiter.extensions.autodetection.enabled", Boolean.toString(autodetect));
         for (var type : classes) request.selectors(selectClass(type));
         request.configurationParameter("junit.jupiter.execution.parallel.enabled", Boolean.toString(parallel));
         request.configurationParameter("junit.jupiter.execution.parallel.mode.default", "concurrent");
@@ -111,8 +116,42 @@ class ExtensionTest {
         assertEquals(0, summary.getTestsAbortedCount());
     }
 
+    @Test void markedModeChecksOnlyAnnotatedTests() {
+        var summary = run(false, MarkedFixture.class);
+        assertEquals(1, summary.getTestsFailedCount(), summary.getFailures().toString());
+        assertEquals(2, summary.getTestsSucceededCount());
+        var failure = summary.getFailures().get(0);
+        assertTrue(failure.getTestIdentifier().getDisplayName().startsWith("marked("));
+        assertInstanceOf(SpecViolation.class, failure.getException());
+    }
+
+    @Test void perTestSkipAndCheckHot() {
+        var summary = run(false, OptionsFixture.class);
+        assertEquals(3, summary.getTestsSucceededCount(), summary.getFailures().toString());
+        assertEquals(1, summary.getTestsFailedCount());
+        var violation = assertInstanceOf(SpecViolation.class, summary.getFailures().get(0).getException());
+        assertTrue(violation.liveness());
+    }
+
+    @Test void offModeIsInert() {
+        var summary = run(false, OffFixture.class);
+        assertEquals(1, summary.getTestsSucceededCount(), summary.getFailures().toString());
+    }
+
+    @Test void autodetectedExtensionUsesTheConfigFileAndStepsAsideForExplicitOnes() {
+        var summary = run(false, true, AutodetectedFixture.class, MultipleFixture.class);
+        assertEquals(2, summary.getTestsSucceededCount(), summary.getFailures().toString());
+        assertEquals(1, summary.getTestsFailedCount());
+        assertInstanceOf(SpecViolation.class, summary.getFailures().get(0).getException());
+    }
+
+    @Test void expectViolationInsideACheckedTest() {
+        var summary = run(false, NegativeControlFixture.class);
+        assertEquals(1, summary.getTestsSucceededCount(), summary.getFailures().toString());
+    }
+
     private static void assertSuppressedObservation(Throwable error) {
-        assertTrue(java.util.Arrays.stream(error.getSuppressed()).anyMatch(ObservationFailure.class::isInstance),
+        assertTrue(java.util.Arrays.stream(error.getSuppressed()).anyMatch(e -> e instanceof SpecViolation || e instanceof SetupError),
                 () -> "Expected suppressed observation: " + java.util.Arrays.toString(error.getSuppressed()));
     }
 
@@ -206,4 +245,51 @@ class ExtensionTest {
         }
     }
 
+    static class MarkedFixture {
+        @RegisterExtension static final PrsExtension PRS = builder("Counter").mode(Mode.MARKED).build();
+        @Test void unmarked(Recording events) { events.emit("eTake", "sku", 1); }
+        @Test @Prs void marked(Recording events) { events.emit("eTake", "sku", 1); }
+        @Test void unmarkedStatic() { io.github.crowecawcaw.prs.emit.PrsEmit.emit("eTake", "sku", 1); }
+    }
+
+    static class OptionsFixture {
+        @RegisterExtension static final PrsExtension PRS = builder("Counter", "Completion").build();
+        @Test @Prs(skip = Prs.ALL) void skipAll(Recording events) { events.emit("eTake", "sku", 1); }
+        @Test @Prs(skip = "Counter") void skipOne(Recording events) {
+            events.emit("eTake", "sku", 1);
+            events.emit("eBegin", "flow");
+        }
+        @Test void hotIsUnchecked(Recording events) {
+            events.emit("eAdd", "sku", 1);
+            events.emit("eBegin", "flow");
+        }
+        @Test @Prs(checkHot = true) void hotChecked(Recording events) {
+            events.emit("eAdd", "sku", 1);
+            events.emit("eBegin", "flow");
+        }
+    }
+
+    static class OffFixture {
+        @RegisterExtension static final PrsExtension PRS = builder("Counter").mode(Mode.OFF).build();
+        @Test void inert(Recording events) { events.emit("eTake", "sku", 1); }
+    }
+
+    static class AutodetectedFixture {
+        @Test void violates(Recording events) { events.emit("eTake", "sku", 1); }
+        @Test void passes() { io.github.crowecawcaw.prs.emit.PrsEmit.emit("eAdd", "sku", 1); }
+    }
+
+    static class NegativeControlFixture {
+        @RegisterExtension static final PrsExtension PRS = builder("Counter").build();
+        @Test void deliberate() {
+            var observer = PrsObserver.builder().specFiles(Path.of("src/test/resources/spec.p")).specs("Counter")
+                    .artifacts(root.resolve("prs")).build();
+            var violation = Recording.expectViolation("Counter", "below zero", () -> {
+                try (var inner = observer.recording("negative control")) {
+                    io.github.crowecawcaw.prs.emit.PrsEmit.emit("eTake", "sku", 1);
+                }
+            });
+            assertEquals("sku", violation.key());
+        }
+    }
 }

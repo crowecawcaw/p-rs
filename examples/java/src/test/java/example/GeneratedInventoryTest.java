@@ -1,19 +1,18 @@
 package example;
 
+import io.github.crowecawcaw.prs.CoverageCollector;
+import io.github.crowecawcaw.prs.PrsObserver;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.jqwik.api.*;
 import net.jqwik.api.lifecycle.AfterContainer;
-import java.nio.file.Path;
-import io.github.crowecawcaw.prs.PrsObserver;
-import io.github.crowecawcaw.prs.CoverageCollector;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GeneratedInventoryTest {
-    private static final PrsObserver OBSERVER = PrsObserver.builder()
-            .specFiles(Path.of("specs/inventory.p")).specs("InventoryCorrect").build();
-    private static final CoverageCollector COVERAGE = OBSERVER.coverage(Path.of("target/coverage/generated.json"));
+    private static final PrsObserver OBSERVER = PrsObserver.builder().build();
+    // The coverage file from prs.properties; merged into what the Jupiter tests wrote.
+    private static final CoverageCollector COVERAGE = OBSERVER.coverage();
 
     @AfterContainer static void writeCoverage() { COVERAGE.close(); }
 
@@ -26,10 +25,10 @@ class GeneratedInventoryTest {
         return operation.list().ofMinSize(1).ofMaxSize(40);
     }
 
-    @Property(tries = 60) void operationSequences(@ForAll("sequences") List<Operation> operations) throws Exception {
-        // Runs once per try and shrink attempt; Jupiter fixtures do not wrap jqwik tries.
+    @Property(tries = 60) void operationSequences(@ForAll("sequences") List<Operation> operations) {
+        // Runs once per try and shrink attempt; Jupiter extensions do not wrap jqwik tries.
         try (var recording = OBSERVER.recording("jqwik inventory sequence", COVERAGE)) {
-            var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
+            var inventory = new Inventory();
             inventory.addProduct("coffee", 3);
             inventory.addProduct("tea", 2);
             var available = new HashMap<>(Map.of("coffee", 3, "tea", 2));

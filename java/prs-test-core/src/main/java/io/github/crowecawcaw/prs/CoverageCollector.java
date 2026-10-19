@@ -1,14 +1,24 @@
 package io.github.crowecawcaw.prs;
 
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-/** Thread-safe suite scope. The core CLI owns validation, fingerprint checks and set union. */
+/**
+ * Suite coverage: collects each check's coverage and, when closed, merges it into the
+ * destination with {@code prs coverage merge-observe}. An existing destination is merged
+ * into, under an exclusive file lock, so several JVMs (Maven or Gradle forks) can share one
+ * path; delete a stale file before a run. Thread-safe.
+ */
 public final class CoverageCollector implements AutoCloseable {
+    private static final Map<Path, Object> JVM_LOCKS = new ConcurrentHashMap<>();
     private final PrsObserver observer;
     private final Path destination;
     private final Path directory;
@@ -17,18 +27,25 @@ public final class CoverageCollector implements AutoCloseable {
 
     CoverageCollector(PrsObserver observer, Path destination) {
         this.observer = observer;
-        this.destination = destination.toAbsolutePath().normalize();
+        this.destination = destination == null ? null : destination.toAbsolutePath().normalize();
+        if (this.destination == null) {
+            directory = null;
+            return;
+        }
         Path created = observer.artifacts();
         try {
             Files.createDirectories(created);
             created = Files.createTempDirectory(created, "coverage-");
             directory = created;
         } catch (IOException error) {
-            throw new ObservationFailure("Cannot create coverage scope", created, null, error);
+            throw new SetupError(SetupError.CONFIG, "Cannot create coverage scope: " + error, created, null, error);
         }
     }
 
+    /** The coverage JSON written on close; null for an inert collector (no destination configured). */
     public Path destination() { return destination; }
+
+    boolean enabled() { return destination != null; }
 
     void requireCompatible(PrsObserver candidate) {
         if (!observer.coverageCompatibilityKey().equals(candidate.coverageCompatibilityKey()))
@@ -36,56 +53,71 @@ public final class CoverageCollector implements AutoCloseable {
     }
 
     synchronized void add(ObservationReport report) {
-        if (closed) throw new ObservationFailure("Coverage scope was closed before recording", directory, report, null);
+        if (destination == null) return;
+        if (closed) throw new SetupError(SetupError.CONFIG, "Coverage scope was closed before recording", directory, report, null);
         try {
             var path = directory.resolve("report-" + reports.size() + ".json");
             Files.writeString(path, report.json());
             reports.add(path);
         } catch (IOException error) {
-            throw new ObservationFailure("Cannot retain coverage report", directory, report, error);
+            throw new SetupError(SetupError.CONFIG, "Cannot keep coverage report: " + error, directory, report, error);
         }
     }
 
+    /** Merges into the destination and prints the summary. Idempotent. */
     @Override public synchronized void close() {
-        if (closed) return;
+        if (closed || destination == null) return;
         closed = true;
         var input = directory.resolve("observations.json");
         var console = directory.resolve("console.txt");
         Path temporary = null;
         try {
-            // Stream immutable reports from disk instead of retaining every test's
-            // replay history in heap. --stdin avoids OS argument-length limits.
-            try (var writer = Files.newBufferedWriter(input)) {
-                writer.write("[");
-                for (int i = 0; i < reports.size(); i++) {
-                    if (i > 0) writer.write(",");
-                    try (var reader = Files.newBufferedReader(reports.get(i))) { reader.transferTo(writer); }
-                }
-                writer.write("]");
-            }
             Files.createDirectories(destination.getParent());
-            temporary = Files.createTempFile(destination.getParent(), "prs-coverage-", ".json");
-            int exit = Processes.run(List.of(observer.binary(), "coverage", "merge-observe", "--stdin",
-                    "--json-report", temporary.toString()), input, console, observer.timeout());
-            if (exit != 0) throw new IOException("Coverage merge exit " + exit);
-            var merged = Recording.JSON.readTree(temporary.toFile());
-            if (merged == null || !merged.path("scope").asText().equals("observed_monitor_suite")
-                    || merged.path("schema_version").asInt(-1) != 1 || !merged.path("specs").isArray()
-                    || !merged.path("observations").isArray()) throw new IOException("Malformed merged coverage report");
-            try {
-                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
-                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+            synchronized (JVM_LOCKS.computeIfAbsent(destination, ignored -> new Object())) {
+                try (var lock = FileChannel.open(destination.resolveSibling(destination.getFileName() + ".lock"),
+                        StandardOpenOption.CREATE, StandardOpenOption.WRITE); var held = lock.lock()) {
+                    // Stream reports from disk instead of keeping every test's replay history in
+                    // memory. --stdin avoids OS argument-length limits.
+                    try (var writer = Files.newBufferedWriter(input)) {
+                        writer.write("[");
+                        boolean first = true;
+                        if (Files.isRegularFile(destination) && Files.size(destination) > 0) {
+                            try (var reader = Files.newBufferedReader(destination)) { reader.transferTo(writer); }
+                            first = false;
+                        }
+                        for (var report : reports) {
+                            if (!first) writer.write(",");
+                            first = false;
+                            try (var reader = Files.newBufferedReader(report)) { reader.transferTo(writer); }
+                        }
+                        writer.write("]");
+                    }
+                    temporary = Files.createTempFile(destination.getParent(), "prs-coverage-", ".json");
+                    int exit = Processes.run(List.of(observer.executable(), "coverage", "merge-observe", "--stdin",
+                            "--json-report", temporary.toString()), input, console, observer.timeout());
+                    if (exit != 0) throw new IOException("Coverage merge exit " + exit);
+                    var merged = Recording.JSON.readTree(temporary.toFile());
+                    if (merged == null || !merged.path("scope").asText().equals("observed_monitor_suite")
+                            || merged.path("schema_version").asInt(-1) != 1 || !merged.path("specs").isArray()
+                            || !merged.path("observations").isArray()) throw new IOException("Malformed merged coverage report");
+                    try {
+                        Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                    } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+                        Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
             }
             System.out.print(Processes.tail(console));
             System.out.println("Observed monitor coverage JSON: " + destination);
             Recording.deleteTree(directory);
+        } catch (SetupError error) {
+            throw error;
         } catch (IOException | RuntimeException error) {
-            throw new ObservationFailure("Cannot merge observed monitor coverage\n" + Processes.tail(console),
-                    directory, null, error);
+            throw new SetupError(SetupError.CONFIG, "Cannot merge observed monitor coverage into " + destination + ": "
+                    + error + "\n" + Processes.tail(console) + "\n  prs output: " + directory, directory, null, error);
         } finally {
             if (temporary != null) {
-                try { Files.deleteIfExists(temporary); } catch (IOException ignored) { /* retain original failure */ }
+                try { Files.deleteIfExists(temporary); } catch (IOException ignored) { /* keep the original failure */ }
             }
         }
     }

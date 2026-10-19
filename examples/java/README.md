@@ -21,26 +21,26 @@ locally. From `examples/java`, run one class with
 `mvn test -Dtest=GeneratedInventoryTest`. The
 [CI workflow](../../.github/workflows/examples-java.yml) runs them with Java 17.
 
-`Inventory` takes an injected `Inventory.Events` interface, adapted with a lambda:
-
-```java
-var inventory = new Inventory(
-    (sku, event, payload) -> recording.emit(event, sku, payload));
-```
+`Inventory` calls `PrsEmit.emit(...)` after each successful change. Outside a test
+recording that does nothing; a production deployment could call
+`PrsEmit.toFile(...)` at startup and check the file with `prs observe`.
+[`prs.properties`](prs.properties) holds the spec files, spec name, artifacts folder
+and coverage path for every test class.
 
 ## 1. Explicit checks in selected tests
 
 [ExplicitInventoryTest](src/test/java/example/ExplicitInventoryTest.java) opens a
-`PrsObserver` recording in try-with-resources before building the inventory; closing
-it checks. The negative control asserts the structured `spec_violation` error.
+recording in try-with-resources before building the inventory; closing it checks.
+The negative control uses `Recording.expectViolation`. `workerProcess` starts
+[a second JVM](src/main/java/example/Worker.java) with `recording.environment()`, so
+its events land in the recording's events folder, and waits for it before the check.
 
 ## 2. Automatic checks with a JUnit extension
 
-[AutomaticInventoryTest](src/test/java/example/AutomaticInventoryTest.java) registers
-`PrsExtension`. The injected `Recording` opens before `@BeforeEach` stocks products
-and checks after `@AfterEach` releases the fixture's reservation, so both are
-recorded. [Coverage](../README.md#coverage) is written to
-`target/coverage/monitor.json`.
+[AutomaticInventoryTest](src/test/java/example/AutomaticInventoryTest.java) uses
+`@ExtendWith(PrsExtension.class)`. Each test's recording opens before `@BeforeEach`
+stocks products and is checked after `@AfterEach` releases the fixture's reservation,
+so both are recorded.
 
 ## 3. Generated sequences with jqwik
 
@@ -50,23 +50,19 @@ them against a reference ledger as well as the spec.
 
 **Gotcha: Jupiter callbacks don't wrap jqwik tries.** Create the inventory, ledger
 and recording inside the `@Property` method so every try and shrink attempt is
-independent. Coverage goes to a `CoverageCollector` closed in `@AfterContainer`,
-written to `target/coverage/generated.json`.
+independent. Coverage goes to `OBSERVER.coverage()`, closed in `@AfterContainer`.
 
 jqwik prints its seed and smallest failing list, and keeps replay state in
 `.jqwik-database`. Add `seed = "<reported seed>"` to `@Property` to reproduce one.
 
+## Coverage
+
+The extension and the jqwik collector both merge into `target/coverage/monitor.json`
+(from `prs.properties`) and print a summary. Delete it before a fresh run.
+
 ## Adapt to your project
 
-Emit from the same domain interface your production telemetry or outbox uses. Set
-spec files and names in `PrsObserver`/`PrsExtension`, and `PRS_BIN` to your `prs`
-build. `prs-test-core` works without Jupiter. Failed recordings keep events, reports
-and replay logs under `target/prs`. To combine the two suite reports:
-
-```sh
-"$PRS_BIN" coverage merge-observe target/coverage/monitor.json target/coverage/generated.json \
-  --json-report target/coverage/suite.json
-```
-
-See the [helper documentation](../../java/README.md) for collector lifetimes,
-parallel tests and forked JVMs.
+Copy `prs.properties` and point `spec_files` and `specs` at your specs. Emit from the
+code that commits the change. Failed checks keep events, reports and replay logs
+under `target/prs`. See the [helper documentation](../../java/README.md) for modes,
+per-test options, other processes and production sinks.

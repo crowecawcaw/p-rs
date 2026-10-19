@@ -1,26 +1,19 @@
 package example;
 
+import io.github.crowecawcaw.prs.emit.PrsEmit;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Inject events at the successful commit boundary; rejected requests emit nothing. */
+/** Emits at the successful commit boundary; rejected requests emit nothing. */
 public final class Inventory {
-    @FunctionalInterface
-    public interface Events {
-        void emit(String sku, String event, Map<String, Object> payload);
-    }
-
     private record Reservation(String sku, String order) {}
-    private final Events events;
     private final Map<String, Integer> stock = new HashMap<>();
     private final Map<Reservation, Integer> reservations = new HashMap<>();
-
-    public Inventory(Events events) { this.events = events; }
 
     public void addProduct(String sku, int units) {
         if (stock.containsKey(sku) || units < 0) throw new IllegalArgumentException("invalid product");
         stock.put(sku, units);
-        events.emit(sku, "eStocked", Map.of("units", units));
+        PrsEmit.emit("eStocked", sku, Map.of("units", units));
     }
 
     public int available(String sku) {
@@ -34,7 +27,7 @@ public final class Inventory {
             throw new IllegalArgumentException("invalid reservation");
         stock.put(sku, available(sku) - units);
         reservations.put(key, units);
-        events.emit(sku, "eReserved", Map.of("order", order, "units", units));
+        PrsEmit.emit("eReserved", sku, Map.of("order", order, "units", units));
     }
 
     public void release(String sku, String order) {
@@ -42,6 +35,6 @@ public final class Inventory {
         var units = reservations.remove(key);
         if (units == null) throw new IllegalArgumentException("unknown reservation");
         stock.put(sku, available(sku) + units);
-        events.emit(sku, "eReleased", Map.of("order", order, "units", units));
+        PrsEmit.emit("eReleased", sku, Map.of("order", order, "units", units));
     }
 }
