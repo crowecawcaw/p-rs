@@ -128,8 +128,14 @@ The complete Go failure includes checker diagnostics and the entire input trace;
 `go test` exits nonzero. See [the observation reference](../../docs/observe.md)
 for the JSONL schema and report format.
 
-The checked fixture enables `observe --coverage` and merges covered identities
+The checked fixture enables `observe --coverage` and collects raw reports
 under a mutex. `TestMain` waits for `m.Run()` (including parallel-test cleanups),
 then prints the suite summary and writes `checked/coverage/model.json` when run
 from the module root. Use `go test -v` to see successful-package stdout. Explicit
 and fuzz tests do not join this report. Completed observations include the executed prefix of a failing check.
+
+Suite aggregation uses the core `prs coverage merge-observe --stdin --json-report PATH`
+command. The adapter retains complete observation reports and sends one JSON array
+at suite end. Core validates and unions coverage identities, preserves metadata
+from failing checks, and writes the same report format across languages. A merge
+or report-write failure fails the test process.

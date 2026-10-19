@@ -155,3 +155,9 @@ pytest options. The terminal summary prints P model state and handler coverage e
 when pytest captures test output; the JSON contains the union of completed checks,
 including checks that find violations. Each test still gets fresh monitor state.
 Use the same option in your own project; leave it out to keep coverage disabled.
+
+Suite aggregation uses the core `prs coverage merge-observe --stdin --json-report PATH`
+command. The adapter retains complete observation reports and sends one JSON array
+at suite end. Core validates and unions coverage identities, preserves metadata
+from failing checks, and writes the same report format across languages. A merge
+or report-write failure fails the test process.

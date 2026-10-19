@@ -109,7 +109,8 @@ target is more useful for parsers/codecs. These tests explore generated sequenti
 calls; they do not explore concurrent schedules.
 
 The checked fixture opts into `ObserveOptions.coverage` and merges each completed
-check using `ObserveCoverage::merge`. It writes `target/coverage/model.json` under
-a mutex and prints the cumulative union (`cargo test -- --nocapture` shows it).
+check using the core `ObserveCoverageReport::from_observation` and `merge` APIs.
+The shared report format retains observation errors and checks source compatibility.
+It writes `target/coverage/model.json` under a mutex and prints the cumulative union (`cargo test -- --nocapture` shows it).
 The final write contains all completed fixture checks; a panic before checking
 leaves partial coverage. Explicit and generated tests do not join this report.

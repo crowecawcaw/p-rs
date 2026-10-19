@@ -175,30 +175,59 @@ def test_events_in_fixture_setup_count(project):
     r.stdout.fnmatch_lines(["*test entered while setup is inside*"])
 
 
-def test_coverage_union_is_not_sum():
-    from prs.pytest_plugin import _merge_coverage
-    aggregate = {}
-    def report(visited):
-        return {"specs": [{"spec": "InventoryCorrect", "coverage": {
-            "states": {"declared": ["Inventory.Ready", "Inventory.Empty"], "visited": visited},
-            "handlers": {"declared": [{"state": "Inventory.Ready", "event": "eStocked"}],
-                         "visited": [{"state": "Inventory.Ready", "event": "eStocked"}]},
-            "transitions": [{"source": "Inventory.Empty", "target": "Inventory.Ready"}],
-        }}]}
-    _merge_coverage(aggregate, report(["Inventory.Ready"]))
-    _merge_coverage(aggregate, report(["Inventory.Ready", "Inventory.Empty"]))
-    coverage = aggregate["InventoryCorrect"]
-    assert coverage["states"]["covered"] == coverage["states"]["total"] == 2
-    assert coverage["handlers"]["covered"] == coverage["handlers"]["total"] == 1
-    assert len(coverage["transitions"]) == 1
-
-
 def test_opt_in_coverage_summary_and_json(project):
     import json
     result = run(project, "-k", "test_correct or test_fixture", "--prs-coverage=coverage/model.json")
     result.assert_outcomes(passed=2, deselected=8)
-    result.stdout.fnmatch_lines(["*P model coverage (union of completed test checks)*", "*MutualExclusion: states*", "*JSON:*model.json*"])
+    result.stdout.fnmatch_lines(["*P model coverage (union of completed test checks)*", "*MutualExclusion*", "*States:*", "*JSON:*model.json*"])
     report = json.loads((project.path / "coverage" / "model.json").read_text())
-    assert report["scope"] == "pytest_completed_checks"
+    assert report["scope"] == "observed_monitor_suite"
     assert report["specs"]
     assert all(spec["coverage"]["states"]["covered"] > 0 for spec in report["specs"])
+
+
+def test_coverage_union_via_core_cli(project):
+    import json
+    project.makepyfile(test_overlap="""
+        from prs import emit
+        def test_first():
+            emit("eEnter", client="a")
+            emit("eExit", client="a")
+        def test_second():
+            emit("eEnter", client="a")
+            emit("eExit", client="a")
+    """)
+    result = run(project, "test_overlap.py", "--prs-coverage=model.json")
+    result.assert_outcomes(passed=2)
+    report = json.loads((project.path / "model.json").read_text())
+    mutual = next(s for s in report["specs"] if s["spec"] == "MutualExclusion")
+    handlers = mutual["coverage"]["handlers"]
+    assert handlers["covered"] == len(handlers["visited"]) == 2
+    assert report["observations"]
+
+
+def test_failing_observation_keeps_coverage(project):
+    import json
+    result = run(project, "-k", "test_buggy_expiry", "--prs-coverage=model.json")
+    result.assert_outcomes(failed=1, deselected=9)
+    report = json.loads((project.path / "model.json").read_text())
+    mutual = next(s for s in report["specs"] if s["spec"] == "MutualExclusion")
+    assert mutual["coverage"]["handlers"]["covered"] > 0
+    assert report["observations"]
+
+
+def test_coverage_reporting_error_fails_process(project):
+    # Passing tests must not hide a failed final report write.
+    (project.path / "directory.json").mkdir()
+    result = run(project, "-k", "test_correct", "--prs-coverage=directory.json")
+    result.assert_outcomes(passed=1, deselected=9)
+    assert result.ret != 0
+    assert "P model coverage reporting failed" in result.stdout.str()
+
+
+def test_coverage_empty_suite(project):
+    import json
+    result = run(project, "-k", "test_skipped_on_purpose", "--prs-coverage=empty.json")
+    result.assert_outcomes(passed=1, deselected=9)
+    report = json.loads((project.path / "empty.json").read_text())
+    assert report["specs"] == []

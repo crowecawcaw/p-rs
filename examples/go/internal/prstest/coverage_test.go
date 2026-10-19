@@ -18,6 +18,13 @@ func TestFailingObservationContributesCoverage(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "exit status 1") || !strings.Contains(err.Error(), `"exit_code": 2`) {
 		t.Fatalf("want nonzero checker failure, got %v", err)
 	}
+	// Repeated observations of an identical handler must not inflate coverage.
+	suiteCoverage.Lock()
+	duplicate := append([]byte(nil), suiteCoverage.Reports[len(suiteCoverage.Reports)-1]...)
+	suiteCoverage.Unlock()
+	if err := collectCoverage(duplicate); err != nil {
+		t.Fatal(err)
+	}
 	path := filepath.Join(t.TempDir(), "coverage.json")
 	if err := WriteCoverage(path); err != nil {
 		t.Fatal(err)
@@ -28,7 +35,12 @@ func TestFailingObservationContributesCoverage(t *testing.T) {
 	}
 	var report struct {
 		Specs []struct {
-			Coverage modelCoverage `json:"coverage"`
+			Coverage struct {
+				Handlers struct {
+					Covered int               `json:"covered"`
+					Visited []json.RawMessage `json:"visited"`
+				} `json:"handlers"`
+			} `json:"coverage"`
 		} `json:"specs"`
 	}
 	if err := json.Unmarshal(data, &report); err != nil {
@@ -42,5 +54,11 @@ func TestFailingObservationContributesCoverage(t *testing.T) {
 		!strings.Contains(string(handlers.Visited[0]), "Unstocked") ||
 		!strings.Contains(string(handlers.Visited[0]), "eReserved") {
 		t.Fatalf("missing attempted handler: %s", data)
+	}
+}
+
+func TestCoverageWriteErrorIsNotHidden(t *testing.T) {
+	if err := WriteCoverage(t.TempDir()); err == nil {
+		t.Fatal("expected coverage report write error")
 	}
 }
