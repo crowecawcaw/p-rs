@@ -230,7 +230,7 @@ language is under [Packaging and distribution](#packaging-and-distribution).
 | pytest (Python) | plugin; `@pytest.mark.prs(skip=..., check_hot=...)` | fixture setup: yes | fixture teardown: no (checked when the body ends) | Hypothesis: `with check_spec(...)` inside the `@given` body |
 | `testing` (Go) | `prstest.Start(t, cfg)` in the test's fixture | after `Start` | `t.Cleanup` registered after `Start`: yes; before: no | `go test -fuzz`: `Start` inside the `f.Fuzz` callback with its `t` |
 | JUnit 5 (Java) | `PrsExtension` (`@ExtendWith` or autodetection), `@Prs(skip=..., checkHot=...)` | `@BeforeEach`: yes | `@AfterEach`: yes | jqwik: `observer.recording(...)` per `@Property` try, coverage via `@AfterContainer` |
-| `#[test]` (Rust) | `model.check(\|sink\| ...)` closure or `#[prs::test::test]` attribute | inside the closure | inside the closure | proptest: a recording per case inside the `proptest!` body |
+| `#[test]` (Rust) | `model.check(\|recording\| ...)` closure | inside the closure | inside the closure | proptest: a recording per case inside the `proptest!` body |
 
 Agents writing tests SHOULD join workers inside the recording; the table says where
 that is.
@@ -335,8 +335,7 @@ under a file lock (L4), so coverage still works, only slower.
 defaults to every spec. Strict means "every selected spec checked an event". With named
 specs that catches disabled instrumentation, which is its purpose. With every spec
 selected (pytest `auto` mode) most tests exercise only some specs, so strict would fail
-nearly every test. This matches Go and Java today, which require named specs and
-default to strict.
+nearly every test.
 
 Python: `check_spec("Name")`, `check_events(events, "Name")` and `Recorder(specs=[...])`
 become strict by default. This is a behaviour change: for one minor release, a check
@@ -445,6 +444,6 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] Shared, thread-safe suite coverage; `PRS_COVERAGE` (#53)
 - [x] `events_dir()`, `env()`, `add_events_dir`, `add_log` (#49), reading folders through a core helper
 - [x] `unknown_events`, default `error` (#47)
-- [x] `#[prs::test::test]` or fixture pattern; `PRS_MODE` (fixture: `model.check(|recording| ...)`)
+- [x] Fixture pattern (`model.check(|recording| ...)`); `PRS_MODE`
 - [x] Production emitter (#48): `prs::emit` (feature `emit`)
 - [x] Conformance runner

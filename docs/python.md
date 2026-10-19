@@ -14,11 +14,9 @@ pip install p-rs        # brings the prs binary; no Rust or Java needed
 ```
 
 The source is in [`python/`](../python); `pip install ./python` in a checkout builds the
-binary with cargo. Names, defaults and failure behaviour match
-the other language helpers ([language-support.md](language-support.md)).
-
-For runnable application projects with fixtures, configuration, and CI, see the
-[Python inventory examples](../examples/python/README.md).
+binary with cargo. Names, defaults and failure behaviour match the other language
+helpers ([language-support.md](language-support.md)). Runnable projects:
+[Python examples](../examples/python/README.md).
 
 ## Emitting events
 
@@ -104,8 +102,8 @@ mode = "auto"                    # optional: "auto" (every test) | "marked" | "o
   ends, so a broken spec is a test failure, not a teardown error. A test that already
   failed is not checked.
 
-Hot states (a spec still waiting for something, i.e. liveness) are checked only when
-asked for, because a unit test that stops mid-protocol ends in a hot state:
+Hot states (a spec still waiting for something) are checked only when asked for, because
+a unit test that stops mid-protocol ends in a hot state:
 
 ```python
 @pytest.mark.prs(skip=True)              # don't check this test
