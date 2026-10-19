@@ -2,7 +2,6 @@ import pytest
 
 
 def test_release_makes_stock_available_again(inventory):
-    # Ordinary application assertions; the plugin checks InventoryCorrect afterward.
     inventory.reserve("coffee", "order-1", 3)
     inventory.release("coffee", "order-1")
     inventory.reserve("coffee", "order-2", 3)
@@ -14,7 +13,7 @@ def test_rejected_reservation_changes_nothing(inventory, prs_events):
     with pytest.raises(ValueError, match="insufficient stock"):
         inventory.reserve("coffee", "order-2", 2)
     assert inventory.available("coffee") == 1
-    # Optional fixture for assertions about instrumentation, not needed for checks.
+    # prs_events is optional; use it to assert on instrumentation.
     assert prs_events.count("eStocked") == 2
     assert prs_events.count("eReserved") == 1
 

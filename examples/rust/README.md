@@ -1,127 +1,70 @@
 # Rust: inventory reservations
 
-Three Cargo integration-test targets exercise one real inventory service against
-one P safety spec. They illustrate how to connect a project's existing tests to a
-monitor, rather than how to write a P model.
+Three Cargo integration-test targets check one [inventory service](src/lib.rs)
+against the [P spec](specs/inventory.p) with [`prs-test`](../../crates/prs-test/README.md),
+which checks in process: no `prs` binary is needed. See the
+[shared overview](../README.md#how-the-checks-work) for what the checks do and why.
 
-## Run from this checkout
+## Run
 
-With a stable Rust toolchain installed, from the repository root:
+From the repository root, with a stable Rust toolchain:
 
 ```sh
 cargo test --manifest-path examples/rust/Cargo.toml --locked
-```
-
-Or run a setup on its own:
-
-```sh
 cargo test --manifest-path examples/rust/Cargo.toml --locked --test explicit
 cargo test --manifest-path examples/rust/Cargo.toml --locked --test checked_fixture
 cargo test --manifest-path examples/rust/Cargo.toml --locked --test generated_sequences
 ```
 
-This is an independent Cargo workspace with its own lockfile. Its only integration
-helper dev-dependency is [`prs-test`](../../crates/prs-test/README.md), plus `proptest`
-for generated cases. The helper owns source compilation, recording, monitor execution,
-diagnostics, and coverage union. These crates currently ship from source; the published
-`p-rs` crate is a placeholder. In another repository, pin a p-rs Git revision for
-`prs-test`, or vendor it and use paths. The application itself has no third-party
-dependencies. No `prs` binary, external services, Python, clock delays, or network
-access are needed after Cargo has fetched dependencies.
-The [CI workflow](../../.github/workflows/rust-examples.yml) formats, lints, and runs
-all three targets against source.
+This is a standalone Cargo workspace. The
+[CI workflow](../../.github/workflows/rust-examples.yml) formats, lints and runs all
+three targets.
 
-## Application boundary
-
-Read [src/lib.rs](src/lib.rs) first. `Inventory` takes a typed `FnMut(Event)` sink.
-Each successful operation changes state and then publishes its domain event;
-rejected operations publish nothing. Existing projects can adapt their domain-event
-bus or transaction outbox instead of adding P calls throughout their service. For a
-database-backed project, publish after commit. A production sink could write logs;
-a caller that wants no recording can pass `|_| {}`.
-
-The [test support](tests/support/mod.rs) only maps application domain events to JSON
-payloads and sets up the inventory fixture. `prs-test` buffers events and checks them in
-process. The SKU is the partition key, so each product gets independent monitor state.
-A shared `Model` semantically compiles the spec once; every recording starts fresh
-monitors (interpreter bytecode preparation currently repeats). The helper is strict by
-default: a trace with no verified relevant events fails. Bad payloads for relevant
-events fail, while unrelated events are ignored like `prs observe`. Strictness cannot
-detect every typo or partially missing instrumentation; assert specific event counts
-when the test requires them.
-
-The cloned event sink works in thread callbacks. `emit` assigns epoch milliseconds
-while inserting each event under a lock; `emit_at` allows deterministic timestamps.
-Join worker threads and finish cleanup before `check`, which closes the recording.
-No checks occur in `Drop` or while an application panic unwinds. A monitor failure
-includes readable diagnostics, replay, and the recorded JSON event history. The
-[spec](specs/inventory.p) links to the [shared spec](../model/PSpec/inventory.p) that
-the P model and the other languages check. It allows outstanding reservations at the end and
-needs only safety checks.
-Ordinary assertions still matter: a monitor cannot detect state changes that the
-application never emits.
+`Inventory` takes a typed `FnMut(Event)` sink, so the application has no P
+dependency. [tests/support/mod.rs](tests/support/mod.rs) maps those events to JSON
+with the SKU as key, compiles the spec once, and provides the fixture.
 
 ## 1. Explicit checks for selected tests
 
-[tests/explicit.rs](tests/explicit.rs) constructs a `model().recording()` and inventory, seeds
-stock while recording, runs the operation sequence, and calls `recorder.check()`.
-The result is unwrapped so a violation fails Cargo tests and CI. Rejected requests
-are also checked to emit no events. A passing negative control deliberately records
-an overselling event and requires the specific P assertion, proving the monitor
-is active without leaving a broken test in CI.
+[tests/explicit.rs](tests/explicit.rs) creates `model().recording()`, builds the
+inventory on its sink, seeds stock, runs operations, and unwraps `recorder.check()`.
+It also asserts that rejected requests emit nothing, and has the negative control.
 
-## 2. A shared checked fixture for ordinary Cargo tests
+**Gotcha:** join worker threads and finish cleanup before `check`, which consumes
+the recording. Nothing is checked in `Drop`.
 
-[tests/checked_fixture.rs](tests/checked_fixture.rs) wraps each ordinary `#[test]`
-body in `with_inventory`. That helper connects the recorder **before** seeding,
-creates fresh application state for each test, and checks after the closure returns.
-Tests use normal inventory methods and normal Rust assertions.
+## 2. A checked fixture for ordinary tests
 
-Rust's built-in test harness has no pytest-style global fixture plugin. Checking
-applies to tests that explicitly adopt this helper. Add it to your project's
-existing fixture factory so a new test has one setup call. Avoid global recorders:
-Cargo runs tests concurrently, and combining histories would mix unrelated state.
-The helper provides a synchronized cloneable sink for thread callbacks. A threaded
-application must coordinate operation/event order and join workers before checking.
+[tests/checked_fixture.rs](tests/checked_fixture.rs) wraps each `#[test]` body in
+`with_inventory`, which starts recording, seeds fresh stock, runs the body, then
+checks.
 
-A P violation panics in the helper after the body, propagating as a normal failed
-Cargo test. A body that already panics stays failed. No checking runs in `Drop`,
-which avoids a second panic during unwinding. Perform monitor-relevant cleanup
-inside the closure before it returns.
+**Gotcha:** Cargo has no global test hook, so each test opts in by calling the
+fixture; put it in your project's existing fixture factory. Don't use a global
+recorder: Cargo runs tests in parallel. A panicking body stays failed without a
+second check during unwinding, so do monitor-relevant cleanup inside the closure.
 
-## 3. Generated stateful sequences with proptest
+The fixture also adds each check to a `prs_test::Suite` and writes
+[coverage](../README.md#coverage) to `target/coverage/model.json`
+(`cargo test -- --nocapture` prints it).
+
+## 3. Generated sequences with proptest
 
 [tests/generated_sequences.rs](tests/generated_sequences.rs) generates vectors of
-reserve/release commands and executes them against the real service. Repeated order
-IDs, invalid quantities, missing releases, and both SKUs exercise successful and
-rejected paths. This uses ordinary `proptest` strategies; no separate state-machine
-framework is required. P reconstructs accepted stock/reservation history independently.
+reserve/release commands, including invalid quantities, repeated order IDs and
+releases without reservations, and runs them against the real service.
 
-The recorder and inventory are created **inside the property body**, so each case
-and every shrink attempt starts with its own stock and monitor. A monitor error is
-returned through `prop_assert!`, allowing proptest to shrink the command sequence
-and show the smallest failing input it finds. A test-scoped recorder around the
-whole property runner would incorrectly combine multiple generated executions.
+**Gotcha:** create the recorder and inventory *inside* the property body, which
+proptest runs for every case and shrink attempt. Report the check with
+`prop_assert!` rather than `unwrap` so proptest shrinks the command sequence.
 
-CI runs 64 cases, each with at most 40 commands, and allows 2,048 shrink iterations.
-Generated inputs vary between runs. Proptest prints the minimized input and persists
-failure seeds beside the test in `tests/generated_sequences.proptest-regressions`;
-commit that generated regression file when fixing a discovered bug so subsequent
-runs replay it. To reproduce a failure directly, reuse the printed command vector
-in a normal checked test. For longer local exploration, increase `cases` in the test's `ProptestConfig`.
+CI runs 64 cases of up to 40 commands; raise `cases` to explore more. Failure seeds
+are saved in `tests/generated_sequences.proptest-regressions`: commit that file
+when fixing a bug so later runs replay it.
 
-Proptest fits domain operations well because it shrinks operation sequences and
-runs under Cargo with the other integration tests. A byte-oriented `cargo-fuzz`
-target is more useful for parsers/codecs. These tests explore generated sequential
-calls; they do not explore concurrent schedules.
+## Adapt to your project
 
-The checked fixture opts into suite coverage by adding each completed successful or
-failed check to `prs_test::Suite`.
-The shared report format retains observation errors and checks source compatibility.
-It writes `target/coverage/model.json` under a mutex and prints the cumulative union (`cargo test -- --nocapture` shows it).
-The final write contains all completed fixture checks; a panic before checking
-leaves partial coverage. Explicit and generated tests do not join this report.
-
-The helper uses strict observation by default: every checked test must emit
-at least one relevant event for each selected spec. This catches accidentally
-disabled instrumentation; it does not infer arbitrary missing events.
+Depend on `prs-test` by Git revision or vendored path (the published `p-rs` crate is
+a placeholder). Map your existing domain events or outbox in a `record` function
+like the one in [tests/support/mod.rs](tests/support/mod.rs), and include your spec
+with `Model::compile`. `emit_at` takes explicit timestamps for deterministic tests.

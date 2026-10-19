@@ -5,8 +5,7 @@ from inventory_app import Inventory
 
 @pytest.fixture
 def inventory_factory():
-    # Construct AND seed inside check_spec so the initial-stock event is recorded.
-    # A pre-seeded fixture would run before the explicit block starts recording.
+    # Call inside check_spec: seeding before recording starts would hide eStocked.
     def create():
         inventory = Inventory()
         inventory.add_product("coffee", 3)

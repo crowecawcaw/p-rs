@@ -1,4 +1,6 @@
 //! Application code: typed domain events, no dependency on P or a test framework.
+//! Each successful operation publishes its event after changing state; rejected
+//! operations publish nothing.
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]

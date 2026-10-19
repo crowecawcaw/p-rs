@@ -1,0 +1,1 @@
+../../model/PSpec/inventory.p

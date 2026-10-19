@@ -7,7 +7,7 @@ use support::{inventory, model, record};
 fn selected_test_checks_its_own_recording() {
     let recorder = model().recording();
     let mut inventory = inventory(recorder.sink());
-    // Seed after connecting the recorder: the monitor needs initial stock.
+    // Seed after connecting the recorder, so the monitor sees initial stock.
     inventory.stock("coffee", 3).unwrap();
     inventory.reserve("coffee", "order-1", 2).unwrap();
     inventory.release("coffee", "order-1").unwrap();
@@ -28,13 +28,13 @@ fn rejected_requests_emit_nothing() {
     recorder.check().unwrap();
 }
 
+// A negative control: the spec must reject an overselling trace.
 #[test]
 fn negative_control_detects_overselling() {
     let recorder = model().recording();
     let mut inventory = inventory(recorder.sink());
     inventory.stock("coffee", 3).unwrap();
     inventory.reserve("coffee", "order-1", 2).unwrap();
-    // Simulate the event an overselling regression would produce.
     record(&recorder.sink(), Event::Reserved { sku: "coffee".into(), order: "order-2".into(), units: 2 });
     let error = recorder.check().expect_err("the spec must reject the broken trace");
     assert!(error.to_string().contains("reservation exceeds available stock"), "{error}");

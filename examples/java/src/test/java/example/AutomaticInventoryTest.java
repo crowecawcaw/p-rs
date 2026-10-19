@@ -15,28 +15,29 @@ class AutomaticInventoryTest {
             .coverage(Path.of("target/coverage/model.json")).build();
     private Inventory inventory;
 
+    // The injected Recording is open before @BeforeEach and checked after @AfterEach.
     @BeforeEach void stockProducts(Recording events) {
         inventory = new Inventory((sku, event, payload) -> events.emit(event, sku, payload));
-        inventory.addProduct("book", 6);
-        inventory.reserve("book", "fixture", 1);
-        inventory.addProduct("pen", 2);
+        inventory.addProduct("coffee", 3);
+        inventory.addProduct("tea", 2);
+        inventory.reserve("coffee", "fixture", 1);
     }
 
     @AfterEach void releaseFixtureReservation() {
-        inventory.release("book", "fixture");
+        inventory.release("coffee", "fixture");
     }
 
     @Test void productKeysKeepOrdersIndependent() {
-        inventory.reserve("book", "alice", 4);
-        inventory.reserve("pen", "alice", 2);
-        inventory.release("book", "alice");
-        assertEquals(5, inventory.available("book"));
-        assertEquals(0, inventory.available("pen"));
+        inventory.reserve("coffee", "order-1", 2);
+        inventory.reserve("tea", "order-1", 2);
+        inventory.release("coffee", "order-1");
+        assertEquals(2, inventory.available("coffee"));
+        assertEquals(0, inventory.available("tea"));
     }
 
     @Test void eachTestGetsFreshStock() {
-        inventory.reserve("book", "alice", 5);
-        assertEquals(0, inventory.available("book"));
-        assertThrows(IllegalArgumentException.class, () -> inventory.reserve("book", "bob", 1));
+        inventory.reserve("coffee", "order-1", 2);
+        assertEquals(0, inventory.available("coffee"));
+        assertThrows(IllegalArgumentException.class, () -> inventory.reserve("coffee", "order-2", 1));
     }
 }

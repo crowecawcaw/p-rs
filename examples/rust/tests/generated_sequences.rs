@@ -18,13 +18,11 @@ fn command() -> impl Strategy<Value = Command> {
 }
 
 proptest! {
-    // A bounded CI budget, with shrinking and persisted regression seeds enabled.
     #![proptest_config(ProptestConfig { cases: 64, max_shrink_iters: 2048, failure_persistence: Some(Box::new(proptest::test_runner::FileFailurePersistence::WithSource("proptest-regressions"))), ..ProptestConfig::default() })]
 
     #[test]
     fn generated_stateful_operations(commands in prop::collection::vec(command(), 1..41)) {
-        // This scope runs afresh for EVERY generated case AND shrink attempt,
-        // not once for the enclosing #[test]. Never reuse inventory or recorder.
+        // Runs once per case and shrink attempt: never share inventory or recorder.
         let recorder = model().recording();
         let mut inventory = inventory(recorder.sink());
         inventory.stock("coffee", 3).unwrap();
@@ -36,13 +34,12 @@ proptest! {
                 Command::Release { sku, order } =>
                     inventory.release(["coffee", "tea"][*sku], &format!("order-{order}")),
             };
-            // Rejection is normal input, not a discarded generated case. Unexpected
-            // errors are failures. P independently reconstructs accepted operations.
+            // Rejections are valid input; any other error is a failure.
             prop_assert!(matches!(result, Ok(()) | Err(Error::InvalidQuantity)
                 | Err(Error::DuplicateOrder) | Err(Error::InsufficientStock) | Err(Error::UnknownOrder)),
                 "unexpected result for {:?}: {:?}", command, result);
         }
-        // Return a proptest failure, so a P violation shrinks the COMMAND sequence.
+        // prop_assert! (not unwrap) lets proptest shrink the command sequence.
         let checked = recorder.check();
         prop_assert!(checked.is_ok(), "{}", checked.unwrap_err());
         for sku in ["coffee", "tea"] {
