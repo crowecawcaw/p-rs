@@ -1,28 +1,38 @@
 # Go helper
 
-Two standard-library-only packages, Go 1.22+:
+Module `github.com/crowecawcaw/p-rs` (this repository's root), Go 1.22+, with two
+standard-library-only packages:
 
-- [`prstest`](prstest): check events from Go tests against P specs. It runs the `prs`
-  binary.
-- [`prsemit`](prsemit): emit events from application code, in the test process or in
-  processes a test starts; in production, write them as a log for `prs observe`.
+- [`github.com/crowecawcaw/p-rs/go/prstest`](prstest): check events from Go tests
+  against P specs. It runs the `prs` binary.
+- [`github.com/crowecawcaw/p-rs/go/prsemit`](prsemit): emit events from application
+  code, in the test process or in processes a test starts; in production, write them
+  as a log for `prs observe`.
 
 Both follow the [language helper requirements](../docs/language-support.md). The
 runnable [inventory example](../examples/go/README.md) uses everything below.
 
 ## Setup
 
-Install the checker, then point the helper at it (`PRS_BIN`, or `prs` on `PATH`):
+```sh
+go get github.com/crowecawcaw/p-rs/go/prstest
+```
+
+`prstest` runs the `prs` checker: `PRS_BIN`, else `prs` on `PATH`, else the release
+binary of the module's version, downloaded once into the user cache
+(`os.UserCacheDir()/p-rs/<version>/`) and verified against checksums committed in the
+module. Offline, or with `PRS_DOWNLOAD=0`, install it yourself:
 
 ```sh
 cargo install --git https://github.com/crowecawcaw/p-rs prs-cli
 ```
 
-The module is consumed from source; keep it and the binary at the same revision:
+To use a checkout instead of a release, `replace` the module and build `prs` from the
+same revision (a checkout downloads nothing):
 
 ```go
-require github.com/crowecawcaw/p-rs/go v0.0.0
-replace github.com/crowecawcaw/p-rs/go => ../p-rs/go
+require github.com/crowecawcaw/p-rs v0.0.0
+replace github.com/crowecawcaw/p-rs => ../p-rs
 ```
 
 ## Check a test's events
@@ -99,7 +109,7 @@ checks of `r` ignore that spec.
 | `Artifacts`: where failed checks are kept | `PRS_ARTIFACTS` | a temp folder |
 | `Coverage`: suite coverage JSON | `PRS_COVERAGE` | off |
 | `Mode`: `auto`/`marked` (same in Go) or `off` | `PRS_MODE` | `auto` |
-| `Binary` | `PRS_BIN`, then `prs` on `PATH` | |
+| `Binary` | `PRS_BIN`, then `prs` on `PATH` | the release binary, downloaded (`PRS_DOWNLOAD=0`: off) |
 
 Environment variables override fields. `Config` paths are relative to `WorkDir`
 (default: the package folder `go test` runs in); environment paths to the working
@@ -188,7 +198,7 @@ delete a stale file before a run. `Config.Suite` with `NewSuite` and
 ```sh
 cargo build -p prs-cli --bin prs --locked
 export PRS_BIN="$(pwd)/target/debug/prs"
-(cd go && go test -race -count=1 ./... && go vet ./...)
+go test -race -count=1 ./... && go vet ./...   # the module is the repository root
 (cd examples/go && go test -race -count=1 ./...)
 ```
 

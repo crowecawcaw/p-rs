@@ -1,17 +1,20 @@
 package prstest
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/crowecawcaw/p-rs/go/internal/prsbin"
 )
 
-// Version is the p-rs release this helper belongs to. Use a prs binary of the same
-// version: the helper passes options older binaries lack.
-const Version = "0.1.0"
+// Version is the p-rs release this helper belongs to ("dev" between releases). Use a
+// prs binary of the same version: the helper passes options older binaries lack.
+const Version = prsbin.Version
 
 // Config selects the specs and options for one recording. Relative paths resolve
 // against WorkDir (default: the working directory, which `go test` sets to the
@@ -46,7 +49,10 @@ type Config struct {
 	// Mode is "auto" or "marked" (the same in Go: tests opt in by calling Start) or
 	// "off" (recordings do nothing and pass). PRS_MODE overrides it.
 	Mode string
-	// Binary is the prs executable. Default: PRS_BIN, then prs on PATH.
+	// Binary is the prs executable. Default: PRS_BIN, then prs on PATH, then the
+	// release binary of this module's version, downloaded once into the user cache
+	// (os.UserCacheDir()/p-rs/<version>) and verified against the module's checksums.
+	// PRS_DOWNLOAD=0 turns the download off.
 	Binary  string
 	WorkDir string
 	// Suite collects the check's coverage for Suite.WriteCoverage.
@@ -221,16 +227,27 @@ const installHelp = `install prs with
 or download a release binary from https://github.com/crowecawcaw/p-rs/releases,
 then put it on PATH or set PRS_BIN to its absolute path`
 
-// findBinary returns a SetupError of kind binary_missing when binary cannot run.
-func findBinary(binary string) *SetupError {
+// findBinary returns the prs executable to run, or a SetupError of kind
+// binary_missing. A bare "prs" (the default) is looked up on PATH, then downloaded.
+func findBinary(ctx context.Context, binary string) (string, *SetupError) {
 	var err error
 	if strings.ContainsAny(binary, `/\`) {
 		_, err = os.Stat(binary)
 	} else {
-		_, err = exec.LookPath(binary)
+		var path string
+		if path, err = exec.LookPath(binary); err == nil {
+			binary = path
+		}
 	}
 	if err == nil {
-		return nil
+		return binary, nil
 	}
-	return &SetupError{Kind: "binary_missing", Message: fmt.Sprintf("no prs binary at %q: %s", binary, installHelp), Err: err}
+	if binary != "prs" {
+		return "", &SetupError{Kind: "binary_missing", Message: fmt.Sprintf("no prs binary at %q: %s", binary, installHelp), Err: err}
+	}
+	path, err := prsbin.Release.Get(ctx)
+	if err != nil {
+		return "", &SetupError{Kind: "binary_missing", Message: fmt.Sprintf("PRS_BIN is not set, prs is not on PATH, and %s.\n%s", err, installHelp), Err: err}
+	}
+	return path, nil
 }

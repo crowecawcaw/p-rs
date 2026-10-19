@@ -1,13 +1,21 @@
 package prstest
 
 import (
+	"archive/tar"
+	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -16,6 +24,7 @@ import (
 	"time"
 
 	"github.com/crowecawcaw/p-rs/go/internal/hook"
+	"github.com/crowecawcaw/p-rs/go/internal/prsbin"
 	"github.com/crowecawcaw/p-rs/go/prsemit"
 )
 
@@ -252,6 +261,7 @@ func TestTimeoutAndMissingBinary(t *testing.T) {
 	t.Run("not-on-path", func(t *testing.T) {
 		t.Setenv("PRS_BIN", "")
 		t.Setenv("PATH", t.TempDir())
+		t.Setenv("PRS_DOWNLOAD", "0")
 		cfg := fixtureConfig(t)
 		cfg.Binary = ""
 		r := New(t, cfg)
@@ -259,6 +269,83 @@ func TestTimeoutAndMissingBinary(t *testing.T) {
 		_, err := r.Verify(context.Background())
 		setupKind(t, err, "binary_missing")
 	})
+}
+
+// TestDownloadedBinary serves the test binary (a fake prs) as a release archive.
+func TestDownloadedBinary(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := "prs"
+	if runtime.GOOS == "windows" {
+		name = "prs.exe"
+	}
+	var archive bytes.Buffer
+	if runtime.GOOS == "windows" {
+		zw := zip.NewWriter(&archive)
+		w, _ := zw.Create(name)
+		w.Write(body)
+		zw.Close()
+	} else {
+		gz, _ := gzip.NewWriterLevel(&archive, gzip.BestSpeed)
+		tw := tar.NewWriter(gz)
+		tw.WriteHeader(&tar.Header{Name: name, Mode: 0o755, Size: int64(len(body)), Typeflag: tar.TypeReg})
+		tw.Write(body)
+		tw.Close()
+		gz.Close()
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/gone/") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write(archive.Bytes())
+	}))
+	defer srv.Close()
+
+	release := prsbin.Release
+	defer func() { prsbin.Release = release }()
+	prsbin.Release = prsbin.Source{Version: "1.2.3", BaseURL: srv.URL, CacheDir: t.TempDir()}
+	url, err := prsbin.Release.URL()
+	if err != nil {
+		t.Skip(err)
+	}
+	sum := sha256.Sum256(archive.Bytes())
+	prsbin.Release.Sums = hex.EncodeToString(sum[:]) + "  " + path.Base(url) + "\n"
+
+	t.Setenv("PRS_BIN", "")
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("PRS_DOWNLOAD", "")
+	t.Setenv("PRSTEST_CHILD", "empty-observation") // passes when not strict
+	verify := func() error {
+		cfg := fixtureConfig(t)
+		cfg.Binary = ""
+		cfg.Strict = Bool(false)
+		r := New(t, cfg)
+		r.Emit("e", "k", nil)
+		_, err := r.Verify(context.Background())
+		return err
+	}
+
+	working := prsbin.Release
+	prsbin.Release.BaseURL = srv.URL + "/gone"
+	se := setupKind(t, verify(), "binary_missing")
+	if !strings.Contains(se.Message, srv.URL+"/gone/v1.2.3/") || !strings.Contains(se.Message, "cargo install") {
+		t.Fatalf("download failure message: %s", se.Message)
+	}
+
+	prsbin.Release = working
+	if err := verify(); err != nil {
+		t.Fatalf("downloaded binary: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(working.CacheDir, "1.2.3", name)); err != nil {
+		t.Fatalf("not cached: %v", err)
+	}
 }
 
 func TestNothingToCheckSkipsTheChecker(t *testing.T) {

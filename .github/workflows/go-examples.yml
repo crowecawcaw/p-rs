@@ -32,8 +32,7 @@ jobs:
           cache: false
       - name: Build this checkout's checker
         run: cargo build -p prs-cli --bin prs --locked
-      - name: Supported Go helper tests
-        working-directory: go
+      - name: Supported Go helper tests (module at the repository root)
         env:
           PRS_BIN: ${{ github.workspace }}/target/debug/prs
         run: |
