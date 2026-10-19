@@ -22,8 +22,8 @@ pub struct TransitionCoverage {
     pub target: String,
 }
 
-/// Mergeable coverage for the selected monitor declarations. Union only reports built
-/// from the same version of a specification; identities do not fingerprint source code.
+/// Mergeable coverage for selected monitor declarations, with compilation source identity.
+/// Use `try_merge` for validated same-source union; `merge` is a low-level unchecked union.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ObserveCoverage {
     /// SHA-256 identity of all compilation source contents.
@@ -59,7 +59,8 @@ impl ObserveCoverage {
         result
     }
 
-    /// Union hit sets and declarations, without summing duplicate hits.
+    /// Unchecked union of hit sets and declarations, without summing duplicate hits.
+    /// Callers must ensure source compatibility; portable reports use `try_merge` instead.
     pub fn merge(&mut self, other: &Self) {
         self.declared_states.extend(other.declared_states.iter().cloned());
         self.visited_states.extend(other.visited_states.iter().cloned());

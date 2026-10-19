@@ -73,6 +73,16 @@ impl ObserveCoverage {
     }
 
     fn validate(&self) -> Result<(), String> {
+        let fingerprint = self
+            .source_fingerprint
+            .as_deref()
+            .ok_or("missing source fingerprint; regenerate with observe --coverage")?;
+        if !fingerprint.starts_with("sha256:")
+            || fingerprint.len() != 71
+            || !fingerprint[7..].bytes().all(|c| c.is_ascii_hexdigit())
+        {
+            return Err("invalid source fingerprint; regenerate with observe --coverage".into());
+        }
         if !self.visited_states.is_subset(&self.declared_states)
             || !self.visited_handlers.is_subset(&self.declared_handlers)
         {
@@ -110,12 +120,20 @@ impl ObserveCoverageReport {
     pub fn from_observation(spec_name: &str, report: &crate::observe::Report) -> Result<Self, String> {
         let coverage = report.coverage.as_ref().ok_or("observation has no coverage; enable ObserveOptions.coverage")?;
         Self::from_json(&json!({
-            "exit_code": if report.errors.is_empty() { 0 } else { 1 },
+            "exit_code": if report.errors.is_empty() { 0 }
+                else if report.errors.iter().any(|e| !matches!(e.kind, crate::observe::ErrorKind::SpecViolation | crate::observe::ErrorKind::Parser)) { 3 }
+                else if report.errors.iter().any(|e| e.kind == crate::observe::ErrorKind::SpecViolation) { 2 }
+                else { 4 },
             "specs": [{"spec": spec_name, "coverage": coverage.to_json(),
                 "events_read": report.metrics.events_read,
                 "partition_keys": report.metrics.partition_keys,
                 "verified_keys": report.metrics.verified_keys,
-                "errors": report.errors.iter().map(|e| json!({"kind": format!("{:?}", e.kind),
+                "errors": report.errors.iter().map(|e| json!({"kind": match e.kind {
+                    crate::observe::ErrorKind::SpecViolation => "spec_violation",
+                    crate::observe::ErrorKind::Parser => "parser",
+                    crate::observe::ErrorKind::OutOfOrder => "out_of_order",
+                    _ => "unknown",
+                },
                     "message": e.message, "detail": e.detail, "cause": e.cause})).collect::<Vec<_>>() }]
         }))
     }
@@ -303,6 +321,27 @@ mod tests {
         second.specs.get_mut("Spec").unwrap().declared_states.insert("Spec.C".into());
         assert!(second.merge(&first).unwrap_err().contains("incompatible declarations"));
     }
+    #[test]
+    fn in_process_errors_use_observe_exit_status_and_preserve_details() {
+        use crate::observe::{ErrorKind, ObserveError, Report};
+        let coverage = ObserveCoverageReport::from_json(&observation(&[])).unwrap().specs["Spec"].clone();
+        let mut report = Report { coverage: Some(coverage), ..Report::default() };
+        report.errors.push(ObserveError {
+            kind: ErrorKind::SpecViolation,
+            message: "oversold".into(),
+            detail: "assertion failed".into(),
+            replay: None,
+            cause: None,
+        });
+        let suite = ObserveCoverageReport::from_observation("Spec", &report).unwrap();
+        assert_eq!(suite.observations[0]["exit_code"], 2);
+        assert_eq!(suite.observations[0]["specs"][0]["errors"][0]["kind"], "spec_violation");
+        report.errors[0].kind = ErrorKind::Parser;
+        assert_eq!(ObserveCoverageReport::from_observation("Spec", &report).unwrap().observations[0]["exit_code"], 4);
+        report.errors[0].kind = ErrorKind::Unknown;
+        assert_eq!(ObserveCoverageReport::from_observation("Spec", &report).unwrap().observations[0]["exit_code"], 3);
+    }
+
     #[test]
     fn empty_array_is_an_empty_aggregation() {
         let empty = ObserveCoverageReport::from_json(&json!([])).unwrap();
