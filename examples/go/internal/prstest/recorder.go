@@ -76,14 +76,10 @@ func (r *Recorder) Verify(t testing.TB) error {
 	if r.coverage {
 		cmd.Args = append(cmd.Args, "--coverage")
 	}
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		report, _ := os.ReadFile(reportPath)
-		return fmt.Errorf("InventoryCorrect: %w\n%s\nJSON report:\n%s\nrecorded JSONL:\n%s", err, output, report, trace)
-	}
-	data, err := os.ReadFile(reportPath)
-	if err != nil {
-		return fmt.Errorf("read checker report: %w", err)
+	output, commandErr := cmd.CombinedOutput()
+	data, readErr := os.ReadFile(reportPath)
+	if readErr != nil {
+		return fmt.Errorf("read checker report (command error: %v): %w\n%s\nrecorded JSONL:\n%s", commandErr, readErr, output, trace)
 	}
 	var report struct {
 		ExitCode int `json:"exit_code"`
@@ -96,14 +92,20 @@ func (r *Recorder) Verify(t testing.TB) error {
 		} `json:"specs"`
 	}
 	if err := json.Unmarshal(data, &report); err != nil {
-		return err
+		return fmt.Errorf("decode checker report (command error: %v): %w\n%s", commandErr, err, output)
+	}
+	if len(report.Specs) != 1 {
+		return fmt.Errorf("unexpected checker report: %s", data)
 	}
 	if r.coverage {
 		if mergeErr := collectCoverage(data); mergeErr != nil {
 			return mergeErr
 		}
 	}
-	if report.ExitCode != 0 || len(report.Specs) != 1 {
+	if commandErr != nil {
+		return fmt.Errorf("InventoryCorrect: %w\n%s\nJSON report:\n%s\nrecorded JSONL:\n%s", commandErr, output, data, trace)
+	}
+	if report.ExitCode != 0 {
 		return fmt.Errorf("unexpected checker report: %s", data)
 	}
 	s := report.Specs[0]

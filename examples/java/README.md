@@ -82,4 +82,5 @@ The JUnit extension enables `observe --coverage` for each isolated recording and
 merges coverage in a root-scoped `CloseableResource`. At suite end it prints a
 summary and writes `target/coverage/model.json`; Maven displays the summary and CI
 uploads the report. Explicit and jqwik recordings stay outside this suite report.
-Checks that fail before producing a valid report are absent from the aggregate.
+Completed observations include the executed prefix of a failing check. Tool failures
+that produce no valid report still fail the test and do not contribute coverage.

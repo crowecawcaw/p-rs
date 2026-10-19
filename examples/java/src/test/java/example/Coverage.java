@@ -40,12 +40,18 @@ final class Coverage implements ExtensionContext.Store.CloseableResource {
         return result;
     }
 
-    @Override public synchronized void close() throws Exception {
+    synchronized ObjectNode report() {
         var report = JSON.createObjectNode().put("scope", "junit_completed_checks");
         var entries = report.putArray("specs");
+        for (var entry : specs.entrySet())
+            entries.addObject().put("spec", entry.getKey()).set("coverage", entry.getValue().deepCopy());
+        return report;
+    }
+
+    @Override public synchronized void close() throws Exception {
+        var report = report();
         for (var entry : specs.entrySet()) {
             var coverage = entry.getValue();
-            entries.addObject().put("spec", entry.getKey()).set("coverage", coverage);
             System.out.printf("P model coverage %s: states %d/%d, handlers %d/%d, observed transitions %d%n",
                     entry.getKey(), coverage.path("states").path("covered").asInt(),
                     coverage.path("states").path("total").asInt(),

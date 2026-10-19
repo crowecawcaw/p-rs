@@ -57,10 +57,14 @@ final class Recording implements Inventory.Events, AutoCloseable {
         String diagnostics = "prs exit " + process.exitValue() + "; artifacts: " + directory
                 + "\n" + Files.readString(output)
                 + (Files.exists(report) ? "\n" + Files.readString(report) : "\nNo JSON report");
-        if (process.exitValue() != 0) throw new AssertionError(diagnostics);
+        // Parse and merge a completed observation even when it found a violation.
+        // Missing/malformed reports still fail the test rather than hiding tool errors.
         var result = JSON.readTree(report.toFile());
         var specs = result.path("specs");
+        if (!specs.isArray() || specs.size() != 1)
+            throw new AssertionError("Invalid observation report: " + diagnostics);
         if (coverage != null) coverage.add(specs);
+        if (process.exitValue() != 0) throw new AssertionError(diagnostics);
         if (result.path("exit_code").asInt(-1) != 0 || specs.size() != 1
                 || !specs.get(0).path("spec").asText().equals("InventoryCorrect")
                 || specs.get(0).path("events_read").asInt(-1) != count

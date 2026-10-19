@@ -132,4 +132,4 @@ The checked fixture enables `observe --coverage` and merges covered identities
 under a mutex. `TestMain` waits for `m.Run()` (including parallel-test cleanups),
 then prints the suite summary and writes `checked/coverage/model.json` when run
 from the module root. Use `go test -v` to see successful-package stdout. Explicit
-and fuzz tests do not join this report. Only successfully observed checks count.
+and fuzz tests do not join this report. Completed observations include the executed prefix of a failing check.
