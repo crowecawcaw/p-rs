@@ -20,6 +20,7 @@ pub mod javafmt;
 pub mod jsonlog;
 pub mod observe;
 pub mod observe_coverage;
+pub mod observe_report;
 pub mod random;
 pub mod rl;
 pub mod runtime;

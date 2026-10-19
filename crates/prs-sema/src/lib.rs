@@ -146,6 +146,18 @@ pub fn analyze(sm: &SourceMap, programs: &[ast::Program], opts: &Options) -> Res
     for (f, name) in names.funs.into_iter().enumerate() {
         a.prog.funs[f].cs_name = name;
     }
+    // Sort contents, not paths: identical sources in different checkouts have the same identity.
+    // Length delimiters prevent ambiguous concatenations. All sources participate conservatively.
+    use sha2::{Digest, Sha256};
+    let mut sources: Vec<_> = sm.files().iter().map(|f| f.text.as_bytes()).collect();
+    sources.sort();
+    let mut digest = Sha256::new();
+    digest.update((sources.len() as u64).to_le_bytes());
+    for source in sources {
+        digest.update((source.len() as u64).to_le_bytes());
+        digest.update(source);
+    }
+    a.prog.source_fingerprint = Some(format!("sha256:{:x}", digest.finalize()));
     Ok(Analysis { program: a.prog, warnings: a.diags.warnings })
 }
 
