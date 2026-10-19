@@ -36,6 +36,7 @@ fn negative_control_detects_overselling() {
     inventory.stock("coffee", 3).unwrap();
     inventory.reserve("coffee", "order-1", 2).unwrap();
     record(&recorder.sink(), Event::Reserved { sku: "coffee".into(), order: "order-2".into(), units: 2 });
-    let error = recorder.check().expect_err("the spec must reject the broken trace");
-    assert!(error.to_string().contains("reservation exceeds available stock"), "{error}");
+    let violation = recorder.expect_violation("InventoryCorrect", "exceeds available stock");
+    assert_eq!(violation.key, "coffee");
+    assert_eq!(violation.events.last().unwrap().payload["order"], "order-2");
 }

@@ -22,13 +22,16 @@ three targets.
 
 `Inventory` takes a typed `FnMut(Event)` sink, so the application has no P
 dependency. [tests/support/mod.rs](tests/support/mod.rs) maps those events to JSON
-with the SKU as key, compiles the spec once, and provides the fixture.
+with the SKU as key, loads the spec once with `Model::load()` (from
+`[package.metadata.prs]` in [Cargo.toml](Cargo.toml)), and provides the fixture.
 
 ## 1. Explicit checks for selected tests
 
 [tests/explicit.rs](tests/explicit.rs) creates `model().recording()`, builds the
 inventory on its sink, seeds stock, runs operations, and unwraps `recorder.check()`.
-It also asserts that rejected requests emit nothing, and has the negative control.
+It also asserts that rejected requests emit nothing, and has the negative control:
+`recorder.expect_violation("InventoryCorrect", "exceeds available stock")` returns the
+structured violation (`key`, `events`, ...) for further assertions.
 
 **Gotcha:** join worker threads and finish cleanup before `check`, which consumes
 the recording. Nothing is checked in `Drop`.
@@ -36,17 +39,19 @@ the recording. Nothing is checked in `Drop`.
 ## 2. A checked fixture for ordinary tests
 
 [tests/checked_fixture.rs](tests/checked_fixture.rs) wraps each `#[test]` body in
-`with_inventory`, which starts recording, seeds fresh stock, runs the body, then
-checks.
+`with_inventory`, which calls `model.check(|recording| ...)`: it starts recording,
+seeds fresh stock, runs the body, then checks and panics with the failure output.
 
 **Gotcha:** Cargo has no global test hook, so each test opts in by calling the
 fixture; put it in your project's existing fixture factory. Don't use a global
 recorder: Cargo runs tests in parallel. A panicking body stays failed without a
 second check during unwinding, so do monitor-relevant cleanup inside the closure.
+`PRS_MODE=off` runs the bodies without checking.
 
-The fixture also adds each check to a `prs_test::Suite` and writes
-[coverage](../README.md#coverage) to `target/coverage/monitor.json`
-(`cargo test -- --nocapture` prints it).
+The fixture's model has `.coverage("target/coverage/monitor.json")`, so each check
+merges its [coverage](../README.md#coverage) into that file under a lock and prints
+the summary (`cargo test -- --nocapture` shows it). `PRS_COVERAGE` does the same
+without code.
 
 ## 3. Generated sequences with proptest
 
@@ -65,6 +70,10 @@ when fixing a bug so later runs replay it.
 ## Adapt to your project
 
 Depend on `prs-test` by Git revision or vendored path (the published `p-rs` crate is
-a placeholder). Map your existing domain events or outbox in a `record` function
-like the one in [tests/support/mod.rs](tests/support/mod.rs), and include your spec
-with `Model::compile`. `emit_at` takes explicit timestamps for deterministic tests.
+a placeholder). Add `[package.metadata.prs]` to your `Cargo.toml`, and map your
+existing domain events or outbox in a `record` function like the one in
+[tests/support/mod.rs](tests/support/mod.rs). Or instrument with
+[`prs-emit`](../../crates/prs-emit), which feeds test recordings
+(`recording.emitter()`), child processes (`PRS_EVENTS_DIR`) and production logs for
+`prs observe` from the same calls. `emit_at` takes explicit times for deterministic
+tests.

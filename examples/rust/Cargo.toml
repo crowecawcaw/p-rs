@@ -7,6 +7,11 @@ publish = false
 # A standalone workspace; prs-test currently ships from source only.
 [workspace]
 
+# Read by prs_test::Model::load(); paths are relative to this file.
+[package.metadata.prs]
+spec_files = ["specs/inventory.p"]
+specs = ["InventoryCorrect"]
+
 [dev-dependencies]
 prs-test = { path = "../../crates/prs-test" }
 proptest = "1.11"
