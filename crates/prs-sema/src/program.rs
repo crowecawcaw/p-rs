@@ -564,6 +564,8 @@ pub struct ImplDecl {
 /// A fully analyzed program.
 #[derive(Debug, Clone, Default)]
 pub struct Program {
+    /// Path-independent SHA-256 identity of the compilation source contents.
+    pub source_fingerprint: Option<String>,
     pub events: Vec<EventDecl>,
     pub enums: Vec<EnumDecl>,
     pub typedefs: Vec<TypeDefDecl>,

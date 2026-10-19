@@ -10,3 +10,4 @@ description = "Name resolution, type checking and module system for P programs"
 
 [dependencies]
 prs-syntax = { workspace = true }
+sha2 = "0.10"

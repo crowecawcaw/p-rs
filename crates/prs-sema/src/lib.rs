@@ -146,6 +146,18 @@ pub fn analyze(sm: &SourceMap, programs: &[ast::Program], opts: &Options) -> Res
     for (f, name) in names.funs.into_iter().enumerate() {
         a.prog.funs[f].cs_name = name;
     }
+    // Sort contents, not paths: identical sources in different checkouts have the same identity.
+    // Length delimiters prevent ambiguous concatenations. All sources participate conservatively.
+    use sha2::{Digest, Sha256};
+    let mut sources: Vec<_> = sm.files().iter().map(|f| f.text.as_bytes()).collect();
+    sources.sort();
+    let mut digest = Sha256::new();
+    digest.update((sources.len() as u64).to_le_bytes());
+    for source in sources {
+        digest.update((source.len() as u64).to_le_bytes());
+        digest.update(source);
+    }
+    a.prog.source_fingerprint = Some(format!("sha256:{:x}", digest.finalize()));
     Ok(Analysis { program: a.prog, warnings: a.diags.warnings })
 }
 
@@ -223,4 +235,29 @@ fn run<'a>(a: &mut Analyzer<'a>, programs: &'a [ast::Program]) -> Result<(), Dia
     // Steps 8-10: module system.
     a.populate_module_system()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod fingerprint_tests {
+    use super::*;
+
+    fn fingerprint(files: &[(&str, &str)]) -> String {
+        let mut sm = SourceMap::new();
+        for (name, contents) in files {
+            sm.add(*name, *contents);
+        }
+        compile(&sm, &Options::default()).unwrap().program.source_fingerprint.unwrap()
+    }
+
+    #[test]
+    fn source_identity_ignores_paths_and_load_order_but_detects_changed_guards() {
+        let first = "event E: int; spec S observes E { start state A { on E do (n: int) { assert n > 0; } } }";
+        let second = first.replace("n > 0", "n > 1");
+        let helper = "event Other;";
+        assert_eq!(
+            fingerprint(&[("/a/spec.p", first), ("/a/helper.p", helper)]),
+            fingerprint(&[("/b/helper.p", helper), ("/b/spec.p", first)])
+        );
+        assert_ne!(fingerprint(&[("spec.p", first)]), fingerprint(&[("spec.p", &second)]));
+    }
 }

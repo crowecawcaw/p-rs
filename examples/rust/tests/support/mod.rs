@@ -49,7 +49,7 @@ impl Recorder {
             &mut || 0.0,
         );
         if coverage {
-            publish_coverage(report.coverage.as_ref().ok_or("coverage missing from observe report")?)?;
+            publish_coverage(&report)?;
         }
         // Include parser errors: Report::error_count() intentionally excludes them.
         if !report.errors.is_empty() {
@@ -95,23 +95,16 @@ pub fn with_inventory(test: impl FnOnce(&mut TestInventory)) {
 
 // Integration tests run concurrently. Hold the lock across merge, write and print,
 // so the last published report is the union of all completed fixture checks.
-fn publish_coverage(coverage: &prs_checker::observe_coverage::ObserveCoverage) -> Result<(), String> {
+fn publish_coverage(report: &prs_checker::observe::Report) -> Result<(), String> {
+    use prs_checker::observe_report::ObserveCoverageReport;
     use std::sync::{Mutex, OnceLock};
-    static SUITE: OnceLock<Mutex<Option<prs_checker::observe_coverage::ObserveCoverage>>> = OnceLock::new();
-    let mut guard = SUITE.get_or_init(|| Mutex::new(None)).lock().map_err(|e| e.to_string())?;
-    if let Some(aggregate) = guard.as_mut() {
-        aggregate.merge(coverage);
-    } else {
-        *guard = Some(coverage.clone());
-    }
-    let aggregate = guard.as_ref().unwrap();
-    let value = serde_json::json!({
-        "scope": "rust_completed_fixture_checks",
-        "specs": [{"spec":"InventoryCorrect", "coverage": aggregate.to_json()}]
-    });
+    static SUITE: OnceLock<Mutex<ObserveCoverageReport>> = OnceLock::new();
+    let mut aggregate =
+        SUITE.get_or_init(|| Mutex::new(ObserveCoverageReport::default())).lock().map_err(|e| e.to_string())?;
+    aggregate.merge(&ObserveCoverageReport::from_observation("InventoryCorrect", report)?)?;
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/coverage/model.json");
     std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    std::fs::write(&path, serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?)
+    std::fs::write(&path, serde_json::to_string_pretty(&aggregate.to_json()).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
     println!(
         "P model coverage (union of completed fixture checks so far):\n{}\nJSON: {}",

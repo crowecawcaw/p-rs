@@ -413,6 +413,25 @@ pub struct Report {
 }
 
 impl Report {
+    /// PObserve-compatible status: 0 success, 2 assertion, 3 internal/ordering,
+    /// or 4 parser errors. Shared by file reports and CLI observation.
+    pub fn exit_status(&self) -> i32 {
+        Self::errors_exit_status(&self.errors)
+    }
+
+    /// Status for combined errors from multiple selected specifications.
+    pub fn errors_exit_status(errors: &[ObserveError]) -> i32 {
+        if errors.is_empty() {
+            0
+        } else if errors.iter().any(|e| matches!(e.kind, ErrorKind::Unknown | ErrorKind::OutOfOrder)) {
+            3
+        } else if errors.iter().any(|e| e.kind == ErrorKind::SpecViolation) {
+            2
+        } else {
+            4
+        }
+    }
+
     /// Errors counted in the final summary (all but parser errors).
     pub fn error_count(&self) -> u64 {
         self.metrics.spec_errors + self.metrics.out_of_order_errors + self.metrics.unknown_errors

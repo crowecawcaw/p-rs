@@ -13,7 +13,7 @@ import (
 // per-test hook: TestMain alone cannot give every test an isolated recorder.
 func stocked(t *testing.T) *inventory.Inventory {
 	t.Helper()
-	app := prstest.Checked(t)
+	app := prstest.CheckedWithCoverage(t)
 	for _, sku := range []string{"coffee", "tea"} {
 		if err := app.Stock(sku, 3); err != nil {
 			t.Fatal(err)

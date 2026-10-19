@@ -79,8 +79,14 @@ observed, and keep normal application assertions: the monitor only sees emitted
 events and cannot detect missing instrumentation by itself.
 
 The JUnit extension enables `observe --coverage` for each isolated recording and
-merges coverage in a root-scoped `CloseableResource`. At suite end it prints a
+collects raw reports in a root-scoped `CloseableResource`. At suite end it prints a
 summary and writes `target/coverage/model.json`; Maven displays the summary and CI
 uploads the report. Explicit and jqwik recordings stay outside this suite report.
 Completed observations include the executed prefix of a failing check. Tool failures
 that produce no valid report still fail the test and do not contribute coverage.
+
+Suite aggregation uses the core `prs coverage merge-observe --stdin --json-report PATH`
+command. The adapter retains complete observation reports and sends one JSON array
+at suite end. Core validates and unions coverage identities, preserves metadata
+from failing checks, and writes the same report format across languages. A merge
+or report-write failure fails the test process.

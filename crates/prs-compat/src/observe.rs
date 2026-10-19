@@ -314,16 +314,7 @@ fn json_report(specs: &[Spec], reports: &[Report], exit_code: i32) -> String {
 
 /// `TrackErrors.getExitStatus`.
 pub fn exit_status(report: &Report) -> i32 {
-    let e = &report.errors;
-    if e.is_empty() {
-        EXIT_SUCCESS
-    } else if e.iter().any(|x| !matches!(x.kind, ErrorKind::SpecViolation | ErrorKind::Parser)) {
-        EXIT_INTERNAL_ERROR
-    } else if e.iter().any(|x| x.kind == ErrorKind::SpecViolation) {
-        EXIT_ASSERTION
-    } else {
-        EXIT_PARSE_LOG_ERROR
-    }
+    report.exit_status()
 }
 
 fn cmdline_error(host: &mut dyn Host, msg: &str, usage: &str) -> i32 {

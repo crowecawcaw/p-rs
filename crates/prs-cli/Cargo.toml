@@ -19,6 +19,7 @@ path = "src/bin/prs-compat.rs"
 [dependencies]
 prs-compat = { workspace = true }
 prs-checker = { workspace = true }
+serde_json = { workspace = true }
 
 [lib]
 name = "prs_cli"

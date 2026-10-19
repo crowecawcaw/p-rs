@@ -280,3 +280,41 @@ fn live_observe_rejects_incompatible_inputs_before_loading_project() {
     assert_eq!(prs(&mut h, &["observe", "--spec", "Inventory", "--stdin", "--fail-fast", "--inputkind", "JSON"]), 2);
     assert!(h.stdout.contains("requires TEXT input"));
 }
+
+#[test]
+fn merge_observed_reports_without_models_and_reject_bad_input() {
+    use prs_checker::observe_coverage::ObserveCoverage;
+    let mut h = MemHost::new("/w");
+    let mut coverage = ObserveCoverage {
+        source_fingerprint: Some(format!("sha256:{}", "a".repeat(64))),
+        ..ObserveCoverage::default()
+    };
+    coverage.declared_states.insert("Inventory.Ready".into());
+    let report = |coverage: &ObserveCoverage, code: i32| {
+        serde_json::json!({"exit_code": code,
+        "input_complete": code == 0, "specs":[{"spec":"Inventory", "errors":[], "coverage":coverage.to_json()}]})
+        .to_string()
+    };
+    h.add_file("first.json", &report(&coverage, 0));
+    coverage.visited_states.insert("Inventory.Ready".into());
+    h.add_file("second.json", &report(&coverage, 1));
+    assert_eq!(
+        prs(&mut h, &["coverage", "merge-observe", "first.json", "second.json", "--json-report", "suite.json"]),
+        0,
+        "{}",
+        h.stderr
+    );
+    assert!(h.stdout.contains("States: 1/1"));
+    assert!(h.stdout.contains("failed: 1; incomplete: 1"));
+    assert!(!h.stdout.contains("schema_version"));
+    let output = read(&h, "/w/suite.json");
+    h.add_file("again.json", &output);
+    assert_eq!(prs(&mut h, &["coverage", "merge-observe", "suite.json", "again.json", "--json"]), 0);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&h.stdout).unwrap(),
+        serde_json::from_str::<serde_json::Value>(&output).unwrap()
+    );
+    h.add_file("bad.json", "{}");
+    assert_eq!(prs(&mut h, &["coverage", "merge-observe", "bad.json"]), 2);
+    assert!(h.stderr.contains("specs must be an array"));
+}

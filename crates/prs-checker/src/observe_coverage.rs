@@ -22,10 +22,12 @@ pub struct TransitionCoverage {
     pub target: String,
 }
 
-/// Mergeable coverage for the selected monitor declarations. Union only reports built
-/// from the same version of a specification; identities do not fingerprint source code.
+/// Mergeable coverage for selected monitor declarations, with compilation source identity.
+/// Use `try_merge` for validated same-source union; `merge` is a low-level unchecked union.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ObserveCoverage {
+    /// SHA-256 identity of all compilation source contents.
+    pub source_fingerprint: Option<String>,
     pub declared_states: BTreeSet<String>,
     pub visited_states: BTreeSet<String>,
     /// Explicit do, goto and ignore handlers. Deferred events are not Java handlers.
@@ -42,7 +44,7 @@ fn state_name(prog: &Program, state: StateId) -> String {
 
 impl ObserveCoverage {
     pub fn new(prog: &Program, spec: MachineId) -> Self {
-        let mut result = Self::default();
+        let mut result = Self { source_fingerprint: prog.source_fingerprint.clone(), ..Self::default() };
         for &state in &prog.machine(spec).states {
             let name = state_name(prog, state);
             result.declared_states.insert(name.clone());
@@ -57,7 +59,8 @@ impl ObserveCoverage {
         result
     }
 
-    /// Union hit sets and declarations, without summing duplicate hits.
+    /// Unchecked union of hit sets and declarations, without summing duplicate hits.
+    /// Callers must ensure source compatibility; portable reports use `try_merge` instead.
     pub fn merge(&mut self, other: &Self) {
         self.declared_states.extend(other.declared_states.iter().cloned());
         self.visited_states.extend(other.visited_states.iter().cloned());
@@ -93,7 +96,9 @@ impl ObserveCoverage {
             items.iter().map(|h| serde_json::json!({"state": h.state, "event": h.event})).collect::<Vec<_>>()
         };
         serde_json::json!({
+            "schema_version": 1,
             "scope": "observed_monitor",
+            "source_fingerprint": self.source_fingerprint,
             "states": {"total": self.declared_states.len(), "covered": self.visited_states.len(), "declared": self.declared_states, "visited": self.visited_states},
             "handlers": {"total": self.declared_handlers.len(), "covered": self.visited_handlers.len(), "declared": handlers(&self.declared_handlers), "visited": handlers(&self.visited_handlers)},
             "transitions": self.transitions.iter().map(|t| serde_json::json!({"source": t.source, "target": t.target})).collect::<Vec<_>>()

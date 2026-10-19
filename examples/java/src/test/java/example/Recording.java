@@ -63,7 +63,7 @@ final class Recording implements Inventory.Events, AutoCloseable {
         var specs = result.path("specs");
         if (!specs.isArray() || specs.size() != 1)
             throw new AssertionError("Invalid observation report: " + diagnostics);
-        if (coverage != null) coverage.add(specs);
+        if (coverage != null) coverage.add(result);
         if (process.exitValue() != 0) throw new AssertionError(diagnostics);
         if (result.path("exit_code").asInt(-1) != 0 || specs.size() != 1
                 || !specs.get(0).path("spec").asText().equals("InventoryCorrect")

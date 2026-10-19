@@ -27,7 +27,7 @@ Commands:
   replay     Replay a .schedule file
   tests      List the test cases
   observe    Check logs against spec monitors
-  coverage   Merge scenario coverage reports (`prs coverage merge`)
+  coverage   Merge scenario or observed-monitor coverage reports
   version    Print the version
 
 Commands that read P sources take .pproj or .p files. Without any, they use the
@@ -97,9 +97,14 @@ Type-checks the sources and lists their test cases, one per line.
 
 const COVERAGE_HELP: &str = "\
 Usage: prs coverage merge [DIR]
+       prs coverage merge-observe [REPORT.json ...] [--stdin] [--json-report OUT] [--json]
 
 Merges the scenario coverage reports (*_scenario_coverage.json) under DIR (default:
 the current folder), recursively, into one report.
+
+merge-observe combines observe --coverage JSON reports without loading P sources.
+It validates matching spec versions and preserves failure/completion metadata.
+Run `prs coverage merge-observe --help` for input and output options.
 ";
 
 /// Runs `prs` with `args` (without the program name); returns the exit status.
@@ -609,6 +614,9 @@ fn observe(args: &[String], host: &mut dyn Host) -> i32 {
 }
 
 fn coverage(args: &[String], host: &mut dyn Host) -> i32 {
+    if args.first().is_some_and(|a| a == "merge-observe") {
+        return merge_observe(&args[1..], host);
+    }
     let a = match parse_args(args, &[]) {
         Ok(a) => a,
         Err(m) => return usage_error(host, &m, Some("coverage")),
@@ -632,6 +640,55 @@ fn coverage(args: &[String], host: &mut dyn Host) -> i32 {
     }
     prs_compat::scenario::run_merge(&[dir], host);
     OK
+}
+
+/// Merge portable observed reports without loading or executing P sources.
+fn merge_observe(args: &[String], host: &mut dyn Host) -> i32 {
+    use prs_checker::observe_report::ObserveCoverageReport;
+    let a = match parse_args(args, &[flag("stdin", None), flag("json", None), value("json-report", None)]) {
+        Ok(a) => a,
+        Err(e) => return usage_error(host, &e, Some("coverage")),
+    };
+    if a.help {
+        host.write(Stream::Out, "Usage: prs coverage merge-observe [REPORT.json ...] [--stdin] [--json-report OUT] [--json]\n--stdin reads a JSON array of full observation or merged reports. No P sources are executed.\n", None);
+        return OK;
+    }
+    if a.positional.is_empty() && !a.has("stdin") {
+        return usage_error(host, "provide report files or --stdin", Some("coverage"));
+    }
+    let run = |host: &mut dyn Host| -> Result<(), String> {
+        let mut merged = ObserveCoverageReport::default();
+        for file in &a.positional {
+            let text =
+                host.read_to_string(&full_path(&host.cwd(), Path::new(file))).map_err(|e| format!("{file}: {e}"))?;
+            merged.merge(&ObserveCoverageReport::from_json_str(&text).map_err(|e| format!("{file}: {e}"))?)?;
+        }
+        if a.has("stdin") {
+            let mut text = String::new();
+            while let Some(line) = host.read_stdin_line().map_err(|e| e.to_string())? {
+                text.push_str(&line);
+                text.push('\n');
+            }
+            let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+            if !value.is_array() {
+                return Err("--stdin expects a JSON array of full reports".into());
+            }
+            merged.merge(&ObserveCoverageReport::from_json(&value)?)?;
+        }
+        let json = serde_json::to_string_pretty(&merged.to_json()).map_err(|e| e.to_string())? + "\n";
+        if let Some(path) = a.get("json-report") {
+            host.write_file(&full_path(&host.cwd(), Path::new(path)), &json).map_err(|e| e.to_string())?;
+        }
+        host.write(Stream::Out, &if a.has("json") { json } else { merged.render_text() }, None);
+        Ok(())
+    };
+    match run(host) {
+        Ok(()) => OK,
+        Err(e) => {
+            error(host, &e);
+            ERROR
+        }
+    }
 }
 
 /// A host that holds back console output (to show it only if needed).
