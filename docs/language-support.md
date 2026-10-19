@@ -359,6 +359,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [ ] `events_dir()` / `env()` on `Recorder`
 - [ ] Events folder file name `<name>-<pid>-<random>.jsonl` (today `events-<pid>.jsonl`)
 - [ ] Coverage file merge under a file lock (pytest-xdist)
+- [ ] Production sink for `emit` (#48)
 - [ ] Conformance runner
 
 ### Go
@@ -376,6 +377,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [ ] `UnknownEvents`, default `error` (#47)
 - [ ] `prstest.Main(m)` and `PRS_COVERAGE`; per-check merge without it
 - [ ] `PRS_SPEC_FILES`, `PRS_ARTIFACTS`, `PRS_MODE`
+- [ ] Production emitter package (#48)
 - [ ] Conformance runner
 
 ### Java
@@ -393,6 +395,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [ ] `unknownEvents`, default `error` (#47)
 - [ ] Config file (`prs.properties` / `junit-platform.properties`), paths relative to it
 - [ ] `PRS_SPEC_FILES`, `PRS_COVERAGE`, `PRS_ARTIFACTS`, `PRS_MODE`
+- [ ] Production emitter package (#48)
 - [ ] Conformance runner
 
 ### Rust
