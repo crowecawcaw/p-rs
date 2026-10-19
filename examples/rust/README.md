@@ -31,7 +31,9 @@ with the SKU as key, loads the spec once with `Model::load()` (from
 inventory on its sink, seeds stock, runs operations, and unwraps `recorder.check()`.
 It also asserts that rejected requests emit nothing, and has the negative control:
 `recorder.expect_violation("InventoryCorrect", "exceeds available stock")` returns the
-structured violation (`key`, `events`, ...) for further assertions.
+structured violation (`key`, `events`, ...) for further assertions. The last test
+shows that code emitting through the global `prs_emit::emit` is checked too: the
+recording binds the test's thread.
 
 **Gotcha:** join worker threads and finish cleanup before `check`, which consumes
 the recording. Nothing is checked in `Drop`.
@@ -50,7 +52,7 @@ second check during unwinding, so do monitor-relevant cleanup inside the closure
 
 The fixture's model has `.coverage("target/coverage/monitor.json")`, so each check
 merges its [coverage](../README.md#coverage) into that file under a lock and prints
-the summary (`cargo test -- --nocapture` shows it). `PRS_COVERAGE` does the same
+the summary when it changes (`cargo test -- --nocapture` shows it). `PRS_COVERAGE` does the same
 without code.
 
 ## 3. Generated sequences with proptest

@@ -86,8 +86,13 @@ nanoseconds for a logical clock); each key's events are checked in time order.
 
 - `recording.sink()`: a cloneable, `Send + Sync` `EventSink`; `emit` returns an error
   after the check.
-- `recording.emitter()`: a `prs_emit::Emitter` for code instrumented with `prs-emit`,
-  so tests and production share the instrumentation. It panics if used after the check.
+- `prs_emit::emit(...)` (the global emitter) in application code: a recording binds the
+  thread that creates it, so emits on that thread go to it. Bind threads the test
+  spawns with `let _guard = recording.sink().bind();`. An emit on an unbound thread
+  goes to the only open recording; with several open (Cargo runs tests in parallel)
+  it fails them all with a `Config` error, so bind or inject instead.
+- `recording.emitter()`: a `prs_emit::Emitter` to pass to code that takes one. It
+  panics if used after the check.
 
 The call site is recorded (`#[track_caller]`) and shown in failure output. Emit after
 the operation commits. Events the P files declare but no selected spec observes are
@@ -150,7 +155,7 @@ names it.
 
 Set `coverage` (or `PRS_COVERAGE`) and every check merges its observed monitor coverage
 into that file, under a file lock, so parallel tests and test binaries share it. It
-prints the summary (`cargo test -- --nocapture` shows it). The JSON is
+prints the summary when the coverage changes (`cargo test -- --nocapture` shows it). The JSON is
 `prs coverage merge-observe`'s format. Delete a stale file before a run; CI starts
 clean. `CheckReport::coverage()` returns one check's coverage.
 

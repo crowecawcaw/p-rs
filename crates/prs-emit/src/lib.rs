@@ -300,6 +300,13 @@ impl Emitter {
         }
     }
 
+    #[track_caller]
+    fn emit_inner(&self, at: Option<Time>, event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
+        if let Some(inner) = &self.inner {
+            inner.emit(at, event, key, payload);
+        }
+    }
+
     /// Waits until a background writer has written everything emitted so far. Call it
     /// before the process exits; other sinks write synchronously.
     pub fn flush(&self) {
@@ -337,7 +344,17 @@ impl Inner {
             seq,
             pid: std::process::id(),
         };
-        let written = match &mut *sink {
+        Inner::deliver(&mut sink, &self.dropped, event);
+    }
+
+    /// Writes an already stamped event.
+    fn send(&self, event: Event) {
+        let mut sink = self.sink.lock().unwrap_or_else(|e| e.into_inner());
+        Inner::deliver(&mut sink, &self.dropped, event);
+    }
+
+    fn deliver(sink: &mut Sink, dropped: &AtomicU64, event: Event) {
+        let written = match sink {
             Sink::Callback(f) => {
                 f(event);
                 true
@@ -349,7 +366,7 @@ impl Inner {
             Sink::Dir { dir, file } => write_to_dir(dir, file, &event),
         };
         if !written {
-            self.dropped.fetch_add(1, Ordering::Relaxed);
+            dropped.fetch_add(1, Ordering::Relaxed);
         }
     }
 }
@@ -410,16 +427,64 @@ pub fn set_global(emitter: Emitter) -> Result<(), Emitter> {
     GLOBAL.set(emitter)
 }
 
-/// [`Emitter::emit`] on the [`global`] emitter.
+/// [`Emitter::emit`] on the [`global`] emitter, or into an in-process test recording
+/// while a test helper routes events (see [`test_hook`]).
 #[track_caller]
 pub fn emit(event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
+    if test_hook::ROUTING.load(Ordering::Relaxed) {
+        return test_hook::route(None, event, key, payload);
+    }
     global().emit(event, key, payload)
 }
 
-/// [`Emitter::emit_at`] on the [`global`] emitter.
+/// [`Emitter::emit_at`] on the [`global`] emitter, or into a test recording like [`emit`].
 #[track_caller]
 pub fn emit_at(at: impl Into<Time>, event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
+    if test_hook::ROUTING.load(Ordering::Relaxed) {
+        return test_hook::route(Some(at.into()), event, key, payload);
+    }
     global().emit_at(at, event, key, payload)
+}
+
+/// For test helpers such as `prs-test`: lets in-process recordings receive the events
+/// application code emits through the global [`emit`]. Not for application code.
+pub mod test_hook {
+    use super::*;
+    use std::sync::atomic::AtomicBool;
+
+    /// Receives each global event (`Err` names an event whose payload could not be
+    /// serialized). Returns the event back when no recording takes it; it then goes to
+    /// the [`global`](super::global) emitter.
+    pub type Router = fn(Result<Event, String>) -> Option<Event>;
+
+    pub(crate) static ROUTING: AtomicBool = AtomicBool::new(false);
+    static ROUTER: OnceLock<Router> = OnceLock::new();
+
+    /// Installs `router` (the first call wins) and turns routing on or off. While off,
+    /// [`emit`](super::emit) costs one more atomic load.
+    pub fn set_routing(router: Router, on: bool) {
+        let _ = ROUTER.set(router);
+        ROUTING.store(on, Ordering::Relaxed);
+    }
+
+    #[track_caller]
+    pub(crate) fn route(at: Option<Time>, event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
+        let Some(router) = ROUTER.get() else { return global().emit_inner(at, event, key, payload) };
+        let routed = match serde_json::to_value(payload) {
+            Ok(payload) => router(Ok(Event::new(at, event, key, payload))),
+            Err(e) => {
+                let caller = std::panic::Location::caller();
+                router(Err(format!(
+                    "the payload of {event} ({}:{}) cannot be serialized: {e}",
+                    caller.file(),
+                    caller.line()
+                )))
+            }
+        };
+        if let (Some(event), Some(inner)) = (routed, &global().inner) {
+            inner.send(event);
+        }
+    }
 }
 
 /// [`Emitter::flush`] on the [`global`] emitter.

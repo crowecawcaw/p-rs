@@ -40,3 +40,13 @@ fn negative_control_detects_overselling() {
     assert_eq!(violation.key, "coffee");
     assert_eq!(violation.events.last().unwrap().payload["order"], "order-2");
 }
+
+// Code instrumented with the global `prs_emit::emit` needs no sink: the recording
+// binds the test's thread. Bind threads you spawn with `recorder.sink().bind()`.
+#[test]
+fn global_emit_is_recorded() {
+    let recorder = model().recording();
+    prs_test::prs_emit::emit("eStocked", "coffee", prs_test::json!({"units": 3}));
+    prs_test::prs_emit::emit("eReserved", "coffee", prs_test::json!({"order": "o1", "units": 2}));
+    assert_eq!(recorder.check().unwrap().verified_events(), 2);
+}

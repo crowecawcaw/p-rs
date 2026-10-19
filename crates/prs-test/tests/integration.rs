@@ -396,3 +396,46 @@ fn added_folders_and_logs() {
     assert!(v.events[1].src.as_deref().unwrap().ends_with("app.log:2"), "{v}");
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn global_emit_reaches_the_recording_bound_to_the_thread() {
+    let recording = model().specs(["Inventory"]).recording();
+    prs_test::prs_emit::emit("Stock", "k", 1);
+    let sink = recording.sink();
+    std::thread::spawn(move || {
+        let _bound = sink.bind();
+        prs_test::prs_emit::emit("Pair", "k", json!(["o", 2]));
+    })
+    .join()
+    .unwrap();
+    let Err(CheckError::Violation(v)) = recording.check() else { panic!("expected a violation") };
+    assert_eq!(v.events.len(), 2);
+    assert!(v.events[0].src.as_deref().unwrap().contains("integration.rs"));
+}
+
+#[test]
+fn global_emit_on_an_unbound_thread_with_several_recordings_fails_them() {
+    // In a child process: the failure would hit every recording open in this one.
+    let name = "global_emit_on_an_unbound_thread_with_several_recordings_fails_them";
+    if std::env::var("PRS_TEST_CHILD").as_deref() != Ok(name) {
+        return run_child(name, std::env::vars_os());
+    }
+    let (a, b) = (model().recording(), model().recording());
+    std::thread::spawn(|| prs_test::prs_emit::emit("Stock", "k", 1)).join().unwrap();
+    for recording in [a, b] {
+        let e = setup_error(recording.check());
+        assert_eq!(e.kind, ErrorKind::Config);
+        assert!(e.message.contains("not bound to a recording") && e.message.contains(".bind()"), "{e}");
+    }
+}
+
+#[test]
+fn global_emit_on_an_unbound_thread_goes_to_the_only_recording() {
+    if std::env::var("PRS_TEST_CHILD").as_deref() == Ok("global_emit_on_an_unbound_thread_goes_to_the_only_recording") {
+        let recording = model().specs(["Inventory"]).recording();
+        std::thread::spawn(|| prs_test::prs_emit::emit("Stock", "k", 1)).join().unwrap();
+        assert_eq!(recording.check().unwrap().verified_events(), 1);
+        return;
+    }
+    run_child("global_emit_on_an_unbound_thread_goes_to_the_only_recording", std::env::vars_os());
+}

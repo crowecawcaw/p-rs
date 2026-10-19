@@ -26,6 +26,10 @@ Where events go is set once, by the process-wide [`Emitter`]:
 | `Emitter::callback(f)` | your function | adapters, e.g. to `tracing` |
 | `recording.emitter()` (`prs-test`) | an in-process test recording | tests |
 
+In tests, `prs-test` routes `emit` on a thread bound to a recording (the test's
+thread, or one bound with `sink.bind()`) into that recording, through
+`prs_emit::test_hook`.
+
 ```rust,no_run
 prs_emit::set_global(prs_emit::Emitter::file("/var/log/app/events.jsonl")?).ok();
 // ... at shutdown:

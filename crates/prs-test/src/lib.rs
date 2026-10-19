@@ -4,12 +4,14 @@
 
 mod config;
 mod errors;
+mod routing;
 
 pub use config::Mode;
 pub use errors::{CheckError, ErrorKind, SetupError, SpecViolation};
 pub use prs_checker::observe::UnknownEvents;
 pub use prs_checker::observe_report::ObserveCoverageReport;
 pub use prs_emit::{self, json, Emitter, Event, Time, Value, EVENTS_DIR_ENV};
+pub use routing::BindGuard;
 
 use std::ffi::OsString;
 use std::fmt::Display;
@@ -190,14 +192,12 @@ impl Model {
     }
 
     /// A new recording. Every recording starts with fresh spec instances.
+    /// It binds the current thread: global `prs_emit::emit` calls made on it go to this
+    /// recording until it is checked or dropped.
     pub fn recording(&self) -> Recording {
-        Recording {
-            model: self.clone(),
-            sink: EventSink::default(),
-            inputs: Mutex::default(),
-            root: OnceLock::new(),
-            done: false,
-        }
+        let sink = EventSink::default();
+        routing::open(&sink.state);
+        Recording { model: self.clone(), sink, inputs: Mutex::default(), root: OnceLock::new(), done: false }
     }
 
     /// Runs `body` with a new recording, then checks it, panicking with the failure
@@ -307,6 +307,8 @@ struct Buffer {
     events: Vec<Event>,
     closed: bool,
     emitters: Vec<Emitter>,
+    /// Events from the global `prs_emit::emit` that could not be recorded.
+    errors: Vec<(ErrorKind, String)>,
 }
 
 /// A recording's in-process event sink: cloneable, `Send` and `Sync`. Clones share one
@@ -543,9 +545,15 @@ impl Recording {
 
     fn finish(&mut self, keep_artifacts: bool) -> Result<CheckReport, CheckError> {
         self.done = true;
+        routing::close(&self.sink.state);
         let events = {
             let mut state = self.sink.state.lock().unwrap_or_else(|e| e.into_inner());
             state.closed = true;
+            if !state.errors.is_empty() {
+                let kind = state.errors[0].0;
+                let message = state.errors.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n");
+                return Err(SetupError { kind, message, artifacts: None }.into());
+            }
             let dropped: u64 = state.emitters.iter().map(Emitter::dropped).sum();
             if dropped > 0 {
                 return Err(SetupError {
@@ -674,8 +682,16 @@ impl Recording {
 
     fn merge_coverage(&self, report: &CheckReport) -> Result<(), SetupError> {
         let Some(path) = self.model.coverage_path() else { return Ok(()) };
-        let text = merge_coverage_file(&path, &report.coverage()?)?;
-        println!("{text}\nprs coverage: {}", path.display());
+        let suite = merge_coverage_file(&path, &report.coverage()?)?;
+        // Print the summary when this process first sees the coverage change, not on
+        // every check.
+        static PRINTED: Mutex<Option<Value>> = Mutex::new(None);
+        let specs = suite.to_json()["specs"].clone();
+        let mut printed = PRINTED.lock().unwrap_or_else(|e| e.into_inner());
+        if printed.as_ref() != Some(&specs) {
+            println!("{}\nprs coverage: {}", suite.render_text(), path.display());
+            *printed = Some(specs);
+        }
         Ok(())
     }
 }
@@ -683,6 +699,7 @@ impl Recording {
 impl Drop for Recording {
     fn drop(&mut self) {
         if !self.done {
+            routing::close(&self.sink.state);
             if let Some(root) = self.root.get() {
                 let _ = std::fs::remove_dir_all(root);
             }
@@ -691,8 +708,8 @@ impl Drop for Recording {
 }
 
 /// Merges `coverage` into the suite file at `path` under an exclusive lock, so several
-/// test threads and processes can share one file. Returns the suite's summary.
-fn merge_coverage_file(path: &Path, coverage: &ObserveCoverageReport) -> Result<String, SetupError> {
+/// test threads and processes can share one file. Returns the merged suite.
+fn merge_coverage_file(path: &Path, coverage: &ObserveCoverageReport) -> Result<ObserveCoverageReport, SetupError> {
     static LOCK: Mutex<()> = Mutex::new(());
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let fail = |e: String| config(format!("coverage file {}: {e}", path.display()));
@@ -711,7 +728,7 @@ fn merge_coverage_file(path: &Path, coverage: &ObserveCoverageReport) -> Result<
     let tmp = path.with_file_name(format!("{name}.{}.tmp", std::process::id()));
     let json = serde_json::to_string_pretty(&suite.to_json()).map_err(|e| fail(e.to_string()))? + "\n";
     std::fs::write(&tmp, json).and_then(|_| std::fs::rename(&tmp, path)).map_err(|e| fail(e.to_string()))?;
-    Ok(suite.render_text())
+    Ok(suite)
 }
 
 /// A lock file, created exclusively and removed on drop. One older than a minute is
