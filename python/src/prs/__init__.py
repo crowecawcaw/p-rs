@@ -2,7 +2,9 @@
 
 Application code calls :func:`emit`. Tests are checked either by the pytest plugin
 (every test, configured under ``[tool.prs]`` in pyproject.toml) or explicitly with
-:func:`check_spec`, :func:`expect_violation` and :func:`check_events`.
+:func:`check_spec`, :func:`expect_violation` and :func:`check_events`. In production,
+:func:`set_sink` sends the same events to a file, stdout or a callback for
+``prs observe``.
 """
 
 from __future__ import annotations
@@ -11,24 +13,35 @@ import re
 from typing import Any, Optional, Sequence
 
 from ._binary import find_prs
-from ._emit import Event, emit
-from ._recorder import PrsError, Recorder, SpecViolation, events_from_dicts
+from ._emit import Event, Sink, emit, set_sink
+from ._errors import SetupError, StrictDefaultWarning
+from ._recorder import Recorder, SpecViolation, _deprecated, check_hot_arg, events_from_dicts
 
 # show `prs.SpecViolation` in tracebacks, not the private module
-for _cls in (Recorder, Event, SpecViolation, PrsError):
+for _cls in (Recorder, Event, SpecViolation, SetupError, StrictDefaultWarning, Sink):
     _cls.__module__ = "prs"
 
 __all__ = [
     "emit",
+    "set_sink",
+    "Sink",
     "check_spec",
     "expect_violation",
     "check_events",
     "Recorder",
     "Event",
     "SpecViolation",
-    "PrsError",
+    "SetupError",
+    "StrictDefaultWarning",
     "find_prs",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name == "PrsError":
+        _deprecated("prs.PrsError", "prs.SetupError")
+        return SetupError
+    raise AttributeError(f"module 'prs' has no attribute {name!r}")
 
 
 class check_spec:
@@ -39,13 +52,33 @@ class check_spec:
             server.acquire("c2")
 
     No spec names means every spec in the spec files. Raises :class:`SpecViolation`
-    (an ``AssertionError``) at the end of the block, so the test fails on this line.
-    ``liveness=True`` also fails if a spec is left in a hot state.
-    ``strict=True`` requires relevant events for every selected spec.
+    (an ``AssertionError``) at the end of the block, so the test fails on this line,
+    or :class:`SetupError` if the check cannot run. Options are those of
+    :class:`Recorder`: ``check_hot=True`` also fails if a spec is left in a hot state;
+    ``strict`` (default: true when specs are named) requires relevant events for every
+    selected spec; ``unknown_events`` ("error" by default) handles undeclared names.
     """
 
-    def __init__(self, *specs: str, spec_files: Optional[Sequence[str]] = None, liveness: bool = False, strict: bool = False):
-        self.recorder = Recorder(specs, spec_files=spec_files, liveness=liveness, strict=strict)
+    def __init__(
+        self,
+        *specs: str,
+        spec_files: Optional[Sequence[str]] = None,
+        check_hot: Optional[bool] = None,
+        strict: Optional[bool] = None,
+        unknown_events: Optional[str] = None,
+        timeout: Optional[float] = None,
+        artifacts: Optional[str] = None,
+        liveness: Optional[bool] = None,
+    ):
+        self.recorder = Recorder(
+            specs,
+            spec_files=spec_files,
+            check_hot=check_hot_arg(check_hot, liveness),
+            strict=strict,
+            unknown_events=unknown_events,
+            timeout=timeout,
+            artifacts=artifacts,
+        )
 
     def __enter__(self) -> Recorder:
         return self.recorder.start()
@@ -79,11 +112,23 @@ class expect_violation:
         match: Optional[str] = None,
         *,
         spec_files: Optional[Sequence[str]] = None,
-        liveness: bool = False,
+        check_hot: Optional[bool] = None,
+        unknown_events: Optional[str] = None,
+        timeout: Optional[float] = None,
+        artifacts: Optional[str] = None,
+        liveness: Optional[bool] = None,
     ):
         self.spec = spec
         self.match = match
-        self.recorder = Recorder([spec], spec_files=spec_files, liveness=liveness)
+        self.recorder = Recorder(
+            [spec],
+            spec_files=spec_files,
+            check_hot=check_hot_arg(check_hot, liveness),
+            strict=False,  # the spec must break; whether it saw events is beside the point
+            unknown_events=unknown_events,
+            timeout=timeout,
+            artifacts=artifacts,
+        )
         self.violation: Optional[SpecViolation] = None
 
     def __enter__(self) -> "expect_violation":
@@ -122,8 +167,12 @@ def check_events(
     events: Sequence[Any],
     *specs: str,
     spec_files: Optional[Sequence[str]] = None,
-    liveness: bool = False,
-    strict: bool = False,
+    check_hot: Optional[bool] = None,
+    strict: Optional[bool] = None,
+    unknown_events: Optional[str] = None,
+    timeout: Optional[float] = None,
+    artifacts: Optional[str] = None,
+    liveness: Optional[bool] = None,
 ) -> None:
     """Checks a hand-written list of events: unit tests for a spec itself::
 
@@ -134,9 +183,18 @@ def check_events(
 
     Events take ``event`` and ``payload`` (or payload fields directly, as with
     :func:`emit`) and optionally ``key`` and ``at``; without ``at`` they are checked in
-    list order. These events do not reach any enclosing check.
+    list order. These events do not reach any enclosing check. Options are those of
+    :func:`check_spec`.
     """
     __tracebackhide__ = True
-    rec = Recorder(specs, spec_files=spec_files, liveness=liveness, strict=strict)
+    rec = Recorder(
+        specs,
+        spec_files=spec_files,
+        check_hot=check_hot_arg(check_hot, liveness),
+        strict=strict,
+        unknown_events=unknown_events,
+        timeout=timeout,
+        artifacts=artifacts,
+    )
     rec._events.extend(events_from_dicts(events))
     rec.check()

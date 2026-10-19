@@ -55,7 +55,7 @@ jobs:
           go-version: stable
           cache: false
       - name: Install the package (builds the binary)
-        run: pip install ./python './examples/python[test]'
+        run: pip install ./python './examples/python[test]' pytest-xdist  # xdist: the coverage lock test
       - name: Test
         working-directory: python
         run: python -m pytest -p no:cacheprovider

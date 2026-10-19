@@ -18,5 +18,17 @@ def grant(self, client, lock):
 spec_files = ["specs/*.p"]
 ```
 
-Every pytest test now also checks every spec in `specs/`. See
+Every pytest test now also checks every spec in `specs/`. Or check selected tests
+explicitly:
+
+```python
+from prs import check_spec
+
+def test_lease_expiry():
+    with check_spec("MutualExclusion"):
+        ...
+```
+
+In production, `prs.set_sink("/var/log/app/events.jsonl")` sends the same events to a
+log that `prs observe` checks. See
 [docs/python.md](https://github.com/crowecawcaw/p-rs/blob/main/docs/python.md).

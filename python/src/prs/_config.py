@@ -1,10 +1,10 @@
-"""`[tool.prs]` in pyproject.toml."""
+"""`[tool.prs]` in pyproject.toml, and the environment variables that override it."""
 
 from __future__ import annotations
 
 import glob
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import List, Optional
 
@@ -13,28 +13,51 @@ try:
 except ImportError:  # Python < 3.11
     import tomli as tomllib  # type: ignore[no-redef]
 
+from ._errors import SetupError
+
 MODES = ("auto", "marked", "off")
+UNKNOWN_EVENTS = ("ignore", "warn", "error")
 SPEC_FILES_ENV = "PRS_SPEC_FILES"
+ARTIFACTS_ENV = "PRS_ARTIFACTS"
+MODE_ENV = "PRS_MODE"
+COVERAGE_ENV = "PRS_COVERAGE"
+#: Seconds a check may take.
+DEFAULT_TIMEOUT = 30.0
+
+KEYS = ("spec_files", "specs", "exclude", "strict", "check_hot", "unknown_events", "timeout", "artifacts", "mode")
 
 
-class ConfigError(Exception):
-    pass
+class ConfigError(SetupError):
+    """Bad ``[tool.prs]`` settings or environment: a :class:`SetupError` of kind ``config``."""
+
+    def __init__(self, message: str):
+        super().__init__(message, "config")
 
 
 @dataclass
 class Config:
     #: Glob patterns of the P files holding the specs, relative to `root`.
     spec_files: List[str] = field(default_factory=list)
-    #: Specs not checked anywhere.
+    #: Specs to check; empty means every spec in the spec files.
+    specs: List[str] = field(default_factory=list)
+    #: Specs left out of the every-spec selection.
     exclude: List[str] = field(default_factory=list)
-    #: "auto": every test; "marked": tests marked `@pytest.mark.prs`; "off".
-    mode: str = "auto"
+    #: "auto": every test; "marked": tests marked `@pytest.mark.prs`; "off". None: not set.
+    mode: Optional[str] = None
     #: Folder of the pyproject.toml the settings came from.
     root: str = "."
     #: The pyproject.toml, if one had a [tool.prs] table.
     path: Optional[str] = None
-    #: Require relevant events for every selected spec in each checked test.
-    strict: bool = False
+    #: Require relevant events for every selected spec. None: the default.
+    strict: Optional[bool] = None
+    #: Also fail on a spec left in a hot state. None: the default (false).
+    check_hot: Optional[bool] = None
+    #: "ignore", "warn" or "error". None: the default ("error").
+    unknown_events: Optional[str] = None
+    #: Seconds a check may take. None: the default.
+    timeout: Optional[float] = None
+    #: Folder to keep failed checks' events and output in (absolute). None: a temp folder.
+    artifacts: Optional[str] = None
 
     def files(self) -> List[str]:
         """The P files, expanded and sorted."""
@@ -43,7 +66,7 @@ class Config:
             full = pat if os.path.isabs(pat) else os.path.join(self.root, pat)
             matches = sorted(glob.glob(full, recursive=True))
             if not matches:
-                raise ConfigError(f"[tool.prs] spec_files: {pat!r} matches no files (looked in {self.root})")
+                raise ConfigError(f"spec_files: {pat!r} matches no files (looked in {self.root})")
             for m in matches:
                 if os.path.isdir(m):
                     matches_in = sorted(glob.glob(os.path.join(m, "**", "*.p"), recursive=True))
@@ -51,6 +74,18 @@ class Config:
                 elif m not in out:
                     out.append(m)
         return out
+
+
+def check_unknown_events(value: object, where: str) -> str:
+    if value not in UNKNOWN_EVENTS:
+        raise ConfigError(f"{where} must be one of {', '.join(UNKNOWN_EVENTS)}, not {value!r}")
+    return value  # type: ignore[return-value]
+
+
+def check_mode(value: object, where: str) -> str:
+    if value not in MODES:
+        raise ConfigError(f"{where} must be one of {', '.join(MODES)}, not {value!r}")
+    return value  # type: ignore[return-value]
 
 
 def parse(table: dict, root: str, path: Optional[str]) -> Config:
@@ -62,26 +97,60 @@ def parse(table: dict, root: str, path: Optional[str]) -> Config:
             raise ConfigError(f"[tool.prs] {name} must be a list of strings")
         return v
 
-    unknown = set(table) - {"spec_files", "exclude", "mode", "strict"}
+    def opt_bool(name: str) -> Optional[bool]:
+        v = table.get(name)
+        if v is not None and not isinstance(v, bool):
+            raise ConfigError(f"[tool.prs] {name} must be a boolean")
+        return v
+
+    unknown = set(table) - set(KEYS)
     if unknown:
         raise ConfigError(f"[tool.prs]: unknown setting(s) {', '.join(sorted(unknown))}")
-    mode = table.get("mode", "auto")
-    if mode not in MODES:
-        raise ConfigError(f"[tool.prs] mode must be one of {', '.join(MODES)}, not {mode!r}")
-    strict = table.get("strict", False)
-    if not isinstance(strict, bool):
-        raise ConfigError("[tool.prs] strict must be a boolean")
-    return Config(str_list("spec_files"), str_list("exclude"), mode, root, path, strict)
+    mode = table.get("mode")
+    if mode is not None:
+        check_mode(mode, "[tool.prs] mode")
+    unknown_events = table.get("unknown_events")
+    if unknown_events is not None:
+        check_unknown_events(unknown_events, "[tool.prs] unknown_events")
+    timeout = table.get("timeout")
+    if timeout is not None and (isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0):
+        raise ConfigError("[tool.prs] timeout must be a positive number of seconds")
+    artifacts = table.get("artifacts")
+    if artifacts is not None:
+        if not isinstance(artifacts, str):
+            raise ConfigError("[tool.prs] artifacts must be a path")
+        artifacts = os.path.join(root, artifacts)
+    return Config(
+        spec_files=str_list("spec_files"),
+        specs=str_list("specs"),
+        exclude=str_list("exclude"),
+        mode=mode,
+        root=root,
+        path=path,
+        strict=opt_bool("strict"),
+        check_hot=opt_bool("check_hot"),
+        unknown_events=unknown_events,
+        timeout=float(timeout) if timeout is not None else None,
+        artifacts=artifacts,
+    )
 
 
 def load(start: str) -> Config:
     """The settings of the nearest pyproject.toml with a [tool.prs] table, searching
-    upwards from `start`. `PRS_SPEC_FILES` (paths separated by os.pathsep) overrides
-    `spec_files`."""
-    cfg = _load(os.path.abspath(start))
+    upwards from `start`, with environment variables applied: `PRS_SPEC_FILES` (paths
+    separated by os.pathsep), `PRS_ARTIFACTS` and `PRS_MODE`. Relative paths in them
+    resolve against the working directory."""
+    cfg = replace(_load(os.path.abspath(start)))
+    cwd = os.getcwd()
     env = os.environ.get(SPEC_FILES_ENV)
     if env:
-        cfg = Config([p for p in env.split(os.pathsep) if p], cfg.exclude, cfg.mode, os.getcwd(), cfg.path, cfg.strict)
+        cfg.spec_files = [os.path.join(cwd, p) for p in env.split(os.pathsep) if p]
+    env = os.environ.get(ARTIFACTS_ENV)
+    if env:
+        cfg.artifacts = os.path.join(cwd, env)
+    env = os.environ.get(MODE_ENV)
+    if env:
+        cfg.mode = check_mode(env, MODE_ENV)
     return cfg
 
 

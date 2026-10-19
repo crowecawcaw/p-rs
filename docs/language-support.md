@@ -350,17 +350,17 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `auto` / `marked` / `off`; fixture setup inside, teardown outside
 - [x] `PRS_EVENTS_DIR`, `add_events_dir`, `add_log`
 - [x] Suite coverage with no boilerplate (`--prs-coverage`)
-- [ ] `PRS_BIN`; `PRS_BINARY` as deprecated alias (#53)
-- [ ] `check_hot` everywhere `liveness` is used (`check_spec`, `Recorder`, mark); `liveness=` as deprecated alias. (`SpecViolation.liveness` stays.)
-- [ ] `strict` default per [Strict default](#strict-default), with deprecation period
-- [ ] `unknown_events` option, default `error` (#47)
-- [ ] `SetupError` with `kind` (`PrsError`, `PrsNotFound` become aliases or subclasses)
-- [ ] `PRS_COVERAGE`, `PRS_ARTIFACTS`, `PRS_MODE`, `timeout`
-- [ ] `events_dir()` / `env()` on `Recorder`
-- [ ] Events folder file name `<name>-<pid>-<random>.jsonl` (today `events-<pid>.jsonl`)
-- [ ] Coverage file merge under a file lock (pytest-xdist)
-- [ ] Production sink for `emit` (#48)
-- [ ] Conformance runner
+- [x] `PRS_BIN`; `PRS_BINARY` as deprecated alias (#53)
+- [x] `check_hot` everywhere `liveness` is used (`check_spec`, `Recorder`, mark); `liveness=` as deprecated alias. (`SpecViolation.liveness` stays.)
+- [x] `strict` default per [Strict default](#strict-default), with deprecation period
+- [x] `unknown_events` option, default `error` (#47)
+- [x] `SetupError` with `kind` (`PrsError`, `PrsNotFound` become aliases or subclasses)
+- [x] `PRS_COVERAGE`, `PRS_ARTIFACTS`, `PRS_MODE`, `timeout`
+- [x] `events_dir()` / `env()` on `Recorder`
+- [x] Events folder file name `<name>-<pid>-<random>.jsonl`
+- [x] Coverage file merge under a file lock (pytest-xdist)
+- [x] Production sink for `emit` (#48)
+- [x] Conformance runner
 
 ### Go
 

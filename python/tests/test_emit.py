@@ -1,10 +1,11 @@
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from prs import _emit, emit
+from prs import Recorder, SpecViolation, _emit, check_spec, emit, set_sink
 from prs._recorder import _parse_time
 
 
@@ -18,14 +19,14 @@ def test_emit_writes_to_the_events_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("PRS_EVENTS_DIR", str(tmp_path))
     emit("eThing", key=7, x={1, 2}, at=5)
     (f,) = tmp_path.iterdir()
-    assert f.name == f"events-{os.getpid()}.jsonl"
+    assert re.fullmatch(rf"[\w.-]+-{os.getpid()}-[0-9a-f]{{6}}\.jsonl", f.name)
     d = json.loads(f.read_text())
     assert d["key"] == "7"
     assert d["timestamp"] == "1970-01-01T00:00:00.000000005Z"
     assert d["event"] == "eThing"
     assert sorted(d["payload"]["x"]) == [1, 2]
     assert d["at"] is True
-    assert d["src"].endswith("test_emit.py:19")
+    assert d["src"].endswith("test_emit.py:20")
     _emit._file.close()
     _emit._file = None
 
@@ -44,3 +45,77 @@ def test_clock_never_goes_back():
     a = _emit._make_event("e", None, None, None, None)
     b = _emit._make_event("e", None, None, None, None)
     assert b.time_ns >= a.time_ns and b.seq > a.seq
+
+
+@pytest.fixture
+def no_recording(monkeypatch):
+    """Production: no recorder and no PRS_EVENTS_DIR."""
+    monkeypatch.delenv("PRS_EVENTS_DIR", raising=False)
+    monkeypatch.setattr(_emit, "_recorders", [])
+    yield
+    set_sink(None)
+
+
+def test_sink_writes_json_lines_prs_observe_reads(no_recording, tmp_path):
+    from conftest import SPEC
+
+    log = tmp_path / "logs" / "events.jsonl"
+    sink = set_sink(str(log))
+    emit("eEnter", key="L1", client="c1")
+    emit("eEnter", key="L1", client="c2")
+    assert sink.flush()
+    lines = [json.loads(x) for x in log.read_text().splitlines()]
+    assert [d["payload"]["client"] for d in lines] == ["c1", "c2"]
+    assert lines[0]["src"].endswith("test_emit.py:64")
+    rec = Recorder(["MutualExclusion"], spec_files=[SPEC])
+    rec.add_log(str(log))
+    with pytest.raises(SpecViolation, match="c2 entered while c1 is inside"):
+        rec.check()
+
+
+def test_sink_never_raises_and_counts_drops(no_recording):
+    def broken(line):
+        raise OSError("disk full")
+
+    sink = set_sink(broken)
+    emit("eEnter", client="c1")
+    emit("eEnter", {"client": "c1"}, client="c1")  # misuse: dropped, not raised
+    emit(42)  # not a string: dropped
+    sink.flush()
+    assert sink.dropped == 3
+
+
+def test_sink_to_a_callback_and_stdout(no_recording, capsys):
+    got = []
+    set_sink(got.append)
+    emit("eClose", 7)
+    _emit._sink.flush()
+    assert json.loads(got[0])["payload"] == 7
+    set_sink("-")
+    emit("eClose", 8)
+    _emit._sink.flush()
+    assert json.loads(capsys.readouterr().out)["payload"] == 8
+
+
+def test_recordings_take_events_from_the_sink(no_recording):
+    from conftest import SPEC
+
+    got = []
+    set_sink(got.append)
+    with check_spec("MutualExclusion", spec_files=[SPEC]) as rec:
+        emit("eEnter", client="c1")
+    _emit._sink.flush()
+    assert got == [] and rec.count("eEnter") == 1
+
+
+def test_sink_drops_when_the_queue_is_full(no_recording, monkeypatch):
+    import threading
+
+    release = threading.Event()
+    monkeypatch.setattr(_emit.Sink, "QUEUE_SIZE", 2)
+    sink = set_sink(lambda line: release.wait())
+    for _ in range(5):
+        emit("eEnter", client="c1")  # never blocks
+    assert sink.dropped >= 2
+    release.set()
+    assert sink.flush()

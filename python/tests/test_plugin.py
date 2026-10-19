@@ -51,14 +51,14 @@ def test_skip_one_spec():
     emit("eEnter", client="b")
 
 
-def test_waiting_forever_passes_without_liveness():
+def test_waiting_forever_passes_without_check_hot():
     LockServer().acquire("c1")
     LockServer.acquire(LockServer(), "c2", "L2")
     emit("eRequest", key="L3", client="c3")
 
 
-@pytest.mark.prs(liveness=True)
-def test_waiting_forever_fails_with_liveness():
+@pytest.mark.prs(check_hot=True)
+def test_waiting_forever_fails_with_check_hot():
     emit("eRequest", key="L3", client="c3")
 
 
@@ -103,8 +103,8 @@ def test_every_test_is_checked(project):
         [
             "prs: checking P specs from specs/*.p (auto)",
             "*test_buggy_expiry FAILED*",
-            "*test_waiting_forever_passes_without_liveness PASSED*",
-            "*test_waiting_forever_fails_with_liveness FAILED*",
+            "*test_waiting_forever_passes_without_check_hot PASSED*",
+            "*test_waiting_forever_fails_with_check_hot FAILED*",
             "*test_expected_violation_is_not_reported_twice PASSED*",
         ]
     )
@@ -241,3 +241,92 @@ def test_strict_opt_in_checks_no_event_tests(project):
     result = run(project, "-k", "test_no_events")
     result.assert_outcomes(failed=1, deselected=9)
     result.stdout.fnmatch_lines(["*checked no relevant events*"])
+
+
+def test_prs_mode_environment_variable(project, monkeypatch):
+    monkeypatch.setenv("PRS_MODE", "off")
+    run(project).assert_outcomes(passed=9, failed=1)
+    # --prs is explicit, so it wins over the environment
+    run(project, "--prs", "marked").assert_outcomes(passed=8, failed=2)
+
+
+def test_liveness_mark_is_a_deprecated_alias(project):
+    project.makepyfile(
+        test_old="""
+        import pytest
+        from prs import emit
+
+        @pytest.mark.prs(liveness=True)
+        def test_waiting():
+            emit("eRequest", key="L3", client="c3")
+        """
+    )
+    r = run(project, "test_old.py")
+    r.assert_outcomes(failed=1)
+    r.stdout.fnmatch_lines(["*liveness=...) is deprecated; use check_hot=*"])
+
+
+def test_misspelled_event_fails_the_test(project):
+    project.makepyfile(
+        test_typo="""
+        from prs import emit
+
+        def test_typo():
+            emit("eEnterr", client="a")
+        """
+    )
+    r = run(project, "test_typo.py")
+    r.assert_outcomes(failed=1)
+    r.stdout.fnmatch_lines(["*eEnterr: 1 time(s), first at test_typo.py:4; did you mean eEnter?*"])
+    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nunknown_events = "warn"\n')
+    r = run(project, "test_typo.py")
+    r.assert_outcomes(passed=1, warnings=1)
+
+
+def test_named_specs_in_settings_default_to_strict(project):
+    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nspecs = ["MutualExclusion"]\n')
+    r = run(project, "-k", "test_no_events or test_correct or test_waiting_forever_fails")
+    # test_waiting_forever_fails emits only eRequest, which MutualExclusion ignores
+    r.assert_outcomes(passed=3, deselected=7, warnings=2)
+    r.stdout.fnmatch_lines(["*StrictDefaultWarning*"])
+
+
+def test_artifacts_setting_keeps_failed_checks(project, monkeypatch):
+    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nartifacts = "prs-artifacts"\n')
+    run(project, "-k", "test_buggy_expiry or test_correct").assert_outcomes(passed=1, failed=1, deselected=8)
+    assert len(list((project.path / "prs-artifacts").iterdir())) == 1
+    monkeypatch.setenv("PRS_ARTIFACTS", str(project.path / "from-env"))
+    run(project, "-k", "test_buggy_expiry").assert_outcomes(failed=1, deselected=9)
+    assert len(list((project.path / "from-env").iterdir())) == 1
+
+
+def test_coverage_merges_into_an_existing_file(project, monkeypatch):
+    import json
+
+    project.makepyfile(test_split="""
+        from prs import emit
+        def test_enter():
+            emit("eEnter", client="a")
+        def test_exit():
+            emit("eEnter", client="a")
+            emit("eExit", client="a")
+    """)
+    monkeypatch.setenv("PRS_COVERAGE", "cov.json")
+    run(project, "test_split.py", "-k", "test_enter").assert_outcomes(passed=1, deselected=1)
+    first = json.loads((project.path / "cov.json").read_text())
+    run(project, "test_split.py", "-k", "test_exit").assert_outcomes(passed=1, deselected=1)
+    report = json.loads((project.path / "cov.json").read_text())
+    assert len(report["observations"]) == len(first["observations"]) + 1
+    mutual = next(s for s in report["specs"] if s["spec"] == "MutualExclusion")
+    assert mutual["coverage"]["handlers"]["covered"] == 2
+
+
+def test_coverage_with_xdist(project):
+    import json
+
+    pytest.importorskip("xdist")
+    result = run(project, "-n", "2", "-k", "test_correct or test_fixture or test_skip_one", "--prs-coverage=cov.json")
+    result.assert_outcomes(passed=3)
+    report = json.loads((project.path / "cov.json").read_text())
+    assert len(report["observations"]) == 3
+    result.stdout.fnmatch_lines(["*Monitor coverage*", "*JSON:*cov.json*"])
