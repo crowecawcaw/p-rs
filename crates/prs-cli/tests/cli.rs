@@ -318,3 +318,49 @@ fn merge_observed_reports_without_models_and_reject_bad_input() {
     assert_eq!(prs(&mut h, &["coverage", "merge-observe", "bad.json"]), 2);
     assert!(h.stderr.contains("specs must be an array"));
 }
+
+/// Issue #47: a misspelled event name is silently dropped unless `--unknown-events` asks.
+#[test]
+fn observe_reports_a_misspelled_event_name() {
+    let mut h = host();
+    let spec = include_str!("../../../examples/python/specs/inventory.p");
+    h.add_file("inventory.p", spec);
+    h.add_file(
+        "typo.jsonl",
+        "{\"event\":\"eStocked\",\"key\":\"c\",\"payload\":{\"units\":1},\"timestamp\":1}\n\
+         {\"event\":\"eReserverd\",\"key\":\"c\",\"payload\":{\"order\":\"o\",\"units\":5},\"timestamp\":2}\n",
+    );
+    let args = |policy: &'static str| {
+        let mut a = vec!["observe", "--pfiles", "inventory.p", "--spec", "InventoryCorrect", "-l", "typo.jsonl"];
+        a.extend(["--strict", "--json-report", "r.json", "-o", "out"]);
+        if !policy.is_empty() {
+            a.extend(["--unknown-events", policy]);
+        }
+        a
+    };
+    assert_eq!(prs(&mut h, &args("")), 0);
+    assert!(h.stderr.is_empty());
+    assert!(!read(&h, "r.json").contains("eReserverd"));
+
+    assert_eq!(prs(&mut h, &args("warn")), 0);
+    assert_eq!(
+        h.stderr,
+        "warning: Unknown event 'eReserverd': not declared in the P sources (1 occurrence, first at typo.jsonl:2); did you mean eReserved?\n"
+    );
+    let report: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    assert_eq!(report["specs"][0]["errors"].as_array().unwrap().len(), 0);
+    assert_eq!(report["specs"][0]["warnings"].as_array().unwrap().len(), 1);
+    assert_eq!(report["specs"][0]["unknown_events"][0]["suggestion"], "eReserved");
+
+    assert_eq!(prs(&mut h, &args("error")), 2);
+    assert!(h.stdout.contains("did you mean eReserved?"), "{}", h.stdout);
+    let report: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    assert_eq!(report["exit_code"], 3);
+    let error = &report["specs"][0]["errors"][0];
+    assert_eq!(error["kind"], "unknown_event");
+    assert!(error["message"].as_str().unwrap().contains("'eReserverd'"));
+    assert_eq!(report["specs"][0]["unknown_events"][0]["location"], "typo.jsonl:2");
+
+    assert_eq!(prs(&mut h, &args("loud")), 2);
+    assert!(h.stdout.contains("ignore, warn or error"), "{}", h.stdout);
+}

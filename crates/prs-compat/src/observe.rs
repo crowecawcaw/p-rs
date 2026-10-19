@@ -17,13 +17,13 @@ use std::rc::Rc;
 use prs_checker::javafmt;
 use prs_checker::observe::{
     split_entries, ErrorKind, Metrics, NoScheduling, ObserveError, ObserveOptions, ObserveSession, ObservedEvent,
-    Parser, Report, Spec, Timestamp,
+    ParsedEntry, Parser, Report, Spec, Timestamp, UnknownEvents,
 };
 use prs_checker::value::{MachineRef, NamedTuple, SlotMap, SlotSet, Value};
 use prs_sema::{MachineKind, PType, Program};
 use serde_json::Value as Json;
 
-use crate::host::{full_path, Color, Host, HostExt, Stream};
+use crate::host::{full_path, relative_path, Color, Host, HostExt, Stream};
 use crate::{pproj, project, write_output, Exit};
 
 /// `PObserveExitStatus`.
@@ -107,6 +107,15 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
     host.out_line(&c);
 
     // read the logs
+    let cwd = host.cwd();
+    let input_names = if cfg.stdin {
+        vec!["stdin".to_string()]
+    } else {
+        cfg.log_files
+            .iter()
+            .map(|f| if f.starts_with(&cwd) { relative_path(&cwd, f) } else { f.display().to_string() })
+            .collect()
+    };
     let opts = ObserveOptions {
         replay_window: cfg.replay_window,
         assume_sorted: cfg.assume_sorted,
@@ -114,6 +123,8 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         check_hot: cfg.check_hot,
         coverage: cfg.coverage,
         strict: cfg.strict,
+        unknown_events: cfg.unknown_events,
+        input_names,
     };
     let mut inputs = Vec::new();
     let mut read_error = None;
@@ -194,6 +205,7 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
                     metrics: Metrics { unknown_errors: 1, ..Default::default() },
                     log: Vec::new(),
                     coverage: None,
+                    ..Default::default()
                 },
                 None => {
                     let clock_host: &dyn Host = host;
@@ -227,6 +239,13 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         }
         if read_error.is_some() {
             break;
+        }
+    }
+    let mut warned: Vec<&str> = Vec::new();
+    for warning in reports.iter().flat_map(|r| r.warnings.iter()) {
+        if !warned.contains(&warning.as_str()) {
+            warned.push(warning);
+            host.write(Stream::Err, &format!("warning: {}\n", warning), Some(Color::Yellow));
         }
     }
     let n: u64 = reports.iter().map(|r| r.error_count()).sum();
@@ -271,6 +290,7 @@ fn json_report(specs: &[Spec], reports: &[Report], exit_code: i32) -> String {
                         ErrorKind::Parser => "parser",
                         ErrorKind::Unknown => "unknown",
                         ErrorKind::Validation => "validation",
+                        ErrorKind::UnknownEvent => "unknown_event",
                     };
                     let (key, events) = match &e.replay {
                         Some(rp) => (
@@ -307,6 +327,23 @@ fn json_report(specs: &[Spec], reports: &[Report], exit_code: i32) -> String {
             });
             if let Some(c) = &r.coverage {
                 result["coverage"] = c.to_json();
+            }
+            if !r.unknown_events.is_empty() {
+                result["unknown_events"] = r
+                    .unknown_events
+                    .iter()
+                    .map(|u| {
+                        serde_json::json!({
+                            "event": u.name,
+                            "count": u.count,
+                            "location": u.location,
+                            "suggestion": u.suggestion,
+                        })
+                    })
+                    .collect();
+            }
+            if !r.warnings.is_empty() {
+                result["warnings"] = Json::from(r.warnings.clone());
             }
             result
         })
@@ -364,6 +401,9 @@ pub const USAGE: &str = "Usage: p observe [options]
     --strict
       Require at least one successfully checked relevant event per selected spec.
       Applied after key filtering, at EOF for live input; does not imply --check-hot.
+    --unknown-events
+      Event names no P source declares: ignore, warn or error (prs extension)
+      Default: ignore
     --coverage
         Report observed monitor states and handlers on stdout (and in --json-report).
         Does not measure full model paths or scheduling coverage.
@@ -433,6 +473,8 @@ pub struct ObserveConfig {
     /// `--coverage`: report observed monitor state and handler coverage.
     pub coverage: bool,
     pub strict: bool,
+    /// `--unknown-events`: event names no P source declares.
+    pub unknown_events: UnknownEvents,
     pub stdin: bool,
     pub fail_fast: bool,
     pub parser: Option<String>,
@@ -468,6 +510,7 @@ const OPTIONS: &[(&[&str], Arity)] = &[
     (&["--check-hot"], Arity::Flag),
     (&["--coverage"], Arity::Flag),
     (&["--strict"], Arity::Flag),
+    (&["--unknown-events"], Arity::One),
     (&["--stdin"], Arity::Flag),
     (&["--fail-fast"], Arity::Flag),
     (&["--parser", "-p"], Arity::One),
@@ -524,6 +567,7 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
         check_hot: false,
         coverage: false,
         strict: false,
+        unknown_events: UnknownEvents::Ignore,
         stdin: false,
         fail_fast: false,
         parser: None,
@@ -601,6 +645,7 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                 "--check-hot" => cfg.check_hot = true,
                 "--coverage" => cfg.coverage = true,
                 "--strict" => cfg.strict = true,
+                "--unknown-events" => cfg.unknown_events = v.parse()?,
                 "--parser" => {
                     validate_classname(tok, &v)?;
                     cfg.parser = Some(v);
@@ -1063,7 +1108,7 @@ fn emit_report(host: &mut dyn Host, spec: &Spec, report: &Report, out: &str) -> 
                 write_exception(host, e, &join(out, &format!("ParserError_{}.txt", parser_n)))?;
                 parser_n += 1;
             }
-            ErrorKind::Validation => {
+            ErrorKind::Validation | ErrorKind::UnknownEvent => {
                 host.out_colored_line(&e.message, Color::Red);
             }
             ErrorKind::Unknown => {
@@ -1135,6 +1180,9 @@ fn emit_metrics(host: &mut dyn Host, m: &Metrics, out: &str) -> Result<(), Exit>
     ));
     if m.validation_errors > 0 {
         s.push_str(&format!("Total Validation Errors: {}\n", m.validation_errors));
+    }
+    if m.unknown_event_errors > 0 {
+        s.push_str(&format!("Total Unknown Event Errors: {}\n", m.unknown_event_errors));
     }
     host.out_line(&s);
     let mut f = s.clone();
@@ -1346,6 +1394,22 @@ pub fn event_from_json(
     }))
 }
 
+/// [`event_from_json`] as a [`ParsedEntry`] that names `name` when the program does not
+/// declare it.
+fn parsed_from_json(
+    spec: &Spec,
+    key: String,
+    timestamp: Timestamp,
+    name: &str,
+    payload: Option<&Json>,
+    log_line: Option<&str>,
+) -> Result<ParsedEntry, String> {
+    Ok(match event_from_json(spec, key, timestamp, name, payload, log_line)? {
+        Some(e) => ParsedEntry { events: vec![e], unknown_events: Vec::new() },
+        None => ParsedEntry { events: Vec::new(), unknown_events: vec![name.to_string()] },
+    })
+}
+
 // ---- built-in parsers ----------------------------------------------------------------------
 
 /// One JSON object per log line:
@@ -1428,14 +1492,18 @@ impl Parser for JsonLinesParser {
     }
 
     fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
+        self.parse_entry(entry, spec).map(|p| p.events)
+    }
+
+    fn parse_entry(&self, entry: &str, spec: &Spec) -> Result<ParsedEntry, String> {
         if entry.is_empty() {
-            return Ok(Vec::new());
+            return Ok(ParsedEntry::default());
         }
         let j: Json = serde_json::from_str(entry).map_err(|e| e.to_string())?;
         let name = lookup(&j, &self.event).and_then(|v| v.as_str()).ok_or("missing event name")?;
         let ts = timestamp_of(lookup(&j, &self.timestamp))?;
         let key = key_string(lookup(&j, &self.key));
-        Ok(event_from_json(spec, key, ts, name, lookup(&j, &self.payload), Some(entry))?.into_iter().collect())
+        parsed_from_json(spec, key, ts, name, lookup(&j, &self.payload), Some(entry))
     }
 }
 
@@ -1450,14 +1518,16 @@ impl Parser for PTraceParser {
     }
 
     fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
+        self.parse_entry(entry, spec).map(|p| p.events)
+    }
+
+    fn parse_entry(&self, entry: &str, spec: &Spec) -> Result<ParsedEntry, String> {
         let j: Json = serde_json::from_str(entry).map_err(|e| e.to_string())?;
         let details = j.get("details").ok_or("missing details")?;
         let name = details.get("event").and_then(|v| v.as_str()).ok_or("missing event name")?;
         let name = name.rsplit('.').next().unwrap_or(name);
         let log = details.get("log").and_then(|v| v.as_str());
-        Ok(event_from_json(spec, String::new(), Timestamp::default(), name, details.get("payload"), log)?
-            .into_iter()
-            .collect())
+        parsed_from_json(spec, String::new(), Timestamp::default(), name, details.get("payload"), log)
     }
 }
 

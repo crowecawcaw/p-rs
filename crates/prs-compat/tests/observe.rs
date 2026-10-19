@@ -651,3 +651,45 @@ fn strict_validation_does_not_mask_a_sibling_safety_failure() {
     assert!(report.contains("spec_violation"));
     assert!(report.contains("validation"));
 }
+
+#[test]
+fn unknown_events_are_ignored_warned_or_errors_but_declared_ones_always_pass() {
+    let log = [
+        line("a", 1, "eDeposit", 1, 10),
+        line("a", 2, "eDepost", 1, 10),
+        line("a", 3, "eDepost", 1, 10),
+        "{\"event\": \"eUnrelated\"}".to_string(),
+    ]
+    .join("\n");
+    let mut h = host();
+    h.add_file("logs/run.log", &log);
+    let base = ["--spec", "NeverOverdrawn", "-l", "logs", "--json-report", "report.json"];
+    let with = |policy: &'static str| [&base[..], &["--unknown-events", policy]].concat();
+
+    assert_eq!(run(&mut h, &base), 0);
+    let plain = h.stdout.clone();
+    assert!(h.stderr.is_empty());
+    assert_eq!(run(&mut h, &with("ignore")), 0);
+    assert_eq!(h.stdout, plain);
+    assert!(!read(&h, "report.json").contains("unknown_events"));
+
+    assert_eq!(run(&mut h, &with("warn")), 0);
+    assert_eq!(h.stdout, plain, "warnings go to stderr only");
+    assert_eq!(
+        h.stderr,
+        "warning: Unknown event 'eDepost': not declared in the P sources (2 occurrences, first at logs/run.log:2); did you mean eDeposit?\n"
+    );
+    assert!(read(&h, "report.json").contains("\"warnings\""));
+
+    assert_eq!(run(&mut h, &with("error")), prs_compat::observe::EXIT_INTERNAL_ERROR);
+    assert!(h.stdout.contains("Total Unknown Event Errors: 1"), "{}", h.stdout);
+    let report = read(&h, "report.json");
+    assert!(report.contains("\"kind\": \"unknown_event\""));
+    assert!(!report.contains("eUnrelated"), "declared events are never unknown");
+
+    // an unknown name with a violation: the input is untrustworthy, so it decides the status
+    h.add_file("logs/run.log", &[log.clone(), line("a", 4, "eWithdraw", 1, 99)].join("\n"));
+    assert_eq!(run(&mut h, &with("error")), prs_compat::observe::EXIT_INTERNAL_ERROR);
+    assert!(read(&h, "report.json").contains("spec_violation"));
+    assert_eq!(run(&mut h, &with("warn")), prs_compat::observe::EXIT_ASSERTION);
+}
