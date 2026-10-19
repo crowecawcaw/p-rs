@@ -21,6 +21,24 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  workflows:
+    name: workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install actionlint
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSLo actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz' | sha256sum --check
+          tar -xzf actionlint.tar.gz actionlint
+      - name: Lint all workflows (including embedded shell)
+        run: |
+          # ShellCheck is preinstalled on ubuntu-latest. Require it so actionlint
+          # cannot silently skip shell syntax checks for jobs gated on PR close.
+          shellcheck --version
+          "${RUNNER_TEMP}/actionlint" -color
+
   lint:
     name: fmt + clippy
     runs-on: ubuntu-latest
