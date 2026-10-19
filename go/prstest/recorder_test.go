@@ -37,6 +37,14 @@ func init() {
 				data = []byte(`null`)
 			case "array":
 				data = []byte(`[]`)
+			case "unverified-partition":
+				data = []byte(`{"exit_code":0,"specs":[{"spec":"S","events_read":1,"partition_keys":1,"verified_keys":0,"errors":[]}]}`)
+			case "empty-observation":
+				data = []byte(`{"exit_code":0,"specs":[{"spec":"S","events_read":0,"partition_keys":0,"verified_keys":0,"errors":[]}]}`)
+			case "events-without-keys":
+				data = []byte(`{"exit_code":0,"specs":[{"spec":"S","events_read":1,"partition_keys":0,"verified_keys":0,"errors":[]}]}`)
+			case "keys-without-events":
+				data = []byte(`{"exit_code":0,"specs":[{"spec":"S","events_read":0,"partition_keys":1,"verified_keys":1,"errors":[]}]}`)
 			case "bad-envelope":
 				data = []byte(`{"scope":"observed_monitor_suite","schema_version":1,"specs":[],"observations":null}`)
 			}
@@ -187,11 +195,11 @@ func TestConfiguration(t *testing.T) {
 }
 func TestReportValidation(t *testing.T) {
 	valid := `{"exit_code":0,"specs":[{"spec":"S","events_read":1,"partition_keys":1,"verified_keys":1,"errors":[]}]}`
-	if err := validateReport([]byte(valid), []string{"S"}, true); err != nil {
+	if err := validateReport([]byte(valid), []string{"S"}, true, true); err != nil {
 		t.Fatal(err)
 	}
 	for _, bad := range []string{strings.Replace(valid, `"S"`, `"other"`, 1), strings.Replace(valid, `"verified_keys":1`, `"verified_keys":2`, 1), strings.Replace(valid, `"errors":[]`, `"errors":null`, 1), strings.Replace(valid, `"exit_code":0`, `"exit_code":2`, 1), `{"specs":[]}`, `{"exit_code":0,"specs":[{"spec":"S"}]}`} {
-		if err := validateReport([]byte(bad), []string{"S"}, true); err == nil {
+		if err := validateReport([]byte(bad), []string{"S"}, true, true); err == nil {
 			t.Fatalf("accepted invalid report: %s", bad)
 		}
 	}
@@ -257,5 +265,24 @@ func TestInvalidMergePreservesPreviousDestination(t *testing.T) {
 				t.Fatalf("leaked merge staging file: %v %v", entries, err)
 			}
 		})
+	}
+}
+
+// Even a well-shaped, exit-zero report must honor the core metric invariants.
+// Opting out of strict observation permits emptiness, never skipped partitions.
+func TestToolSuccessMetricInvariants(t *testing.T) {
+	for _, mode := range []string{"unverified-partition", "empty-observation", "keys-without-events", "events-without-keys"} {
+		for _, allow := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/allow-unobserved=%t", mode, allow), func(t *testing.T) {
+				t.Setenv("PRSTEST_CHILD", mode)
+				cfg := fixtureConfig(t)
+				cfg.AllowUnobserved = allow
+				_, err := New(t, cfg).Verify(context.Background())
+				wantSuccess := allow && mode == "empty-observation"
+				if (err == nil) != wantSuccess {
+					t.Fatalf("success=%t, want %t: %v", err == nil, wantSuccess, err)
+				}
+			})
+		}
 	}
 }

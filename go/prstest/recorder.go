@@ -247,7 +247,7 @@ func (r *Recorder) verify(ctx context.Context, trace []byte, sticky error) error
 	if ctx.Err() != nil {
 		commandErr = errors.Join(commandErr, ctx.Err())
 	}
-	reportErr := validateReport(data, r.cfg.Specs, commandErr == nil)
+	reportErr := validateReport(data, r.cfg.Specs, commandErr == nil, !r.cfg.AllowUnobserved)
 	// Collect valid report JSON even when safety/strict validation failed. Core owns
 	// coverage schema/fingerprint validation at merge time; never discard failed prefixes.
 	if readErr == nil && reportErr == nil && r.cfg.Suite != nil {
@@ -268,7 +268,7 @@ func (r *Recorder) Check(t testing.TB) {
 	}
 }
 
-func validateReport(data []byte, names []string, commandOK bool) error {
+func validateReport(data []byte, names []string, commandOK, strict bool) error {
 	var report struct {
 		Exit  *int `json:"exit_code"`
 		Specs []struct {
@@ -298,8 +298,19 @@ func validateReport(data []byte, names []string, commandOK bool) error {
 			return fmt.Errorf("unexpected or duplicate report spec %q", s.Name)
 		}
 		delete(wanted, s.Name)
-		if s.Events == nil || s.Keys == nil || s.Verified == nil || *s.Verified > *s.Keys || s.Errors == nil {
+		if s.Events == nil || s.Keys == nil || s.Verified == nil || *s.Verified > *s.Keys || *s.Events < *s.Keys || s.Errors == nil {
 			return fmt.Errorf("missing or invalid metrics/errors for %s", s.Name)
+		}
+		if *report.Exit == 0 {
+			if (*s.Events == 0) != (*s.Keys == 0) {
+				return fmt.Errorf("successful report has inconsistent event/partition emptiness for %s", s.Name)
+			}
+			if *s.Verified != *s.Keys {
+				return fmt.Errorf("successful report left partitions unverified for %s", s.Name)
+			}
+			if strict && *s.Events == 0 {
+				return fmt.Errorf("strict successful report checked no events for %s", s.Name)
+			}
 		}
 		for _, e := range s.Errors {
 			switch e.Kind {
