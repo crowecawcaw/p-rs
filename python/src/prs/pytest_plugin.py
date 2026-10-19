@@ -9,28 +9,33 @@ Configured under ``[tool.prs]`` in pyproject.toml::
     mode = "auto"             # optional: "auto" (every test) | "marked" | "off"
 
 Per test: ``@pytest.mark.prs(skip=True)``, ``@pytest.mark.prs(skip=["DraftSpec"])``,
-``@pytest.mark.prs(liveness=True)``. The ``prs_events`` fixture gives the test's recorder.
+``@pytest.mark.prs(check_hot=True)``. The ``prs_events`` fixture gives the test's recorder.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import subprocess
 from pathlib import Path
-
-from typing import Any, Generator, List, Optional
+from typing import Any, Generator, Iterator, List, Optional
 
 import pytest
 
-from ._binary import find_prs
 from . import _config
-from ._recorder import PrsError, Recorder
+from ._binary import find_prs
+from ._errors import SetupError
+from ._recorder import Recorder
 
 _RECORDER = pytest.StashKey[Optional[Recorder]]()
 _CONFIG = pytest.StashKey[Optional[_config.Config]]()
 _ERROR = pytest.StashKey[Optional[str]]()
 _COVERAGE = pytest.StashKey[list]()
+_COVERAGE_PATH = pytest.StashKey[Optional[Path]]()
 _COVERAGE_SUMMARY = pytest.StashKey[tuple]()
+
+MARK_KEYS = {"skip", "check_hot", "liveness"}
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -38,35 +43,48 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     group.addoption("--prs-strict", action="store_true", default=False,
                     help="Require relevant events for every selected P spec in each checked test.")
     group.addoption("--prs-coverage", metavar="PATH", default=None,
-                    help="Print suite monitor coverage and write its union as JSON to PATH.")
+                    help="Print suite monitor coverage and merge it as JSON into PATH (or set PRS_COVERAGE).")
     group.addoption(
         "--prs",
         dest="prs_mode",
         choices=_config.MODES,
         default=None,
-        help="which tests check the P specs: auto (all), marked, off. Overrides [tool.prs] mode.",
+        help="which tests check the P specs: auto (all), marked, off. Overrides PRS_MODE and [tool.prs] mode.",
     )
 
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers",
-        "prs(skip=False, liveness=False): P spec checking for this test. skip=True turns it off, "
-        "skip=[names] leaves out some specs, liveness=True also fails on a spec left in a hot state.",
+        "prs(skip=False, check_hot=False): P spec checking for this test. skip=True turns it off, "
+        "skip=[names] leaves out some specs, check_hot=True also fails on a spec left in a hot state.",
     )
     config.stash[_COVERAGE] = []
     config.stash[_ERROR] = None
+    config.stash[_COVERAGE_PATH] = _coverage_path(config)
     try:
         cfg = _config.load(str(config.rootpath))
-    except _config.ConfigError as e:
+    except SetupError as e:
         config.stash[_CONFIG] = None
         config.stash[_ERROR] = str(e)
         return
-    mode = config.getoption("prs_mode") or cfg.mode
-    if not cfg.spec_files and cfg.path is None and config.getoption("prs_mode") is None:
-        mode = "off"  # no [tool.prs]: installed but not set up here
-    cfg.mode = mode
+    explicit = config.getoption("prs_mode") or os.environ.get(_config.MODE_ENV)
+    if not cfg.spec_files and cfg.path is None and not explicit:
+        cfg.mode = "off"  # no [tool.prs]: installed but not set up here
+    else:
+        cfg.mode = config.getoption("prs_mode") or cfg.mode or "auto"
     config.stash[_CONFIG] = cfg
+
+
+def _coverage_path(config: pytest.Config) -> Optional[Path]:
+    """`--prs-coverage` (relative to the rootdir), else `PRS_COVERAGE` (relative to the
+    working directory)."""
+    option = config.getoption("prs_coverage")
+    if option:
+        path = Path(option)
+        return path if path.is_absolute() else config.rootpath / path
+    env = os.environ.get(_config.COVERAGE_ENV)
+    return Path(env).absolute() if env else None
 
 
 def pytest_report_header(config: pytest.Config) -> Optional[str]:
@@ -102,19 +120,25 @@ def _settings(item: pytest.Item) -> Optional[dict]:
     if cfg.mode == "marked" and not marks:
         return None
     skip: List[str] = []
-    liveness = False
+    check_hot: Optional[bool] = None
     for m in reversed(marks):  # closest mark wins
-        unknown = set(m.kwargs) - {"skip", "liveness"}
+        unknown = set(m.kwargs) - MARK_KEYS
         if unknown or m.args:
-            raise pytest.UsageError(f"@pytest.mark.prs takes skip= and liveness=; got {m.args or ''} {m.kwargs}")
+            raise pytest.UsageError(f"@pytest.mark.prs takes skip= and check_hot=; got {m.args or ''} {m.kwargs}")
         s = m.kwargs.get("skip", False)
         if s is True:
             return None
         if s:
             skip.extend([s] if isinstance(s, str) else s)
         if "liveness" in m.kwargs:
-            liveness = bool(m.kwargs["liveness"])
-    return {"exclude": [*cfg.exclude, *skip], "liveness": liveness, "files": cfg.files(), "strict": cfg.strict}
+            item.warn(pytest.PytestDeprecationWarning("@pytest.mark.prs(liveness=...) is deprecated; use check_hot="))
+            check_hot = bool(m.kwargs["liveness"])
+        if "check_hot" in m.kwargs:
+            check_hot = bool(m.kwargs["check_hot"])
+    specs = [s for s in cfg.specs if s not in skip]
+    if cfg.specs and not specs:
+        return None  # every configured spec skipped
+    return {"specs": specs, "exclude": [*cfg.exclude, *skip], "check_hot": check_hot, "files": cfg.files(), "config": cfg}
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -129,13 +153,15 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
     if settings is None and not wants_fixture:
         return
     rec = Recorder(
+        settings["specs"] if settings else (),
         spec_files=settings["files"] if settings else [],
         exclude=settings["exclude"] if settings else (),
-        liveness=settings["liveness"] if settings else False,
-        output_root=_output_root(item.config),
-        coverage=bool(item.config.getoption("prs_coverage")),
-        strict=bool(item.config.getoption("prs_strict")) or bool(settings and settings["strict"]),
+        check_hot=settings["check_hot"] if settings else None,
+        coverage=item.config.stash[_COVERAGE_PATH] is not None,
+        strict=True if item.config.getoption("prs_strict") else None,
     )
+    rec._cfg = settings["config"] if settings else None
+    rec._default_artifacts = _output_root(item.config)
     rec._plugin_checks = settings is not None  # type: ignore[attr-defined]
     item.stash[_RECORDER] = rec.start()
 
@@ -177,33 +203,70 @@ def pytest_runtest_teardown(item: pytest.Item) -> None:
 @pytest.fixture
 def prs_events(request: pytest.FixtureRequest) -> Recorder:
     """The recorder of this test: ``prs_events.count("eEnter")``,
-    ``prs_events.events_named("eEnter")``, ``prs_events.add_log(path, parse)``."""
+    ``prs_events.events_named("eEnter")``, ``prs_events.add_log(path, parse)``,
+    ``prs_events.env()`` for child processes."""
     rec = request.node.stash.get(_RECORDER, None)
     if rec is None:
-        raise PrsError("prs_events: the prs plugin did not start a recorder for this test")
+        raise SetupError("prs_events: the prs plugin did not start a recorder for this test")
     return rec
+
+
+@contextlib.contextmanager
+def _locked(path: Path) -> Iterator[None]:
+    """An exclusive lock on `path`.lock, held across processes (pytest-xdist workers,
+    several pytest runs sharing PRS_COVERAGE)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(f"{path}.lock", "a+b") as f:
+        if os.name == "nt":
+            import msvcrt
+
+            while True:
+                try:
+                    f.seek(0)
+                    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)  # retries for 10 s
+                    break
+                except OSError:
+                    continue
+            try:
+                yield
+            finally:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """Merge once in core; report errors before pytest chooses its process exit code."""
+    """Merge this run's coverage into the file in core, under a lock; report errors
+    before pytest chooses its process exit code."""
     config = session.config
-    destination = config.getoption("prs_coverage")
-    if not destination:
+    path = config.stash.get(_COVERAGE_PATH, None)
+    if path is None:
         return
-    path = Path(destination)
-    if not path.is_absolute():
-        path = config.rootpath / path
     try:
-        result = subprocess.run(
-            [find_prs(), "coverage", "merge-observe", "--stdin", "--json-report", str(path)],
-            input=json.dumps(config.stash[_COVERAGE]), text=True,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=30,
-        )
+        with _locked(path):
+            reports = list(config.stash[_COVERAGE])
+            if path.is_file() and path.stat().st_size:
+                try:
+                    reports.insert(0, json.loads(path.read_text(encoding="utf-8")))
+                except ValueError as e:
+                    raise SetupError(f"{path} is not a coverage JSON file ({e}); delete it to start over") from None
+            result = subprocess.run(
+                [find_prs(), "coverage", "merge-observe", "--stdin", "--json-report", str(path)],
+                input=json.dumps(reports), text=True,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60,
+            )
         if result.returncode:
-            raise PrsError(f"coverage merge exited {result.returncode}: {result.stdout}")
+            raise SetupError(f"coverage merge exited {result.returncode}: {result.stdout}")
         config.stash[_COVERAGE_SUMMARY] = (True, result.stdout, path)
-    except (PrsError, OSError, RuntimeError, subprocess.SubprocessError) as error:
+    except (SetupError, OSError, RuntimeError, subprocess.SubprocessError) as error:
         config.stash[_COVERAGE_SUMMARY] = (False, str(error), path)
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
 

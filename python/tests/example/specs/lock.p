@@ -25,7 +25,7 @@ spec MutualExclusion observes eEnter, eExit {
   }
 }
 
-// Every request is eventually granted (a liveness rule: checked with liveness=True).
+// Every request is eventually granted (a liveness rule: checked with check_hot=True).
 spec RequestsGranted observes eRequest, eGrant {
   var waiting: int;
   start cold state Idle {

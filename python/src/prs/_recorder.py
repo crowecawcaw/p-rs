@@ -8,21 +8,31 @@ import re
 import shutil
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from . import _config, _emit
 from ._binary import find_prs
 from ._emit import Event
+from ._errors import SetupError, StrictDefaultWarning, warn
 
 #: Events shown in a failure report, counting back from the one that broke the spec.
 REPORT_EVENTS = 20
 
 LogParser = Callable[[str], Optional[dict]]
 
+def _deprecated(old: str, new: str) -> None:
+    warn(f"{old} is deprecated; use {new}", DeprecationWarning)
 
-class PrsError(Exception):
-    """prs could not run the check: bad configuration, unknown spec, P type errors, or
-    events whose payload does not match the spec's event declaration."""
+
+def check_hot_arg(check_hot: Optional[bool], liveness: Optional[bool]) -> Optional[bool]:
+    """`check_hot`, or the deprecated `liveness=` spelling of it."""
+    if liveness is None:
+        return check_hot
+    if check_hot is not None:
+        raise TypeError("pass check_hot=, not both check_hot= and liveness=")
+    _deprecated("liveness=", "check_hot=")
+    return liveness
 
 
 class SpecViolation(AssertionError):
@@ -51,11 +61,11 @@ class SpecViolation(AssertionError):
         self.events = list(events)
         #: `file:line` of the failed assert in the P sources.
         self.location = location
-        #: The spec ended in a hot state (a liveness rule was still waiting).
+        #: The spec ended in a hot state (found with `check_hot`).
         self.liveness = liveness
         #: Events of this key before `events` that are not shown.
         self.earlier = earlier
-        #: Folder with prs's full output.
+        #: Folder with the events and prs's full output (the check's artifacts).
         self.output_dir = output_dir
         #: Further violations found by the same check.
         self.others = list(others)
@@ -101,11 +111,40 @@ class SpecViolation(AssertionError):
         return self.report()
 
 
+@dataclass
+class _Settings:
+    """A recorder's options after applying `[tool.prs]`, the environment and defaults."""
+
+    specs: List[str]
+    exclude: List[str]
+    strict: bool
+    #: `strict` comes from the named-specs default, which only warns for now.
+    strict_warns: bool
+    check_hot: bool
+    unknown_events: str
+    timeout: float
+    artifacts: Optional[str]
+    config: _config.Config
+
+
 class Recorder:
     """Collects the events emitted while it is active and checks them against P specs.
 
-    ``specs`` names the specs to check; none means every spec in the spec files.
-    ``spec_files`` defaults to ``[tool.prs] spec_files`` in pyproject.toml.
+    Every option left as ``None`` comes from ``[tool.prs]`` in the nearest
+    pyproject.toml (and the environment variables that override it), else its default:
+
+    * ``specs``: the specs to check; none means every spec in the spec files
+      (except ``exclude``).
+    * ``spec_files``: the P files.
+    * ``strict``: require a relevant event for every selected spec. Default: true when
+      ``specs`` are named, false for every spec.
+    * ``check_hot``: also fail on a spec left in a hot state. Default: false.
+    * ``unknown_events``: an event name no P file declares is an ``"error"`` (default),
+      a ``"warn"``\\ ing, or ``"ignore"``\\ d.
+    * ``timeout``: seconds the checker may run. Default: 30.
+    * ``artifacts``: folder to keep a failed check's events and output in. Default: a
+      temp folder. ``PRS_ARTIFACTS`` overrides ``[tool.prs]``.
+    * ``coverage``: also collect monitor coverage, as ``coverage_report``.
     """
 
     def __init__(
@@ -113,17 +152,31 @@ class Recorder:
         specs: Iterable[str] = (),
         *,
         spec_files: Optional[Sequence[str]] = None,
-        exclude: Iterable[str] = (),
-        liveness: bool = False,
-        output_root: Optional[str] = None,
+        exclude: Optional[Iterable[str]] = None,
+        strict: Optional[bool] = None,
+        check_hot: Optional[bool] = None,
+        unknown_events: Optional[str] = None,
+        timeout: Optional[float] = None,
+        artifacts: Optional[str] = None,
         coverage: bool = False,
-        strict: bool = False,
+        liveness: Optional[bool] = None,
+        output_root: Optional[str] = None,
     ):
+        if isinstance(specs, str):
+            specs = [specs]
         self.specs: List[str] = list(specs)
-        self.spec_files = list(spec_files) if spec_files is not None else None
-        self.exclude: List[str] = list(exclude)
-        self.liveness = liveness
+        self.spec_files = [os.fspath(f) for f in spec_files] if spec_files is not None else None
+        self.exclude: Optional[List[str]] = list(exclude) if exclude is not None else None
+        self.check_hot = check_hot_arg(check_hot, liveness)
         self.strict = strict
+        if unknown_events is not None:
+            _config.check_unknown_events(unknown_events, "unknown_events")
+        self.unknown_events = unknown_events
+        self.timeout = timeout
+        if output_root is not None:
+            _deprecated("output_root=", "artifacts=")
+            artifacts = artifacts or output_root
+        self.artifacts = os.fspath(artifacts) if artifacts is not None else None
         self.coverage = coverage
         self.coverage_report: Optional[dict] = None
         #: Specs whose violations this recorder ignores (broken on purpose inside
@@ -133,10 +186,18 @@ class Recorder:
         self._logs: List[Tuple[str, Optional[LogParser]]] = []
         self._dirs: List[str] = []
         self._owned: List[str] = []
-        self._output_root = output_root
         self._active = False
         self._prev_env: Optional[str] = None
         self._child_dir: Optional[str] = None
+        # set by the pytest plugin: its configuration, and pytest's temp folder
+        self._cfg: Optional[_config.Config] = None
+        self._default_artifacts: Optional[str] = None
+
+    @property
+    def liveness(self) -> Optional[bool]:
+        """Deprecated: use :attr:`check_hot`."""
+        _deprecated("Recorder.liveness", "Recorder.check_hot")
+        return self.check_hot
 
     # ---- collecting ----------------------------------------------------------------
 
@@ -145,11 +206,9 @@ class Recorder:
         from now on (through the `PRS_EVENTS_DIR` environment variable)."""
         if self._active:
             return self
-        self._child_dir = tempfile.mkdtemp(prefix="prs-events-")
-        self._owned.append(self._child_dir)
-        self._dirs.append(self._child_dir)
+        events_dir = self.events_dir()
         self._prev_env = os.environ.get(_emit.EVENTS_DIR_ENV)
-        os.environ[_emit.EVENTS_DIR_ENV] = self._child_dir
+        os.environ[_emit.EVENTS_DIR_ENV] = events_dir
         _emit._recorders.append(self)
         self._active = True
         return self
@@ -166,7 +225,7 @@ class Recorder:
             os.environ.pop(_emit.EVENTS_DIR_ENV, None)
         else:
             os.environ[_emit.EVENTS_DIR_ENV] = self._prev_env
-        if _emit._recorders and self._child_dir:
+        if _emit._recorders and self._child_dir and self._child_dir in self._owned:
             for outer in _emit._recorders:
                 outer._dirs.append(self._child_dir)
             # the outermost recorder deletes the folder when it is done
@@ -182,6 +241,20 @@ class Recorder:
     def _add(self, ev: Event) -> None:
         self._events.append(ev)
 
+    def events_dir(self) -> str:
+        """This recording's events folder: the `PRS_EVENTS_DIR` of processes it starts.
+        Created on first use; deleted after the check."""
+        if self._child_dir is None:
+            self._child_dir = tempfile.mkdtemp(prefix="prs-events-")
+            self._owned.append(self._child_dir)
+            self._dirs.append(self._child_dir)
+        return self._child_dir
+
+    def env(self) -> Dict[str, str]:
+        """The current environment plus `PRS_EVENTS_DIR`, for starting a child process:
+        ``subprocess.run(cmd, env=rec.env())``."""
+        return {**os.environ, _emit.EVENTS_DIR_ENV: self.events_dir()}
+
     def add_log(self, path: str, parse: Optional[LogParser] = None) -> None:
         """Also check the events in the log file at `path`, read when the check runs.
 
@@ -189,12 +262,12 @@ class Recorder:
         arguments, ``{"event": "eEnter", "key": "L1", "at": when, "client": "c1"}``
         (``at`` is required so events can be merged by time). Without ``parse`` the file
         must hold prs's JSON lines."""
-        self._logs.append((os.fspath(path), parse))
+        self._logs.append((os.path.abspath(os.fspath(path)), parse))
 
     def add_events_dir(self, path: str) -> None:
         """Also check the JSON-lines files in folder `path`, e.g. one mounted into a
-        container whose service writes events there."""
-        self._dirs.append(os.fspath(path))
+        container whose service writes events there. The folder must exist at check time."""
+        self._dirs.append(os.path.abspath(os.fspath(path)))
 
     # ---- looking at events -----------------------------------------------------------
 
@@ -213,40 +286,35 @@ class Recorder:
     def count(self, name: str) -> int:
         return sum(1 for e in self.events if e.event == name)
 
+    def _dir_files(self) -> List[str]:
+        out = []
+        for d in self._dirs:
+            if os.path.isdir(d):
+                out.extend(p for p in (os.path.join(d, n) for n in sorted(os.listdir(d))) if os.path.isfile(p))
+        return out
+
     def _external_lines(self) -> List[Tuple[str, Event]]:
         """(JSON line, event) for events written by other processes and in logs."""
         out: List[Tuple[str, Event]] = []
-        for d in self._dirs:
-            if not os.path.isdir(d):
-                continue
-            for name in sorted(os.listdir(d)):
-                p = os.path.join(d, name)
-                if not os.path.isfile(p):
-                    continue
-                with open(p, encoding="utf-8", errors="replace") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            out.append((line, _event_of_line(line)))
+        for p in self._dir_files():
+            with open(p, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        out.append((line, _event_of_line(line)))
         for path, parse in self._logs:
             with open(path, encoding="utf-8", errors="replace") as f:
-                for lineno, line in enumerate(f, 1):
-                    if parse is None:
-                        line = line.strip()
-                        if line:
-                            out.append((line, _event_of_line(line)))
-                        continue
-                    d = parse(line.rstrip("\n"))
-                    if d is None:
-                        continue
-                    ev = _event_from_dict(d, f"{path}:{lineno}", what=f"the parser of {path}")
-                    out.append((ev.to_json(), ev))
+                if parse is None:
+                    out.extend((line, _event_of_line(line)) for line in (x.strip() for x in f) if line)
+                else:
+                    out.extend((ev.to_json(), ev) for ev in _parse_log(f, path, parse))
         return out
 
     # ---- checking --------------------------------------------------------------------
 
     def check(self) -> None:
-        """Runs prs over the events; raises SpecViolation if a spec was broken."""
+        """Runs prs over the events; raises SpecViolation if a spec was broken, and
+        SetupError if the check could not run."""
         __tracebackhide__ = True
         violations = self.violations()
         if violations:
@@ -257,11 +325,21 @@ class Recorder:
 
     def violations(self) -> List[SpecViolation]:
         """Runs prs over the events and returns the violations found (empty if none)."""
-        lines = [e.to_json() for e in self._events] + [line for line, _ in self._external_lines()]
+        __tracebackhide__ = True
         try:
-            if not lines and not self.strict:
-                return []  # nothing happened: every spec still holds
-            return self._run(lines)
+            settings = self._settings()
+            if not self._events and not self._logs and not any(os.path.getsize(p) for p in self._dir_files()):
+                # nothing happened: every spec still holds, unless strict wants events
+                if settings.strict_warns:
+                    _warn_strict(SetupError(
+                        f"Strict observation: no events were recorded, so {', '.join(settings.specs)} "
+                        "checked no relevant events.",
+                        "validation",
+                    ))
+                    return []
+                if not settings.strict:
+                    return []
+            return self._run(settings)
         finally:
             self._cleanup_owned()
 
@@ -272,85 +350,183 @@ class Recorder:
             shutil.rmtree(d, ignore_errors=True)
         self._owned.clear()
 
-    def _files(self) -> List[str]:
+    def _settings(self) -> _Settings:
+        cfg = self._cfg if self._cfg is not None else _config.load(os.getcwd())
+        specs = self.specs or list(cfg.specs)
+        if self.strict is not None:
+            strict, warns = self.strict, False
+        elif cfg.strict is not None:
+            strict, warns = cfg.strict, False
+        else:
+            # named specs default to strict; for one release that only warns
+            strict, warns = bool(specs), bool(specs)
+        unknown = self.unknown_events or cfg.unknown_events or "error"
+        timeout = self.timeout if self.timeout is not None else cfg.timeout or _config.DEFAULT_TIMEOUT
+        if self.artifacts is not None:
+            artifacts: Optional[str] = os.path.abspath(self.artifacts)
+        else:
+            artifacts = cfg.artifacts or self._default_artifacts
+        return _Settings(
+            specs=specs,
+            exclude=self.exclude if self.exclude is not None else list(cfg.exclude),
+            strict=strict,
+            strict_warns=warns,
+            check_hot=bool(self.check_hot if self.check_hot is not None else cfg.check_hot),
+            unknown_events=unknown,
+            timeout=timeout,
+            artifacts=artifacts,
+            config=cfg,
+        )
+
+    def _files(self, cfg: _config.Config) -> List[str]:
         if self.spec_files is not None:
             files = [os.path.abspath(f) for f in self.spec_files]
         else:
-            files = [os.path.abspath(f) for f in _config.load(os.getcwd()).files()]
+            files = [os.path.abspath(f) for f in cfg.files()]
         if not files:
-            raise PrsError(
+            raise SetupError(
                 "No P spec files to check: set spec_files under [tool.prs] in pyproject.toml, "
-                "or pass spec_files=."
+                "set PRS_SPEC_FILES, or pass spec_files=."
             )
         return files
 
-    def _run(self, lines: List[str]) -> List[SpecViolation]:
+    def _run(self, s: _Settings) -> List[SpecViolation]:
         __tracebackhide__ = True
-        files = self._files()
-        workdir = tempfile.mkdtemp(prefix="prs-check-", dir=self._output_root)
-        events_dir = os.path.join(workdir, "events")
-        os.makedirs(events_dir)
-        with open(os.path.join(events_dir, "events.jsonl"), "w", encoding="utf-8") as f:
-            f.write("\n".join(lines) + "\n")
+        files = self._files(s.config)
+        if s.artifacts:
+            os.makedirs(s.artifacts, exist_ok=True)
+        workdir = tempfile.mkdtemp(prefix="prs-check-", dir=s.artifacts)
+        # this process's events first: equal timestamps keep input order
+        own = os.path.join(workdir, "events.jsonl")
+        with open(own, "w", encoding="utf-8") as f:
+            f.writelines(e.to_json() + "\n" for e in self._events)
+        inputs = [own, *self._dirs]
+        for i, (path, parse) in enumerate(self._logs):
+            if parse is None:
+                inputs.append(path)
+                continue
+            parsed = os.path.join(workdir, f"log-{i}-{os.path.basename(path)}.jsonl")
+            with open(path, encoding="utf-8", errors="replace") as src, open(parsed, "w", encoding="utf-8") as dst:
+                dst.writelines(ev.to_json() + "\n" for ev in _parse_log(src, path, parse))
+            inputs.append(parsed)
         out_dir = os.path.join(workdir, "out")
         report_path = os.path.join(workdir, "report.json")
         cmd = [find_prs(), "observe", "-pf", *files]
-        if self.specs:
-            cmd += ["--spec", *self.specs]
+        if s.specs:
+            cmd += ["--spec", *s.specs]
         else:
             cmd += ["--all-specs"]
-            if self.exclude:
-                cmd += ["--exclude-specs", *self.exclude]
-        cmd += ["-l", events_dir, "-o", out_dir, "--json-report", report_path]
-        if self.liveness:
+            if s.exclude:
+                cmd += ["--exclude-specs", *s.exclude]
+        cmd += ["-l", *inputs, "-o", out_dir, "--json-report", report_path, "--unknown-events", s.unknown_events]
+        if s.check_hot:
             cmd.append("--check-hot")
         if self.coverage:
             cmd.append("--coverage")
-        if self.strict:
+        if s.strict:
             cmd.append("--strict")
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=workdir)
+        try:
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=workdir, timeout=s.timeout)
+        except subprocess.TimeoutExpired:
+            self._keep_children(workdir)
+            raise SetupError(
+                f"prs observe did not finish within {s.timeout:g} s; raise timeout= (or "
+                f"[tool.prs] timeout) if the events are many.\n\nprs output: {workdir}",
+                "timeout",
+                output_dir=workdir,
+            ) from None
         output = proc.stdout.decode("utf-8", errors="replace")
         with open(os.path.join(workdir, "prs-output.txt"), "w", encoding="utf-8") as f:
             f.write(" ".join(cmd) + "\n\n" + output)
-        if self.coverage and os.path.isfile(report_path):
+        report = None
+        if os.path.isfile(report_path):
             with open(report_path, encoding="utf-8") as f:
-                self.coverage_report = json.load(f)
-            if any("coverage" not in spec for spec in self.coverage_report.get("specs", [])):
-                raise PrsError("prs did not report monitor coverage; use a binary supporting observe --coverage")
+                report = json.load(f)
+            for w in _unique(w for spec in report.get("specs", []) for w in spec.get("warnings", [])):
+                warn(_with_src(w, report, workdir), UserWarning)
+        if self.coverage and report is not None:
+            self.coverage_report = report
+            if any("coverage" not in spec for spec in report.get("specs", [])):
+                raise SetupError("prs did not report monitor coverage; use a binary supporting observe --coverage")
         if proc.returncode == 0:
             shutil.rmtree(workdir, ignore_errors=True)
             return []
-        if not os.path.isfile(report_path):
-            raise PrsError(_command_error(output, workdir))
-        with open(report_path, encoding="utf-8") as f:
-            report = json.load(f)
-        return self._violations_of(report, workdir)
+        self._keep_children(workdir)
+        if report is None:
+            raise _command_error(output, workdir)
+        return self._violations_of(report, workdir, s)
 
-    def _violations_of(self, report: dict, workdir: str) -> List[SpecViolation]:
+    def _keep_children(self, workdir: str) -> None:
+        """Copies the events folders this process created into the artifacts, since
+        they are deleted after the check."""
+        for i, d in enumerate(self._dirs):
+            if os.path.basename(d).startswith("prs-events-") and os.path.isdir(d):
+                shutil.copytree(d, os.path.join(workdir, f"events-dir-{i}"), dirs_exist_ok=True)
+
+    def _violations_of(self, report: dict, workdir: str, s: _Settings) -> List[SpecViolation]:
         __tracebackhide__ = True
         violations: List[SpecViolation] = []
         bad_lines: Dict[str, str] = {}
-        validation_errors: List[str] = []
-        for s in report.get("specs", []):
-            spec = s["spec"]
-            for err in s.get("errors", []):
+        unknown: Dict[str, dict] = {}
+        validation: List[str] = []
+        other: List[Tuple[str, str]] = []
+        for spec_report in report.get("specs", []):
+            spec = spec_report["spec"]
+            for err in spec_report.get("errors", []):
                 kind = err.get("kind")
-                if kind == "validation":
-                    validation_errors.append(err.get("message", "Strict observation failed"))
-                    continue
                 if kind == "parser":
                     bad_lines.setdefault(err.get("message", ""), err.get("cause") or "")
-                    continue
-                if spec in self.ignored:
-                    continue
-                violations.append(_violation(spec, err, workdir))
+                elif kind == "unknown_event":
+                    for u in spec_report.get("unknown_events", []):
+                        unknown.setdefault(u.get("event", ""), u)
+                    if not spec_report.get("unknown_events"):
+                        other.append((kind, err.get("message", "")))
+                elif kind == "validation":
+                    if spec not in self.ignored:
+                        validation.append(err.get("message", "Strict observation failed"))
+                elif kind == "spec_violation" or (kind == "unknown" and err.get("events")):
+                    if spec not in self.ignored:
+                        violations.append(_violation(spec, err, workdir))
+                else:
+                    other.append((kind or "unknown", err.get("message") or kind or "error"))
+        if violations:
+            return violations
         if bad_lines:
-            raise PrsError(_payload_error(bad_lines, workdir))
-        if validation_errors and not violations:
-            raise PrsError("\n".join(validation_errors) + f"\nOutput: {workdir}")
-        if not violations:
-            shutil.rmtree(workdir, ignore_errors=True)
-        return violations
+            raise SetupError(_payload_error(bad_lines, workdir), "parser", output_dir=workdir)
+        if unknown:
+            raise SetupError(_unknown_error(unknown, workdir), "unknown_event", output_dir=workdir)
+        if other:
+            kind = other[0][0]
+            text = "\n".join(_unique(m for _, m in other))
+            raise SetupError(f"prs could not check the events ({kind}):\n{text}\n\nprs output: {workdir}", kind, output_dir=workdir)
+        if validation:
+            error = SetupError("\n".join(_unique(validation)) + f"\n\nprs output: {workdir}", "validation", output_dir=workdir)
+            if not s.strict_warns:
+                raise error
+            _warn_strict(error)
+        shutil.rmtree(workdir, ignore_errors=True)
+        return []
+
+
+def _warn_strict(error: SetupError) -> None:
+    warn(StrictDefaultWarning(error))
+
+
+def _unique(items: Iterable[str]) -> List[str]:
+    out: List[str] = []
+    for x in items:
+        if x not in out:
+            out.append(x)
+    return out
+
+
+def _parse_log(lines: Iterable[str], path: str, parse: LogParser) -> List[Event]:
+    out = []
+    for lineno, line in enumerate(lines, 1):
+        d = parse(line.rstrip("\n"))
+        if d is not None:
+            out.append(_event_from_dict(d, f"{path}:{lineno}", what=f"the parser of {path}"))
+    return out
 
 
 def _violation(spec: str, err: dict, workdir: str) -> SpecViolation:
@@ -421,7 +597,7 @@ def _parse_time(ts: Any) -> int:
 
 def _event_from_dict(d: dict, src: str, what: str) -> Event:
     if not isinstance(d, dict) or not isinstance(d.get("event"), str):
-        raise PrsError(f"{what} must return a dict with an 'event' name, or None; got {d!r}")
+        raise SetupError(f"{what} must return a dict with an 'event' name, or None; got {d!r}")
     d = dict(d)
     name = d.pop("event")
     key = d.pop("key", None)
@@ -431,11 +607,11 @@ def _event_from_dict(d: dict, src: str, what: str) -> Event:
     elif "timestamp" in d:
         t = _parse_time(d.pop("timestamp"))
     else:
-        raise PrsError(f"{what} must give each event a time ('at'), so events can be merged by time; got {d!r}")
+        raise SetupError(f"{what} must give each event a time ('at'), so events can be merged by time; got {d!r}")
     if "payload" in d:
         payload = d.pop("payload")
         if d:
-            raise PrsError(f"{what}: give either 'payload' or payload fields, not both; got {d!r}")
+            raise SetupError(f"{what}: give either 'payload' or payload fields, not both; got {d!r}")
     else:
         payload = d or None
     return Event(name, payload, _emit._key_str(key), t, False, src)
@@ -486,7 +662,7 @@ def _rel(path_loc: str, base: str) -> str:
     return f"{path}:{line}"
 
 
-def _command_error(output: str, workdir: str) -> str:
+def _command_error(output: str, workdir: str) -> SetupError:
     lines = output.splitlines()
     if lines and lines[0].startswith("Failed parsing"):
         msg = []
@@ -497,18 +673,108 @@ def _command_error(output: str, workdir: str) -> str:
         text = "\n".join(msg).strip()
     else:
         text = output.strip()
-    return f"prs could not check the events:\n{text}\n\nprs output: {workdir}"
+    m = re.search(r"main parameter '(--[\w-]+)'", text)
+    if m:
+        return SetupError(
+            f"{find_prs()} ({_binary_version()}) does not support {m.group(1)}, which this p-rs "
+            f"package ({_package_version()}) needs. Install a matching prs or unset PRS_BIN.\n\n"
+            f"prs output: {workdir}",
+            "config",
+            output_dir=workdir,
+        )
+    return SetupError(f"prs could not check the events:\n{text}\n\nprs output: {workdir}", "config", output_dir=workdir)
+
+
+def _binary_version() -> str:
+    try:
+        out = subprocess.run([find_prs(), "--version"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10)
+        return out.stdout.decode("utf-8", errors="replace").strip() or "unknown version"
+    except (OSError, subprocess.SubprocessError):
+        return "unknown version"
+
+
+def _package_version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return f"p-rs {version('p-rs')}"
+    except Exception:
+        return "p-rs, unknown version"
+
+
+def _src_at(location: str, workdir: str) -> Optional[str]:
+    """The `src` of the event line at `path:line` (relative to `workdir`, where prs
+    ran), if it has one."""
+    path, _, line = location.rpartition(":")
+    path = os.path.join(workdir, path)
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for i, text in enumerate(f, 1):
+                if i == int(line):
+                    src = json.loads(text).get("src")
+                    return src if isinstance(src, str) else None
+    except (OSError, ValueError, AttributeError):
+        pass
+    return None
+
+
+def _with_src(message: str, report: dict, workdir: str) -> str:
+    """An unknown-event warning, with the emit location instead of the events file."""
+    for spec in report.get("specs", []):
+        for u in spec.get("unknown_events", []):
+            loc = u.get("location") or ""
+            src = _src_at(loc, workdir) if loc else None
+            if src and loc in message:
+                return message.replace(loc, src)
+    return message
+
+
+def _unknown_error(unknown: Dict[str, dict], workdir: str) -> str:
+    lines = ["Some events are declared in no P spec file (a typo, or a missing spec file?):"]
+    for name, u in unknown.items():
+        loc = u.get("location") or ""
+        where = (_src_at(loc, workdir) if loc else None) or loc
+        n = u.get("count", 1)
+        line = f"  {name}: {n} time(s), first at {where}"
+        if u.get("suggestion"):
+            line += f"; did you mean {u['suggestion']}?"
+        lines.append(line)
+    lines.append("")
+    lines.append("Pass unknown_events='warn' or 'ignore' (or set [tool.prs] unknown_events) to allow them.")
+    lines.append(f"prs output: {workdir}")
+    return "\n".join(lines)
 
 
 def _payload_error(bad: Dict[str, str], workdir: str) -> str:
-    lines = ["Some events do not match their declaration in the P spec files:"]
-    for line, cause in list(bad.items())[:10]:
-        ev = _event_of_line(line)
-        where = f" ({ev.src})" if ev.src else ""
-        lines.append(f"  {ev.event}{where}: {cause or 'payload does not match'}")
-        lines.append(f"    payload: {json.dumps(ev.payload, default=str)}")
+    lines: List[str] = []
+    mismatched, broken = [], []
+    for line, cause in bad.items():
+        try:
+            json.loads(line)
+            mismatched.append((line, cause))
+        except ValueError:
+            broken.append((line, cause))
+    if broken:
+        lines.append("Some lines are not valid JSON (cut short by a crashed or unfinished writer?):")
+        for line, cause in broken[:10]:
+            lines.append(f"  {line[:200]}")
+            lines.append(f"    {cause}")
+    if mismatched:
+        lines.append("Some events do not match their declaration in the P spec files:")
+        for line, cause in mismatched[:10]:
+            ev = _event_of_line(line)
+            where = f" ({ev.src})" if ev.src else ""
+            lines.append(f"  {ev.event}{where}: {cause or 'payload does not match'}")
+            lines.append(f"    payload: {json.dumps(ev.payload, default=str)}")
     if len(bad) > 10:
         lines.append(f"  ... and {len(bad) - 10} more")
     lines.append("")
     lines.append(f"prs output: {workdir}")
     return "\n".join(lines)
+
+
+def __getattr__(name: str) -> Any:
+    if name == "PrsError":
+        _deprecated("prs.PrsError", "prs.SetupError")
+        return SetupError
+    raise AttributeError(name)

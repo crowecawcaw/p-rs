@@ -7,11 +7,11 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 pytest_plugins = ["pytester"]
 
 # Use a freshly built binary when testing from a checkout.
-if "PRS_BINARY" not in os.environ:
+if "PRS_BIN" not in os.environ:
     for profile in ("release", "debug"):
         exe = os.path.join(ROOT, "target", profile, "prs" + (".exe" if os.name == "nt" else ""))
         if os.path.isfile(exe):
-            os.environ["PRS_BINARY"] = exe
+            os.environ["PRS_BIN"] = exe
             break
 
 sys.path.insert(0, os.path.join(HERE, "example"))

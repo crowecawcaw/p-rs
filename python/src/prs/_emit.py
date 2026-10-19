@@ -1,21 +1,30 @@
 """`emit`: the one function application code imports.
 
-It has no dependencies beyond the standard library and does nothing unless a test is
-recording: in production it costs a list check and an environment lookup.
+It has no dependencies beyond the standard library. Where an event goes:
+
+1. a test in this process is recording: to its recorders, in memory;
+2. `PRS_EVENTS_DIR` is set (a process a recording test started): to this process's own
+   file in that folder;
+3. a production sink is set with :func:`set_sink`: to that sink, from a background
+   thread, never raising or blocking;
+4. otherwise nowhere, at the cost of a list check and an environment lookup.
 """
 
 from __future__ import annotations
 
+import atexit
 import enum
 import itertools
 import json
 import os
+import queue
+import re
 import sys
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
-from typing import Any, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 EVENTS_DIR_ENV = "PRS_EVENTS_DIR"
 
@@ -78,14 +87,18 @@ _last_ns = 0
 _file = None
 _file_pid = 0
 _file_dir = None
+_sink: Optional["Sink"] = None
 
 
 def _after_fork_in_child() -> None:
     # A forked child (multiprocessing on Linux) inherits the parent's recorders, but its
     # events would stay in its own copy of them: it writes to PRS_EVENTS_DIR instead.
-    global _file
+    global _file, _lock
     _recorders.clear()
     _file = None
+    _lock = threading.Lock()  # another thread may have held it at the fork
+    if _sink is not None:
+        _sink._lock = threading.Lock()
 
 
 if hasattr(os, "register_at_fork"):
@@ -101,11 +114,14 @@ def emit(event: str, payload: Any = _NO_PAYLOAD, /, *, key: Any = None, at: Unio
 
     ``key`` splits events into independent streams, each checked by its own spec
     instance. ``at`` overrides the event time: a ``datetime``, or an integer of epoch
-    nanoseconds (any increasing counter works). Without a recording test this does nothing.
+    nanoseconds (any increasing counter works). Without a recording test or a sink set
+    with :func:`set_sink` this does nothing.
     """
     if not _recorders:
         events_dir = os.environ.get(EVENTS_DIR_ENV)
         if not events_dir:
+            if _sink is not None:
+                _sink._emit(event, payload, key, at, fields)
             return
     else:
         events_dir = None
@@ -137,6 +153,23 @@ def _make_event(event: str, payload: Any, key: Any, at: Any, frame: Any) -> Even
         return Event(event, payload, _key_str(key), t, overridden, src, next(_seq))
 
 
+def process_name() -> str:
+    """This program's name for event file names: the script, module or package run."""
+    argv0 = (getattr(sys, "argv", None) or [""])[0]
+    if not argv0 or argv0 == "-c":
+        return "python"
+    base, name = os.path.split(argv0)
+    name = os.path.splitext(name)[0]
+    if name == "__main__":  # python -m package
+        name = os.path.basename(base)
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", name)[:40] or "python"
+
+
+def events_file_name(pid: Optional[int] = None) -> str:
+    """`<name>-<pid>-<random>.jsonl`: unique even across containers sharing pid 1."""
+    return f"{process_name()}-{pid or os.getpid()}-{os.urandom(3).hex()}.jsonl"
+
+
 def _write_to_dir(events_dir: str, ev: Event) -> None:
     """Appends to this process's own file in `events_dir`, so writes never interleave."""
     global _file, _file_pid, _file_dir
@@ -147,10 +180,150 @@ def _write_to_dir(events_dir: str, ev: Event) -> None:
             if _file is not None and _file_pid == pid:
                 _file.close()
             os.makedirs(events_dir, exist_ok=True)
-            _file = open(os.path.join(events_dir, f"events-{pid}.jsonl"), "a", encoding="utf-8")
+            _file = open(os.path.join(events_dir, events_file_name(pid)), "a", encoding="utf-8")
             _file_pid, _file_dir = pid, events_dir
         _file.write(line)
         _file.flush()
+
+
+# ---- production sink -------------------------------------------------------------------
+
+SinkTarget = Union[str, "os.PathLike[str]", Callable[[str], Any], Any, None]
+
+
+class Sink:
+    """Where :func:`emit` writes events outside tests. Made by :func:`set_sink`.
+
+    Lines are queued and written by a background thread, so ``emit`` never blocks or
+    raises. When the queue is full or a write fails, the event is dropped and counted
+    in :attr:`dropped`.
+    """
+
+    #: Lines waiting to be written before new events are dropped.
+    QUEUE_SIZE = 10_000
+
+    def __init__(self, target: SinkTarget):
+        self.target = target
+        #: Events dropped: queue full, a write failed, or a payload could not be encoded.
+        self.dropped = 0
+        self._write = self._writer(target)
+        self._lock = threading.Lock()
+        self._pid = -1
+        self._closed = False
+        self._queue: "queue.Queue[Optional[str]]" = queue.Queue(self.QUEUE_SIZE)
+
+    @staticmethod
+    def _writer(target: SinkTarget) -> Callable[[str], None]:
+        if target == "-":
+            target = sys.stdout
+        if isinstance(target, (str, os.PathLike)):
+            path = os.fspath(target)
+            parent = os.path.dirname(path)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            # one write() per line on an O_APPEND file: lines never interleave
+            fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+
+            def write(line: str) -> None:
+                os.write(fd, (line + "\n").encode("utf-8"))
+
+            return write
+        if hasattr(target, "write"):
+            stream = target
+
+            def write(line: str) -> None:
+                stream.write(line + "\n")
+                flush = getattr(stream, "flush", None)
+                if flush is not None:
+                    flush()
+
+            return write
+        if callable(target):
+            return target  # type: ignore[return-value]
+        raise TypeError(f"set_sink() takes a path, a text stream, a callable or None, not {type(target).__name__}")
+
+    def _emit(self, event: str, payload: Any, key: Any, at: Any, fields: dict) -> None:
+        try:
+            if payload is _NO_PAYLOAD:
+                payload = fields if fields else None
+            elif fields:
+                raise TypeError("emit() takes either a positional payload or keyword fields, not both")
+            with self._lock:
+                if self._closed:
+                    return
+                if self._pid != os.getpid():  # first event, or a forked child: start a writer
+                    self._start()
+                line = _make_event(event, payload, key, at, sys._getframe(2)).to_json()
+                self._queue.put_nowait(line)
+        except Exception:
+            self.dropped += 1
+
+    def _start(self) -> None:
+        self._pid = os.getpid()
+        self._queue = queue.Queue(self.QUEUE_SIZE)
+        threading.Thread(target=self._run, args=(self._queue,), name="prs-sink", daemon=True).start()
+
+    def _run(self, q: "queue.Queue[Optional[str]]") -> None:
+        while True:
+            line = q.get()
+            try:
+                if line is None:
+                    return
+                self._write(line)
+            except Exception:
+                self.dropped += 1
+            finally:
+                q.task_done()
+
+    def flush(self, timeout: float = 5.0) -> bool:
+        """Waits up to `timeout` seconds for queued events to be written. Returns
+        whether they were."""
+        deadline = time.monotonic() + timeout
+        while self._queue.unfinished_tasks and self._pid == os.getpid():
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.005)
+        return True
+
+    def close(self, timeout: float = 5.0) -> None:
+        """Writes what is queued and stops the writer. Later events are ignored."""
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            if self._pid == os.getpid():
+                try:
+                    self._queue.put_nowait(None)
+                except queue.Full:
+                    pass
+        self.flush(timeout)
+
+
+def set_sink(target: SinkTarget) -> Optional[Sink]:
+    """Sends events to `target` when no test is recording, as the JSON lines
+    ``prs observe`` reads. `target` is a file path (appended to), ``"-"`` or a text
+    stream such as ``sys.stdout``, a callable taking one line (no newline), or ``None``
+    to turn the sink off. Returns the new :class:`Sink` (``None`` for off).
+
+    Inside a recording test, or in a process a test started, events go to the test
+    instead. ``emit`` never raises or blocks because of the sink.
+    """
+    global _sink
+    old, _sink = _sink, None
+    if old is not None:
+        old.close()
+    if target is not None:
+        _sink = Sink(target)
+    return _sink
+
+
+@atexit.register
+def _flush_sink_at_exit() -> None:
+    if _sink is not None:
+        _sink.close(timeout=2.0)
+
+
+# ---- times and values ------------------------------------------------------------------
 
 
 def to_ns(at: Union[datetime, date, int, float]) -> int:
