@@ -109,10 +109,8 @@ and native fuzzing. Install the `prs` binary separately.
 
 ## Goals
 
-1. Simplify or eliminate the toolchain for working with P models.
-2. Stay compatible with the official P tools: exact, drop-in compatibility where
-   feasible; functional compatibility where expedient; anything else is listed as out of
-   scope. See [Compatibility](#compatibility).
+Make P easier for developers to incorporate into application design and development.
+The tenets behind that goal are in [AGENTS.md](AGENTS.md#tenets).
 
 ## Compatibility
 
