@@ -2,7 +2,7 @@
 
 `github.com/crowecawcaw/p-rs/go/prstest` is the supported, standard-library-only
 Go helper for checking real application events against P monitors. It invokes the
-separately installed `prs` CLI; it does not bundle an executable or run P models.
+separately installed `prs` CLI for observation and does not bundle an executable.
 Go 1.22+ is required.
 
 Install the checker with Rust:
