@@ -216,7 +216,7 @@ deprecation warning.
 | --- | --- |
 | Code in the test process | `emit` adds them to the active recorders in memory |
 | Python processes the test starts | They inherit `PRS_EVENTS_DIR` (or pass `env=rec.env()`); `emit` appends to a file of their own there |
-| Non-Python services | Write the same JSON lines to `rec.events_dir()` (a mounted volume for containers); [`python/emitters/go`](../python/emitters/go) is a one-file Go emitter |
+| Non-Python services | Write the same JSON lines to `rec.events_dir()` (a mounted volume for containers); [`go/prsemit`](../go/prsemit) is the Go emitter |
 | Existing logs | `rec.add_log("server.log", parse=fn)`: `fn` turns a line into a dict like `emit`'s arguments, with `at`, or `None`. Without `parse`, the file holds these JSON lines |
 | A folder a container writes to | `rec.add_events_dir(path)` |
 

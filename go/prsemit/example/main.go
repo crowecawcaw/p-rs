@@ -1,10 +1,10 @@
-// A stand-in for a Go service started by a Python test.
+// A stand-in for a Go service started by a test (python/tests/test_other_languages.py).
 package main
 
 import (
 	"os"
 
-	"github.com/crowecawcaw/p-rs/python/emitters/go/prsemit"
+	"github.com/crowecawcaw/p-rs/go/prsemit"
 )
 
 type client struct {
