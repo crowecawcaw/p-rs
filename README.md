@@ -89,7 +89,8 @@ prs-compat check -tc tcMyTest -s 1000
 
 From Python, the `p-rs` package ([`python/`](python)) checks specs against events your
 code emits during its ordinary pytest tests, and installs the `prs` binary. See
-[docs/python.md](docs/python.md).
+[docs/python.md](docs/python.md) and the runnable
+[inventory integration examples](examples/python/README.md).
 
 ## Goals
 

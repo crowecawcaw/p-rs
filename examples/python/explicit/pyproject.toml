@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+testpaths = ["."]
+addopts = "--strict-markers"
+
+[tool.prs]
+spec_files = ["../specs/inventory.p"]
+mode = "off"  # Only explicit check_spec / check_events calls run checks.

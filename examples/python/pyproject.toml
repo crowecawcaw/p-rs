@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prs-inventory-example"
+version = "0.0.0"
+requires-python = ">=3.9"
+dependencies = ["p-rs"]
+
+[tool.setuptools.packages.find]
+include = ["inventory_app*"]

@@ -16,6 +16,9 @@ pip install p-rs        # brings the prs binary; no Rust or Java needed
 The source is in [`python/`](../python). Until wheels are on PyPI, `pip install ./python`
 in a checkout builds the binary with cargo.
 
+For runnable application projects with fixtures, configuration, and CI, see the
+[Python inventory examples](../examples/python/README.md).
+
 ## Emitting events
 
 `emit` is the only thing application code imports. It does nothing unless a test is
