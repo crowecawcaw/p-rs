@@ -21,6 +21,7 @@ REPORT_EVENTS = 20
 
 LogParser = Callable[[str], Optional[dict]]
 
+
 def _deprecated(old: str, new: str) -> None:
     warn(f"{old} is deprecated; use {new}", DeprecationWarning)
 
@@ -135,7 +136,8 @@ class Recorder:
 
     * ``specs``: the specs to check; none means every spec in the spec files
       (except ``exclude``).
-    * ``spec_files``: the P files.
+    * ``spec_files``: the P files: paths, globs, or folders meaning every ``.p`` in
+      them. Relative to the working directory here; to the pyproject.toml in config.
     * ``strict``: require a relevant event for every selected spec. Default: true when
       ``specs`` are named, false for every spec.
     * ``check_hot``: also fail on a spec left in a hot state. Default: false.
@@ -380,9 +382,9 @@ class Recorder:
 
     def _files(self, cfg: _config.Config) -> List[str]:
         if self.spec_files is not None:
-            files = [os.path.abspath(f) for f in self.spec_files]
-        else:
-            files = [os.path.abspath(f) for f in cfg.files()]
+            # globs and folders, relative to the working directory
+            cfg = _config.Config(spec_files=self.spec_files, root=os.getcwd())
+        files = [os.path.abspath(f) for f in cfg.files()]
         if not files:
             raise SetupError(
                 "No P spec files to check: set spec_files under [tool.prs] in pyproject.toml, "
@@ -771,10 +773,3 @@ def _payload_error(bad: Dict[str, str], workdir: str) -> str:
     lines.append("")
     lines.append(f"prs output: {workdir}")
     return "\n".join(lines)
-
-
-def __getattr__(name: str) -> Any:
-    if name == "PrsError":
-        _deprecated("prs.PrsError", "prs.SetupError")
-        return SetupError
-    raise AttributeError(name)

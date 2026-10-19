@@ -1,6 +1,8 @@
+import enum
 import json
 import os
 import re
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -26,9 +28,25 @@ def test_emit_writes_to_the_events_dir(monkeypatch, tmp_path):
     assert d["event"] == "eThing"
     assert sorted(d["payload"]["x"]) == [1, 2]
     assert d["at"] is True
-    assert d["src"].endswith("test_emit.py:20")
+    assert d["src"].endswith("test_emit.py:22")
     _emit._file.close()
     _emit._file = None
+
+
+def test_enums_are_sent_by_name():
+    class Color(str, enum.Enum):
+        RED = "r"
+
+    class Size(enum.IntEnum):
+        BIG = 2
+
+    @dataclass
+    class Item:
+        size: Size
+
+    payload = {"color": Color.RED, "sizes": (Size.BIG,), "item": Item(Size.BIG), Color.RED: 1}
+    d = json.loads(_emit.Event("e", payload, "", 0).to_json())
+    assert d["payload"] == {"color": "RED", "sizes": ["BIG"], "item": {"size": "BIG"}, "RED": 1}
 
 
 def test_timestamps_round_trip():
@@ -66,7 +84,7 @@ def test_sink_writes_json_lines_prs_observe_reads(no_recording, tmp_path):
     assert sink.flush()
     lines = [json.loads(x) for x in log.read_text().splitlines()]
     assert [d["payload"]["client"] for d in lines] == ["c1", "c2"]
-    assert lines[0]["src"].endswith("test_emit.py:64")
+    assert lines[0]["src"].endswith("test_emit.py:82")
     rec = Recorder(["MutualExclusion"], spec_files=[SPEC])
     rec.add_log(str(log))
     with pytest.raises(SpecViolation, match="c2 entered while c1 is inside"):
