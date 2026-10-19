@@ -165,18 +165,11 @@ violations found by the same check).
 | Existing logs | `rec.add_log("server.log", parse=fn)`: `fn` turns a line into a dict like `emit`'s arguments, with `at`, or `None` |
 | A folder a container writes to | `rec.add_events_dir(path)` |
 
-The line format is what `prs observe` reads; `src`, `seq`, `pid` and `at` are extra
-fields used by the report:
-
-```json
-{"key": "L1", "timestamp": "2026-10-18T00:00:00.123456789Z", "event": "eEnter", "payload": {"client": "c1"}, "src": "app/locks.py:42"}
-```
-
-Ordering: prs sorts each key's events by timestamp; equal times keep file order (in-process
-events first, then other processes', then logs). Timestamps are ISO-8601 with
-nanoseconds, which prs orders exactly (a bare integer is read as milliseconds). All
-processes on the test machine share a clock. Across machines, clock skew can reorder
-events: give each stream (key) one owner, or pass a logical counter as `at`.
+Child processes and services write the [events folder format](observe.md#events-folder-format):
+one file per process, the JSON lines `prs observe` reads plus `src`, `seq` and `pid` for
+reports. That section also covers ordering (each key's events sorted by timestamp, equal
+times keeping in-process events first), clock skew, and when a folder is complete: stop
+or join child processes before the check.
 
 A service started once per session (a session-scoped fixture) starts before any test
 records, so it gets no `PRS_EVENTS_DIR` and its events reach no test. For now, start it
