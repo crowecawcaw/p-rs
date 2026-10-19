@@ -96,7 +96,8 @@ Relative paths in environment variables resolve against the process working dire
 - Payload: a named-tuple map, a single value, or nothing, in the language's natural form
   (keyword arguments, `map[string]any`, `Map`, `json!`). Enums are sent by name; sets and
   tuples as lists.
-- Zero dependencies beyond the standard library. No test-framework dependency.
+- Zero dependencies beyond the standard library (Rust: `serde` / `serde_json`, which the
+  `json!` payload form needs). No test-framework dependency.
 - Outside a recording and with no `PRS_EVENTS_DIR`, `emit` does nothing and costs at most
   a lock-free check. In production it MUST NOT throw, panic or block; production sinks are
   [#48](https://github.com/crowecawcaw/p-rs/issues/48).
@@ -401,14 +402,14 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 ### Rust
 
 - [x] In-process checking; strict default true; `check_hot`
-- [ ] `emit(event, key, payload)` argument order
-- [ ] `Model` per [Rust `Model`](#rust-model): paths, config, several specs, `exclude`
-- [ ] `SpecViolation` / `SetupError` with structured fields and `kind` (#53)
-- [ ] `expect_violation(spec, match)`
-- [ ] Failure output in Python's format, with `src` via `#[track_caller]`
-- [ ] Shared, thread-safe suite coverage; `PRS_COVERAGE` (#53)
-- [ ] `events_dir()`, `env()`, `add_events_dir`, `add_log` (#49), reading folders through a core helper
-- [ ] `unknown_events`, default `error` (#47)
-- [ ] `#[prs_test::test]` or fixture pattern; `PRS_MODE`
-- [ ] Production emitter crate (#48)
-- [ ] Conformance runner
+- [x] `emit(event, key, payload)` argument order
+- [x] `Model` per [Rust `Model`](#rust-model): paths, config, several specs, `exclude`
+- [x] `SpecViolation` / `SetupError` with structured fields and `kind` (#53)
+- [x] `expect_violation(spec, match)`
+- [x] Failure output in Python's format, with `src` via `#[track_caller]`
+- [x] Shared, thread-safe suite coverage; `PRS_COVERAGE` (#53)
+- [x] `events_dir()`, `env()`, `add_events_dir`, `add_log` (#49), reading folders through a core helper
+- [x] `unknown_events`, default `error` (#47)
+- [x] `#[prs_test::test]` or fixture pattern; `PRS_MODE` (fixture: `model.check(|recording| ...)`)
+- [x] Production emitter crate (#48): `crates/prs-emit`
+- [x] Conformance runner
