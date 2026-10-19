@@ -97,6 +97,11 @@ strict observation, replay diagnostics, and suite coverage. See the
 [Rust inventory examples](examples/rust/README.md) for explicit checks, checked
 fixtures, and generated operation sequences.
 
+From Java, [`prs-test-core` and `prs-junit5`](java/README.md) provide explicit
+recordings and automatic JUnit checks with fixture lifecycle and coverage support.
+The [Java inventory examples](examples/java/README.md) cover explicit checks,
+JUnit fixtures, and jqwik sequences. Install the `prs` binary separately.
+
 ## Goals
 
 1. Simplify or eliminate the toolchain for working with P models.

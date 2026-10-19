@@ -1,97 +1,92 @@
 # Java inventory integration
 
-These are three ways to check a real application's events with P, using the same
-small inventory service. The P file contains event declarations and a monitor;
-there is no model of the application and no P test driver.
+Three scenarios check one real inventory service with a P safety monitor, using
+the supported [Java helpers](../../java/README.md). The P file contains only event
+declarations and a monitor; no P model or test driver is involved.
 
-Requires JDK 17+, Maven 3.9.9, and the repository's Rust toolchain to build `prs`.
-From the repository root:
+Requires JDK 17+, Maven 3.9.9, and the repository's Rust toolchain. From the root:
 
 ```sh
 cargo build --locked -p prs-cli
 export PRS_BIN="$PWD/target/debug/prs"
-cd examples/java
-mvn --batch-mode --no-transfer-progress test
+mvn --batch-mode --no-transfer-progress -f java/pom.xml install
+mvn --batch-mode --no-transfer-progress -f examples/java/pom.xml test
 ```
 
-PowerShell users can set `$env:PRS_BIN` to the absolute `target/debug/prs.exe` path.
-Java dependencies and Maven plugins are pinned in `pom.xml`; CI installs Maven
-3.9.9 and JDK 17, builds `prs` from this checkout, and runs the same command.
+The first Maven command tests and installs the source reactor into your local
+repository. The example depends on `io.github.crowecawcaw:prs-junit5:0.1.0-SNAPSHOT`;
+these artifacts are not published to Maven Central. CI builds the checkout's CLI,
+tests/installs the helper, and runs the examples with Java 17 and Maven 3.9.9.
 
-- `ExplicitInventoryTest`: open a `Recording` before constructing fixtures and
-  close it with try-with-resources. Selected tests opt in. The negative control
-  simulates an overselling event and requires the exact P failure,
-  `spec_violation` error kind, CLI bug exit (1), and report exit (2).
-- `AutomaticInventoryTest`: register `InventoryExtension` with `@ExtendWith`.
-  It starts recording before `@BeforeEach` and checks after `@AfterEach`, resolving
-  an `Inventory.Events` sink for dependency injection. Ordinary tests need no
-  explicit checker calls. A fixture reservation is created in `@BeforeEach` and
-  released in `@AfterEach`, so both lifecycle phases contribute observed events.
-  Both tests can reuse the same orders because each has a fresh application and
-  monitor. Product keys isolate stock within a test.
-- `GeneratedInventoryTest`: jqwik generates up to 60 sequences of 1–40 reserve
-  and release operations. A small reference ledger checks returned stock and
-  rejected requests while P independently checks the event history. Invalid
-  operations are generated deliberately, without discard-heavy preconditions.
-  Each property invocation, including every shrink candidate, creates fresh app,
-  ledger, log and monitor state. Do not use the Jupiter extension for jqwik:
-  Jupiter lifecycle callbacks do not surround jqwik property invocations.
+- `ExplicitInventoryTest` configures a `PrsObserver` and opens a recording before
+  fixture construction. Try-with-resources checks selected tests at close. A
+  negative control simulates a bad commit and asserts the structured
+  `spec_violation` error and overselling message, proving that P is active.
+- `AutomaticInventoryTest` registers `PrsExtension` with `@RegisterExtension`.
+  Its injected `Recording` opens before `@BeforeEach` stocks products and reserves
+  fixture inventory, then checks after `@AfterEach` releases that reservation.
+  Each test gets fresh application and monitor state; product keys let the same
+  order reserve different products independently. Suite coverage is printed and
+  written to `target/coverage/model.json` at Jupiter root teardown.
+- `GeneratedInventoryTest` uses jqwik to generate 60 sequences of 1–40 reserve and
+  release operations, including invalid requests. A reference ledger asserts
+  application state/rejections; P independently checks emitted history. Each
+  property invocation and shrink candidate creates fresh inventory, ledger and
+  recording. A supported `CoverageCollector` accumulates reports and closes in
+  jqwik's `@AfterContainer`, writing `target/coverage/generated.json`.
 
-Run a scenario alone with `mvn test -Dtest=GeneratedInventoryTest` (substitute the
-other class names). jqwik prints its seed and smallest failing operation list,
-keeps failure replay state in `.jqwik-database`, and can replay a seed by adding
-`seed = "<reported seed>"` to `@Property`. Keep the random default in regular CI
-for exploration; the fixed attempt and sequence bounds limit its cost.
+From `examples/java`, run one scenario with
+`mvn test -Dtest=GeneratedInventoryTest` (substitute the other class names). jqwik
+prints its seed and smallest failing operation list and retains replay state in
+`.jqwik-database`. Add `seed = "<reported seed>"` to `@Property` to reproduce a
+sequence; keep the random default for normal CI exploration. Fixed trial and
+sequence bounds keep routine runs small.
 
-## Adapting this setup
+Jupiter callbacks do not surround jqwik trials: never move the generated test's
+recording into a Jupiter fixture. Both generated state and the recording must be
+created inside the property invocation so shrinking replays an independent case.
 
-`Inventory` has no testing dependencies. Inject an event sink and emit after a
-successful state change, at the boundary where a database-backed service would
-commit. Rejected operations emit nothing. Use stable product IDs as partition
-keys and event payloads that describe the committed change. In a real service,
-connect the same interface to your telemetry/outbox adapter; here the test sink
-captures JSON Lines directly.
+## Adapting the setup
 
-`Recording` is a small test adapter to the public `prs observe` CLI, **not a Java
-SDK**. It buffers an invocation's events, assigns increasing logical timestamps,
-and checks the log once at teardown. It uses argument arrays, a 30-second process
-timeout, and unique output directories. Empty recordings fail; success requires
-one named spec and all emitted events and product keys verified. Command,
-serialization, parser and spec failures propagate to the test. If a body assertion
-and teardown both fail, try-with-resources preserves the observation failure as a
-suppressed exception; Jupiter reports callback failures alongside test failures.
-When copying the adapter into your project, change its `specs/inventory.p` path
-and `InventoryCorrect` spec name to your own, and set `PRS_BIN` to the absolute
-path of the `prs` executable your local setup and CI build or install.
+`Inventory` has no testing dependencies. Its injected `Inventory.Events` interface
+emits after a successful state change, at the boundary where a database-backed
+service would commit. Rejected requests emit nothing. The tests adapt that domain
+interface with a lambda:
 
-Failed observations retain JSONL, console output, JSON report and P replay logs
-under `target/prs/recording-*`; assertions include that path and checker output.
-Successful recordings are deleted. The expected negative control retains one
-failure directory on a successful run. `mvn clean` removes the generated files.
-CI uploads these diagnostics on failure along with Surefire reports and jqwik's
-replay database.
+```java
+var inventory = new Inventory(
+    (sku, event, payload) -> recording.emit(event, sku, payload));
+```
 
-This synchronous in-memory service uses a single thread per invocation. For a
-concurrent service, synchronize recording and record the actual commit order;
-for child processes, merge their structured logs with a documented ordering rule.
-Keep resource cleanup inside the recording's lifetime so teardown events are
-observed, and keep normal application assertions: the monitor only sees emitted
-events and cannot detect missing instrumentation by itself.
+Use the same domain boundary for your production telemetry/outbox adapter. Adapt
+spec file paths and names in `PrsObserver`/`PrsExtension`, and set `PRS_BIN` to your
+built/installed executable. No copied subprocess runner or framework extension is
+needed. `prs-test-core` is available without Jupiter for other frameworks.
 
-The JUnit extension enables `observe --coverage` for each isolated recording and
-collects raw reports in a root-scoped `CloseableResource`. At suite end it prints a
-summary and writes `target/coverage/model.json`; Maven displays the summary and CI
-uploads the report. Explicit and jqwik recordings stay outside this suite report.
-Completed observations include the executed prefix of a failing check. Tool failures
-that produce no valid report still fail the test and do not contribute coverage.
+The supported recorder captures timestamped JSON snapshots, serializes concurrent
+emissions, enforces a bounded CLI timeout, and fails closed for missing/malformed
+reports and tool errors. Strict mode defaults to requiring a relevant event for
+every selected spec. It cannot infer arbitrary missing events, so retain normal
+application assertions. Concurrent services must emit in actual commit order and
+join workers before recording teardown.
 
-Suite aggregation uses the core `prs coverage merge-observe --stdin --json-report PATH`
-command. The adapter retains complete observation reports and sends one JSON array
-at suite end. Core validates and unions coverage identities, preserves metadata
-from failing checks, and writes the same report format across languages. A merge
-or report-write failure fails the test process.
+Failed recordings retain event JSONL, reports, console output and P replay logs
+under `target/prs`. Structured errors include source labels and artifact paths;
+body/setup/teardown failures preserve observation errors as suppressed exceptions.
+Successful recording files are removed. The expected-negative test retains one
+failure directory; `mvn clean` removes generated outputs.
 
+Coverage is optional: the explicit examples do not collect it, while automatic and
+generated tests each own a destination. Both delegate union and source-fingerprint
+validation to core `prs coverage merge-observe`, preserving failed observations.
+The reports describe observed monitor states/handlers, not full P model paths or
+proof of correctness. To combine the two compatible suite reports:
 
-The global test setup opts into strict observation: every checked test must emit
-at least one relevant event for each selected spec. This catches accidentally
-disabled instrumentation; it does not infer arbitrary missing events.
+```sh
+"$PRS_BIN" coverage merge-observe target/coverage/model.json target/coverage/generated.json \
+  --json-report target/coverage/suite.json
+```
+
+CI uploads coverage, diagnostics, Surefire reports and jqwik replay state. See the
+[helper documentation](../../java/README.md) for explicit collector lifetimes,
+multiple extensions, parallel tests and separate JVM/fork destinations.

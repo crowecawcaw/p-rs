@@ -4,9 +4,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.jqwik.api.*;
+import net.jqwik.api.lifecycle.AfterContainer;
+import java.nio.file.Path;
+import io.github.crowecawcaw.prs.PrsObserver;
+import io.github.crowecawcaw.prs.CoverageCollector;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GeneratedInventoryTest {
+    private static final PrsObserver OBSERVER = PrsObserver.builder()
+            .specFiles(Path.of("specs/inventory.p")).specs("InventoryCorrect").build();
+    private static final CoverageCollector COVERAGE = OBSERVER.coverage(Path.of("target/coverage/generated.json"));
+
+    @AfterContainer static void writeCoverage() { COVERAGE.close(); }
+
     record Operation(boolean release, String sku, String order, int units) {}
 
     @Provide Arbitrary<List<Operation>> sequences() {
@@ -19,8 +29,8 @@ class GeneratedInventoryTest {
     @Property(tries = 60) void operationSequences(@ForAll("sequences") List<Operation> operations) throws Exception {
         // jqwik invokes this method for EVERY candidate and shrink attempt. Jupiter's
         // @BeforeEach/extension does not bracket a jqwik property invocation.
-        try (var recording = new Recording()) {
-            var inventory = new Inventory(recording);
+        try (var recording = OBSERVER.recording("jqwik inventory sequence", COVERAGE)) {
+            var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
             inventory.addProduct("book", 5);
             inventory.addProduct("pen", 3);
             var available = new HashMap<>(Map.of("book", 5, "pen", 3));
