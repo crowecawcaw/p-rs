@@ -524,11 +524,6 @@ impl FeedbackGuidedStrategy {
         };
         self.pending_mutations -= 1;
     }
-
-    /// Number of saved generators (`TotalSavedInputs`).
-    pub fn total_saved_inputs(&self) -> usize {
-        self.saved.len()
-    }
 }
 
 impl Strategy for FeedbackGuidedStrategy {

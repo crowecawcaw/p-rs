@@ -703,7 +703,6 @@ impl<'p> Runtime<'p> {
                 Op::PushInt(i) => stack.push(Value::Int(*i)),
                 Op::PushFloat(f) if java => stack.push(Value::Float(*f as f32 as f64)),
                 Op::PushFloat(f) => stack.push(Value::Float(*f)),
-                Op::PushStr(s) => stack.push(Value::Str(s.clone())),
                 Op::PushEvent(e) => stack.push(Value::Event(*e)),
                 Op::PushThis => {
                     let v = match actor {

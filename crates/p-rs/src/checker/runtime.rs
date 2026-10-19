@@ -82,7 +82,6 @@ pub enum Transition {
     None,
     Raise(Event),
     Goto(StateId),
-    Halt,
 }
 
 impl Transition {
@@ -92,7 +91,6 @@ impl Transition {
             Transition::None => "None",
             Transition::Raise(_) => "RaiseEvent",
             Transition::Goto(_) => "GotoState",
-            Transition::Halt => "Halt",
         }
     }
 
@@ -103,7 +101,6 @@ impl Transition {
             Transition::None => "None",
             Transition::Raise(_) => "Raise",
             Transition::Goto(_) => "Goto",
-            Transition::Halt => "Halt",
         }
     }
 }
@@ -1538,21 +1535,14 @@ impl<'p> Runtime<'p> {
                     self.machines[m].stage = Stage::Loop;
                 }
                 Stage::AfterExit { e, then } => {
-                    // The exit action may only raise `halt` or nothing.
                     let t = std::mem::replace(&mut self.machines[m].pending_transition, Transition::None);
-                    match &t {
-                        Transition::None | Transition::Halt => {}
-                        other => {
-                            let msg = format!(
-                                "{} has performed a '{}' transition from an OnExit action.",
-                                self.machines[m].name,
-                                other.kind_name()
-                            );
-                            return Err(self.report_bug(msg));
-                        }
-                    }
-                    if matches!(t, Transition::Halt) {
-                        self.machines[m].status = MachineStatus::Halting;
+                    if t != Transition::None {
+                        let msg = format!(
+                            "{} has performed a '{}' transition from an OnExit action.",
+                            self.machines[m].name,
+                            t.kind_name()
+                        );
+                        return Err(self.report_bug(msg));
                     }
                     match then {
                         ExitThen::Goto { target, with } => {
@@ -1609,19 +1599,13 @@ impl<'p> Runtime<'p> {
                 }
                 Stage::AfterWith { e, target } => {
                     let t = std::mem::replace(&mut self.machines[m].pending_transition, Transition::None);
-                    match &t {
-                        Transition::None | Transition::Halt => {}
-                        other => {
-                            let msg = format!(
-                                "{} has performed a '{}' transition from an OnExit action.",
-                                self.machines[m].name,
-                                other.kind_name()
-                            );
-                            return Err(self.report_bug(msg));
-                        }
-                    }
-                    if matches!(t, Transition::Halt) {
-                        self.machines[m].status = MachineStatus::Halting;
+                    if t != Transition::None {
+                        let msg = format!(
+                            "{} has performed a '{}' transition from an OnExit action.",
+                            self.machines[m].name,
+                            t.kind_name()
+                        );
+                        return Err(self.report_bug(msg));
                     }
                     if self.machines[m].status == MachineStatus::Active {
                         self.machines[m].state = Some(target);
@@ -1822,9 +1806,6 @@ impl<'p> Runtime<'p> {
                 self.machines[m].inbox.raised =
                     Some(Event { id: GOTO_EVENT, payload: Value::Null, stamp: None, vt: None });
                 self.machines[m].goto_target = Some(target);
-            }
-            Transition::Halt => {
-                self.machines[m].status = MachineStatus::Halting;
             }
         }
     }
@@ -2027,7 +2008,7 @@ impl<'p> Runtime<'p> {
     fn monitor_apply_transition(&mut self, mon: usize) -> Result<(), Stop> {
         let t = std::mem::replace(&mut self.monitors[mon].pending_transition, Transition::None);
         match t {
-            Transition::None | Transition::Halt => Ok(()),
+            Transition::None => Ok(()),
             Transition::Raise(e) => {
                 self.cov_monitor_raise(mon, e.id);
                 self.log(|rt| {

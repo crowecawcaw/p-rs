@@ -9,7 +9,7 @@
 //!
 //! Specs run with the semantics of upstream's Java backend
 //! ([`Setup::java_semantics`](crate::checker::runtime::Setup::java_semantics)), so messages read
-//! as PObserve's do. Like the rest of the crate this module does no I/O: inputs are passed
+//! as PObserve's do. This module does no I/O: inputs are passed
 //! as strings and time comes from a caller-supplied clock.
 
 use std::collections::HashMap;
@@ -240,12 +240,6 @@ impl<'p> Spec<'p> {
     pub fn observes_event(&self, e: EventId) -> bool {
         self.observes().contains(&e)
     }
-}
-
-/// Builds a named tuple value.
-pub fn named_tuple(fields: Vec<(&str, Value)>) -> Value {
-    let names: Vec<String> = fields.iter().map(|(n, _)| n.to_string()).collect();
-    Value::NamedTuple(Rc::new(NamedTuple { names: names.into(), values: fields.into_iter().map(|(_, v)| v).collect() }))
 }
 
 // ---- log entries ---------------------------------------------------------------------------

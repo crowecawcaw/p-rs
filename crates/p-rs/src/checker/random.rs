@@ -102,11 +102,6 @@ impl RandomValueGenerator {
         self.rng = DotNetRandom::new(seed as i32);
     }
 
-    #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> i32 {
-        self.rng.next()
-    }
-
     pub fn next_below(&mut self, max: i32) -> i32 {
         self.rng.next_below(max)
     }
