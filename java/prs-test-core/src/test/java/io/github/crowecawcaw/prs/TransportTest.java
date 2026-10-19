@@ -50,7 +50,8 @@ class TransportTest {
         var valid = Recording.JSON.readTree("{\"exit_code\":0,\"specs\":[{\"spec\":\"Spec\","
                 + "\"events_read\":1,\"partition_keys\":1,\"verified_keys\":1,\"errors\":[]}]}");
         for (String mutation : List.of("large status", "unknown status", "missing metric", "negative metric",
-                "fractional metric", "too many verified", "unknown kind", "missing message", "process mismatch")) {
+                "fractional metric", "too many verified", "unknown kind", "missing message", "process mismatch",
+                "strict empty", "unverified keys", "partitions exceed events", "events without partitions", "one strict spec empty")) {
             var value = (com.fasterxml.jackson.databind.node.ObjectNode) valid.deepCopy();
             var spec = (com.fasterxml.jackson.databind.node.ObjectNode) value.path("specs").get(0);
             int exit = 0;
@@ -64,16 +65,42 @@ class TransportTest {
                 case "unknown kind" -> spec.putArray("errors").addObject().put("kind", "typo").put("message", "bad");
                 case "missing message" -> spec.putArray("errors").addObject().put("kind", "parser");
                 case "process mismatch" -> exit = 2;
+                case "strict empty" -> {
+                    spec.put("events_read", 0).put("partition_keys", 0).put("verified_keys", 0);
+                }
+                case "unverified keys" -> spec.put("verified_keys", 0);
+                case "partitions exceed events" -> spec.put("events_read", 0);
+                case "events without partitions" -> spec.put("partition_keys", 0).put("verified_keys", 0);
+                case "one strict spec empty" -> {
+                    var empty = spec.deepCopy().put("spec", "Another").put("events_read", 0)
+                            .put("partition_keys", 0).put("verified_keys", 0);
+                    ((com.fasterxml.jackson.databind.node.ArrayNode) value.path("specs")).add(empty);
+                }
             }
             var json = value.toString();
             var binary = executable("report=''\nwhile [ \"$#\" -gt 0 ]; do\n"
                     + "  if [ \"$1\" = '--json-report' ]; then shift; report=$1; fi\n  shift\ndone\n"
                     + "printf '%s' '" + json + "' > \"$report\"\nexit " + exit + "\n");
-            var events = recording(binary);
+            String[] specs = mutation.equals("one strict spec empty") ? new String[]{"Spec", "Another"} : new String[]{"Spec"};
+            var events = PrsObserver.builder().binary(binary.toString()).specFiles(Path.of("spec.p"))
+                    .specs(specs).artifacts(temporary.resolve("artifacts")).build().recording("malformed metrics");
             events.emit("event", "key");
             var failure = assertThrows(ObservationFailure.class, events::close, mutation);
             assertTrue(failure.report().isEmpty(), "Invalid report must not be collected as coverage: " + mutation);
         }
+    }
+
+    @Test @EnabledOnOs(OS.LINUX)
+    void strictFalseAllowsAnExplicitlyEmptySuccessReport() throws Exception {
+        String json = "{\"exit_code\":0,\"specs\":[{\"spec\":\"Spec\",\"events_read\":0,"
+                + "\"partition_keys\":0,\"verified_keys\":0,\"errors\":[]}]}";
+        var binary = executable("report=''\nwhile [ \"$#\" -gt 0 ]; do\n"
+                + "  if [ \"$1\" = '--json-report' ]; then shift; report=$1; fi\n  shift\ndone\n"
+                + "printf '%s' '" + json + "' > \"$report\"\nexit 0\n");
+        var events = PrsObserver.builder().binary(binary.toString()).specFiles(Path.of("spec.p"))
+                .specs("Spec").strict(false).artifacts(temporary.resolve("artifacts")).build().recording("empty opt out");
+        assertDoesNotThrow(events::close);
+        assertEquals(0, events.report().orElseThrow().exitCode());
     }
 
     @Test @EnabledOnOs(OS.LINUX)

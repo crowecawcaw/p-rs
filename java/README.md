@@ -168,8 +168,9 @@ or malformed-report failures can have no parsed report. Successful artifacts are
 deleted after collection. An expected-negative test retains its failure artifacts.
 
 The helper checks required report types, requested spec identities, known error
-kinds, nonnegative metrics, and agreement between process status, report status,
-and errors. The native CLI's process status differs from its PObserve report
+kinds, consistent nonnegative metrics, and agreement between process status, report
+status, and errors. A successful report must verify every reported partition;
+strict success requires a positive relevant-event count for each selected spec. The native CLI's process status differs from its PObserve report
 status: a safety violation is process 1 and report 2. The helper preserves these
 rather than treating report 2 as a native process-code requirement.
 

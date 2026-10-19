@@ -65,6 +65,7 @@ public final class PrsObserver {
     String binary() { return binary; }
     Path artifacts() { return artifacts; }
     Duration timeout() { return timeout; }
+    boolean strict() { return strict; }
     List<String> specs() { return specs; }
 
     public static final class Builder {

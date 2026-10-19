@@ -172,6 +172,7 @@ public final class Recording implements AutoCloseable {
                 || !value.path("exit_code").canConvertToInt()
                 || !java.util.Set.of(0, 2, 3, 4).contains(value.path("exit_code").intValue())
                 || !value.path("specs").isArray()) throw new IOException("Malformed observation report");
+        boolean success = value.path("exit_code").intValue() == 0;
         boolean hasErrors = false;
         var names = new java.util.HashSet<String>();
         for (var spec : value.path("specs")) {
@@ -182,8 +183,16 @@ public final class Recording implements AutoCloseable {
                 if (!number.isIntegralNumber() || !number.canConvertToLong() || number.longValue() < 0)
                     throw new IOException("Malformed observation metric: " + metric);
             }
-            if (spec.path("verified_keys").longValue() > spec.path("partition_keys").longValue())
-                throw new IOException("verified_keys exceeds partition_keys");
+            long events = spec.path("events_read").longValue();
+            long partitions = spec.path("partition_keys").longValue();
+            long verified = spec.path("verified_keys").longValue();
+            if (events < partitions) throw new IOException("partition_keys exceeds events_read");
+            if ((events == 0) != (partitions == 0))
+                throw new IOException("events_read and partition_keys disagree on empty observation");
+            if (verified > partitions) throw new IOException("verified_keys exceeds partition_keys");
+            if (success && verified != partitions) throw new IOException("Successful report contains unverified keys");
+            if (success && observer.strict() && events == 0)
+                throw new IOException("Strict observation reported success without relevant events for " + spec.path("spec").asText());
             for (var error : spec.path("errors")) {
                 hasErrors = true;
                 if (!error.path("kind").isTextual() || !java.util.Set.of("spec_violation", "parser",
@@ -205,7 +214,6 @@ public final class Recording implements AutoCloseable {
         }
         if (!names.equals(new java.util.HashSet<>(observer.specs())))
             throw new IOException("Report spec set differs from requested specifications");
-        boolean success = value.path("exit_code").intValue() == 0;
         if (success == hasErrors || success != (processExit == 0))
             throw new IOException("Inconsistent process status, report status and errors");
     }
