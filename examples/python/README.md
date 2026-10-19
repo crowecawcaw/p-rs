@@ -97,9 +97,11 @@ state errors even if instrumentation omits an event.
 
 The key setup difference is the **lifetime of a generated history**. A single
 pytest test runs many Hypothesis examples, including retries while shrinking a
-failure. `RuleBasedStateMachine.__init__` creates fresh application state and
-enters a fresh `check_spec` context **before** seeding products. `teardown` exits
-that context and checks the history before another machine starts. In a real
+failure. `RuleBasedStateMachine.__init__` enters a fresh `check_spec` context,
+then `@initialize` creates fresh application state and seeds products **inside**
+that context. Hypothesis calls `teardown` even if initialization fails, so a setup
+exception cannot leave recording active. `teardown` exits the context and checks
+the history before another machine starts. In a real
 project, create a clean database namespace or reset your service at this same
 boundary, and stop workers before exiting the recording context.
 

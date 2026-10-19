@@ -2,7 +2,7 @@
 
 import pytest
 from hypothesis import settings, strategies as st
-from hypothesis.stateful import RuleBasedStateMachine, invariant, precondition, rule
+from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, precondition, rule
 
 from inventory_app import Inventory
 from prs import check_spec
@@ -15,10 +15,15 @@ class InventoryHistories(RuleBasedStateMachine):
         # every shrinking/replay attempt. A pytest fixture would live too long.
         self.check = check_spec("InventoryCorrect")
         self.events = self.check.__enter__()
-        self.inventory = Inventory()
         self.initial_stock = {"coffee": 3, "tea": 2}
         self.reservations = {}
         self.next_order = 0
+
+    @initialize()
+    def seed_inventory(self):
+        # Hypothesis calls teardown even if initialization fails. Construct and
+        # seed the application here so setup exceptions cannot leak a recorder.
+        self.inventory = Inventory()
         for sku, units in self.initial_stock.items():
             self.inventory.add_product(sku, units)
 
