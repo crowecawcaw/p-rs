@@ -146,3 +146,44 @@ Rust callers can set `ObserveOptions.coverage = true` and read `Report.coverage`
 `prs_checker::observe_coverage::ObserveCoverage` exposes the declaration and hit
 sets, `merge(&other)` for test-suite unions, `render_text()` for human output, and
 `to_json()` for the same structured coverage object as the CLI.
+
+## Live checks for external tests
+
+Use `--stdin --fail-fast` to check newline-delimited events while a test or service is
+still running:
+
+```sh
+producer | prs observe --pfiles inventory.p --spec Inventory \
+  --stdin --fail-fast --check-hot --json-report observe.json
+```
+
+The producer must flush each complete line. Unlike batch log observation, live
+observation does not sort: timestamps must be nondecreasing **within each partition
+key** (equal timestamps are allowed). Merge events from several producers into one
+ordered stream before writing stdin. Separate keys may interleave freely.
+
+The observer checks each line before requesting the next one. Its first parser,
+ordering, monitor initialization or spec error stops the run and produces the usual
+human diagnostics and JSON report, even if stdin remains open. Every selected spec
+sees the current line before the observer stops. Replay storage retains only the last
+`--replaySize` events per key, alongside each key's monitor state. The observer retains
+monitor state for every encountered key until the run ends.
+
+At EOF, `--check-hot` checks monitors for unfinished hot states. Hot states do not
+fail a live, incomplete stream. An early failure reports only the consumed prefix;
+JSON includes `input_complete: false` and `stop_reason: "error"`. At EOF these are
+`true` and `"eof"`, including when an EOF liveness check fails. Coverage, when enabled,
+describes the checked prefix.
+
+Live mode requires both flags, TEXT input, and a newline-delimited parser; it cannot
+be combined with `--logs`. Existing batch observation retains its sorting behavior.
+`prs` returns 1 for a spec violation and 2 for parser, ordering or transport errors.
+
+For external tests, run the observer under a supervisor that streams events, watches
+its exit status, terminates child processes on failure, and closes stdin only after
+all producers finish successfully. The observer does not terminate the producers
+itself. A shell pipeline alone cannot reliably supervise long-running children.
+
+Embedding applications can use `ObserveSession` to push one entry at a time and
+inspect `failed()`, then `finish(eof, now)` to collect a report. Give each selected
+spec its own session and feed all sessions before reading another line.

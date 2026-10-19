@@ -269,3 +269,14 @@ fn observe_is_named_prs_observe() {
     assert!(h.stdout.starts_with("Usage: prs observe [options]"), "{}", h.stdout);
     assert_eq!(prs(&mut h, &["observe"]), 2);
 }
+
+#[test]
+fn live_observe_rejects_incompatible_inputs_before_loading_project() {
+    let mut h = host();
+    assert_eq!(prs(&mut h, &["observe", "--spec", "Inventory", "--stdin"]), 2);
+    assert!(h.stdout.contains("both --stdin and --fail-fast"));
+    assert_eq!(prs(&mut h, &["observe", "--spec", "Inventory", "--stdin", "--fail-fast", "--logs", "coins.p"]), 2);
+    assert!(h.stdout.contains("cannot be combined with --logs"));
+    assert_eq!(prs(&mut h, &["observe", "--spec", "Inventory", "--stdin", "--fail-fast", "--inputkind", "JSON"]), 2);
+    assert!(h.stdout.contains("requires TEXT input"));
+}

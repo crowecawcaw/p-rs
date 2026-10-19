@@ -16,7 +16,8 @@ use std::rc::Rc;
 
 use prs_checker::javafmt;
 use prs_checker::observe::{
-    split_entries, ErrorKind, Metrics, ObserveError, ObserveOptions, ObservedEvent, Parser, Report, Spec, Timestamp,
+    split_entries, ErrorKind, Metrics, NoScheduling, ObserveError, ObserveOptions, ObserveSession, ObservedEvent,
+    Parser, Report, Spec, Timestamp,
 };
 use prs_checker::value::{MachineRef, NamedTuple, SlotMap, SlotSet, Value};
 use prs_sema::{MachineKind, PType, Program};
@@ -86,6 +87,9 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         return cmdline_error(host, &format!("Failed to create output directory ({}).", output_dir));
     }
     let parser = parsers[parser_idx].as_ref();
+    if cfg.stdin && parser.log_delimiter().replace("\\n", "\n") != "\n" {
+        return cmdline_error(host, "--stdin requires a newline-delimited parser.");
+    }
     let spec_names: Vec<String> = specs.iter().map(|s| s.name().to_string()).collect();
 
     // validation succeeded: print the configuration
@@ -134,26 +138,64 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
 
     // check each spec; with several, each writes its files to a folder of its own
     let several = specs.len() > 1;
-    let mut reports = Vec::new();
-    for spec in &specs {
-        let report = match &read_error {
-            // upstream: the reader's exception escapes the stream and ends the run
-            Some(m) => Report {
-                errors: vec![ObserveError {
-                    cause: None,
-                    kind: ErrorKind::Unknown,
-                    detail: format!("java.lang.RuntimeException: {}", m),
-                    message: m.clone(),
-                    replay: None,
-                }],
-                metrics: Metrics { unknown_errors: 1, ..Default::default() },
-                log: Vec::new(),
-                coverage: None,
-            },
-            None => {
-                let clock_host: &dyn Host = host;
-                let mut clock = || clock_host.now();
-                spec.observe(&inputs, parser, &opts, &mut clock)
+    let mut input_complete = false;
+    let mut reports = if cfg.stdin {
+        let mut strategies: Vec<_> = specs.iter().map(|_| NoScheduling).collect();
+        let mut sessions: Vec<_> = specs
+            .iter()
+            .zip(strategies.iter_mut())
+            .map(|(spec, strategy)| ObserveSession::new(spec, opts.clone(), strategy, host.now()))
+            .collect();
+        while !sessions.iter().any(|s| s.failed()) {
+            match host.read_stdin_line() {
+                Ok(Some(entry)) => {
+                    let mut clock = || host.now();
+                    for session in &mut sessions {
+                        session.push(&entry, parser, &mut clock);
+                    }
+                }
+                Ok(None) => {
+                    input_complete = true;
+                    break;
+                }
+                Err(e) => {
+                    for session in &mut sessions {
+                        session.input_error(e.to_string());
+                    }
+                    break;
+                }
+            }
+        }
+        if !input_complete {
+            host.out_line("Live observation stopped at the first error; reports cover the checked prefix.");
+        }
+        sessions.into_iter().map(|s| s.finish(input_complete, host.now())).collect()
+    } else {
+        Vec::new()
+    };
+    for (index, spec) in specs.iter().enumerate() {
+        let report = if cfg.stdin {
+            reports[index].clone()
+        } else {
+            match &read_error {
+                // upstream: the reader's exception escapes the stream and ends the run
+                Some(m) => Report {
+                    errors: vec![ObserveError {
+                        cause: None,
+                        kind: ErrorKind::Unknown,
+                        detail: format!("java.lang.RuntimeException: {}", m),
+                        message: m.clone(),
+                        replay: None,
+                    }],
+                    metrics: Metrics { unknown_errors: 1, ..Default::default() },
+                    log: Vec::new(),
+                    coverage: None,
+                },
+                None => {
+                    let clock_host: &dyn Host = host;
+                    let mut clock = || clock_host.now();
+                    spec.observe(&inputs, parser, &opts, &mut clock)
+                }
             }
         };
         let spec_out = if several { join(&out_abs, spec.name()) } else { out_abs.clone() };
@@ -174,7 +216,11 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         if let Some(coverage) = &report.coverage {
             host.out_line(&coverage.render_text());
         }
-        reports.push(report);
+        if cfg.stdin {
+            reports[index] = report;
+        } else {
+            reports.push(report);
+        }
         if read_error.is_some() {
             break;
         }
@@ -183,7 +229,13 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
     let all = Report { errors: reports.iter().flat_map(|r| r.errors.iter().cloned()).collect(), ..Default::default() };
     let code = exit_status(&all);
     if let Some(path) = &cfg.json_report {
-        let text = json_report(&specs, &reports, code);
+        let mut text = json_report(&specs, &reports, code);
+        if cfg.stdin {
+            let mut json: Json = serde_json::from_str(&text).expect("valid report JSON");
+            json["input_complete"] = Json::Bool(input_complete);
+            json["stop_reason"] = Json::from(if input_complete { "eof" } else { "error" });
+            text = serde_json::to_string_pretty(&json).unwrap() + "\n";
+        }
         if let Err(Exit(c)) = write_output(host, path, &text) {
             return c;
         }
@@ -298,6 +350,11 @@ pub const USAGE: &str = "Usage: p observe [options]
       Default: false
     --exclude-specs
       Specs --all-specs leaves out (prs extension)
+    --stdin
+      Read a live newline-delimited TEXT stream from stdin (requires --fail-fast).
+      Events must be ordered by timestamp per key. Cannot combine with --logs.
+    --fail-fast
+      Stop reading and exit on the first error (requires --stdin).
     --filters, -f
       pobserve event filter exact class names
     --help, -h
@@ -376,6 +433,8 @@ pub struct ObserveConfig {
     pub check_hot: bool,
     /// `--coverage`: report observed monitor state and handler coverage.
     pub coverage: bool,
+    pub stdin: bool,
+    pub fail_fast: bool,
     pub parser: Option<String>,
     pub parser_configuration: Option<String>,
     pub filters: Vec<String>,
@@ -408,6 +467,8 @@ const OPTIONS: &[(&[&str], Arity)] = &[
     (&["--json-report"], Arity::One),
     (&["--check-hot"], Arity::Flag),
     (&["--coverage"], Arity::Flag),
+    (&["--stdin"], Arity::Flag),
+    (&["--fail-fast"], Arity::Flag),
     (&["--parser", "-p"], Arity::One),
     (&["--parserConfiguration", "-pc"], Arity::One),
     (&["--filters", "-f"], Arity::Variable),
@@ -461,6 +522,8 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
         json_report: None,
         check_hot: false,
         coverage: false,
+        stdin: false,
+        fail_fast: false,
         parser: None,
         parser_configuration: None,
         filters: Vec::new(),
@@ -526,6 +589,8 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                     spec_given = true;
                 }
                 "--all-specs" => cfg.all_specs = true,
+                "--stdin" => cfg.stdin = true,
+                "--fail-fast" => cfg.fail_fast = true,
                 "--exclude-specs" => {
                     validate_classname(tok, &v)?;
                     cfg.exclude_specs.push(v);
@@ -641,7 +706,13 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
     if socket_mode {
         return Err("Socket mode (--socket-mode) is not supported by p observe.".into());
     }
-    if cfg.log_files.is_empty() {
+    if cfg.stdin != cfg.fail_fast {
+        return Err("Live observation requires both --stdin and --fail-fast.".into());
+    }
+    if cfg.stdin && (!cfg.log_files.is_empty() || cfg.input_kind != InputKind::Text) {
+        return Err("--stdin requires TEXT input and cannot be combined with --logs.".into());
+    }
+    if cfg.log_files.is_empty() && !cfg.stdin {
         return Err("No log files specified. Please provide log file or directory with --logs parameter.".into());
     }
     if serialized {
