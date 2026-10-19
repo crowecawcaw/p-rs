@@ -165,6 +165,7 @@ dependencies = [
  "prs-checker",
  "prs-sema",
  "prs-syntax",
+ "serde_json",
 ]
 
 [[package]]

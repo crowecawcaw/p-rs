@@ -95,9 +95,9 @@ pub fn with_inventory(test: impl FnOnce(&mut TestInventory)) {
 
 // Integration tests run concurrently. Hold the lock across merge, write and print,
 // so the last published report is the union of all completed fixture checks.
-fn publish_coverage(coverage: &prs_checker::observe::ObserveCoverage) -> Result<(), String> {
+fn publish_coverage(coverage: &prs_checker::observe_coverage::ObserveCoverage) -> Result<(), String> {
     use std::sync::{Mutex, OnceLock};
-    static SUITE: OnceLock<Mutex<Option<prs_checker::observe::ObserveCoverage>>> = OnceLock::new();
+    static SUITE: OnceLock<Mutex<Option<prs_checker::observe_coverage::ObserveCoverage>>> = OnceLock::new();
     let mut guard = SUITE.get_or_init(|| Mutex::new(None)).lock().map_err(|e| e.to_string())?;
     if let Some(aggregate) = guard.as_mut() {
         aggregate.merge(coverage);
