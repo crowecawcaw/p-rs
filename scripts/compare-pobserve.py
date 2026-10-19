@@ -8,7 +8,7 @@
 
 UPSTREAM_JARS is a jar built from the regression project (its generated spec classes plus
 the TestCase parsers). PRS_OBSERVE_BIN is `p observe` with the Rust ports of those parsers
-(`cargo build --release -p prs-cli --example observe_regression`).
+(`cargo build --release -p p-rs --example observe_regression`).
 
 Every log file and log directory of the happy and error suites runs through both tools,
 with and without --assumeInputsAreSorted. Compared: exit code, console output, and every

@@ -25,7 +25,7 @@ jobs:
           key: model-example
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build this checkout's checker
-        run: cargo build -p prs-cli --bin prs --locked
+        run: cargo build -p p-rs --bin prs --locked
       - name: Every example checks the shared spec
         run: |
           shared=examples/model/PSpec/inventory.p

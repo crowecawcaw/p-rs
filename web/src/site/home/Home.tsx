@@ -107,7 +107,7 @@ export function Home() {
           <p>There are no prebuilt binaries yet. With a Rust toolchain:</p>
           <pre className="terminal">
             <code>
-              <span className="prompt">$ </span>cargo install --git {REPO} prs-cli{"\n"}
+              <span className="prompt">$ </span>cargo install --git {REPO} p-rs{"\n"}
               <span className="prompt">$ </span>prs check{"            "}<span className="cmt"># check every test case in the .pproj</span>
             </code>
           </pre>

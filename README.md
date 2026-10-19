@@ -32,7 +32,7 @@ is tested.
 There are no prebuilt binaries yet. With a Rust toolchain:
 
 ```sh
-cargo install --git https://github.com/crowecawcaw/p-rs prs-cli   # installs prs and prs-compat
+cargo install --git https://github.com/crowecawcaw/p-rs p-rs   # installs prs and prs-compat
 ```
 
 ## Usage
@@ -96,10 +96,11 @@ code emits during its ordinary pytest tests, and installs the `prs` binary. See
 [docs/python.md](docs/python.md) and the runnable
 [inventory integration examples](examples/python/README.md).
 
-From Rust, [`prs-test`](crates/prs-test) checks in process: recordings configured
-from `Cargo.toml`, structured violations, events from child processes, and suite
-coverage. [`prs-emit`](crates/prs-emit) emits the same events in tests and to
-production logs for `prs observe`. See the
+From Rust, the [`p-rs` crate](crates/p-rs/README.md) checks in process:
+[`prs::test`](crates/p-rs/src/test/README.md) has recordings configured from
+`Cargo.toml`, structured violations, events from child processes, and suite coverage.
+[`prs::emit`](crates/p-rs/src/emit/README.md) emits the same events in tests and to
+production logs for `prs observe`; with only the `emit` feature, no checker is compiled. See the
 [Rust inventory examples](examples/rust/README.md) for explicit checks, checked
 fixtures, and generated operation sequences.
 

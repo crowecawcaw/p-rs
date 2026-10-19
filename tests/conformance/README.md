@@ -4,7 +4,7 @@ Shared cases every language helper replays through its own L1/L2 API (see
 [docs/language-support.md](../../docs/language-support.md#conformance-corpus)). A helper
 conforms when every case it supports passes.
 
-`crates/prs-cli/tests/conformance.rs` replays the same cases through `prs observe`
+`crates/p-rs/tests/cli_conformance.rs` replays the same cases through `prs observe`
 directly (part of `cargo test --workspace`), so the corpus always agrees with the core.
 
 ## Layout
@@ -85,6 +85,6 @@ ignored.
 ## Adding a case
 
 Keep cases small: one behaviour each, a few events, ISO-8601 timestamps with
-nanoseconds. Run `cargo test -p prs-cli --test conformance` to check it against the
+nanoseconds. Run `cargo test -p p-rs --test cli_conformance` to check it against the
 core. A case for a core feature that is not implemented yet carries a `requires` entry
 until it lands; add the feature name to `KNOWN_FEATURES` in the runner.

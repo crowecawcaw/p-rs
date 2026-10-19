@@ -40,7 +40,7 @@ Set a sink once at start-up and close it at shutdown:
 | Python | `prs.set_sink(path)` | automatic at exit (`sink.close()` to do it earlier) |
 | Go | `s, err := prsemit.File(path); prsemit.SetSink(s)` | `defer prsemit.Close()` |
 | Java | `PrsEmit.setSink(Sink.file(Path.of(path)))` | a shutdown hook flushes; `PrsEmit.close()` |
-| Rust | `prs_emit::set_sink(Emitter::file(path)?)` | `prs_emit::close()` |
+| Rust | `prs::emit::set_sink(Emitter::file(path)?)` | `prs::emit::close()` |
 
 `stdout` (for container log collectors), `writer` and `callback` sinks are also
 available. Rules that matter in production:

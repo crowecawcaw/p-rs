@@ -76,7 +76,7 @@ and Rust, build the checker and install `p-rs` with a natives jar for your platf
 (here macOS on Apple silicon):
 
 ```sh
-cargo build --locked -p prs-cli
+cargo build --locked -p p-rs
 mkdir -p java/natives/natives-macos-aarch64
 cp target/debug/prs java/natives/natives-macos-aarch64/
 PRS_BIN="$PWD/target/debug/prs" mvn -f java/pom.xml -Pnatives install
@@ -85,7 +85,7 @@ PRS_BIN="$PWD/target/debug/prs" mvn -f java/pom.xml -Pnatives install
 The `natives` profile packages every `java/natives/<classifier>/prs` (or `prs.exe`) it
 finds, or the folders under `-Dprs.natives=DIR`, as classifier jars. Or skip the
 natives jar and set `PRS_BIN` (or put `prs` on `PATH`), as
-`cargo install --git https://github.com/crowecawcaw/p-rs prs-cli` does.
+`cargo install --git https://github.com/crowecawcaw/p-rs p-rs` does.
 
 ## Emit events
 

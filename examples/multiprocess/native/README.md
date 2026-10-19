@@ -17,7 +17,7 @@ domain rules or expected failure.
 From the repository root:
 
 ```sh
-cargo build -p prs-cli --bin prs --locked
+cargo build -p p-rs --bin prs --locked
 export PRS_BIN="$PWD/target/debug/prs"
 python -m unittest discover -s examples/multiprocess/native -v
 ```

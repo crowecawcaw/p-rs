@@ -10,7 +10,7 @@ for what the checks do and why.
 From the repository root, with Rust and Go 1.22+:
 
 ```sh
-cargo build -p prs-cli --bin prs --locked
+cargo build -p p-rs --bin prs --locked
 export PRS_BIN="$(pwd)/target/debug/prs"
 cd examples/go
 go test -count=1 ./...

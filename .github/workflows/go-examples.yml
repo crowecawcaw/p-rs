@@ -31,7 +31,7 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: false
       - name: Build this checkout's checker
-        run: cargo build -p prs-cli --bin prs --locked
+        run: cargo build -p p-rs --bin prs --locked
       - name: Supported Go helper tests (module at the repository root)
         env:
           PRS_BIN: ${{ github.workspace }}/target/debug/prs

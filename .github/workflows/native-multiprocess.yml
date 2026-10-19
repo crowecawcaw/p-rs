@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Build this checkout's checker
-        run: cargo build -p prs-cli --bin prs --locked
+        run: cargo build -p p-rs --bin prs --locked
       - name: Check healthy and faulty subprocess histories
         env:
           PRS_BIN: ${{ github.workspace }}/target/debug/prs

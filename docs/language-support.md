@@ -2,7 +2,7 @@
 
 Normative requirements for the language helpers that check application events against P
 specs from tests: Python (`python/`), Go (`go/prstest`), Java (`java/`), Rust
-(`crates/prs-test`), and any future one. Every helper offers the same features, names,
+(`prs::test` in `crates/p-rs`), and any future one. Every helper offers the same features, names,
 defaults and failure behaviour, each written idiomatically for its language.
 
 Reader: an agent implementing or reviewing a helper. MUST, SHOULD and MAY are as in
@@ -73,7 +73,7 @@ Relative paths in environment variables resolve against the process working dire
 ## L0 Core contract
 
 - Helpers MUST check with the core: run `prs observe` (CLI helpers) or call
-  `prs_checker::observe` (Rust, in-process). They MUST NOT parse P, check payloads,
+  `prs::checker::observe` (Rust, in-process). They MUST NOT parse P, check payloads,
   reorder events or interpret monitor semantics themselves.
 - CLI helpers MUST pass `--json-report` and read results from the report, never from
   console output. Exit codes: 0 pass, 1 spec violation, 2 tool or input error. No report
@@ -135,7 +135,7 @@ Relative paths in environment variables resolve against the process working dire
   | Python | `prs.set_sink(target)` returns a `Sink`; `None` is off | a path, `"-"` or a text stream, a callable | `sink.dropped`, `sink.flush(timeout)`, `sink.close()` |
   | Go | `prsemit.SetSink(s)`; `nil` is off | `prsemit.File(path)` (`(*Sink, error)`), `Stdout()`, `Writer(w)`, `Callback(f)` | `prsemit.Dropped()`, `Flush(timeout)`, `Close()` |
   | Java | `PrsEmit.setSink(sink)`; `null` is off | `Sink.file(path)`, `Sink.stdout()`, `Sink.writer(out)`, `Sink.callback(f)` | `PrsEmit.dropped()`, `flush(timeout)`, `close()` |
-  | Rust | `prs_emit::set_sink(emitter)`; `Emitter::off()` is off | `Emitter::file(path)?`, `stdout()`, `writer(w)`, `callback(f)` | `prs_emit::dropped()`, `flush(timeout)`, `close()` |
+  | Rust | `prs::emit::set_sink(emitter)`; `Emitter::off()` is off | `Emitter::file(path)?`, `stdout()`, `writer(w)`, `callback(f)` | `prs::emit::dropped()`, `flush(timeout)`, `close()` |
 
   Rust's sink is an `Emitter` value, which code can also take as a dependency; its
   `callback` gets each `Event` on the emitting thread, because test recordings are
@@ -230,7 +230,7 @@ language is under [Packaging and distribution](#packaging-and-distribution).
 | pytest (Python) | plugin; `@pytest.mark.prs(skip=..., check_hot=...)` | fixture setup: yes | fixture teardown: no (checked when the body ends) | Hypothesis: `with check_spec(...)` inside the `@given` body |
 | `testing` (Go) | `prstest.Start(t, cfg)` in the test's fixture | after `Start` | `t.Cleanup` registered after `Start`: yes; before: no | `go test -fuzz`: `Start` inside the `f.Fuzz` callback with its `t` |
 | JUnit 5 (Java) | `PrsExtension` (`@ExtendWith` or autodetection), `@Prs(skip=..., checkHot=...)` | `@BeforeEach`: yes | `@AfterEach`: yes | jqwik: `observer.recording(...)` per `@Property` try, coverage via `@AfterContainer` |
-| `#[test]` (Rust) | `model.check(\|sink\| ...)` closure or `#[prs_test::test]` attribute | inside the closure | inside the closure | proptest: a recording per case inside the `proptest!` body |
+| `#[test]` (Rust) | `model.check(\|sink\| ...)` closure or `#[prs::test::test]` attribute | inside the closure | inside the closure | proptest: a recording per case inside the `proptest!` body |
 
 Agents writing tests SHOULD join workers inside the recording; the table says where
 that is.
@@ -291,7 +291,7 @@ One project file per ecosystem, same keys as the [concepts](#concepts):
   folder) and compares the result with `expect.json`.
 - A case whose `requires` lists a feature the helper lacks is skipped with the reason
   printed. Nothing else is skipped.
-- `crates/prs-cli/tests/conformance.rs` replays the corpus through `prs observe`, so the
+- `crates/p-rs/tests/cli_conformance.rs` replays the corpus through `prs observe`, so the
   corpus stays consistent with the core.
 - A helper is conformant when the corpus passes without skips and its checklist below is
   complete. A new language starts by copying the checklist.
@@ -432,7 +432,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 
 ### Rust
 
-- [ ] Packaging per [Packaging and distribution](#packaging-and-distribution): one `p-rs` crate with features (#64)
+- [x] Packaging per [Packaging and distribution](#packaging-and-distribution): one `p-rs` crate with features (#64)
 - [x] In-process checking; strict default true; `check_hot`
 - [x] `emit(event, key, payload)` argument order
 - [x] `Model` per [Rust `Model`](#rust-model): paths, config, several specs, `exclude`
@@ -442,6 +442,6 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] Shared, thread-safe suite coverage; `PRS_COVERAGE` (#53)
 - [x] `events_dir()`, `env()`, `add_events_dir`, `add_log` (#49), reading folders through a core helper
 - [x] `unknown_events`, default `error` (#47)
-- [x] `#[prs_test::test]` or fixture pattern; `PRS_MODE` (fixture: `model.check(|recording| ...)`)
-- [x] Production emitter crate (#48): `crates/prs-emit`
+- [x] `#[prs::test::test]` or fixture pattern; `PRS_MODE` (fixture: `model.check(|recording| ...)`)
+- [x] Production emitter (#48): `prs::emit` (feature `emit`)
 - [x] Conformance runner

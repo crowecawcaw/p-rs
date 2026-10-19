@@ -25,8 +25,8 @@ import java.util.regex.Pattern;
  * {@code junit-platform.properties}), then the default.
  */
 public final class PrsObserver {
-    static final String INSTALL = "Install prs with `cargo install --git https://github.com/crowecawcaw/p-rs prs-cli` "
-            + "(or `cargo build -p prs-cli` in a checkout), then set PRS_BIN to the binary or put prs on PATH.";
+    static final String INSTALL = "Install prs with `cargo install --git https://github.com/crowecawcaw/p-rs p-rs` "
+            + "(or `cargo build -p p-rs` in a checkout), then set PRS_BIN to the binary or put prs on PATH.";
     static final String NATIVES_DOC = "https://github.com/crowecawcaw/p-rs/tree/main/java#install";
     private final List<Path> files;
     private final List<String> specs;

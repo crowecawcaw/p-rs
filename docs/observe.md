@@ -107,15 +107,15 @@ are sorted. A pattern that matches nothing is an error, like a missing path. A v
 that exists as written is taken as given, so arguments the shell already expanded
 read the same as a quoted pattern.
 
-Rust callers use the same code: `prs_checker::observe_inputs::read_logs(&StdFiles,
+Rust callers use the same code: `prs::checker::observe_inputs::read_logs(&StdFiles,
 cwd, &paths, "\n")` returns the inputs `Spec::observe` takes, and `log_paths` returns
 only the file list.
 
 ## Custom parsers
 
 Other log formats need a parser written in Rust: implement
-`prs_checker::observe::Parser` and run `prs_compat::observe::run_with(args, host, parsers)`.
-`crates/prs-cli/examples/observe_regression.rs` is a worked example; it ports
+`prs::checker::observe::Parser` and run `prs::compat::observe::run_with(args, host, parsers)`.
+`crates/p-rs/examples/observe_regression.rs` is a worked example; it ports
 upstream's regression parsers.
 
 ## Time and latency budgets
@@ -182,7 +182,7 @@ version. Coverage collection is opt-in; existing output and JSON are unchanged
 without `--coverage`.
 
 Rust callers can set `ObserveOptions.coverage = true` and read `Report.coverage`.
-`prs_checker::observe_coverage::ObserveCoverage` exposes the declaration and hit
+`prs::checker::observe_coverage::ObserveCoverage` exposes the declaration and hit
 sets, `merge(&other)` for test-suite unions, `render_text()` for human output, and
 `to_json()` for the same structured coverage object as the CLI.
 
@@ -259,7 +259,7 @@ complete supervisor for two worker processes, natively and in Docker.
 Embedding applications can use `ObserveSession` to push one entry at a time and
 inspect `failed()`, then `finish(eof, now)` to collect a report. Give each selected
 spec its own session and feed all sessions before reading another line.
-`prs_checker::observe_inputs` has the pieces `--live` uses: `SequenceMerger` orders
+`prs::checker::observe_inputs` has the pieces `--live` uses: `SequenceMerger` orders
 lines by sequence number, and `observe_live` feeds a `LiveSource` of several streams
 to the sessions.
 
@@ -291,7 +291,7 @@ prs coverage merge-observe --stdin --json-report suite-coverage.json < observati
 An empty array produces an empty coverage aggregation. Each input must contain coverage;
 missing, malformed, unsupported-version, or internally inconsistent coverage is rejected.
 Merged reports can themselves be merged again. The core Rust API is
-`prs_checker::observe_report::ObserveCoverageReport`: use `from_observation` for an
+`prs::checker::observe_report::ObserveCoverageReport`: use `from_observation` for an
 in-process `Report`, `from_json` / `from_json_str` for stored reports, `merge` for an
 atomic validated union, and `render_text` / `to_json` to report the result.
 

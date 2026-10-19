@@ -9,7 +9,7 @@
 //!
 //! A request is JSON: `{"args": ["check", "m.p", "tcMain"], "files": {"path": "text"},
 //! "cwd": "/work", "seed": 42}`. The command runs against an in-memory file system holding
-//! `files` and runs [`prs_cli::run`]; the response carries the exit code, console output and the complete file
+//! `files` and runs [`prs::cli::run`]; the response carries the exit code, console output and the complete file
 //! system afterwards (so a following request can pass it back in, e.g. to replay a
 //! schedule). `js/prs.mjs` wraps this for JavaScript.
 //!
@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use prs_compat::host::{Host, MemHost};
+use prs::compat::host::{Host, MemHost};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -66,7 +66,7 @@ pub fn run(req: Request) -> Response {
             return invalid_request(&format!("cannot add file {}: {}", path, e));
         }
     }
-    let exit_code = prs_cli::run(&req.args, &mut mem);
+    let exit_code = prs::cli::run(&req.args, &mut mem);
     let mut files = BTreeMap::new();
     for p in mem.files_under("/") {
         if let Ok(t) = mem.read_to_string(&p) {

@@ -11,7 +11,7 @@ From the repository root, with JDK 17+, Maven 3.9.9 and Rust (on another platfor
 replace `natives-macos-aarch64` with yours, such as `natives-linux-x86_64`):
 
 ```sh
-cargo build --locked -p prs-cli
+cargo build --locked -p p-rs
 mkdir -p java/natives/natives-macos-aarch64
 cp target/debug/prs java/natives/natives-macos-aarch64/
 PRS_BIN="$PWD/target/debug/prs" mvn --batch-mode --no-transfer-progress -f java/pom.xml -Pnatives install

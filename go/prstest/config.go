@@ -223,7 +223,7 @@ func resolveBinary(binary, dir string) string {
 }
 
 const installHelp = `install prs with
-  cargo install --git https://github.com/crowecawcaw/p-rs prs-cli
+  cargo install --git https://github.com/crowecawcaw/p-rs p-rs
 or download a release binary from https://github.com/crowecawcaw/p-rs/releases,
 then put it on PATH or set PRS_BIN to its absolute path`
 

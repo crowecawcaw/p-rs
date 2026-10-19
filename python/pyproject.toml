@@ -33,7 +33,9 @@ prs = "prs.pytest_plugin"
 
 [tool.maturin]
 bindings = "bin"                                 # ships the executable, no bindings
-manifest-path = "../crates/prs-cli/Cargo.toml"
+manifest-path = "../crates/p-rs/Cargo.toml"
+features = ["cli"]                               # the binaries only, not prs::test
+no-default-features = true
 python-source = "src"
 module-name = "prs"
 strip = true

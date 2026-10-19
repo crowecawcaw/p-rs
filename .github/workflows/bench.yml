@@ -63,7 +63,13 @@ jobs:
           fi
       - name: Build
         working-directory: ${{ steps.src.outputs.dir }}
-        run: cargo build --release --locked -p prs-cli
+        run: |
+          # commits before the crates were merged into p-rs build the prs-cli crate
+          if [ -d crates/prs-cli ]; then
+            cargo build --release --locked -p prs-cli
+          else
+            cargo build --release --locked -p p-rs --bins
+          fi
 
       - name: Run benchmarks
         run: |
