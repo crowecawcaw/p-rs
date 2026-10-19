@@ -11,7 +11,7 @@ import sqlite3
 import subprocess
 import threading
 import time
-from contextlib import ExitStack
+from contextlib import ExitStack, closing
 from pathlib import Path
 
 from inventory import initialize_database
@@ -180,7 +180,7 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
                     raise AssertionError("expected native prs failure before EOF: " + str(report))
                 if len(violations) != 1 or violations[0]["kind"] != "spec_violation" or "reservation exceeds available stock" not in str(violations[0]) or violations[0]["key"] != "coffee":
                     raise AssertionError("unexpected violation: " + str(violations))
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db:
                 final_stock = db.execute("SELECT available FROM stock WHERE sku='coffee'").fetchone()[0]
             if final_stock != (-1 if scenario == "oversell" else 3):
                 raise AssertionError("unexpected persisted inventory stock")

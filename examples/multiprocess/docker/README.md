@@ -1,0 +1,149 @@
+# Two inventory workers in Docker, one live observer
+
+Run two long-lived inventory workers in separate containers. Both modify the
+same SQLite inventory database and emit their committed application events. A
+host-side supervisor forwards their combined history to `prs observe`, checks
+its exit status, and removes both containers when observation fails. This is a
+small example of checking services while an external test driver runs them.
+
+Requires Docker Engine running with access to bind mounts, Python 3.9+, and a
+Rust toolchain to build the checker. The workers use only Python's standard
+library; the image build pulls `python:3.13-slim` and installs no packages.
+After the image is built, both containers run with networking disabled.
+
+From the repository root:
+
+```sh
+cargo build -p prs-cli --bin prs --locked
+export PRS_BIN="$PWD/target/debug/prs"
+docker build -f examples/multiprocess/docker/Dockerfile \
+  -t prs-inventory-example:local examples/multiprocess
+python examples/multiprocess/docker/run.py
+```
+
+The default healthy scenario exits 0. Every invocation creates a fresh database
+and artifacts directory, printed at the end. To choose a location, pass
+`--artifacts /path/to/a/new/directory`; that final directory must not exist.
+Use `--prs /path/to/prs` or `PRS_BIN` to select the binary; the fallback is `prs`
+on `PATH`. `--image` selects a different prebuilt worker image.
+
+Run the actual overselling defect:
+
+```sh
+python examples/multiprocess/docker/run.py --scenario oversell
+# Expected shell exit status: 1. Both containers have been removed.
+```
+
+`--scenario oversell` enables the worker's clearly marked `--allow-oversell`
+business-rule fault: it skips the stock-availability guard while retaining the
+same database updates, instrumentation, and spec. Stock starts at 3; worker A
+reserves 2 and worker B incorrectly reserves another 2, committing stock -1.
+These are real database operations, with no fake violation events. P reports
+`reservation exceeds available stock` at worker B's reservation.
+
+To run the integration test, including asserting the expected failure:
+
+```sh
+python -m unittest discover -s examples/multiprocess/docker -p test_example.py -v
+```
+
+The test passes only if the healthy command exits 0 and the overselling command
+exits 1 with the exact structured spec violation, both workers emitted events,
+both containers were still running at detection, and both were removed afterward.
+An unexpected spec failure or setup error fails the test. The
+[CI workflow](../../../../.github/workflows/multiprocess-docker.yml) builds the
+image, runs these real containers, and uploads all reports even if a test fails.
+
+## Setup and lifetime
+
+Read [run.py](run.py), the shared [harness](../common/harness.py), then the
+[worker](../common/worker.py) and [application](../common/inventory.py).
+
+The supervisor initializes a fresh database before starting observation. It
+starts the observer **before any application setup that emits events**, then
+starts both containers with a shared directory mounted at `/data`. Each worker
+sends an explicit readiness acknowledgment; the supervisor then issues business
+commands and waits for their acknowledgments. Queue readers and deadlines bound
+all waits. There are no startup sleeps or wall-clock ordering assumptions.
+
+The healthy sequence is: A stocks 3, A reserves 2, B's request for 2 is rejected,
+A releases, B reserves 2, and B releases. Rejected operations change no state
+and emit no event. Each worker therefore emits successful operations. Workers
+stay alive waiting for their next command between operations.
+
+For the healthy run, the supervisor stops and reaps the workers, verifies no
+outbox sequence gaps remain, then closes observer stdin. EOF completes the
+history and produces the final report. For the faulty run, it leaves both
+workers waiting for commands. `--stdin --fail-fast` makes the observer return
+on the violating event **before EOF**. The supervisor confirms both actual
+containers are running, then forcibly removes them and reaps their launchers.
+Every exit path uses the same cleanup and verifies containers are absent; killing
+only a `docker run` client is insufficient to remove a container.
+
+The example invokes the equivalent of:
+
+```sh
+prs observe --pfiles examples/multiprocess/specs/inventory.p \
+  --spec InventoryCorrect --stdin --fail-fast --coverage \
+  --json-report report.json --outputDir observe
+```
+
+The native `prs` process exits 1 for a spec violation. The JSON report preserves
+PObserve's `exit_code: 2` for that same violation; it additionally reports
+`input_complete: false` and `stop_reason: "error"`. A healthy EOF reports 0,
+`input_complete: true`, and `stop_reason: "eof"`. A real supervisor must propagate
+failure to its test runner, as `run.py` does. Catching a violation in the test
+suite is only appropriate for this explicitly expected-defect case.
+
+## Event order and integration boundary
+
+Each operation runs under SQLite `BEGIN IMMEDIATE`. Business state and its
+outbox row commit atomically. Workers publish the row only after commit. The
+outbox's monotonically increasing sequence is assigned inside the transaction;
+the supervisor buffers arrivals until the next contiguous sequence is available,
+then forwards JSON lines in commit order. The sequence also serves as a logical
+event timestamp. Per-process clocks and pipe-arrival order cannot establish a
+shared history. In this example the driver deliberately coordinates operations
+to exercise a reproducible cross-worker history; it is not a concurrent schedule
+explorer.
+
+Both workers share the `coffee` partition key, so P checks one inventory history
+across process boundaries. Using a different key per process would hide the
+oversell. The same database supports independent product keys and reservations
+scoped by product and order. The spec reconstructs inventory from committed
+stock/reserve/release events without accessing the database; the supervisor also
+checks the persisted stock as an ordinary application assertion.
+
+For your project, replace the worker commands with real requests and inject the
+event sink at the transaction boundary. Start observing before seeding relevant
+state; keep the observer alive until producers stop; fail the enclosing test if
+the observer reports an issue. Replace this single-database sequence with an
+ordering guarantee appropriate to your system. This small publisher emits only
+newly committed rows: it does not implement crash recovery, outbox retries, or
+deduplication. A missing sequence, worker crash, malformed event, setup failure,
+or expired deadline fails the run and triggers cleanup.
+
+## Reports and observed P coverage
+
+`run.py` prints the observer's human-readable report and coverage to stdout,
+then a concise JSON result. The artifacts directory retains:
+
+| File | Contents |
+| --- | --- |
+| `events.jsonl` | Combined committed event stream sent to the observer |
+| `worker-a.stdout`, `worker-b.stdout` | Each producer's event and control messages |
+| `worker-a.stderr`, `worker-b.stderr` | Worker/container diagnostics |
+| `observer.stdout`, `observer.stderr` | Full checker output |
+| `report.json` | Structured violations and observed monitor coverage |
+| `result.json` | Supervisor result, exit statuses, emitters, and cleanup evidence |
+| `inventory.sqlite` | Application state and transactional outbox |
+| `observe/` | Human reports and replay events for a detected violation |
+
+The healthy run reports 2/2 states, 3/6 handlers, and one observed transition.
+The three uncovered handlers reject invalid stock setup or operations before
+setup, so a passing application trace should not cover them. The faulty run
+reports a checked prefix with 2/2 states and 2/6 handlers. `report.json` contains
+coverage declarations and visited elements under `specs[0].coverage`, allowing CI
+to inspect what ran and what did not. This measures the P monitor exercised by
+the actual history; it does not measure application code coverage or all possible
+P paths, schedules, or distributed failures.

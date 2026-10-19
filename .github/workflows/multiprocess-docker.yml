@@ -1,0 +1,44 @@
+name: Docker multiprocess integration example
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-example-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: docker-example
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build this checkout's checker
+        run: cargo build -p prs-cli --bin prs --locked
+      - name: Build the stdlib-only worker image
+        run: docker build -f examples/multiprocess/docker/Dockerfile -t prs-inventory-example:local examples/multiprocess
+      - name: Check valid operations and detect overselling before producer EOF
+        env:
+          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+          EXAMPLE_ARTIFACTS: ${{ runner.temp }}/docker-inventory
+        run: python -m unittest discover -s examples/multiprocess/docker -p test_example.py -v
+      - name: Save events, observer reports and worker logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-inventory-reports
+          path: ${{ runner.temp }}/docker-inventory
+          if-no-files-found: ignore

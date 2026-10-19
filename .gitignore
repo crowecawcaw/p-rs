@@ -26,3 +26,4 @@ __pycache__/
 
 # Example model coverage artifacts
 examples/**/coverage/
+examples/multiprocess/**/artifacts/

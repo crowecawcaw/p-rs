@@ -5,10 +5,11 @@ business rules. A real publisher can retry outbox rows after a crash.
 """
 import json
 import sqlite3
+from contextlib import closing
 
 
 def initialize_database(path):
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db:
         db.executescript("""
             CREATE TABLE stock (sku TEXT PRIMARY KEY, available INTEGER NOT NULL);
             CREATE TABLE reservations (order_id TEXT, sku TEXT, units INTEGER, PRIMARY KEY(sku, order_id));
