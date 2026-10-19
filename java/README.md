@@ -4,28 +4,88 @@ Check the events your Java code emits against P specs, in tests and in productio
 Java 17+. The helpers run the `prs observe` CLI; the rules every language helper
 follows are in [docs/language-support.md](../docs/language-support.md).
 
-| Module | Use it for | Dependencies |
+One artifact, `io.github.crowecawcaw:p-rs`, holds both halves:
+
+| Package | Use it for | Needs |
 | --- | --- | --- |
-| `prs-emit` | `PrsEmit.emit(...)` in application code; production sinks | JDK only |
-| `prs-test-core` | Recordings and checks from any test framework | `prs-emit`, Jackson, opentest4j |
-| `prs-junit5` | Automatic per-test checks in JUnit Jupiter | `prs-test-core` |
+| `io.github.crowecawcaw.prs.emit` | `PrsEmit.emit(...)` in application code; production sinks | the JDK only |
+| `io.github.crowecawcaw.prs` | Recordings and checks from any test framework; the JUnit 5 extension | opentest4j and the JUnit Jupiter API, from your test framework |
+
+`p-rs` has no runtime dependencies: JUnit and opentest4j are optional, so production
+code depending on `p-rs` pulls nothing else and loads no test classes. The `prs` checker comes in a classifier
+jar of the same artifact, `natives-<os>-<arch>`: `natives-linux-x86_64`,
+`natives-linux-aarch64`, `natives-macos-x86_64`, `natives-macos-aarch64`,
+`natives-windows-x86_64`.
 
 ## Install
 
-The modules are not on Maven Central yet. From the repository root, with JDK 17+,
-Maven 3.9 and Rust:
+Depend on `p-rs`, plus the natives jar for the platform the tests run on (test scope):
+
+```xml
+<dependency>
+  <groupId>io.github.crowecawcaw</groupId>
+  <artifactId>p-rs</artifactId>
+  <version>${prs.version}</version>
+</dependency>
+<dependency>
+  <groupId>io.github.crowecawcaw</groupId>
+  <artifactId>p-rs</artifactId>
+  <version>${prs.version}</version>
+  <classifier>${prs.natives}</classifier>
+  <scope>test</scope>
+</dependency>
+```
+
+If everyone builds on one platform, write its classifier in place of `${prs.natives}`.
+Otherwise set it per platform with these profiles (the
+[os-maven-plugin](https://github.com/trustin/os-maven-plugin)'s names differ from ours):
+
+```xml
+<profiles>
+  <profile><id>prs-linux-x86_64</id><activation><os><name>linux</name><arch>amd64</arch></os></activation><properties><prs.natives>natives-linux-x86_64</prs.natives></properties></profile>
+  <profile><id>prs-linux-aarch64</id><activation><os><name>linux</name><arch>aarch64</arch></os></activation><properties><prs.natives>natives-linux-aarch64</prs.natives></properties></profile>
+  <profile><id>prs-macos-x86_64</id><activation><os><family>mac</family><arch>x86_64</arch></os></activation><properties><prs.natives>natives-macos-x86_64</prs.natives></properties></profile>
+  <profile><id>prs-macos-aarch64</id><activation><os><family>mac</family><arch>aarch64</arch></os></activation><properties><prs.natives>natives-macos-aarch64</prs.natives></properties></profile>
+  <profile><id>prs-windows-x86_64</id><activation><os><family>windows</family><arch>amd64</arch></os></activation><properties><prs.natives>natives-windows-x86_64</prs.natives></properties></profile>
+</profiles>
+```
+
+Gradle (Kotlin DSL):
+
+```kotlin
+val prsOs = System.getProperty("os.name").lowercase().let {
+    if (it.startsWith("mac")) "macos" else if (it.startsWith("windows")) "windows" else "linux" }
+val prsArch = if (System.getProperty("os.arch") in setOf("aarch64", "arm64")) "aarch64" else "x86_64"
+dependencies {
+    implementation("io.github.crowecawcaw:p-rs:$prsVersion")
+    testRuntimeOnly("io.github.crowecawcaw:p-rs:$prsVersion:natives-$prsOs-$prsArch")
+}
+```
+
+The checker binary is found from `.binary(...)`, then `PRS_BIN`, then the natives jar
+on the classpath, then `prs` on `PATH`. The natives jar's binary is copied on first
+use to `$XDG_CACHE_HOME/p-rs/<version>/` (else `~/Library/Caches/p-rs` on macOS,
+`%LOCALAPPDATA%\p-rs` on Windows, `~/.cache/p-rs` elsewhere), checked against the
+SHA-256 in the jar, and reused by later runs. Without any binary, checks fail with a
+`SetupError` of kind `binary_missing` naming the natives dependency to add.
+
+### From this repository
+
+`p-rs` is not on Maven Central yet. From the repository root, with JDK 17+, Maven 3.9
+and Rust, build the checker and install `p-rs` with a natives jar for your platform
+(here macOS on Apple silicon):
 
 ```sh
 cargo build --locked -p prs-cli
-export PRS_BIN="$PWD/target/debug/prs"
-mvn --batch-mode --no-transfer-progress -f java/pom.xml install
+mkdir -p java/natives/natives-macos-aarch64
+cp target/debug/prs java/natives/natives-macos-aarch64/
+PRS_BIN="$PWD/target/debug/prs" mvn -f java/pom.xml -Pnatives install
 ```
 
-Then depend on `prs-emit` (compile scope) and `prs-junit5` (test scope), version
-`0.1.0-SNAPSHOT`, group `io.github.crowecawcaw`. The checker binary is found from
-`.binary(...)`, then `PRS_BIN`, then `prs` on `PATH`; without one, checks fail with a
-`SetupError` of kind `binary_missing` that says how to install it
-(`cargo install --git https://github.com/crowecawcaw/p-rs prs-cli`).
+The `natives` profile packages every `java/natives/<classifier>/prs` (or `prs.exe`) it
+finds, or the folders under `-Dprs.natives=DIR`, as classifier jars. Or skip the
+natives jar and set `PRS_BIN` (or put `prs` on `PATH`), as
+`cargo install --git https://github.com/crowecawcaw/p-rs prs-cli` does.
 
 ## Emit events
 
@@ -214,6 +274,8 @@ one path; delete the file before a run.
 
 ## Upgrading from 0.1
 
+- `prs-emit`, `prs-test-core` and `prs-junit5` are one artifact, `p-rs`; packages and
+  class names are unchanged. Add the natives jar to drop `PRS_BIN`.
 - `specs` is optional (default: every spec), so `strict` defaults to false without
   named specs; it stays true with them.
 - Undeclared event names now fail the check (`unknownEvents`, default `ERROR`).

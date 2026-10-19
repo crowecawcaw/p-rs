@@ -10,13 +10,23 @@
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <prs.version>0.1.0-SNAPSHOT</prs.version>
   </properties>
 
   <dependencies>
+    <!-- The emitter for application code, and the test helpers. -->
     <dependency>
       <groupId>io.github.crowecawcaw</groupId>
-      <artifactId>prs-emit</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <artifactId>p-rs</artifactId>
+      <version>${prs.version}</version>
+    </dependency>
+    <!-- The prs checker for this platform; ${prs.natives} comes from the profiles below. -->
+    <dependency>
+      <groupId>io.github.crowecawcaw</groupId>
+      <artifactId>p-rs</artifactId>
+      <version>${prs.version}</version>
+      <classifier>${prs.natives}</classifier>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -28,12 +38,6 @@
       <groupId>net.jqwik</groupId>
       <artifactId>jqwik</artifactId>
       <version>1.9.3</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.github.crowecawcaw</groupId>
-      <artifactId>prs-junit5</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -52,4 +56,13 @@
       </plugin>
     </plugins>
   </build>
+
+  <!-- Pick the p-rs natives classifier for the platform Maven runs on. -->
+  <profiles>
+    <profile><id>prs-linux-x86_64</id><activation><os><name>linux</name><arch>amd64</arch></os></activation><properties><prs.natives>natives-linux-x86_64</prs.natives></properties></profile>
+    <profile><id>prs-linux-aarch64</id><activation><os><name>linux</name><arch>aarch64</arch></os></activation><properties><prs.natives>natives-linux-aarch64</prs.natives></properties></profile>
+    <profile><id>prs-macos-x86_64</id><activation><os><family>mac</family><arch>x86_64</arch></os></activation><properties><prs.natives>natives-macos-x86_64</prs.natives></properties></profile>
+    <profile><id>prs-macos-aarch64</id><activation><os><family>mac</family><arch>aarch64</arch></os></activation><properties><prs.natives>natives-macos-aarch64</prs.natives></properties></profile>
+    <profile><id>prs-windows-x86_64</id><activation><os><family>windows</family><arch>amd64</arch></os></activation><properties><prs.natives>natives-windows-x86_64</prs.natives></properties></profile>
+  </profiles>
 </project>
