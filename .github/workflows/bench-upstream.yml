@@ -50,7 +50,7 @@ jobs:
           key: bench
           save-if: false
       - name: Build prs
-        run: cargo build --release --locked -p prs-cli
+        run: cargo build --release --locked -p p-rs --bins
 
       - uses: actions/setup-dotnet@v4
         with:

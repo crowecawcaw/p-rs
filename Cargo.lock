@@ -85,7 +85,15 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "p-rs"
-version = "0.0.1"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "roxmltree",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "sha2",
+]
 
 [[package]]
 name = "proc-macro2"
@@ -97,75 +105,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "prs-checker"
-version = "0.1.0"
-dependencies = [
- "prs-sema",
- "prs-syntax",
- "rustc-hash",
- "serde_json",
-]
-
-[[package]]
-name = "prs-cli"
-version = "0.1.0"
-dependencies = [
- "prs-checker",
- "prs-compat",
- "serde_json",
-]
-
-[[package]]
-name = "prs-compat"
-version = "0.1.0"
-dependencies = [
- "prs-checker",
- "prs-sema",
- "prs-syntax",
- "roxmltree",
- "serde_json",
-]
-
-[[package]]
-name = "prs-emit"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "prs-sema"
-version = "0.1.0"
-dependencies = [
- "prs-syntax",
- "sha2",
-]
-
-[[package]]
-name = "prs-syntax"
-version = "0.1.0"
-
-[[package]]
-name = "prs-test"
-version = "0.1.0"
-dependencies = [
- "prs-checker",
- "prs-compat",
- "prs-emit",
- "prs-sema",
- "prs-syntax",
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "prs-wasm"
 version = "0.1.0"
 dependencies = [
- "prs-cli",
- "prs-compat",
+ "p-rs",
  "serde",
  "serde_json",
 ]

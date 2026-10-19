@@ -1,8 +1,8 @@
-// Inventory-specific event mapping and fixtures; prs-test does the checking.
+// Inventory-specific event mapping and fixtures; prs::test does the checking.
 #![allow(dead_code)]
 
 use inventory_integration_example::{Event, Inventory};
-use prs_test::{json, EventSink, Model, Recording};
+use prs::test::{json, EventSink, Model, Recording};
 use std::sync::LazyLock;
 
 pub type TestInventory = Inventory<Box<dyn FnMut(Event)>>;

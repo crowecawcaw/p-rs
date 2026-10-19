@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-# A standalone workspace; prs-test currently ships from source only.
+# A standalone workspace, using the p-rs crate from this repository.
 [workspace]
 
-# Read by prs_test::Model::load(); paths are relative to this file.
+# Read by prs::test::Model::load(); paths are relative to this file.
 [package.metadata.prs]
 spec_files = ["specs/inventory.p"]
 specs = ["InventoryCorrect"]
 
 [dev-dependencies]
-prs-test = { path = "../../crates/prs-test" }
+p-rs = { path = "../../crates/p-rs", default-features = false, features = ["test"] }
 proptest = "1.11"

@@ -5,6 +5,7 @@ cargo build --workspace
 cargo test --workspace
 cargo fmt --all
 cargo clippy --workspace --all-targets
+cargo build -p p-rs --no-default-features --features emit   # production use: no checker
 ```
 
 ## Goal

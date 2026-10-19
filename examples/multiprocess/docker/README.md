@@ -14,7 +14,7 @@ After the image is built, both containers run with networking disabled.
 From the repository root:
 
 ```sh
-cargo build -p prs-cli --bin prs --locked
+cargo build -p p-rs --bin prs --locked
 export PRS_BIN="$PWD/target/debug/prs"
 docker build -f examples/multiprocess/docker/Dockerfile \
   -t prs-inventory-example:local examples/multiprocess

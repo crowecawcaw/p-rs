@@ -26,4 +26,4 @@ contain the expected JSON as a subset.
 `Src/PObserve/PObserveRegressionTesting` (spec, run parameters, and every log under
 8 KB) with the outputs of upstream PObserve on each log, with and without
 `--assumeInputsAreSorted` (`expected/`, recorded by `scripts/vendor-pobserve-goldens.py`
-and checked in `crates/prs-compat/tests/observe_upstream.rs`).
+and checked in `crates/p-rs/tests/compat_observe_upstream.rs`).

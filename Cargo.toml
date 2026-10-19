@@ -2,14 +2,7 @@
 resolver = "2"
 members = [
     "crates/p-rs",
-    "crates/prs-syntax",
-    "crates/prs-sema",
-    "crates/prs-checker",
-    "crates/prs-compat",
-    "crates/prs-cli",
     "crates/prs-wasm",
-    "crates/prs-test",
-    "crates/prs-emit",
 ]
 
 [workspace.package]
@@ -20,13 +13,7 @@ repository = "https://github.com/crowecawcaw/p-rs"
 rust-version = "1.87"
 
 [workspace.dependencies]
-prs-syntax = { path = "crates/prs-syntax" }
-prs-sema = { path = "crates/prs-sema" }
-prs-checker = { path = "crates/prs-checker" }
-prs-compat = { path = "crates/prs-compat" }
-prs-cli = { path = "crates/prs-cli" }
-prs-test = { path = "crates/prs-test" }
-prs-emit = { path = "crates/prs-emit" }
+p-rs = { path = "crates/p-rs", default-features = false }
 indexmap = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

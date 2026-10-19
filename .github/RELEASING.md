@@ -9,17 +9,20 @@ Actions → **Release** → Run workflow, on `main`, and pick a level:
 
 | level   | effect                                        |
 | ------- | --------------------------------------------- |
-| patch   | 0.0.1 → 0.0.2                                  |
-| minor   | 0.0.1 → 0.1.0                                  |
-| major   | 0.0.1 → 1.0.0                                  |
+| patch   | 0.1.0 → 0.1.1                                  |
+| minor   | 0.1.0 → 0.2.0                                  |
+| major   | 0.1.0 → 1.0.0                                  |
 | release | publish the version already in `Cargo.toml`    |
+
+The version is `[workspace.package] version` in the root `Cargo.toml`: the `p-rs`
+crate and the Python wheels both use it.
 
 Or from a terminal: `gh workflow run release.yml --ref main -f level=patch`.
 
 The workflow:
 
 1. **Preflight**: fmt, clippy, tests and `cargo publish --dry-run` on `main`.
-2. **Bump and tag**: bumps `crates/p-rs/Cargo.toml` and `Cargo.lock`, commits
+2. **Bump and tag**: bumps `Cargo.toml` and the lock files, commits
    `Release p-rs vX.Y.Z` to `main`, tags `vX.Y.Z` and pushes both atomically.
    If `main` moved since the run started, the push fails and nothing is published.
 3. **Publish**: publishes `p-rs` to crates.io. A version already on crates.io is
@@ -32,14 +35,14 @@ The workflow:
 5. **Python**: builds the `p-rs` Python package (`python/`): wheels with the `prs`
    binary for Linux (x86-64, ARM), macOS (Intel, Apple Silicon) and Windows, plus an
    sdist. They are attached to the GitHub release and published to PyPI. The wheels
-   take the release's version. A version already on PyPI is skipped.
+   are built from `crates/p-rs`, so they have the release's version. A version already on PyPI is skipped.
 
 ## Fix a release's notes
 
 Actions → **Update release notes** → enter the tag. It regenerates the notes with
 Claude and replaces them on the release. Tick *dry run* to only print them.
 
-Only the `p-rs` crate is published. The `prs-*` crates are not.
+Only the `p-rs` crate is published; `prs-wasm` (the playground's WebAssembly build) is not.
 
 ## Requirements
 

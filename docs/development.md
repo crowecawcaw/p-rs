@@ -4,18 +4,28 @@ The commands to build, test and lint are in [AGENTS.md](../AGENTS.md).
 
 ## Crates
 
-| Crate | Purpose |
-|---|---|
-| `prs-syntax` | Lexer, parser and AST. |
-| `prs-sema` | Name resolution and type checking; produces a typed program. |
-| `prs-checker` | Interpreter, schedulers, PEx search, monitors, traces, foreign functions and log checking. |
-| `prs-compat` | The upstream-compatible command line: options, `.pproj` files, console output, output folders and exit codes; also the steps of a check (sources, type checking, one test case, replay) for other front ends. Runs against a pluggable host (native or in-memory). |
-| `prs-cli` | The `prs` command line, the native host, and the `prs` and `prs-compat` binaries. |
-| `prs-wasm` | WebAssembly module and JavaScript wrapper. |
-| `p-rs` | Placeholder that reserves the name on crates.io. |
+Everything published is one crate, `crates/p-rs` (library `prs`, on crates.io as
+`p-rs`), split into modules:
 
-The core crates use no file system, process or threading APIs, so they build for
-`wasm32-unknown-unknown` unchanged. `prs-compat` reaches all of these through its `Host`;
+| Module | Purpose |
+|---|---|
+| `prs::syntax` | Lexer, parser and AST. |
+| `prs::sema` | Name resolution and type checking; produces a typed program. |
+| `prs::checker` | Interpreter, schedulers, PEx search, monitors, traces, foreign functions and log checking. |
+| `prs::compat` | The upstream-compatible command line (`prs-compat`): options, `.pproj` files, console output, output folders and exit codes; also the steps of a check (sources, type checking, one test case, replay) for other front ends. Runs against a pluggable host (native or in-memory). |
+| `prs::cli` | The `prs` command line and the native host (hidden from the docs; used by the binaries and `prs-wasm`). |
+| `prs::test` | In-process checks for Rust tests. |
+| `prs::emit` | The event emitter for application code. |
+
+The binaries are `src/bin/prs.rs` and `src/bin/prs-compat.rs`. Features select what is
+compiled: `emit` (only `prs::emit`, for production code), `test` (`prs::test`, `emit` and
+the checker) and `cli` (the binaries and the checker); the default is `cli` and `test`.
+Tests are in `crates/p-rs/tests`, named after the module they cover.
+
+`crates/prs-wasm` (not published) is the WebAssembly module and JavaScript wrapper.
+
+The checker modules use no file system, process or threading APIs, so they build for
+`wasm32-unknown-unknown` unchanged. `prs::compat` reaches all of these through its `Host`;
 the threads for `prs check --workers` come from `Host::threads`, which only the native
 host provides, so the WebAssembly module (which runs the `prs` command line) uses one
 worker.
@@ -38,21 +48,21 @@ Upstream's test suites are vendored in `tests/upstream`.
 
 * Type checker: all 424 upstream regression tests compile or fail to compile as
   upstream expects. Checked in `cargo test`, or
-  `cargo run --release -p prs-sema --example typecheck_corpus -- tests/upstream/RegressionTests`.
+  `cargo run --release -p p-rs --example typecheck_corpus -- tests/upstream/RegressionTests`.
 * Checker: all 249 tests of the suites upstream's harness runs find a bug exactly when
   upstream expects one, with upstream's settings (1000 schedules, 1000 steps) across
-  seeds. `cargo run --release -p prs-checker --example corpus -- <suite dir>`.
+  seeds. `cargo run --release -p p-rs --example corpus -- <suite dir>`.
   A faster version runs in `cargo test`.
 * Tutorials: mirrors upstream's tutorial CI and reports the same three failing tests.
-  `cargo run --release -p prs-checker --example tutorials -- tests/upstream/Tutorial`
+  `cargo run --release -p p-rs --example tutorials -- tests/upstream/Tutorial`
 * Traces: readable and JSON traces match upstream's golden files
-  (`tests/upstream/CorrectLogs`), checked in `crates/prs-compat/tests/cli.rs`.
+  (`tests/upstream/CorrectLogs`), checked in `crates/p-rs/tests/compat_cli.rs`.
 * `prs observe`: `scripts/compare-pobserve.py` runs upstream PObserve and `prs observe`
   on all 96 logs of upstream's regression suite, with and without
   `--assumeInputsAreSorted`. All 192 runs give the same exit code; 186 give identical
   output, and the other 6 differ only in the null-dereference message. The small logs
   and upstream's outputs are vendored in `tests/upstream/PObserve` and checked in
-  `crates/prs-compat/tests/observe_upstream.rs`.
+  `crates/p-rs/tests/compat_observe_upstream.rs`.
 
 ## Benchmarks
 
@@ -63,7 +73,7 @@ schedules per second, startup time (a one-schedule check) and warm schedules per
 (after startup) and, with `--instructions` (via Valgrind), instructions executed.
 
 ```sh
-cargo build --release -p prs-cli
+cargo build --release -p p-rs
 python3 scripts/bench.py run --out bench.json
 python3 scripts/bench.py report --current bench.json --history old.jsonl
 ```

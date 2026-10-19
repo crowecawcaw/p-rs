@@ -94,13 +94,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
-      - name: Use the release version
+      - name: Check the version matches the tag
         shell: bash
         env:
           TAG: ${{ inputs.tag }}
         run: |
-          # wheels take their version from prs-cli, which otherwise stays at the workspace's
-          sed -i.bak "s/^version.workspace = true/version = \"${TAG#v}\"/" crates/prs-cli/Cargo.toml
+          # wheels take their version from crates/p-rs, i.e. the workspace version
+          grep -qx "version = \"${TAG#v}\"" Cargo.toml || { echo "::error::Cargo.toml's version is not ${TAG#v}" >&2; exit 1; }
       - uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
@@ -120,10 +120,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
-      - name: Use the release version
-        env:
-          TAG: ${{ inputs.tag }}
-        run: sed -i "s/^version.workspace = true/version = \"${TAG#v}\"/" crates/prs-cli/Cargo.toml
       - uses: PyO3/maturin-action@v1
         with:
           command: sdist

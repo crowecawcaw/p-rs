@@ -1,11 +1,11 @@
 # Time, timeouts and latency budgets in p-rs (design proposal, v5)
 
-Status: Phase 1 implemented in `prs-checker` (`src/time.rs`, runtime hooks)
+Status: Phase 1 implemented in `prs::checker` (`crates/p-rs/src/checker/time.rs`, runtime hooks)
 and `prs check` (`--latency <file>[:<profile>]`, `--timed`); tests in
-`crates/prs-checker/tests/time.rs`.
+`crates/p-rs/tests/checker_time.rs`.
 
 **No language change.** Models use plain P (foreign functions and ordinary
-machines). Everything new is in `prs-checker` and the CLI. The native syntax explored in
+machines). Everything new is in `prs::checker` and the CLI. The native syntax explored in
 v1/v2 (`examples/`) is kept as a possible later surface over the same semantics.
 
 v5 changes (review of v4): under `--timed`, overlapping candidates (and a

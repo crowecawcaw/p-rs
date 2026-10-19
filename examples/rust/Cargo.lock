@@ -218,8 +218,8 @@ dependencies = [
 name = "inventory-integration-example"
 version = "0.1.0"
 dependencies = [
+ "p-rs",
  "proptest",
- "prs-test",
 ]
 
 [[package]]
@@ -262,6 +262,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "p-rs"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "roxmltree",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -297,61 +309,6 @@ dependencies = [
  "rusty-fork",
  "tempfile",
  "unarray",
-]
-
-[[package]]
-name = "prs-checker"
-version = "0.1.0"
-dependencies = [
- "prs-sema",
- "prs-syntax",
- "rustc-hash",
- "serde_json",
-]
-
-[[package]]
-name = "prs-compat"
-version = "0.1.0"
-dependencies = [
- "prs-checker",
- "prs-sema",
- "prs-syntax",
- "roxmltree",
- "serde_json",
-]
-
-[[package]]
-name = "prs-emit"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "prs-sema"
-version = "0.1.0"
-dependencies = [
- "prs-syntax",
- "sha2",
-]
-
-[[package]]
-name = "prs-syntax"
-version = "0.1.0"
-
-[[package]]
-name = "prs-test"
-version = "0.1.0"
-dependencies = [
- "prs-checker",
- "prs-compat",
- "prs-emit",
- "prs-sema",
- "prs-syntax",
- "regex",
- "serde",
- "serde_json",
 ]
 
 [[package]]

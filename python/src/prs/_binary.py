@@ -57,5 +57,5 @@ def find_prs() -> str:
     raise PrsNotFound(
         "Could not find the prs binary. Install the p-rs wheel for your platform "
         "(pip install p-rs), put prs on PATH (cargo install --git "
-        f"https://github.com/crowecawcaw/p-rs prs-cli), or set {BINARY_ENV}."
+        f"https://github.com/crowecawcaw/p-rs p-rs), or set {BINARY_ENV}."
     )

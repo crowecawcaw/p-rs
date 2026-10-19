@@ -1,7 +1,7 @@
 # Rust: inventory reservations
 
 Three Cargo integration-test targets check one [inventory service](src/lib.rs)
-against the [P spec](specs/inventory.p) with [`prs-test`](../../crates/prs-test/README.md),
+against the [P spec](specs/inventory.p) with [`prs::test`](../../crates/p-rs/src/test/README.md),
 which checks in process: no `prs` binary is needed. See the
 [shared overview](../README.md#how-the-checks-work) for what the checks do and why.
 
@@ -32,7 +32,7 @@ inventory on its sink, seeds stock, runs operations, and unwraps `recorder.check
 It also asserts that rejected requests emit nothing, and has the negative control:
 `recorder.expect_violation("InventoryCorrect", "exceeds available stock")` returns the
 structured violation (`key`, `events`, ...) for further assertions. The last test
-shows that code emitting through the global `prs_emit::emit` is checked too: the
+shows that code emitting through the global `prs::emit::emit` is checked too: the
 recording binds the test's thread.
 
 **Gotcha:** join worker threads and finish cleanup before `check`, which consumes
@@ -71,11 +71,11 @@ when fixing a bug so later runs replay it.
 
 ## Adapt to your project
 
-Depend on `prs-test` by Git revision or vendored path (the published `p-rs` crate is
-a placeholder). Add `[package.metadata.prs]` to your `Cargo.toml`, and map your
+Depend on the `p-rs` crate: `p-rs = "0.1"` under `[dev-dependencies]` (or by Git
+revision until a release has it). Add `[package.metadata.prs]` to your `Cargo.toml`, and map your
 existing domain events or outbox in a `record` function like the one in
 [tests/support/mod.rs](tests/support/mod.rs). Or instrument with
-[`prs-emit`](../../crates/prs-emit), which feeds test recordings
+[`prs::emit`](../../crates/p-rs/src/emit/README.md), which feeds test recordings
 (`recording.emitter()`), child processes (`PRS_EVENTS_DIR`) and production logs for
 `prs observe` from the same calls. `emit_at` takes explicit times for deterministic
 tests.

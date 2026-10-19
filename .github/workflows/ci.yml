@@ -58,6 +58,11 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked
+      - name: Clippy, each p-rs feature alone
+        run: |
+          for feature in emit test cli; do
+            cargo clippy -p p-rs --no-default-features --features "$feature" --locked
+          done
 
   test:
     name: build + test
@@ -75,7 +80,15 @@ jobs:
         run: cargo build --workspace --all-targets --locked
       - name: Test
         run: cargo test --workspace --locked
-      - name: Check the published crate packages
+      - name: Build p-rs for production use (emit only, no checker)
+        run: |
+          cargo build -p p-rs --no-default-features --features emit --locked
+          deps=$(cargo tree -p p-rs --no-default-features --features emit -e normal --prefix none)
+          if echo "$deps" | grep -E '^(regex|roxmltree|rustc-hash|sha2) '; then
+            echo "::error::p-rs with only the emit feature pulls in checker dependencies" >&2
+            exit 1
+          fi
+      - name: Check the published crate package
         run: cargo package -p p-rs --locked
 
   web:

@@ -12,7 +12,6 @@ description = "WebAssembly build of the prs tool: run `prs check` in a browser o
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-prs-cli = { workspace = true }
-prs-compat = { workspace = true }
+p-rs = { workspace = true, features = ["cli"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

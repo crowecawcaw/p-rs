@@ -3,7 +3,8 @@
 #   Actions -> Release -> Run workflow (on main) -> pick a level
 #
 #   1. preflight  fmt, clippy, tests and a package dry run on main.
-#   2. prepare    bumps crates/p-rs's version (unless level=release), commits,
+#   2. prepare    bumps the workspace version in Cargo.toml (unless
+#                 level=release), which p-rs and the Python wheels use, commits,
 #                 tags v<version> and pushes both to main.
 #   3. publish    publishes to crates.io via trusted publishing (no stored token).
 #                 A version that is already on crates.io is skipped, so a failed
@@ -92,11 +93,11 @@ jobs:
           python3 - "$LEVEL" <<'PY'
           import pathlib, re, sys
           level = sys.argv[1]
-          path = pathlib.Path("crates/p-rs/Cargo.toml")
+          path = pathlib.Path("Cargo.toml")  # [workspace.package]
           text = path.read_text()
           m = re.search(r'^version = "(\d+)\.(\d+)\.(\d+)"$', text, re.M)
           if not m:
-              sys.exit("No plain x.y.z version in crates/p-rs/Cargo.toml")
+              sys.exit("No plain x.y.z version in Cargo.toml")
           major, minor, patch = map(int, m.groups())
           if level == "major":
               major, minor, patch = major + 1, 0, 0
@@ -108,10 +109,11 @@ jobs:
           path.write_text(text[: m.start()] + new + text[m.end() :])
           print(f"{m.group(0)} -> {new}")
           PY
-          # Refresh p-rs's entry in Cargo.lock without touching dependencies.
+          # Refresh the workspace's entries in the lock files without touching dependencies.
           cargo update --workspace
+          cargo update --manifest-path examples/rust/Cargo.toml -p p-rs
           version=$(cargo pkgid -p p-rs | sed 's/.*[#@]//')
-          git add crates/p-rs/Cargo.toml Cargo.lock
+          git add Cargo.toml Cargo.lock examples/rust/Cargo.lock
           git commit -m "Release p-rs v${version}"
 
       - name: Tag and push

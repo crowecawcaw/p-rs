@@ -24,7 +24,7 @@ binary of the module's version, downloaded once into the user cache
 module. Offline, or with `PRS_DOWNLOAD=0`, install it yourself:
 
 ```sh
-cargo install --git https://github.com/crowecawcaw/p-rs prs-cli
+cargo install --git https://github.com/crowecawcaw/p-rs p-rs
 ```
 
 To use a checkout instead of a release, `replace` the module and build `prs` from the
@@ -196,7 +196,7 @@ delete a stale file before a run. `Config.Suite` with `NewSuite` and
 ## Develop
 
 ```sh
-cargo build -p prs-cli --bin prs --locked
+cargo build -p p-rs --bin prs --locked
 export PRS_BIN="$(pwd)/target/debug/prs"
 go test -race -count=1 ./... && go vet ./...   # the module is the repository root
 (cd examples/go && go test -race -count=1 ./...)

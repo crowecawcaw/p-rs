@@ -23,7 +23,7 @@ The model has two designs for a reservation:
 From the repository root:
 
 ```sh
-cargo build -p prs-cli --bin prs
+cargo build -p p-rs --bin prs
 cd examples/model
 ../../target/debug/prs check tcAtomicReserve --exhaustive
 ../../target/debug/prs check tcCheckThenReserve
