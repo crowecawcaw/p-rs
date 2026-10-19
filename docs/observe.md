@@ -31,6 +31,7 @@ These options are not in PObserve; runs that do not use them behave as upstream.
 | `--check-hot` | Also report a key whose spec is in a hot state after its last event, with the message `prs check` uses for liveness bugs at the end of an execution. |
 | `--json-report <file>` | Write the result as JSON (below). |
 | `--strict` | Require at least one successfully checked relevant event per selected spec, after key filtering. |
+| `--unknown-events ignore\|warn\|error` | What to do with event names no loaded P source declares (default `ignore`, as PObserve). See [Unknown event names](#unknown-event-names). |
 | `--coverage` | Report observed monitor state and handler coverage, including in JSON when requested. |
 
 ```json
@@ -257,8 +258,43 @@ Strict mode does not imply `--check-hot`, check every key named by a filter, or
 detect arbitrary missing events: use model assertions or explicit completion events
 for stronger application-specific guarantees.
 
+Strict mode does not catch a misspelled or undeclared event name: such events are
+dropped before checking. Combine it with `--unknown-events error` for that.
+
 Rust callers set `ObserveOptions.strict = true`. A strict `ObserveSession.finish(false,
 now)` rejects an otherwise clean incomplete prefix. Supervisors finishing several
 sessions after a known error may use `finish_after_failure(now)` to preserve the
 original error without secondary validation failures; they must retain that original
 error in the overall test result.
+
+## Unknown event names
+
+By default, as in PObserve, an event whose name no loaded P source declares is
+dropped silently, so a misspelled `emit` (`eReserverd` for `eReserved`) hides the
+very bug the spec should catch. `--unknown-events` decides what happens to them:
+
+* `ignore` (default): drop them. Production logs often hold events the spec does
+  not model.
+* `warn`: print one line per distinct name to stderr, with its count, where it first
+  appeared and a likely intended name; the result and exit status are unchanged. The
+  JSON report lists the names under `unknown_events` and the lines under `warnings`.
+* `error`: report each distinct name once as an error of kind `unknown_event`, with
+  the same details. The exit status is the tool/input error (native `prs` 2, PObserve
+  3), even alongside a spec violation, since the input cannot be trusted. Known events
+  are still checked. With `--stdin --fail-fast` the run stops at the first unknown
+  name.
+
+```text
+warning: Unknown event 'eReserverd': not declared in the P sources (1 occurrence, first at typo.jsonl:2); did you mean eReserved?
+```
+
+Events that a loaded P source declares but the selected spec does not observe are
+always ignored: one recording can feed several specs, each watching a subset. To
+accept names that only other tooling uses, declare them in a P file
+(`event eAuditTrail;`) or use `warn`. `--strict` does not imply `--unknown-events`.
+
+Locations are `<file>:<line>` (or `<file> entry <n>` for parsers whose entries span
+lines), and `stdin:<line>` for live input. The built-in parsers report undeclared
+names; a custom Rust `Parser` does so by overriding `parse_entry`. Rust callers set
+`ObserveOptions.unknown_events` (with `input_names` for locations), for both
+`Spec::observe` and `ObserveSession`.
