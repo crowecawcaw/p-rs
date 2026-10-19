@@ -81,6 +81,8 @@ prs observe --spec BankBalanceCorrect -l logs/
 
 See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 [docs/library.md](docs/library.md) for using the crates from Rust.
+[Testing and production](docs/production.md) shows how the same `emit` calls feed
+both test checks and `prs observe` on production logs.
 
 To use prs in place of upstream P, in scripts written for `p`, run `prs-compat` (or
 alias it to `p`):

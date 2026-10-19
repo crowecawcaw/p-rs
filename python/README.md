@@ -31,4 +31,5 @@ def test_lease_expiry():
 
 In production, `prs.set_sink("/var/log/app/events.jsonl")` sends the same events to a
 log that `prs observe` checks. See
-[docs/python.md](https://github.com/crowecawcaw/p-rs/blob/main/docs/python.md).
+[docs/python.md](https://github.com/crowecawcaw/p-rs/blob/main/docs/python.md) and
+[Testing and production](https://github.com/crowecawcaw/p-rs/blob/main/docs/production.md).

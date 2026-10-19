@@ -17,6 +17,7 @@ const GUIDES = [
   { title: "Java tests", href: `${BLOB}/java/README.md` },
   { title: "Go tests", href: `${BLOB}/go/README.md` },
   { title: "Checking logs (prs observe)", href: `${BLOB}/docs/observe.md` },
+  { title: "Testing and production", href: `${BLOB}/docs/production.md` },
   { title: "Rust library", href: `${BLOB}/docs/library.md` },
 ];
 
