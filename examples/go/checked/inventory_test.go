@@ -18,8 +18,9 @@ var suite *prstest.Suite
 func stocked(t *testing.T) *inventory.Inventory {
 	t.Helper()
 	app := fixture.CheckedWithCoverage(t, suite)
-	for sku, units := range map[string]int{"coffee": 3, "tea": 2} {
-		if err := app.Stock(sku, units); err != nil {
+	stock := map[string]int{"coffee": 3, "tea": 2}
+	for _, sku := range []string{"coffee", "tea"} {
+		if err := app.Stock(sku, stock[sku]); err != nil {
 			t.Fatal(err)
 		}
 	}

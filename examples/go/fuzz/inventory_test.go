@@ -17,8 +17,8 @@ func FuzzInventory(f *testing.F) {
 	f.Fuzz(func(t *testing.T, actions []byte) {
 		// Fresh inventory and recorder per call, including minimized replays.
 		app := fixture.Checked(t)
-		for sku, units := range stock {
-			if err := app.Stock(sku, units); err != nil {
+		for _, sku := range []string{"coffee", "tea"} {
+			if err := app.Stock(sku, stock[sku]); err != nil {
 				t.Fatal(err)
 			}
 		}
