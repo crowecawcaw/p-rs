@@ -1,0 +1,41 @@
+name: Go integration examples
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-examples-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: go-examples
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.22.x'
+          cache: false
+      - name: Build this checkout's checker
+        run: cargo build -p prs-cli --bin prs --locked
+      - name: Go tests and fuzz seed corpus
+        working-directory: examples/go
+        env:
+          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+        run: go test -race -count=1 ./...
+      - name: Bounded native fuzz campaign
+        working-directory: examples/go
+        env:
+          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+        run: go test ./fuzz -run='^$' -fuzz=FuzzInventory -fuzztime=5s -parallel=2
