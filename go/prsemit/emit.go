@@ -2,6 +2,9 @@
 //
 // Call Emit where a change commits. Where the events go depends on the process:
 //
+//   - Inside a test with a prstest recording: to that recording. With several
+//     recordings active at once (parallel tests), use EmitCtx with a context from
+//     Recorder.Context; an Emit they could each own fails them all.
 //   - Started by a test recording (PRS_EVENTS_DIR set): each line is appended to this
 //     process's own file in that folder, which the test checks
 //     (docs/observe.md#events-folder-format).
@@ -15,6 +18,7 @@
 package prsemit
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -28,6 +32,7 @@ import (
 	"time"
 
 	"github.com/crowecawcaw/p-rs/go/internal/eventline"
+	"github.com/crowecawcaw/p-rs/go/internal/hook"
 )
 
 // EventsDirEnv names the folder a test recording gives the processes it starts.
@@ -59,34 +64,47 @@ func init() {
 // Emit records that event happened on stream key, now. payload is a struct or map whose
 // JSON field names match the P event's named-tuple fields, a single value, or nil.
 func Emit(event, key string, payload any) {
-	if current.Load() == nil {
+	if current.Load() == nil && !hook.Active() {
 		return
 	}
-	emit(time.Time{}, event, key, payload)
+	emit(nil, time.Time{}, event, key, payload)
 }
 
 // EmitAt is Emit with the time the event happened (a logical clock or an earlier time).
 func EmitAt(at time.Time, event, key string, payload any) {
-	if current.Load() == nil {
+	if current.Load() == nil && !hook.Active() {
 		return
 	}
 	if at.IsZero() {
 		at = time.Unix(0, 0)
 	}
-	emit(at, event, key, payload)
+	emit(nil, at, event, key, payload)
 }
 
-func emit(at time.Time, event, key string, payload any) {
+// EmitCtx is Emit that sends the event to the test recording attached to ctx
+// (Recorder.Context in prstest), so parallel tests each get their own events. Without
+// one attached, it is Emit.
+func EmitCtx(ctx context.Context, event, key string, payload any) {
+	if current.Load() == nil && !hook.Active() {
+		return
+	}
+	emit(ctx, time.Time{}, event, key, payload)
+}
+
+func emit(ctx context.Context, at time.Time, event, key string, payload any) {
 	defer func() {
 		if recover() != nil {
 			dropped.Add(1)
 		}
 	}()
+	src := eventline.Caller(2)
+	if hook.Active() && hook.Dispatch(ctx, at, src, event, key, payload) {
+		return
+	}
 	s := current.Load()
 	if s == nil {
 		return
 	}
-	src := eventline.Caller(2)
 	n, ns := eventline.Stamp(at)
 	line, err := eventline.Encode(ns, !at.IsZero(), event, key, payload, src, n)
 	if err != nil || !(*s).write(line) {

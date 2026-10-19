@@ -4,8 +4,8 @@ Two standard-library-only packages, Go 1.22+:
 
 - [`prstest`](prstest): check events from Go tests against P specs. It runs the `prs`
   binary.
-- [`prsemit`](prsemit): emit events from application code and from processes a test
-  starts; in production, write them as a log for `prs observe`.
+- [`prsemit`](prsemit): emit events from application code, in the test process or in
+  processes a test starts; in production, write them as a log for `prs observe`.
 
 Both follow the [language helper requirements](../docs/language-support.md). The
 runnable [inventory example](../examples/go/README.md) uses everything below.
@@ -137,9 +137,16 @@ app := inventory.New(prsemit.Emit)
 
 | Process | Events go to |
 | --- | --- |
+| A test process with a `prstest` recording | that recording |
 | Started by a test (`PRS_EVENTS_DIR` set) | its own `<program>-<pid>-<random>.jsonl` in that folder, one append per line |
 | After `prsemit.OpenFile(path)` or `prsemit.SetOutput(w)` | JSON lines for `prs observe -l`, written by a background goroutine |
 | Otherwise | nowhere: one atomic load per `Emit` |
+
+In a test process `prsemit.Emit` reaches the recording without injecting `r.Emit`,
+until the test ends. It cannot tell parallel tests apart: with several recordings
+active, an `Emit` fails them all with a `config` error. Pass a context instead:
+`prsemit.EmitCtx(ctx, ...)` reaches the recording `ctx` came from
+(`ctx := r.Context(context.Background())`), or inject `r.Emit`.
 
 `Emit` never panics or blocks: a line that cannot be encoded or written, or that
 finds 4096 lines already queued, is dropped and counted by `prsemit.Dropped()`. Call

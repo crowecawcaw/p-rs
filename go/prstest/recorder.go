@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/crowecawcaw/p-rs/go/internal/eventline"
+	"github.com/crowecawcaw/p-rs/go/internal/hook"
 )
 
 // Result holds the raw outcome of a check, including on failure. Report is nil when
@@ -82,13 +83,39 @@ func New(t testing.TB, cfg Config) *Recorder {
 	if err = os.Mkdir(r.events, 0o755); err != nil {
 		t.Fatalf("prstest events folder: %v", err)
 	}
-	// Keep the folder only for a failed check; registered first, so it runs last.
+	// prsemit.Emit in this process reaches the recording until the test ends, so late
+	// events fail the check instead of vanishing.
+	if !s.off {
+		hook.Register(emitHook{r})
+	}
+	// Registered first, so it runs last: after Start's check.
 	t.Cleanup(func() {
-		if !r.failed() {
+		hook.Unregister(emitHook{r})
+		if !r.failed() { // keep the folder only for a failed check
 			os.RemoveAll(dir)
 		}
 	})
 	return r
+}
+
+// emitHook receives prsemit events.
+type emitHook struct{ r *Recorder }
+
+func (h emitHook) Record(at time.Time, src, event, key string, payload any) {
+	h.r.record(at, src, event, key, payload)
+}
+
+func (h emitHook) Ambiguous(n int, src, event string) {
+	h.r.mu.Lock()
+	defer h.r.mu.Unlock()
+	h.r.stick("config", fmt.Sprintf("prsemit emitted %s at %s while %d recordings were active (parallel tests), so it cannot tell which test it belongs to: "+
+		"use prsemit.EmitCtx with a context from Recorder.Context, inject Recorder.Emit, or run these tests without t.Parallel", event, src, n))
+}
+
+// Context returns parent carrying this recording, so prsemit.EmitCtx(ctx, ...) calls
+// made with it reach this recording even while other tests record in parallel.
+func (r *Recorder) Context(parent context.Context) context.Context {
+	return hook.WithRecording(parent, emitHook{r})
 }
 
 // Start is New plus a t.Cleanup that checks the recording when the test ends.
@@ -127,7 +154,7 @@ func fileSafe(name string) string {
 // encoded immediately, so later changes to it are not recorded. The call site is
 // recorded as src for failure reports.
 func (r *Recorder) Emit(event, key string, payload any) {
-	r.record(time.Time{}, event, key, payload)
+	r.record(time.Time{}, eventline.Caller(1), event, key, payload)
 }
 
 // EmitAt records an event at a given time, which orders it among the others.
@@ -135,14 +162,13 @@ func (r *Recorder) EmitAt(at time.Time, event, key string, payload any) {
 	if at.IsZero() {
 		at = time.Unix(0, 0)
 	}
-	r.record(at, event, key, payload)
+	r.record(at, eventline.Caller(1), event, key, payload)
 }
 
-func (r *Recorder) record(at time.Time, event, key string, payload any) {
+func (r *Recorder) record(at time.Time, src, event, key string, payload any) {
 	if r.s.off {
 		return
 	}
-	src := eventline.Caller(2)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.sealed {

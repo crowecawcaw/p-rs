@@ -1,6 +1,5 @@
-// Tests that check events from processes they start: cmd/inventory emits with
-// prsemit, which writes to the recording's events folder (r.Env) in tests and to a
-// log file in production.
+// Tests for code that emits with prsemit, as cmd/inventory does: in the test process,
+// in processes the test starts (r.Env), and in production (a log file).
 package process_test
 
 import (
@@ -13,6 +12,8 @@ import (
 	"testing"
 
 	"example.com/inventory/internal/fixture"
+	"example.com/inventory/inventory"
+	"github.com/crowecawcaw/p-rs/go/prsemit"
 )
 
 var binary string
@@ -35,6 +36,20 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)
+}
+
+// prsemit.Emit in the test process reaches the test's recording. It cannot tell
+// parallel tests apart, so this test is not parallel (or pass contexts from
+// r.Context to prsemit.EmitCtx).
+func TestInProcess(t *testing.T) {
+	fixture.Start(t)
+	app := inventory.New(prsemit.Emit)
+	if err := app.Stock("coffee", 3); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Reserve("coffee", "order-1", 3); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // Two worker processes, one per product, write into the test's recording. Waiting for

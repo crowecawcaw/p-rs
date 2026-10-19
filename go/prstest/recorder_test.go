@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crowecawcaw/p-rs/go/internal/hook"
 	"github.com/crowecawcaw/p-rs/go/prsemit"
 )
 
@@ -499,5 +500,48 @@ func TestArtifactsKeptOnlyOnFailure(t *testing.T) {
 	entries, err := os.ReadDir(root)
 	if err != nil || len(entries) != 1 || !strings.Contains(entries[0].Name(), "fail") {
 		t.Fatalf("want only the failed check's folder; got %v %v", entries, err)
+	}
+}
+
+func TestPrsemitReachesTheRecording(t *testing.T) {
+	r := New(t, fixtureConfig(t))
+	at := lineOf(func() { prsemit.Emit("e", "k", 1) })
+	got := lines(t, r.trace.Bytes())
+	if len(got) != 1 || got[0]["src"] != at || got[0]["payload"] != 1.0 {
+		t.Fatalf("prsemit event not recorded: %s", r.trace.Bytes())
+	}
+	t.Setenv("PRSTEST_CHILD", "empty-observation")
+	r.Verify(context.Background())
+	prsemit.Emit("late", "k", nil)
+	_, err := r.Verify(context.Background())
+	if se := setupKind(t, err, "config"); !strings.Contains(se.Message, "late emitted") {
+		t.Fatalf("late prsemit event: %v", se)
+	}
+}
+
+func TestPrsemitWithSeveralRecordings(t *testing.T) {
+	a, b := New(t, fixtureConfig(t)), New(t, fixtureConfig(t))
+	prsemit.EmitCtx(a.Context(context.Background()), "e", "k", nil)
+	if a.count != 1 || b.count != 0 {
+		t.Fatalf("EmitCtx: a=%d b=%d", a.count, b.count)
+	}
+	prsemit.Emit("e", "k", nil)
+	for _, r := range []*Recorder{a, b} {
+		_, err := r.Verify(context.Background())
+		if se := setupKind(t, err, "config"); !strings.Contains(se.Message, "2 recordings were active") {
+			t.Fatalf("ambiguous emit: %v", se)
+		}
+	}
+}
+
+func TestPrsemitAfterTheTestIsOff(t *testing.T) {
+	t.Run("recording", func(t *testing.T) {
+		New(t, fixtureConfig(t))
+		if !hook.Active() {
+			t.Fatal("recording not registered")
+		}
+	})
+	if hook.Active() {
+		t.Fatal("recording still registered after its test")
 	}
 }

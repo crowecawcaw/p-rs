@@ -61,9 +61,13 @@ Each case starts the CLI, so throughput is lower than an in-process property che
 command to reproduce a failure; commit useful inputs from
 `fuzz/testdata/fuzz/FuzzInventory/`.
 
-## 4. Events from processes the test starts
+## 4. prsemit: in the test process and in processes the test starts
 
-[process/inventory_test.go](process/inventory_test.go) builds
+[process/inventory_test.go](process/inventory_test.go) shows code that emits with
+`prsemit` instead of an injected func. `TestInProcess` passes `prsemit.Emit` to the
+inventory in the test process; it reaches the recording. It is not parallel:
+`prsemit.Emit` cannot tell parallel tests apart (use `prsemit.EmitCtx` with
+`r.Context(...)` for that). The other tests build
 [cmd/inventory](cmd/inventory/main.go), a program that reads operations from stdin and
 emits with `prsemit`. `TestWorkerProcesses` starts two of them with `cmd.Env =
 r.Env()`, waits for them, and the cleanup checks their events. `TestProductionLog`
