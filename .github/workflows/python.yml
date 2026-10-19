@@ -55,7 +55,7 @@ jobs:
           go-version: stable
           cache: false
       - name: Install the package (builds the binary)
-        run: pip install ./python ./examples/python pytest
+        run: pip install ./python './examples/python[test]'
       - name: Test
         working-directory: python
         run: python -m pytest -p no:cacheprovider
@@ -65,6 +65,9 @@ jobs:
         run: python -m pytest -p no:cacheprovider
       - name: Inventory example (automatic pytest checks)
         working-directory: examples/python/pytest
+        run: python -m pytest -p no:cacheprovider
+      - name: Inventory example (Hypothesis stateful tests)
+        working-directory: examples/python/hypothesis
         run: python -m pytest -p no:cacheprovider
 
   wheels:
