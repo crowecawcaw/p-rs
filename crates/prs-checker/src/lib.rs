@@ -19,6 +19,7 @@ pub mod interp;
 pub mod javafmt;
 pub mod jsonlog;
 pub mod observe;
+pub mod observe_coverage;
 pub mod random;
 pub mod rl;
 pub mod runtime;

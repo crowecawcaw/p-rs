@@ -63,7 +63,7 @@ impl CoverageTables {
         CoverageTables { nodes, plain, tempered, receive_target }
     }
 
-    fn plain(&self, s: StateId) -> u32 {
+    pub(crate) fn plain(&self, s: StateId) -> u32 {
         self.plain[s.idx()]
     }
 
@@ -85,6 +85,10 @@ pub struct CoverageInfo {
     pub sent: PairSet,
     /// Transition links `(source node, target node)` of the coverage graph.
     pub links: PairSet,
+    /// Monitor states entered, including initial and terminal states.
+    pub monitor_states: FxHashSet<StateId>,
+    /// Actual consecutive monitor state entries (not event graph links).
+    pub monitor_transitions: FxHashSet<(StateId, StateId)>,
 }
 
 impl CoverageInfo {
@@ -98,6 +102,8 @@ impl CoverageInfo {
         self.received.extend(other.received);
         self.sent.extend(other.sent);
         self.links.extend(other.links);
+        self.monitor_states.extend(other.monitor_states);
+        self.monitor_transitions.extend(other.monitor_transitions);
     }
 }
 
@@ -119,6 +125,7 @@ struct InboxEntry {
 /// Per-schedule state of the coverage loggers.
 #[derive(Debug, Clone, Default)]
 struct CoverageRun {
+    monitor_previous: FxHashMap<usize, StateId>,
     /// `ControlledRuntimeLogEventCoverage.Dequeued` (a single, global slot upstream).
     dequeued: Option<u32>,
     /// Graph builder inboxes per machine/monitor type.
@@ -339,6 +346,10 @@ impl Runtime<'_> {
     pub(crate) fn cov_monitor_enter(&mut self, mon: usize) {
         let Some((cov, s, decl)) = self.cov_monitor(mon) else { return };
         let target = cov.tables.tempered(s);
+        cov.info.monitor_states.insert(s);
+        if let Some(previous) = cov.run.monitor_previous.insert(mon, s) {
+            cov.info.monitor_transitions.insert((previous, s));
+        }
         cov.link_popped(decl, target);
     }
 }

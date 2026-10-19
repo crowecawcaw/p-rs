@@ -18,7 +18,9 @@ use std::rc::Rc;
 use prs_sema::{EventId, MachineId, ModuleInfo, PType, Program};
 
 use crate::compile::{compile_program, Code};
+use crate::coverage::{Coverage, CoverageInfo, CoverageTables};
 use crate::javafmt::{self, JavaFormatter};
+use crate::observe_coverage::ObserveCoverage;
 use crate::runtime::{Config, Event, Failure, Runtime, Setup};
 use crate::strategy::{OpInfo, Strategy};
 use crate::time::{declares_time, Stamp, Time, TimeOptions};
@@ -317,11 +319,13 @@ pub struct ObserveOptions {
     /// Report a key whose spec is left in a hot state after its last event, as `prs check`
     /// does at the end of an execution (`--check-hot`, a prs extension).
     pub check_hot: bool,
+    /// Collect observed monitor state and handler coverage.
+    pub coverage: bool,
 }
 
 impl Default for ObserveOptions {
     fn default() -> Self {
-        ObserveOptions { replay_window: 100, assume_sorted: false, keys: Vec::new(), check_hot: false }
+        ObserveOptions { replay_window: 100, assume_sorted: false, keys: Vec::new(), check_hot: false, coverage: false }
     }
 }
 
@@ -399,6 +403,8 @@ impl Metrics {
 
 #[derive(Debug, Clone, Default)]
 pub struct Report {
+    /// Opt-in observed monitor coverage (not full model or schedule coverage).
+    pub coverage: Option<ObserveCoverage>,
     /// In the order upstream records them: parser errors, then errors per key.
     pub errors: Vec<ObserveError>,
     pub metrics: Metrics,
@@ -506,82 +512,95 @@ impl<'p> Spec<'p> {
         opts: &ObserveOptions,
         metrics: &mut HashMap<EventId, EventMetrics>,
         clock: &mut dyn FnMut() -> f64,
-        log: &mut Vec<String>,
+        report: &mut Report,
     ) -> KeyOutcome {
+        let log = &mut report.log;
         let time = self.time == Ok(true);
         let mut strategy = NoScheduling;
+        let tables = opts.coverage.then(|| Rc::new(CoverageTables::new(self.prog)));
         let mut rt = Runtime::new(
             self.prog,
             &self.code,
             &self.module,
             &self.config,
             &mut strategy,
-            Setup { java_semantics: Some(&self.java), time: time.then(TimeOptions::default), ..Setup::default() },
+            Setup {
+                java_semantics: Some(&self.java),
+                time: time.then(TimeOptions::default),
+                coverage: tables.clone().map(|t| Coverage::new(t, CoverageInfo::default())),
+                ..Setup::default()
+            },
         );
-        let mon = match rt.start_monitor(self.decl) {
-            Ok(m) => m,
-            Err(_) => return KeyOutcome::Fatal(self.failure_error(rt.failure.take(), None, log)),
-        };
-        let window = opts.replay_window.max(1);
-        let mut replay: std::collections::VecDeque<ObservedEvent> = std::collections::VecDeque::new();
-        let make_replay = |q: &std::collections::VecDeque<ObservedEvent>| Replay {
-            key: key.to_string(),
-            error_timestamp: q.back().map(|e| e.timestamp.to_millis()).unwrap_or(0),
-            events: q.iter().cloned().collect(),
-        };
-        let mut prev = Timestamp::from_millis(-1);
-        for ev in events {
-            if replay.len() == window {
-                replay.pop_front();
-            }
-            replay.push_back(ev.clone());
-            if ev.timestamp < prev {
-                let message = format!(
+        let outcome = (|| {
+            let mon = match rt.start_monitor(self.decl) {
+                Ok(m) => m,
+                Err(_) => return KeyOutcome::Fatal(self.failure_error(rt.failure.take(), None, log)),
+            };
+            let window = opts.replay_window.max(1);
+            let mut replay: std::collections::VecDeque<ObservedEvent> = std::collections::VecDeque::new();
+            let make_replay = |q: &std::collections::VecDeque<ObservedEvent>| Replay {
+                key: key.to_string(),
+                error_timestamp: q.back().map(|e| e.timestamp.to_millis()).unwrap_or(0),
+                events: q.iter().cloned().collect(),
+            };
+            let mut prev = Timestamp::from_millis(-1);
+            for ev in events {
+                if replay.len() == window {
+                    replay.pop_front();
+                }
+                replay.push_back(ev.clone());
+                if ev.timestamp < prev {
+                    let message = format!(
                     "Encountered an out of order event.\nEncountered an out of order event::\nTimestamp of last processed event: {}\nTimestamp of current event: {}\nError event details: {}",
                     prev.to_iso(),
                     ev.timestamp.to_iso(),
                     ev.to_java_string(self)
                 );
-                return KeyOutcome::Error(ObserveError {
-                    cause: None,
-                    kind: ErrorKind::OutOfOrder,
-                    detail: format!("pobserve.commons.exceptions.PObserveEventOutOfOrderException: {}", message),
-                    message,
-                    replay: Some(make_replay(&replay)),
-                });
+                    return KeyOutcome::Error(ObserveError {
+                        cause: None,
+                        kind: ErrorKind::OutOfOrder,
+                        detail: format!("pobserve.commons.exceptions.PObserveEventOutOfOrderException: {}", message),
+                        message,
+                        replay: Some(make_replay(&replay)),
+                    });
+                }
+                prev = ev.timestamp;
+                let start = (clock() * 1000.0).floor() as i64;
+                let stamp = time.then(|| Rc::new(Stamp { at: Time::point(ev.timestamp.to_micros()), sender: 0 }));
+                let e = Event { id: ev.event, payload: ev.payload.clone(), stamp, vt: None };
+                rt.step_work = 0;
+                if rt.monitor_event(mon, e, None).is_err() {
+                    return KeyOutcome::Error(self.failure_error(rt.failure.take(), Some(make_replay(&replay)), log));
+                }
+                let ms = ((clock() * 1000.0).floor() as i64 - start).max(0) as u64;
+                if let Some(m) = metrics.get_mut(&ev.event) {
+                    m.verified += 1;
+                    m.total_ms += ms;
+                    m.max_ms = m.max_ms.max(ms);
+                }
             }
-            prev = ev.timestamp;
-            let start = (clock() * 1000.0).floor() as i64;
-            let stamp = time.then(|| Rc::new(Stamp { at: Time::point(ev.timestamp.to_micros()), sender: 0 }));
-            let e = Event { id: ev.event, payload: ev.payload.clone(), stamp, vt: None };
-            rt.step_work = 0;
-            if rt.monitor_event(mon, e, None).is_err() {
-                return KeyOutcome::Error(self.failure_error(rt.failure.take(), Some(make_replay(&replay)), log));
+            if opts.check_hot {
+                if let Some(state) = rt.monitor_hot_state(mon) {
+                    let message = format!(
+                        "{} detected liveness bug in hot state '{}' at the end of program execution.",
+                        rt.monitor_full_name(mon),
+                        state
+                    );
+                    return KeyOutcome::Error(ObserveError {
+                        cause: None,
+                        kind: ErrorKind::SpecViolation,
+                        detail: format!("pobserve.runtime.exceptions.PAssertionFailureException: {}", message),
+                        message,
+                        replay: Some(make_replay(&replay)),
+                    });
+                }
             }
-            let ms = ((clock() * 1000.0).floor() as i64 - start).max(0) as u64;
-            if let Some(m) = metrics.get_mut(&ev.event) {
-                m.verified += 1;
-                m.total_ms += ms;
-                m.max_ms = m.max_ms.max(ms);
-            }
+            KeyOutcome::Ok
+        })();
+        if let (Some(result), Some(tables), Some(collected)) = (report.coverage.as_mut(), tables, rt.coverage.take()) {
+            result.record(self.prog, &tables, &collected.into_info());
         }
-        if opts.check_hot {
-            if let Some(state) = rt.monitor_hot_state(mon) {
-                let message = format!(
-                    "{} detected liveness bug in hot state '{}' at the end of program execution.",
-                    rt.monitor_full_name(mon),
-                    state
-                );
-                return KeyOutcome::Error(ObserveError {
-                    cause: None,
-                    kind: ErrorKind::SpecViolation,
-                    detail: format!("pobserve.runtime.exceptions.PAssertionFailureException: {}", message),
-                    message,
-                    replay: Some(make_replay(&replay)),
-                });
-            }
-        }
-        KeyOutcome::Ok
+        outcome
     }
 
     /// Parses `inputs` (the trimmed entries of each log file) with `parser` and checks the
@@ -593,7 +612,8 @@ impl<'p> Spec<'p> {
         opts: &ObserveOptions,
         clock: &mut dyn FnMut() -> f64,
     ) -> Report {
-        let mut report = Report::default();
+        let mut report =
+            Report { coverage: opts.coverage.then(|| ObserveCoverage::new(self.prog, self.decl)), ..Report::default() };
         let start = clock();
         if let Err(message) = &self.time {
             report.metrics.unknown_errors = 1;
@@ -664,7 +684,7 @@ impl<'p> Spec<'p> {
             if !opts.assume_sorted {
                 events.sort_by_key(|e| e.timestamp);
             }
-            match self.check_key(&key, events, opts, &mut metrics, clock, &mut report.log) {
+            match self.check_key(&key, events, opts, &mut metrics, clock, &mut report) {
                 KeyOutcome::Ok => report.metrics.verified_keys += 1,
                 KeyOutcome::Error(err) => {
                     match err.kind {

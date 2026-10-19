@@ -33,3 +33,35 @@ fn observe_spec_by_name() {
     assert!(prs_checker::observe::Spec::new(&analysis.program, "MySpec").is_ok());
     assert!(prs_checker::observe::Spec::new(&analysis.program, "Missing").is_err());
 }
+
+#[test]
+fn observed_coverage_unions_real_monitor_runs() {
+    use prs_checker::observe::{ObserveOptions, ObservedEvent, Parser, Spec, Timestamp};
+    use prs_checker::value::Value;
+    struct Events;
+    impl Parser for Events {
+        fn name(&self) -> &str {
+            "Events"
+        }
+        fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
+            Ok(vec![spec.event("key", Timestamp::default(), entry, Value::Null, None)?])
+        }
+    }
+    let mut sm = prs_syntax::SourceMap::new();
+    sm.add("spec.p", "event eLeft; event eRight; spec Choice observes eLeft,eRight { start state Ready { on eLeft goto Left; on eRight do { goto Right; } } state Left {} state Right {} }");
+    let analysis = prs_sema::compile(&sm, &prs_sema::Options::default()).expect("compiles");
+    let spec = Spec::new(&analysis.program, "Choice").unwrap();
+    let options = ObserveOptions { coverage: true, ..Default::default() };
+    let mut clock = || 0.0;
+    let mut left = spec.observe(&[vec!["eLeft".into()]], &Events, &options, &mut clock).coverage.unwrap();
+    let right = spec.observe(&[vec!["eRight".into()]], &Events, &options, &mut clock).coverage.unwrap();
+    assert_eq!(left.visited_states.len(), 2);
+    assert!(left.render_text().contains("Unvisited state: Choice.Right"));
+    left.merge(&right);
+    left.merge(&right);
+    assert_eq!(left.to_json()["states"]["covered"], 3);
+    assert_eq!(left.to_json()["handlers"]["covered"], 2);
+    assert_eq!(left.transitions.len(), 2);
+    assert!(!left.render_text().contains("Unvisited state:"));
+    assert!(!left.render_text().contains("Uncovered handler:"));
+}

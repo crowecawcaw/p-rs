@@ -108,6 +108,7 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         assume_sorted: cfg.assume_sorted,
         keys: cfg.keys.clone(),
         check_hot: cfg.check_hot,
+        coverage: cfg.coverage,
     };
     let mut inputs = Vec::new();
     let mut read_error = None;
@@ -147,6 +148,7 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
                 }],
                 metrics: Metrics { unknown_errors: 1, ..Default::default() },
                 log: Vec::new(),
+                coverage: None,
             },
             None => {
                 let clock_host: &dyn Host = host;
@@ -168,6 +170,9 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
             emit_report(host, spec, &report, &spec_out).and_then(|()| emit_metrics(host, &report.metrics, &spec_out))
         {
             return code;
+        }
+        if let Some(coverage) = &report.coverage {
+            host.out_line(&coverage.render_text());
         }
         reports.push(report);
         if read_error.is_some() {
@@ -236,13 +241,17 @@ fn json_report(specs: &[Spec], reports: &[Report], exit_code: i32) -> String {
                     })
                 })
                 .collect();
-            serde_json::json!({
+            let mut result = serde_json::json!({
                 "spec": spec.name(),
                 "events_read": r.metrics.events_read,
                 "partition_keys": r.metrics.partition_keys,
                 "verified_keys": r.metrics.verified_keys,
                 "errors": errors,
-            })
+            });
+            if let Some(c) = &r.coverage {
+                result["coverage"] = c.to_json();
+            }
+            result
         })
         .collect();
     let mut text = serde_json::to_string_pretty(&serde_json::json!({ "exit_code": exit_code, "specs": specs }))
@@ -299,6 +308,9 @@ pub const USAGE: &str = "Usage: p observe [options]
     --inputkind, -ik
       Input log kind {TEXT or JSON}
       Possible Values: [JSON, TEXT, SERIALIZEDEVENTS]
+    --coverage
+        Report observed monitor states and handlers on stdout (and in --json-report).
+        Does not measure full model paths or scheduling coverage.
     --json-report
       Write the result as JSON to this file (prs extension)
     --keyListFile
@@ -362,6 +374,8 @@ pub struct ObserveConfig {
     pub json_report: Option<String>,
     /// `--check-hot`: report specs left in a hot state.
     pub check_hot: bool,
+    /// `--coverage`: report observed monitor state and handler coverage.
+    pub coverage: bool,
     pub parser: Option<String>,
     pub parser_configuration: Option<String>,
     pub filters: Vec<String>,
@@ -393,6 +407,7 @@ const OPTIONS: &[(&[&str], Arity)] = &[
     (&["--exclude-specs"], Arity::Names),
     (&["--json-report"], Arity::One),
     (&["--check-hot"], Arity::Flag),
+    (&["--coverage"], Arity::Flag),
     (&["--parser", "-p"], Arity::One),
     (&["--parserConfiguration", "-pc"], Arity::One),
     (&["--filters", "-f"], Arity::Variable),
@@ -445,6 +460,7 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
         exclude_specs: Vec::new(),
         json_report: None,
         check_hot: false,
+        coverage: false,
         parser: None,
         parser_configuration: None,
         filters: Vec::new(),
@@ -516,6 +532,7 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                 }
                 "--json-report" => cfg.json_report = Some(v),
                 "--check-hot" => cfg.check_hot = true,
+                "--coverage" => cfg.coverage = true,
                 "--parser" => {
                     validate_classname(tok, &v)?;
                     cfg.parser = Some(v);

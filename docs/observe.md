@@ -26,6 +26,7 @@ These options are not in PObserve; runs that do not use them behave as upstream.
 | `--exclude-specs A B ...` | Specs `--all-specs` leaves out. |
 | `--check-hot` | Also report a key whose spec is in a hot state after its last event, with the message `prs check` uses for liveness bugs at the end of an execution. |
 | `--json-report <file>` | Write the result as JSON (below). |
+| `--coverage` | Report observed monitor state and handler coverage, including in JSON when requested. |
 
 ```json
 {
@@ -110,3 +111,38 @@ Observation uses recorded timestamps and takes no latency profile or `--timed`
 option. Logs without timestamps keep the parser's existing default of epoch zero;
 provide timestamps to check meaningful budgets. `PTrace` currently has no time
 entries, so its observations also use zero.
+
+## Observed monitor coverage
+
+Add `--coverage` to print state and handler coverage to standard output, including
+unvisited states and uncovered handlers. With `--json-report report.json`, each
+selected spec also gets a `coverage` object:
+
+```sh
+prs observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log \
+  --coverage --json-report report.json
+```
+
+This measures monitor executions over the selected log entries. It does **not**
+measure full P model paths, branches, schedules, or correctness of event emission.
+The denominator contains every state and every explicit do, goto, or ignore
+handler in the selected monitor, including unreachable and unvisited declarations.
+Deferred events are excluded because the Java monitor semantics do not generate
+handlers for them. The initial state counts only when a partition actually starts
+its monitor; an empty log has no state hits. A failing event's attempted handler
+and all states entered before failure are included.
+
+The JSON object's `scope` is `observed_monitor`. Both `states` and `handlers`
+contain `total`, `covered`, `declared`, and `visited`. State identities are
+`Spec.State`; handler identities are objects with `state` and `event` strings.
+`transitions` is a list of actual `{source, target}` transitions, including jumps
+from action bodies. It has no denominator because such jumps can be dynamic.
+These arrays are sorted and deduplicated. Union the hit sets across test cases;
+do not sum their covered counts. Only combine reports from the same specification
+version. Coverage collection is opt-in; existing output and JSON are unchanged
+without `--coverage`.
+
+Rust callers can set `ObserveOptions.coverage = true` and read `Report.coverage`.
+`prs_checker::observe_coverage::ObserveCoverage` exposes the declaration and hit
+sets, `merge(&other)` for test-suite unions, `render_text()` for human output, and
+`to_json()` for the same structured coverage object as the CLI.
