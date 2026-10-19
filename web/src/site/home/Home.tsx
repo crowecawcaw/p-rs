@@ -104,13 +104,29 @@ export function Home() {
 
         <section className="home-install" id="install">
           <h2>Install</h2>
-          <p>There are no prebuilt binaries yet. With a Rust toolchain:</p>
+          <p>The checker, from crates.io or PyPI:</p>
           <pre className="terminal">
             <code>
-              <span className="prompt">$ </span>cargo install --git {REPO} p-rs{"\n"}
+              <span className="prompt">$ </span>cargo install p-rs{"   "}<span className="cmt"># prs and prs-compat, with a Rust toolchain</span>{"\n"}
+              <span className="prompt">$ </span>pip install p-rs{"     "}<span className="cmt"># prebuilt prs, plus the Python helper</span>{"\n"}
               <span className="prompt">$ </span>prs check{"            "}<span className="cmt"># check every test case in the .pproj</span>
             </code>
           </pre>
+          <p>
+            Each <a href={`${REPO}/releases`}>GitHub release</a> also has prebuilt <code>prs</code> binaries for Linux,
+            macOS and Windows. The application helpers are one <code>p-rs</code> package per language:
+          </p>
+          <pre className="terminal">
+            <code>
+              <span className="prompt">$ </span>pip install p-rs{"                       "}<span className="cmt"># Python</span>{"\n"}
+              <span className="prompt">$ </span>cargo add p-rs{"                         "}<span className="cmt"># Rust</span>{"\n"}
+              <span className="prompt">$ </span>go get github.com/crowecawcaw/p-rs{"     "}<span className="cmt"># Go</span>
+            </code>
+          </pre>
+          <p>
+            Java: <code>io.github.crowecawcaw:p-rs</code> on Maven Central, plus a natives jar with the checker (
+            <a href={`${BLOB}/java/README.md#install`}>Maven and Gradle snippets</a>).
+          </p>
         </section>
       </main>
       <footer className="site-footer">

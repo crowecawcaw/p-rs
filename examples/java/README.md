@@ -18,8 +18,8 @@ PRS_BIN="$PWD/target/debug/prs" mvn --batch-mode --no-transfer-progress -f java/
 mvn --batch-mode --no-transfer-progress -f examples/java/pom.xml test
 ```
 
-`p-rs` isn't on Maven Central yet, so the first Maven command installs it locally,
-with a natives jar holding the checker. The [pom](pom.xml) depends on `p-rs` and, in
+The example builds against this checkout's `p-rs` (a SNAPSHOT version), so the first
+Maven command installs it locally, with a natives jar holding the checker. The [pom](pom.xml) depends on `p-rs` and, in
 test scope, on the natives jar its profiles pick for the platform; the tests then need
 no `PRS_BIN`. From `examples/java`, run one class with
 `mvn test -Dtest=GeneratedInventoryTest`. The

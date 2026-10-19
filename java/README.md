@@ -19,7 +19,9 @@ jar of the same artifact, `natives-<os>-<arch>`: `natives-linux-x86_64`,
 
 ## Install
 
-Depend on `p-rs`, plus the natives jar for the platform the tests run on (test scope):
+Depend on `p-rs`, plus the natives jar for the platform the tests run on (test scope),
+with the `prs.version` property set to a [release](https://github.com/crowecawcaw/p-rs/releases)
+such as `0.1.1`:
 
 ```xml
 <dependency>
@@ -71,9 +73,10 @@ SHA-256 in the jar, and reused by later runs. Without any binary, checks fail wi
 
 ### From this repository
 
-`p-rs` is not on Maven Central yet. From the repository root, with JDK 17+, Maven 3.9
-and Rust, build the checker and install `p-rs` with a natives jar for your platform
-(here macOS on Apple silicon):
+To use a checkout instead of a release (version `X.Y.Z-SNAPSHOT` in
+[pom.xml](pom.xml)): from the repository root, with JDK 17+, Maven 3.9 and Rust, build
+the checker and install `p-rs` with a natives jar for your platform (here macOS on
+Apple silicon):
 
 ```sh
 cargo build --locked -p p-rs

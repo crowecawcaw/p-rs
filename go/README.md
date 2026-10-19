@@ -15,16 +15,17 @@ runnable [inventory example](../examples/go/README.md) uses everything below.
 ## Setup
 
 ```sh
-go get github.com/crowecawcaw/p-rs/go/prstest
+go get github.com/crowecawcaw/p-rs
 ```
 
 `prstest` runs the `prs` checker: `PRS_BIN`, else `prs` on `PATH`, else the release
 binary of the module's version, downloaded once into the user cache
 (`os.UserCacheDir()/p-rs/<version>/`) and verified against checksums committed in the
-module. Offline, or with `PRS_DOWNLOAD=0`, install it yourself:
+module. Offline, or with `PRS_DOWNLOAD=0`, install it yourself (`pip install p-rs`
+also brings it):
 
 ```sh
-cargo install --git https://github.com/crowecawcaw/p-rs p-rs
+cargo install p-rs
 ```
 
 To use a checkout instead of a release, `replace` the module and build `prs` from the
