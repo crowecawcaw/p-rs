@@ -27,7 +27,7 @@ Commands:
   replay     Replay a .schedule file
   tests      List the test cases
   observe    Check logs against spec monitors
-  coverage   Merge scenario coverage reports (`prs coverage merge`)
+  coverage   Merge scenario or observed-monitor coverage reports
   version    Print the version
 
 Commands that read P sources take .pproj or .p files. Without any, they use the
@@ -96,10 +96,15 @@ Type-checks the sources and lists their test cases, one per line.
 ";
 
 const COVERAGE_HELP: &str = "\
-Usage: prs coverage merge [DIR]\n       prs coverage merge-observe [REPORT.json ...] [--stdin] [--json-report OUT] [--json]
+Usage: prs coverage merge [DIR]
+       prs coverage merge-observe [REPORT.json ...] [--stdin] [--json-report OUT] [--json]
 
 Merges the scenario coverage reports (*_scenario_coverage.json) under DIR (default:
 the current folder), recursively, into one report.
+
+merge-observe combines observe --coverage JSON reports without loading P sources.
+It validates matching spec versions and preserves failure/completion metadata.
+Run `prs coverage merge-observe --help` for input and output options.
 ";
 
 /// Runs `prs` with `args` (without the program name); returns the exit status.
