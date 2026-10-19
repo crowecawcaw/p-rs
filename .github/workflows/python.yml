@@ -55,9 +55,16 @@ jobs:
           go-version: stable
           cache: false
       - name: Install the package (builds the binary)
-        run: pip install ./python pytest
+        run: pip install ./python ./examples/python pytest
       - name: Test
         working-directory: python
+        run: python -m pytest -p no:cacheprovider
+
+      - name: Inventory example (explicit checks)
+        working-directory: examples/python/explicit
+        run: python -m pytest -p no:cacheprovider
+      - name: Inventory example (automatic pytest checks)
+        working-directory: examples/python/pytest
         run: python -m pytest -p no:cacheprovider
 
   wheels:
