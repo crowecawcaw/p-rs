@@ -2,6 +2,9 @@
 
 The crates are not published yet; depend on them by git.
 
+For runnable application integration, see the [Rust inventory examples](../examples/rust/README.md):
+explicit checks, a shared test fixture, and generated operation sequences with proptest.
+
 ```rust
 let mut sm = prs_syntax::SourceMap::new();
 sm.add("model.p", source);
