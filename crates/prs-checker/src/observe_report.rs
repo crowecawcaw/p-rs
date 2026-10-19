@@ -105,6 +105,21 @@ impl ObserveCoverage {
 }
 
 impl ObserveCoverageReport {
+    /// Import an in-process observation. Completion is unknown unless supplied by a
+    /// streaming supervisor; error details and event metrics are retained.
+    pub fn from_observation(spec_name: &str, report: &crate::observe::Report) -> Result<Self, String> {
+        let coverage = report.coverage.as_ref().ok_or("observation has no coverage; enable ObserveOptions.coverage")?;
+        Self::from_json(&json!({
+            "exit_code": if report.errors.is_empty() { 0 } else { 1 },
+            "specs": [{"spec": spec_name, "coverage": coverage.to_json(),
+                "events_read": report.metrics.events_read,
+                "partition_keys": report.metrics.partition_keys,
+                "verified_keys": report.metrics.verified_keys,
+                "errors": report.errors.iter().map(|e| json!({"kind": format!("{:?}", e.kind),
+                    "message": e.message, "detail": e.detail, "cause": e.cause})).collect::<Vec<_>>() }]
+        }))
+    }
+
     /// Accept a full `observe --coverage --json-report` result, a suite result, or an
     /// array of either. Missing coverage is an error, including on failed observations.
     pub fn from_json(value: &Value) -> Result<Self, String> {
@@ -218,4 +233,80 @@ fn string(value: &Value, name: &str) -> Result<String, String> {
 }
 fn array<'a>(value: &'a Value, name: &str) -> Result<&'a Vec<Value>, String> {
     value.as_array().ok_or_else(|| format!("{name} must be an array"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn observation(visited: &[&str]) -> Value {
+        let mut coverage = ObserveCoverage {
+            source_fingerprint: Some(format!("sha256:{}", "a".repeat(64))),
+            ..ObserveCoverage::default()
+        };
+        coverage.declared_states.extend(["Spec.A".into(), "Spec.B".into()]);
+        coverage.visited_states.extend(visited.iter().map(|s| s.to_string()));
+        json!({"exit_code":0,"specs":[{"spec":"Spec","coverage":coverage.to_json(),"errors":[]}]})
+    }
+    #[test]
+    fn roundtrip_and_idempotent_union_preserve_failure_metadata() {
+        let a = observation(&["Spec.A"]);
+        let mut b = observation(&["Spec.B"]);
+        b["exit_code"] = json!(1);
+        b["input_complete"] = json!(false);
+        b["stop_reason"] = json!("error");
+        b["specs"][0]["errors"] = json!([{"kind":"spec_violation","message":"oversold"}]);
+        let mut suite = ObserveCoverageReport::from_json(&json!([a, b])).unwrap();
+        assert_eq!(suite.specs["Spec"].visited_states.len(), 2);
+        let roundtrip = ObserveCoverageReport::from_json(&suite.to_json()).unwrap();
+        suite.merge(&roundtrip).unwrap();
+        assert_eq!(suite, roundtrip);
+        assert!(suite.render_text().contains("failed: 1; incomplete: 1"));
+        assert_eq!(suite.observations[1]["stop_reason"], "error");
+    }
+    #[test]
+    fn incompatible_merge_is_atomic_even_if_an_earlier_spec_is_new() {
+        let mut suite = ObserveCoverageReport::from_json(&observation(&[])).unwrap();
+        let before = suite.clone();
+        let mut other = suite.clone();
+        other.specs.insert("AAA".into(), other.specs["Spec"].clone());
+        other.specs.get_mut("Spec").unwrap().source_fingerprint = Some(format!("sha256:{}", "b".repeat(64)));
+        assert!(suite.merge(&other).unwrap_err().contains("fingerprint"));
+        assert_eq!(suite, before);
+    }
+    #[test]
+    fn rejects_malformed_missing_and_impossible_coverage() {
+        for mutation in ["missing", "counter", "outside", "declaration", "version", "fingerprint"] {
+            let mut value = observation(&[]);
+            let c = &mut value["specs"][0]["coverage"];
+            match mutation {
+                "missing" => *c = Value::Null,
+                "counter" => c["states"]["covered"] = json!(1),
+                "outside" => {
+                    c["states"]["visited"] = json!(["Other.A"]);
+                    c["states"]["covered"] = json!(1);
+                }
+                "declaration" => {
+                    c["handlers"] =
+                        json!({"total":1,"covered":0,"declared":[{"state":"Other.A","event":"E"}],"visited":[]})
+                }
+                "version" => c["schema_version"] = json!(999),
+                "fingerprint" => c["source_fingerprint"] = Value::Null,
+                _ => unreachable!(),
+            }
+            assert!(ObserveCoverageReport::from_json(&value).is_err(), "{mutation}");
+        }
+    }
+    #[test]
+    fn mismatching_declarations_rejected_despite_matching_fingerprint() {
+        let first = ObserveCoverageReport::from_json(&observation(&[])).unwrap();
+        let mut second = first.clone();
+        second.specs.get_mut("Spec").unwrap().declared_states.insert("Spec.C".into());
+        assert!(second.merge(&first).unwrap_err().contains("incompatible declarations"));
+    }
+    #[test]
+    fn empty_array_is_an_empty_aggregation() {
+        let empty = ObserveCoverageReport::from_json(&json!([])).unwrap();
+        assert!(empty.specs.is_empty());
+        assert_eq!(ObserveCoverageReport::from_json(&empty.to_json()).unwrap(), empty);
+    }
 }
