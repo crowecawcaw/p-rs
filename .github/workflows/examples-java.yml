@@ -1,0 +1,39 @@
+name: Java inventory examples
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: examples/java/pom.xml
+      - uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: '3.9.9'
+      - run: cargo build --locked -p prs-cli
+      - name: Run Jupiter and jqwik examples
+        working-directory: examples/java
+        env:
+          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+        run: mvn --batch-mode --no-transfer-progress test
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: java-inventory-diagnostics
+          path: |
+            examples/java/target/prs/
+            examples/java/target/surefire-reports/
+            examples/java/.jqwik-database
