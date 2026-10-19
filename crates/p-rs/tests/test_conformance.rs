@@ -65,7 +65,7 @@ fn run_case(case: &Path, expect: &Value) -> Result<(), String> {
     let recording = model.recording();
     for line in std::fs::read_to_string(case.join("events.jsonl")).unwrap().lines() {
         let e: Value = serde_json::from_str(line).unwrap();
-        let ts = prs::compat::observe::parse_instant(e["timestamp"].as_str().unwrap()).unwrap();
+        let ts = prs::checker::observe_json::parse_instant(e["timestamp"].as_str().unwrap()).unwrap();
         let at = Time::from_nanos(ts.secs * 1_000_000_000 + i64::from(ts.nanos));
         recording
             .emit_at(at, e["event"].as_str().unwrap(), e["key"].as_str().unwrap(), &e["payload"])

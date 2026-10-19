@@ -907,7 +907,7 @@ impl Parser for Lines {
         if matches!(spec.payload_type(id), PType::Null) && !payload.is_null() {
             return Err(format!("{name} has no payload, so its payload must be null"));
         }
-        let value = crate::compat::observe::value_from_json(spec.prog, payload, spec.payload_type(id))?;
+        let value = crate::checker::observe_json::value_from_json(spec.prog, payload, spec.payload_type(id))?;
         let key = match line.get("key") {
             None | Some(Value::Null) => String::new(),
             Some(Value::String(s)) => s.clone(),
@@ -923,7 +923,7 @@ fn timestamp(v: Option<&Value>) -> Result<Timestamp, String> {
     match v {
         Some(Value::String(s)) => match s.parse::<i64>() {
             Ok(ms) => Ok(Timestamp::from_millis(ms)),
-            Err(_) => crate::compat::observe::parse_instant(s).ok_or_else(|| format!("invalid timestamp '{s}'")),
+            Err(_) => crate::checker::observe_json::parse_instant(s).ok_or_else(|| format!("invalid timestamp '{s}'")),
         },
         Some(Value::Number(n)) => {
             n.as_i64().map(Timestamp::from_millis).ok_or_else(|| format!("invalid timestamp {n}"))

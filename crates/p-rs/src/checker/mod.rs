@@ -21,6 +21,7 @@ pub mod jsonlog;
 pub mod observe;
 pub mod observe_coverage;
 pub mod observe_inputs;
+pub mod observe_json;
 pub mod observe_report;
 pub mod random;
 pub mod rl;
