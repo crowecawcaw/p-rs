@@ -368,17 +368,17 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `PRS_BIN`, `strict` default true with named specs, `CheckHot`
 - [x] `timeout`, artifacts kept on failure
 - [ ] Distribution per [Distribution](#distribution)
-- [ ] `Specs` optional (default all), `Exclude`
-- [ ] Rename `AllowUnobserved` to `Strict` (`*bool` or option func); keep the old field deprecated
-- [ ] `*SpecViolation` / `*SetupError` for `errors.As` (#53)
-- [ ] `ExpectViolation(t, spec, match)`
-- [ ] Failure output in Python's format, with `src` from `runtime.Caller`
-- [ ] `EventsDir()`, `Env()`, `AddEventsDir`, `AddLog` (#49); move `prsemit` out of `python/`
-- [ ] `UnknownEvents`, default `error` (#47)
-- [ ] `prstest.Main(m)` and `PRS_COVERAGE`; per-check merge without it
-- [ ] `PRS_SPEC_FILES`, `PRS_ARTIFACTS`, `PRS_MODE`
-- [ ] Production emitter package (#48)
-- [ ] Conformance runner
+- [x] `Specs` optional (default all), `Exclude`
+- [x] Rename `AllowUnobserved` to `Strict` (`*bool` or option func); keep the old field deprecated
+- [x] `*SpecViolation` / `*SetupError` for `errors.As` (#53)
+- [x] `ExpectViolation(t, spec, match)` (a `Recorder` method)
+- [x] Failure output in Python's format, with `src` from `runtime.Caller`
+- [x] `EventsDir()`, `Env()`, `AddEventsDir`, `AddLog` (#49); move `prsemit` out of `python/`
+- [x] `UnknownEvents`, default `error` (#47)
+- [x] `prstest.Main(m)` and `PRS_COVERAGE`; per-check merge without it
+- [x] `PRS_SPEC_FILES`, `PRS_ARTIFACTS`, `PRS_MODE`
+- [x] Production emitter package (#48)
+- [x] Conformance runner
 
 ### Java
 

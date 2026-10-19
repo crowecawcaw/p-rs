@@ -1,10 +1,10 @@
-// Package inventory implements an in-memory inventory service. Tests supply an
-// event sink; a production service could supply its structured event logger.
+// Package inventory implements an in-memory inventory service. Tests pass a
+// recording's Emit; programs pass prsemit.Emit (see cmd/inventory).
 package inventory
 
 import "errors"
 
-// Emit receives a committed change. A nil sink disables observation.
+// Emit receives a committed change. A nil Emit disables observation.
 type Emit func(event, key string, payload any)
 
 type product struct {
@@ -18,13 +18,10 @@ type Inventory struct {
 }
 
 func New(emit Emit) *Inventory {
-	return &Inventory{products: make(map[string]*product), emit: emit}
-}
-
-func (i *Inventory) record(event, sku string, payload any) {
-	if i.emit != nil {
-		i.emit(event, sku, payload)
+	if emit == nil {
+		emit = func(string, string, any) {}
 	}
+	return &Inventory{products: make(map[string]*product), emit: emit}
 }
 
 func (i *Inventory) Stock(sku string, units int) error {
@@ -32,7 +29,7 @@ func (i *Inventory) Stock(sku string, units int) error {
 		return errors.New("invalid stock or duplicate product")
 	}
 	i.products[sku] = &product{available: units, orders: make(map[string]int)}
-	i.record("eStocked", sku, map[string]any{"units": units})
+	i.emit("eStocked", sku, map[string]any{"units": units})
 	return nil
 }
 
@@ -46,7 +43,7 @@ func (i *Inventory) Reserve(sku, order string, units int) error {
 	}
 	p.available -= units
 	p.orders[order] = units
-	i.record("eReserved", sku, map[string]any{"order": order, "units": units})
+	i.emit("eReserved", sku, map[string]any{"order": order, "units": units})
 	return nil
 }
 
@@ -61,7 +58,7 @@ func (i *Inventory) Release(sku, order string) error {
 	}
 	delete(p.orders, order)
 	p.available += units
-	i.record("eReleased", sku, map[string]any{"order": order, "units": units})
+	i.emit("eReleased", sku, map[string]any{"order": order, "units": units})
 	return nil
 }
 

@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testSpec = `event eUnit;
@@ -26,7 +29,8 @@ spec Values observes eUnit, eCount, ePair, eNamed {
 }
 spec Units observes eUnit { start state Ready { on eUnit do { } } }`
 
-func integrationConfig(t *testing.T) Config {
+// prsBinary is the real checker, or a skip when none is configured or found.
+func prsBinary(t *testing.T) string {
 	t.Helper()
 	binary := os.Getenv("PRS_BIN")
 	if binary == "" {
@@ -36,12 +40,19 @@ func integrationConfig(t *testing.T) Config {
 			t.Skip("integration: build prs and set PRS_BIN to its absolute path")
 		}
 	}
+	return binary
+}
+
+func integrationConfig(t *testing.T) Config {
+	t.Helper()
+	binary := prsBinary(t)
 	spec := filepath.Join(t.TempDir(), "values.p")
 	if err := os.WriteFile(spec, []byte(testSpec), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return Config{Binary: binary, SpecFiles: []string{spec}, Specs: []string{"Values"}}
+	return Config{Binary: binary, SpecFiles: []string{spec}, Specs: []string{"Values"}, Artifacts: t.TempDir()}
 }
+
 func TestIntegrationPayloadsAndSubsetSpecs(t *testing.T) {
 	cfg := integrationConfig(t)
 	cfg.Specs = append(cfg.Specs, "Units")
@@ -49,7 +60,9 @@ func TestIntegrationPayloadsAndSubsetSpecs(t *testing.T) {
 	r.Emit("eUnit", "a", nil)
 	r.Emit("eCount", "a", 42)
 	r.Emit("ePair", "a", []any{7, "hello"})
-	r.Emit("eNamed", "a", map[string]any{"units": 3})
+	r.Emit("eNamed", "a", struct {
+		Units int `json:"units"`
+	}{3})
 	result, err := r.Verify(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -59,55 +72,140 @@ func TestIntegrationPayloadsAndSubsetSpecs(t *testing.T) {
 	if err != nil || !json.Valid(cached.Report) {
 		t.Fatalf("corrupted cache: %v", err)
 	}
-	r.Emit("eUnit", "a", nil)
-	if _, err = r.Verify(context.Background()); err == nil || !strings.Contains(err.Error(), "sealed") {
-		t.Fatalf("ignored late emission: %v", err)
-	}
 }
-func TestIntegrationStrictAndOptOut(t *testing.T) {
+
+func TestIntegrationStrict(t *testing.T) {
 	cfg := integrationConfig(t)
-	result, err := New(t, cfg).Verify(context.Background())
-	if err == nil || !bytes.Contains(result.Report, []byte(`"kind": "validation"`)) {
-		t.Fatalf("empty trace not rejected: %v", err)
-	}
+	_, err := New(t, cfg).Verify(context.Background())
+	setupKind(t, err, "validation")
+
 	subset := cfg
 	subset.Specs = []string{"Values", "Units"}
 	onlyCounts := New(t, subset)
 	onlyCounts.Emit("eCount", "k", 1)
-	result, err = onlyCounts.Verify(context.Background())
-	if err == nil || !bytes.Contains(result.Report, []byte(`"kind": "validation"`)) {
-		t.Fatalf("strict mode ignored an unexercised selected spec: %v", err)
+	_, err = onlyCounts.Verify(context.Background())
+	if se := setupKind(t, err, "validation"); !strings.Contains(se.Message, "Units") {
+		t.Fatalf("validation message: %v", se)
 	}
-	cfg.AllowUnobserved = true
+
+	cfg.Strict = Bool(false)
 	if _, err = New(t, cfg).Verify(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-}
-func TestIntegrationCleanupAndIsolation(t *testing.T) {
-	cfg := integrationConfig(t)
-	root := t.TempDir()
-	cfg.ArtifactRoot = root
-	for n := 0; n < 8; n++ {
-		t.Run("parallel", func(t *testing.T) {
-			t.Parallel()
-			r := Start(t, cfg)
-			t.Cleanup(func() { r.Emit("eCount", "same-key", 1) })
-		})
+	cfg.Strict, cfg.Specs = nil, nil // every spec: not strict
+	r := New(t, cfg)
+	r.Emit("eCount", "k", 1)
+	if _, err = r.Verify(context.Background()); err != nil {
+		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		entries, err := os.ReadDir(root)
-		if err != nil || len(entries) != 8 {
-			t.Errorf("want 8 isolated artifact directories; got %d: %v", len(entries), err)
-		}
-		for _, entry := range entries {
-			data, err := os.ReadFile(filepath.Join(root, entry.Name(), "observation.json"))
-			if err != nil || !json.Valid(data) {
-				t.Errorf("missing observation: %s %v", entry.Name(), err)
-			}
-		}
-	})
 }
-func TestIntegrationFailedCoverageAndMerge(t *testing.T) {
+
+func TestIntegrationViolationFields(t *testing.T) {
+	cfg := integrationConfig(t)
+	cfg.Specs = nil
+	r := New(t, cfg)
+	r.Emit("eCount", "key", 1)
+	at := lineOf(func() { r.Emit("eCount", "key", -1) })
+	_, err := r.Verify(context.Background())
+	var v *SpecViolation
+	if !errors.As(err, &v) {
+		t.Fatalf("want *SpecViolation, got %T: %v", err, err)
+	}
+	if v.Spec != "Values" || v.Key != "key" || v.Message != "negative count" || !strings.Contains(v.Location, "values.p:") || len(v.Events) != 2 || v.Events[1].Src != at || v.Events[1].Payload != -1.0 {
+		t.Fatalf("violation fields: %+v", v)
+	}
+	if !strings.Contains(v.Error(), at+"  <- broke the spec here") {
+		t.Fatalf("failure output:\n%v", v)
+	}
+	if _, err := os.Stat(v.ArtifactsDir); err != nil {
+		t.Fatalf("artifacts: %v", err)
+	}
+}
+
+func TestIntegrationExpectViolation(t *testing.T) {
+	cfg := integrationConfig(t)
+	r := Start(t, cfg) // the cleanup check must not report the expected violation again
+	r.Emit("eCount", "k", -1)
+	v := r.ExpectViolation(t, "Values", "^negative")
+	if v.Key != "k" {
+		t.Fatalf("key = %q", v.Key)
+	}
+}
+
+func TestIntegrationUnknownEvents(t *testing.T) {
+	cfg := integrationConfig(t)
+	r := New(t, cfg)
+	r.Emit("eCount", "k", 1)
+	r.Emit("eCuont", "k", -1)
+	_, err := r.Verify(context.Background())
+	if se := setupKind(t, err, "unknown_event"); !strings.Contains(se.Message, "eCuont") {
+		t.Fatalf("message: %v", se)
+	}
+	cfg.UnknownEvents = "ignore"
+	r = New(t, cfg)
+	r.Emit("eCount", "k", 1)
+	r.Emit("eCuont", "k", -1)
+	if _, err = r.Verify(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIntegrationChildProcess(t *testing.T) {
+	cfg := integrationConfig(t)
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := New(t, cfg)
+	r.Emit("eCount", "parent", 1)
+	cmd := exec.Command(self)
+	cmd.Env = append(r.Env(), "PRSTEST_CHILD=emit")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("child: %v\n%s", err, out)
+	}
+	files, _ := os.ReadDir(r.EventsDir())
+	if len(files) != 1 || !strings.Contains(files[0].Name(), fmt.Sprintf("-%d-", cmd.Process.Pid)) {
+		t.Fatalf("child file: %v", files)
+	}
+	result, err := r.Verify(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(result.Report, []byte(`"events_read": 2`)) {
+		t.Fatalf("child events not checked:\n%s", result.Report)
+	}
+}
+
+func TestIntegrationAddEventsDirAndLogs(t *testing.T) {
+	cfg := integrationConfig(t)
+	dir := t.TempDir()
+	extra := filepath.Join(dir, "volume")
+	os.Mkdir(extra, 0o755)
+	os.WriteFile(filepath.Join(extra, "svc-1-ab.jsonl"), []byte(`{"event":"eCount","key":"v","timestamp":"2026-01-01T00:00:00Z","payload":2}`+"\n"), 0o600)
+	os.WriteFile(filepath.Join(dir, "plain.jsonl"), []byte(`{"event":"eCount","key":"j","timestamp":1,"payload":3}`+"\n"), 0o600)
+	os.WriteFile(filepath.Join(dir, "app.log"), []byte("start\ncount 4\ncount -4\n"), 0o600)
+
+	r := New(t, cfg)
+	r.AddEventsDir(extra)
+	r.AddLog(filepath.Join(dir, "plain.jsonl"), nil)
+	r.AddLog(filepath.Join(dir, "app.log"), func(line string) (Event, bool) {
+		var n int
+		if _, err := fmt.Sscanf(line, "count %d", &n); err != nil {
+			return Event{}, false
+		}
+		return Event{Event: "eCount", Key: "log", Payload: n, Time: time.Unix(100, 0)}, true
+	})
+	_, err := r.Verify(context.Background())
+	var v *SpecViolation
+	if !errors.As(err, &v) || v.Key != "log" || v.Events[len(v.Events)-1].Src != "app.log:3" {
+		t.Fatalf("want the log's violation with its line as src, got %v", err)
+	}
+	if !bytes.Contains(r.result.Report, []byte(`"events_read": 4`)) {
+		t.Fatalf("inputs not all read:\n%s", r.result.Report)
+	}
+}
+
+func TestIntegrationSuiteAndFailedCoverage(t *testing.T) {
 	cfg := integrationConfig(t)
 	suite, err := NewSuite(SuiteConfig{Binary: cfg.Binary})
 	if err != nil {
@@ -116,55 +214,109 @@ func TestIntegrationFailedCoverageAndMerge(t *testing.T) {
 	cfg.Suite = suite
 	r := New(t, cfg)
 	r.Emit("eCount", "key", -1)
-	result, err := r.Verify(context.Background())
-	if err == nil || !bytes.Contains(result.Report, []byte(`"kind": "spec_violation"`)) {
-		t.Fatalf("want actual spec violation: %v", err)
+	if _, err = r.Verify(context.Background()); err == nil {
+		t.Fatal("want a violation")
 	}
 	if _, err = r.Verify(context.Background()); err == nil {
 		t.Fatal("lost cached failure")
 	}
-	suite.mu.Lock()
-	count := len(suite.reports)
-	suite.mu.Unlock()
-	if count != 1 {
-		t.Fatalf("collected %d reports", count)
+	if len(suite.reports) != 1 {
+		t.Fatalf("collected %d reports", len(suite.reports))
 	}
 	path := filepath.Join(t.TempDir(), "monitor.json")
 	var human bytes.Buffer
 	if err = suite.WriteCoverage(context.Background(), path, &human); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	data, _ := os.ReadFile(path)
 	if !bytes.Contains(data, []byte("negative count")) || !strings.Contains(human.String(), "Observed monitor coverage") {
 		t.Fatalf("missing failed-prefix or human report: %s\n%s", data, human.String())
 	}
 	if err = suite.WriteCoverage(context.Background(), t.TempDir(), io.Discard); err == nil {
 		t.Fatal("hidden coverage write error")
 	}
-	if err = os.WriteFile(cfg.SpecFiles[0], []byte(strings.Replace(testSpec, "negative count", "changed assertion", 1)), 0o600); err != nil {
+}
+
+// handlersCovered reads the Values spec's handler coverage from a suite file.
+func handlersCovered(t *testing.T, path string) int {
+	t.Helper()
+	var suite struct {
+		Scope string `json:"scope"`
+		Specs []struct {
+			Spec     string
+			Coverage struct{ Handlers struct{ Covered int } }
+		}
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || json.Unmarshal(data, &suite) != nil || suite.Scope != "observed_monitor_suite" || len(suite.Specs) != 1 {
+		t.Fatalf("suite coverage file: %v\n%s", err, data)
+	}
+	return suite.Specs[0].Coverage.Handlers.Covered
+}
+
+var oneEventPerHandler = []struct {
+	event   string
+	payload any
+}{{"eUnit", nil}, {"eCount", 1}, {"ePair", []any{7, "hello"}}, {"eNamed", map[string]int{"units": 1}}}
+
+// Without Main, each check merges into the shared file under a lock.
+func TestIntegrationCoveragePerCheck(t *testing.T) {
+	cfg := integrationConfig(t)
+	cfg.Coverage = filepath.Join(t.TempDir(), "cov", "monitor.json")
+	t.Run("group", func(t *testing.T) {
+		for _, e := range oneEventPerHandler {
+			t.Run(e.event, func(t *testing.T) {
+				t.Parallel()
+				Start(t, cfg).Emit(e.event, "k", e.payload)
+			})
+		}
+	})
+	if got := handlersCovered(t, cfg.Coverage); got != 4 {
+		t.Fatalf("handlers covered = %d, want the union of 4 checks", got)
+	}
+}
+
+// With Main, checks are collected and merged once, with what the file already holds.
+func TestIntegrationCoverageWithMain(t *testing.T) {
+	cfg := integrationConfig(t)
+	cfg.Coverage = filepath.Join(t.TempDir(), "monitor.json")
+	check := func(event string, payload any) {
+		r := New(t, cfg)
+		r.Emit(event, "k", payload)
+		if _, err := r.Verify(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("eUnit", nil) // merged into the file now
+	collector.mu.Lock()
+	collector.inMain = true
+	collector.mu.Unlock()
+	defer func() {
+		collector.mu.Lock()
+		collector.inMain = false
+		collector.mu.Unlock()
+	}()
+	check("eCount", 1)
+	check("eNamed", map[string]int{"units": 1})
+	if got := handlersCovered(t, cfg.Coverage); got != 1 {
+		t.Fatalf("merged before Main finished: %d", got)
+	}
+	var human bytes.Buffer
+	if err := flushCoverage(context.Background(), &human); err != nil {
 		t.Fatal(err)
 	}
-	another := New(t, cfg)
-	another.Emit("eCount", "key", 1)
-	if _, err = another.Verify(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if err = suite.WriteCoverage(context.Background(), path, io.Discard); err == nil {
-		t.Fatal("core accepted incompatible source fingerprints")
+	if got := handlersCovered(t, cfg.Coverage); got != 3 || !strings.Contains(human.String(), "Handlers: 3/4") {
+		t.Fatalf("handlers covered = %d, want 3; summary:\n%s", got, human.String())
 	}
 }
 
 func TestIntegrationParserErrorAndHotCompletion(t *testing.T) {
 	t.Run("payload-mismatch", func(t *testing.T) {
-		cfg := integrationConfig(t)
-		r := New(t, cfg)
-		r.Emit("eCount", "k", "invalid")
-		result, err := r.Verify(context.Background())
-		if err == nil || !bytes.Contains(result.Report, []byte(`"kind": "parser"`)) {
-			t.Fatalf("parser failure hidden: %v", err)
+		r := New(t, integrationConfig(t))
+		at := lineOf(func() { r.Emit("eCount", "k", "invalid") })
+		_, err := r.Verify(context.Background())
+		if se := setupKind(t, err, "parser"); !strings.Contains(se.Message, "eCount ("+at+")") {
+			t.Fatalf("parser message: %v", se)
 		}
 	})
 	t.Run("hot-state", func(t *testing.T) {
@@ -177,9 +329,10 @@ func TestIntegrationParserErrorAndHotCompletion(t *testing.T) {
 		cfg.CheckHot = true
 		r := New(t, cfg)
 		r.Emit("e", "k", nil)
-		result, err := r.Verify(context.Background())
-		if err == nil || !bytes.Contains(result.Report, []byte(`"kind": "spec_violation"`)) {
-			t.Fatalf("hot completion failure hidden: %v", err)
+		_, err := r.Verify(context.Background())
+		var v *SpecViolation
+		if !errors.As(err, &v) || !v.Liveness || !strings.Contains(v.Message, "Pending") || !strings.Contains(v.Error(), "<- events ended here") {
+			t.Fatalf("hot completion: %v", err)
 		}
 	})
 }

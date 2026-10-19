@@ -106,9 +106,10 @@ JUnit checks with fixture lifecycle and coverage support. The
 process, JUnit fixtures, and jqwik sequences. Install the `prs` binary separately.
 
 From Go, [`prstest`](go/README.md) records application events and integrates checks
-with `testing.T`, subtests, and fuzz callbacks. The
+with `testing.T`, subtests, and fuzz callbacks; `prsemit` emits from processes a test
+starts and writes production logs. The
 [Go inventory examples](examples/go/README.md) show explicit checks, cleanup fixtures,
-and native fuzzing. Install the `prs` binary separately.
+native fuzzing and child processes. Install the `prs` binary separately.
 
 All helpers follow one set of names, defaults and behaviours:
 [docs/language-support.md](docs/language-support.md), checked by the shared

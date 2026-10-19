@@ -1,152 +1,183 @@
-# Go test integration
+# Go helper
 
-`github.com/crowecawcaw/p-rs/go/prstest` is the supported, standard-library-only
-Go helper for checking real application events against P monitors. It invokes the
-separately installed `prs` CLI for observation and does not bundle an executable.
-Go 1.22+ is required.
+Two standard-library-only packages, Go 1.22+:
 
-Install the checker with Rust:
+- [`prstest`](prstest): check events from Go tests against P specs. It runs the `prs`
+  binary.
+- [`prsemit`](prsemit): emit events from application code, in the test process or in
+  processes a test starts; in production, write them as a log for `prs observe`.
+
+Both follow the [language helper requirements](../docs/language-support.md). The
+runnable [inventory example](../examples/go/README.md) uses everything below.
+
+## Setup
+
+Install the checker, then point the helper at it (`PRS_BIN`, or `prs` on `PATH`):
 
 ```sh
 cargo install --git https://github.com/crowecawcaw/p-rs prs-cli
 ```
 
-This module is currently consumed from source. From a project alongside a cloned
-`p-rs` checkout, add:
+The module is consumed from source; keep it and the binary at the same revision:
 
 ```go
 require github.com/crowecawcaw/p-rs/go v0.0.0
 replace github.com/crowecawcaw/p-rs/go => ../p-rs/go
 ```
 
-Adjust the replacement path to your checkout. Keep the CLI and module from the
-same revision: the helper requires strict observation and structured coverage
-support. See the runnable [inventory examples](../examples/go/README.md), whose
-module replaces this dependency with `../../go`.
-
-## Per-test recording
+## Check a test's events
 
 ```go
-import "github.com/crowecawcaw/p-rs/go/prstest"
-
 func TestReservation(t *testing.T) {
-    recorder := prstest.Start(t, prstest.Config{
-        SpecFiles: []string{"specs/inventory.p"},
+    r := prstest.Start(t, prstest.Config{
+        SpecFiles: []string{"../specs/inventory.p"},
         Specs:     []string{"InventoryCorrect"},
     })
-    app := NewInventory(recorder.Emit)
-    // Seed and exercise the application after starting recording.
-    // Successful changes call emit(eventName, productKey, payload).
+    app := inventory.New(r.Emit) // the application takes an emit func
+    // seed and exercise app; the events are checked when the test ends
 }
 ```
 
-Each test, subtest, or fuzz callback gets its own recorder and fresh application
-state. Go has no automatic global per-test hook: put this setup in your fixture
-and call it from participating tests. A recorder is safe for concurrent emissions;
-your application must synchronize state changes and their emissions itself.
-Emit only committed changes, and join all workers before checking. `Start`
-registers a `t.Cleanup` check even when the test body fails. Register application
-shutdown/join cleanups **after** `Start`, so Go runs them before checking.
+- `Start` checks in a `t.Cleanup`. Register cleanups that stop workers **after**
+  `Start`, so they run first. A test that already failed is not checked.
+- `New` plus `r.Check(t)` checks where you call it; `r.Verify(ctx)` returns
+  `(Result, error)` instead.
+- Each test, subtest and fuzz callback needs its own recording (call `Start` inside
+  `f.Fuzz` with its `t`). Go has no global per-test hook, so put `Start` in your
+  fixture.
+- `Emit(event, key, payload)` / `EmitAt(time, event, key, payload)`: `payload` is a
+  struct or map whose JSON names match the P named tuple, a single value, a slice for
+  a tuple, or nil. It is encoded at once. The call site is recorded for reports.
+- Emitting after the check fails it: join workers and stop child processes first.
 
-For selected tests or generated cases with explicit boundaries, use
-`recorder := prstest.New(t, cfg)` and `recorder.Check(t)` after operations finish.
-`Verify(context.Background())` instead returns `(Result, error)` for callers that
-need to inspect expected failures. Check its error; a successful coverage merge
-never substitutes for successful verification.
+## Errors
 
-Verification seals the trace, runs the checker once, and caches the result.
-Repeated verification returns a copy of the report and does not duplicate suite
-coverage. Emitting after sealing sets a sticky lifecycle error; later verification
-and `Start`'s cleanup fail. Work continuing after the final cleanup cannot be
-observed: completing application work is the caller's responsibility.
+`Verify` returns, and `Check` reports with `t.Errorf`:
 
-## Events, paths, and strict checking
-
-`Emit(event, key string, payload any)` snapshots payload JSON immediately.
-Supported payloads include nil for unit events, scalars, slices for positional
-tuples, and maps/structs for named tuples. JSON field names must match the P event
-declaration; use struct tags where needed. Encoding errors are retained and fail
-verification rather than panic or silently drop events. Callers must not mutate
-payloads concurrently with the `Emit` call; subsequent mutation is safe.
-
-`Emit` samples actual Unix milliseconds while holding the emission lock. Equal
-times retain file order; clock changes are not clamped or hidden. For event times
-known by the application, `EmitAt(at, event, key, payload)` writes an ISO timestamp
-with nanosecond precision. Core observation sorts events by timestamp, so the
-recording time and supplied event times must reflect the order you want checked.
-There are no sleeps or synthetic time advances in the helper.
-
-Strict checking is enabled by default: every selected monitor must check a relevant
-event. `AllowUnobserved: true` explicitly opts out, for tests intentionally allowing
-empty or irrelevant observations. `CheckHot: true` additionally rejects monitors
-left in hot states at completion. These policies do not prove instrumentation is
-complete; ordinary state assertions and suitable P events remain necessary.
-
-`SpecFiles` and `Specs` must both be nonempty. Relative spec paths and artifact
-roots resolve against `WorkDir`, defaulting to the construction-time working
-directory. Go runs each test package in its package directory; configure paths
-accordingly. The executable resolves from `Config.Binary`, then `PRS_BIN`, then
-`prs` on `PATH`. Relative executable paths containing a separator also resolve
-against `WorkDir`. Set `PRS_BIN` to an absolute path in CI.
-
-`Timeout` defaults to 30 seconds; negative values are invalid. Context cancellation
-also stops `Verify`. Command failure, missing/malformed reports, missing selected
-specs, parser errors, and inconsistent status/metrics all fail verification.
-The helper checks report membership and required fields without assuming every
-monitor observes every emitted event or product key.
-
-## Diagnostics and observed monitor coverage
-
-`Result` contains the complete raw observation report, checker output, and artifact
-directory, including on failure. Verification errors include the command, checker
-output, report, and recorded JSONL. Default files live in `t.TempDir` and disappear
-after cleanup. Set `ArtifactRoot` to retain uniquely named directories for CI
-uploads; parallel tests and repeated subtests do not overwrite each other's files.
-Reports may contain application data: choose an appropriate artifact location.
-
-Coverage collection is explicit and owned by a suite, never a package global:
+- `*prstest.SpecViolation`: `Spec`, `Key`, `Message`, `Location` (the P assert),
+  `Events` (the key's last events with `Event`, `Payload`, `Src`), `Liveness`,
+  `Others`, `ArtifactsDir`.
+- `*prstest.SetupError`: `Kind` is `binary_missing`, `config`, `parser`, `validation`
+  (strict found no event for a spec), `unknown_event`, `out_of_order` or `timeout`.
 
 ```go
-var coverage *prstest.Suite
-
-func TestMain(m *testing.M) {
-    var err error
-    coverage, err = prstest.NewSuite(prstest.SuiteConfig{})
-    if err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
-    code := m.Run()
-    if err := coverage.WriteCoverage(context.Background(), "coverage/monitor.json", os.Stdout); err != nil {
-        fmt.Fprintln(os.Stderr, err)
-        code = 1
-    }
-    os.Exit(code)
-}
+var v *prstest.SpecViolation
+if errors.As(err, &v) && v.Key == "coffee" { ... }
 ```
 
-Attach that collector with `cfg.Suite = coverage` in participating ordinary tests.
-After `m.Run`, `WriteCoverage` snapshots the reports and calls core
-`coverage merge-observe`, writing human output to the supplied writer and JSON to
-the configured path. Core owns schema validation, source fingerprints, and set
-unions. Failed observations contribute attempted-handler and failure metadata;
-merge success means only aggregation succeeded. Preserve `m.Run`'s failure status.
-The helper validates the suite envelope and publishes JSON through a temporary
-file beside the destination; failed merges preserve the previous report.
-A collector retains complete reports, so leave `Suite` nil in long fuzz campaigns.
-Each Go package runs in its own test process; cross-package aggregation requires
-merging their reports explicitly through the core CLI.
+A failure prints the spec's message, the key's events with where each was emitted,
+the P assert and the folder that keeps the events, prs output and report:
 
-## Develop and verify
+```
+P spec InventoryCorrect was broken: reservation exceeds available stock
 
-From the repository root:
+  Events (key "coffee"):
+      1  eStocked   units=3                inventory.go:32
+      2  eReserved  order=order-1 units=2  inventory.go:46
+      3  eReserved  order=order-2 units=2  inventory.go:46  <- broke the spec here
+
+  Spec: ../specs/inventory.p:27
+  prs output: /tmp/prstest-TestOversell-3765897326
+```
+
+Negative control: `r.ExpectViolation(t, "InventoryCorrect", "exceeds available")`
+checks now and fails the test unless that spec (and only it) is violated with a
+message matching the regular expression. It returns the `*SpecViolation`; later
+checks of `r` ignore that spec.
+
+## Options
+
+| `Config` field | Environment | Default |
+| --- | --- | --- |
+| `SpecFiles`: files, folders (every `.p`) or globs | `PRS_SPEC_FILES` (separated like `PATH`) | required |
+| `Specs` | | every spec in `SpecFiles` |
+| `Exclude` | | none |
+| `Strict` (`prstest.Bool(false)`) | | true when `Specs` is set, else false |
+| `CheckHot`: fail a key left in a hot state | | false |
+| `UnknownEvents`: `ignore`, `warn`, `error` | | `error` |
+| `Timeout` | | 30 s |
+| `Artifacts`: where failed checks are kept | `PRS_ARTIFACTS` | a temp folder |
+| `Coverage`: suite coverage JSON | `PRS_COVERAGE` | off |
+| `Mode`: `auto`/`marked` (same in Go) or `off` | `PRS_MODE` | `auto` |
+| `Binary` | `PRS_BIN`, then `prs` on `PATH` | |
+
+Environment variables override fields. `Config` paths are relative to `WorkDir`
+(default: the package folder `go test` runs in); environment paths to the working
+directory. `PRS_MODE=off` makes recordings inert. A missing binary is a
+`binary_missing` error saying how to install one. `AllowUnobserved` and
+`ArtifactRoot` are deprecated aliases for `Strict: prstest.Bool(false)` and
+`Artifacts`.
+
+## Events from other processes
+
+A recording has its own events folder. Start a child with `r.Env()` (the environment
+plus `PRS_EVENTS_DIR`); if it uses `prsemit`, its events join the check. Wait for the
+child before the check.
+
+```go
+cmd := exec.Command(workerBinary)
+cmd.Env = r.Env()
+if err := cmd.Run(); err != nil { t.Fatal(err) }
+```
+
+- `r.EventsDir()` is the folder, for anything that writes the
+  [events folder format](../docs/observe.md#events-folder-format) itself.
+- `r.AddEventsDir(path)` adds a folder the recording did not create (a container
+  volume, a service started once for the package).
+- `r.AddLog(path, parse)` adds a log; `parse(line) (prstest.Event, bool)` returns an
+  event with `Time` set, or false to skip the line. `nil` reads JSON lines as they are.
+
+## prsemit
+
+```go
+import "github.com/crowecawcaw/p-rs/go/prsemit"
+
+app := inventory.New(prsemit.Emit)
+```
+
+| Process | Events go to |
+| --- | --- |
+| A test process with a `prstest` recording | that recording |
+| Started by a test (`PRS_EVENTS_DIR` set) | its own `<program>-<pid>-<random>.jsonl` in that folder, one append per line |
+| After `prsemit.OpenFile(path)` or `prsemit.SetOutput(w)` | JSON lines for `prs observe -l`, written by a background goroutine |
+| Otherwise | nowhere: one atomic load per `Emit` |
+
+In a test process `prsemit.Emit` reaches the recording without injecting `r.Emit`,
+until the test ends. It cannot tell parallel tests apart: with several recordings
+active, an `Emit` fails them all with a `config` error. Pass a context instead:
+`prsemit.EmitCtx(ctx, ...)` reaches the recording `ctx` came from
+(`ctx := r.Context(context.Background())`), or inject `r.Emit`.
+
+`Emit` never panics or blocks: a line that cannot be encoded or written, or that
+finds 4096 lines already queued, is dropped and counted by `prsemit.Dropped()`. Call
+`prsemit.Close()` at shutdown to write what is queued. Then check the log:
+
+```sh
+prs observe -pf specs/inventory.p --spec InventoryCorrect -l events.jsonl
+```
+
+## Suite coverage
+
+Set `Config.Coverage` (or `PRS_COVERAGE`) and add
+
+```go
+func TestMain(m *testing.M) { prstest.Main(m) }
+```
+
+`Main` merges every check's observed monitor coverage into the file once, after the
+tests, and prints the summary. Without `Main`, each check merges as it completes.
+Either way the file is merged under a lock, so `go test ./...` packages can share it;
+delete a stale file before a run. `Config.Suite` with `NewSuite` and
+`Suite.WriteCoverage` remain for full control.
+
+## Develop
 
 ```sh
 cargo build -p prs-cli --bin prs --locked
 export PRS_BIN="$(pwd)/target/debug/prs"
 (cd go && go test -race -count=1 ./... && go vet ./...)
 (cd examples/go && go test -race -count=1 ./...)
-(cd examples/go && go test ./fuzz -run='^$' -fuzz=FuzzInventory -fuzztime=5s -parallel=2)
 ```
 
-Unit tests use subprocess fixtures for malformed tools and timeout behavior.
-Integration tests run the real CLI; they skip when no CLI is configured or found,
-and fail if an explicitly supplied `PRS_BIN` is missing or broken. CI supplies
-this checkout's CLI and tests Go 1.22 and stable.
+Tests that need the checker skip when no `prs` is found. `TestConformance` replays
+[tests/conformance](../tests/conformance/README.md).

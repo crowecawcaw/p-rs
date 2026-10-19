@@ -9,7 +9,7 @@ from conftest import HERE, SPEC
 
 from prs import emit, expect_violation
 
-GO_DIR = os.path.join(os.path.dirname(HERE), "emitters", "go")
+GO_DIR = os.path.join(os.path.dirname(os.path.dirname(HERE)), "go")
 
 
 @pytest.fixture(scope="module")
@@ -17,7 +17,7 @@ def go_service(tmp_path_factory):
     if shutil.which("go") is None:
         pytest.skip("go is not installed")
     exe = str(tmp_path_factory.mktemp("go") / "service")
-    subprocess.run(["go", "build", "-o", exe, "./example"], cwd=GO_DIR, check=True)
+    subprocess.run(["go", "build", "-o", exe, "./prsemit/example"], cwd=GO_DIR, check=True)
     return exe
 
 
