@@ -16,7 +16,9 @@ There are two command line tools:
   files, accepts the same options, and writes the same console output, traces and
   output folders.
 
-Try it without installing anything in the [P Playground](https://crowecawcaw.github.io/p-rs/).
+Try it without installing anything in the [P Playground](https://crowecawcaw.github.io/p-rs/playground.html),
+or start with the [overview](https://crowecawcaw.github.io/p-rs/docs/overview.html) of what P is and how it
+differs from unit tests.
 
 ## Status
 

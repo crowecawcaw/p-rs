@@ -1,7 +1,16 @@
-# P Playground
+# Website
 
-A web page for editing and model-checking P models in the browser. It runs the
-`prs-wasm` build of the toolchain in a Web Worker; nothing is sent to a server.
+The project site, built with Vite and React:
+
+- `index.html`: the landing page (`src/site/home/`).
+- `docs/*.html`: docs pages (`src/site/docs/`). Add a page by adding an HTML entry
+  in `vite.config.ts` and a link in `src/site/docs/DocsLayout.tsx`.
+- `playground.html`: the P Playground (`src/App.tsx`), for editing and
+  model-checking P models in the browser. It runs the `prs-wasm` build of the
+  toolchain in a Web Worker; nothing is sent to a server.
+
+The docs diagrams are React components driven by scripted data
+(`src/site/docs/diagrams/`).
 
 ```sh
 cd web
