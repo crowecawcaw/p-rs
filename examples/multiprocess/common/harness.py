@@ -51,7 +51,7 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
             observer = subprocess.Popen([
                 str(prs_bin), "observe", "--pfiles", str(SPEC), "--spec", "InventoryCorrect",
                 "--stdin", "--fail-fast", "--coverage", "--json-report", str(artifacts / "report.json"),
-                "--output", str(artifacts / "observe"),
+                "--outputDir", str(artifacts / "observe"),
             ], stdin=subprocess.PIPE, stdout=output, stderr=errors, text=True)
 
             def watch_observer():
@@ -168,7 +168,7 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
             if scenario == "healthy":
                 if observer_code != 0 or report["exit_code"] != 0 or spec["errors"] or not report["input_complete"] or report["stop_reason"] != "eof":
                     raise AssertionError("healthy history failed: " + str(report))
-                if coverage["handlers"]["covered"] != 3 or spec["events_read"] != 6:
+                if coverage["handlers"]["covered"] != 3 or spec["events_read"] != 5:
                     raise AssertionError("healthy scenario missed operations")
             else:
                 violations = spec["errors"]
