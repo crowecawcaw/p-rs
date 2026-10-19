@@ -45,7 +45,7 @@ recorder: Cargo runs tests in parallel. A panicking body stays failed without a
 second check during unwinding, so do monitor-relevant cleanup inside the closure.
 
 The fixture also adds each check to a `prs_test::Suite` and writes
-[coverage](../README.md#coverage) to `target/coverage/model.json`
+[coverage](../README.md#coverage) to `target/coverage/monitor.json`
 (`cargo test -- --nocapture` prints it).
 
 ## 3. Generated sequences with proptest

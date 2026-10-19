@@ -135,7 +135,7 @@ class ObserverTest {
 
     @Test void suiteUnionIncludesFailuresAndRetainsDistinctSources() throws Exception {
         var observer = builder("Counter").build();
-        var target = temporary.resolve("coverage/model.json");
+        var target = temporary.resolve("coverage/monitor.json");
         try (var coverage = observer.coverage(target)) {
             try (var events = observer.recording("successful", coverage)) { events.emit("eAdd", "sku", 2); }
             var failed = observer.recording("failed", coverage);

@@ -245,7 +245,7 @@ func TestInvalidMergePreservesPreviousDestination(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(t.TempDir(), "model.json")
+	path := filepath.Join(t.TempDir(), "monitor.json")
 	previous := []byte("previous successful coverage")
 	for _, mode := range []string{"malformed", "empty-object", "null", "array", "bad-envelope"} {
 		t.Run(mode, func(t *testing.T) {

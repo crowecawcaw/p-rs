@@ -48,8 +48,8 @@ fn publish_coverage(report: &CheckReport) -> Result<(), Box<dyn std::error::Erro
     static SUITE: LazyLock<Mutex<Suite>> = LazyLock::new(Default::default);
     let mut suite = SUITE.lock().map_err(|e| e.to_string())?;
     suite.add(report)?;
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/coverage/model.json");
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/coverage/monitor.json");
     suite.write_json(&path)?;
-    println!("P model coverage (completed fixture checks so far):\n{}\nJSON: {}", suite.render_text(), path.display());
+    println!("Monitor coverage (completed fixture checks so far):\n{}\nJSON: {}", suite.render_text(), path.display());
     Ok(())
 }

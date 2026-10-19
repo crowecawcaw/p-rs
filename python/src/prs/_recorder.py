@@ -316,7 +316,7 @@ class Recorder:
             with open(report_path, encoding="utf-8") as f:
                 self.coverage_report = json.load(f)
             if any("coverage" not in spec for spec in self.coverage_report.get("specs", [])):
-                raise PrsError("prs did not report model coverage; use a binary supporting observe --coverage")
+                raise PrsError("prs did not report monitor coverage; use a binary supporting observe --coverage")
         if proc.returncode == 0:
             shutil.rmtree(workdir, ignore_errors=True)
             return []

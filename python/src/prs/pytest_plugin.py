@@ -38,7 +38,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     group.addoption("--prs-strict", action="store_true", default=False,
                     help="Require relevant events for every selected P spec in each checked test.")
     group.addoption("--prs-coverage", metavar="PATH", default=None,
-                    help="Print suite P model coverage and write its union as JSON to PATH.")
+                    help="Print suite monitor coverage and write its union as JSON to PATH.")
     group.addoption(
         "--prs",
         dest="prs_mode",
@@ -213,10 +213,10 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: pyte
     if summary is None:
         return
     success, output, path = summary
-    terminalreporter.section("P model coverage (union of completed test checks)")
+    terminalreporter.section("Monitor coverage (union of completed test checks)")
     for line in output.splitlines():
         terminalreporter.write_line(line)
     if success:
         terminalreporter.write_line(f"JSON: {path}")
     else:
-        terminalreporter.write_line("P model coverage reporting failed", red=True)
+        terminalreporter.write_line("Monitor coverage reporting failed", red=True)

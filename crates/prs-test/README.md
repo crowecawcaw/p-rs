@@ -83,7 +83,7 @@ let report = match &checked {
     Err(error) => error.report(),
 };
 let coverage = suite.add(report)
-    .and_then(|_| suite.write_json("target/coverage/model.json"));
+    .and_then(|_| suite.write_json("target/coverage/monitor.json"));
 println!("{}", suite.render_text());
 if let Err(error) = &coverage { eprintln!("coverage reporting failed: {error}"); }
 checked?; // Preserve the monitor failure if reporting also failed.

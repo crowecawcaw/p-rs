@@ -24,7 +24,7 @@ rustc-ice-*.txt
 #.idea/
 __pycache__/
 
-# Example model coverage artifacts
+# Example monitor coverage artifacts
 examples/**/coverage/
 examples/multiprocess/**/artifacts/
 

@@ -65,7 +65,7 @@ prs.SpecViolation: P spec InventoryCorrect was broken: reservation exceeds avail
 ```
 
 The full report adds the emit location, the P assertion location, and a folder with
-the events and checker output. `--prs-coverage=coverage/model.json` in the pytest
+the events and checker output. `--prs-coverage=coverage/monitor.json` in the pytest
 options prints [coverage](../README.md#coverage) and writes the JSON report.
 
 ## 3. Generated histories with Hypothesis

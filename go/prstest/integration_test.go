@@ -129,7 +129,7 @@ func TestIntegrationFailedCoverageAndMerge(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("collected %d reports", count)
 	}
-	path := filepath.Join(t.TempDir(), "model.json")
+	path := filepath.Join(t.TempDir(), "monitor.json")
 	var human bytes.Buffer
 	if err = suite.WriteCoverage(context.Background(), path, &human); err != nil {
 		t.Fatal(err)

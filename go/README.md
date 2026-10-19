@@ -114,7 +114,7 @@ func TestMain(m *testing.M) {
     coverage, err = prstest.NewSuite(prstest.SuiteConfig{})
     if err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
     code := m.Run()
-    if err := coverage.WriteCoverage(context.Background(), "coverage/model.json", os.Stdout); err != nil {
+    if err := coverage.WriteCoverage(context.Background(), "coverage/monitor.json", os.Stdout); err != nil {
         fmt.Fprintln(os.Stderr, err)
         code = 1
     }
