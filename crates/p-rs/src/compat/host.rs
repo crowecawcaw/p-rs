@@ -143,6 +143,71 @@ pub trait HostExt: Host {
 
 impl<T: Host + ?Sized> HostExt for T {}
 
+/// A host that holds back console output, to show it (or its errors) only if needed.
+pub(crate) struct Buffered<'a> {
+    pub inner: &'a mut dyn Host,
+    pub out: Vec<(Stream, String, Option<Color>)>,
+}
+
+impl<'a> Buffered<'a> {
+    pub fn new(inner: &'a mut dyn Host) -> Self {
+        Buffered { inner, out: Vec::new() }
+    }
+
+    /// The text written to stderr so far.
+    pub fn errors(&self) -> String {
+        self.out.iter().filter(|(s, ..)| *s == Stream::Err).map(|(_, t, _)| t.as_str()).collect()
+    }
+}
+
+impl Host for Buffered<'_> {
+    fn write(&mut self, stream: Stream, text: &str, color: Option<Color>) {
+        self.out.push((stream, text.to_string(), color));
+    }
+    fn cwd(&self) -> PathBuf {
+        self.inner.cwd()
+    }
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        self.inner.read_to_string(path)
+    }
+    fn write_file(&mut self, path: &Path, contents: &str) -> io::Result<()> {
+        self.inner.write_file(path, contents)
+    }
+    fn is_file(&self, path: &Path) -> bool {
+        self.inner.is_file(path)
+    }
+    fn is_dir(&self, path: &Path) -> bool {
+        self.inner.is_dir(path)
+    }
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
+        self.inner.read_dir(path)
+    }
+    fn create_dir_all(&mut self, path: &Path) -> io::Result<()> {
+        self.inner.create_dir_all(path)
+    }
+    fn remove_dir_all(&mut self, path: &Path) -> io::Result<()> {
+        self.inner.remove_dir_all(path)
+    }
+    fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()> {
+        self.inner.rename(from, to)
+    }
+    fn now(&self) -> f64 {
+        self.inner.now()
+    }
+    fn max_memory_gb(&self) -> f64 {
+        self.inner.max_memory_gb()
+    }
+    fn random_seed(&mut self) -> u32 {
+        self.inner.random_seed()
+    }
+    fn unix_time(&self) -> f64 {
+        self.inner.unix_time()
+    }
+    fn threads(&self) -> Option<Threads> {
+        self.inner.threads()
+    }
+}
+
 /// `Path.GetFullPath`: makes `p` absolute against `cwd` and resolves `.`/`..` lexically.
 pub fn full_path(cwd: &Path, p: &Path) -> PathBuf {
     let joined = if p.is_absolute() { p.to_path_buf() } else { cwd.join(p) };

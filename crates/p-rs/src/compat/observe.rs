@@ -24,7 +24,7 @@ use crate::checker::value::{MachineRef, NamedTuple, SlotMap, SlotSet, Value};
 use crate::sema::{MachineKind, PType, Program};
 use serde_json::Value as Json;
 
-use crate::compat::host::{full_path, relative_path, Color, Host, HostExt, LiveInput, Stream};
+use crate::compat::host::{full_path, relative_path, Buffered, Color, Host, HostExt, LiveInput, Stream};
 use crate::compat::{pproj, project, write_output, Exit};
 
 /// `PObserveExitStatus`.
@@ -427,8 +427,8 @@ pub const USAGE: &str = "Usage: p observe [options]
       Event names no P source declares: ignore, warn or error (prs extension)
       Default: ignore
     --coverage
-        Report observed monitor states and handlers on stdout (and in --json-report).
-        Does not measure full model paths or scheduling coverage.
+      Report observed monitor states and handlers on stdout and in --json-report
+      (prs extension). Does not measure paths or scheduling coverage.
     --json-report
       Write the result as JSON to this file (prs extension)
     --keyListFile
@@ -933,63 +933,9 @@ struct Loaded {
     source_value: String,
 }
 
-/// A host that hides console output (the project loader's progress messages) but keeps
-/// error text so it can be reported as a command-line error.
-struct Quiet<'a> {
-    inner: &'a mut dyn Host,
-    errors: String,
-}
-
-impl Host for Quiet<'_> {
-    fn write(&mut self, stream: Stream, text: &str, _color: Option<Color>) {
-        if stream == Stream::Err {
-            self.errors.push_str(text);
-        }
-    }
-    fn cwd(&self) -> PathBuf {
-        self.inner.cwd()
-    }
-    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-        self.inner.read_to_string(path)
-    }
-    fn write_file(&mut self, path: &Path, contents: &str) -> std::io::Result<()> {
-        self.inner.write_file(path, contents)
-    }
-    fn is_file(&self, path: &Path) -> bool {
-        self.inner.is_file(path)
-    }
-    fn is_dir(&self, path: &Path) -> bool {
-        self.inner.is_dir(path)
-    }
-    fn read_dir(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
-        self.inner.read_dir(path)
-    }
-    fn create_dir_all(&mut self, path: &Path) -> std::io::Result<()> {
-        self.inner.create_dir_all(path)
-    }
-    fn remove_dir_all(&mut self, path: &Path) -> std::io::Result<()> {
-        self.inner.remove_dir_all(path)
-    }
-    fn rename(&mut self, from: &Path, to: &Path) -> std::io::Result<()> {
-        self.inner.rename(from, to)
-    }
-    fn now(&self) -> f64 {
-        self.inner.now()
-    }
-    fn max_memory_gb(&self) -> f64 {
-        self.inner.max_memory_gb()
-    }
-    fn random_seed(&mut self) -> u32 {
-        self.inner.random_seed()
-    }
-    fn unix_time(&self) -> f64 {
-        self.inner.unix_time()
-    }
-}
-
 /// Finds the P sources (`.pproj` or `--pfiles`) and type-checks them.
 fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, String> {
-    let mut quiet = Quiet { inner: host, errors: String::new() };
+    let mut quiet = Buffered::new(host);
     let cwd = quiet.cwd();
     let mut project_name = project::DEFAULT_NAME.to_string();
     let mut package = None;
@@ -1016,7 +962,7 @@ fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, Stri
         let proj = match pproj::parse(&mut quiet, &file) {
             Ok(p) => p,
             Err(_) => {
-                let msg = quiet.errors.trim().trim_start_matches("Error: ").to_string();
+                let msg = quiet.errors().trim().trim_start_matches("Error: ").to_string();
                 return Err(msg);
             }
         };
