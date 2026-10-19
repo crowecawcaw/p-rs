@@ -6,17 +6,7 @@ use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Features this runner can exercise; a case whose `requires` names anything else is
-/// skipped with a reason.
-fn supported_features() -> Vec<&'static str> {
-    let mut features = vec!["events_dir"];
-    let help = Command::new(env!("CARGO_BIN_EXE_prs")).args(["observe", "--help"]).output().unwrap();
-    if String::from_utf8_lossy(&help.stdout).contains("--unknown-events") {
-        features.push("unknown_events");
-    }
-    features
-}
-
+/// The core supports every feature a case can require, so every case runs.
 const KNOWN_FEATURES: &[&str] = &["events_dir", "unknown_events"];
 const CASE_KEYS: &[&str] = &["description", "requires", "options", "expect"];
 const OPTION_KEYS: &[&str] = &["specs", "exclude", "strict", "check_hot", "unknown_events"];
@@ -36,9 +26,7 @@ fn conformance_corpus() {
         std::fs::read_dir(&root).unwrap().map(|e| e.unwrap().path()).filter(|p| p.is_dir()).collect();
     cases.sort();
     assert!(!cases.is_empty(), "no conformance cases in {}", root.display());
-    let features = supported_features();
     let mut failures = Vec::new();
-    let (mut ran, mut skipped) = (0, 0);
     for case in &cases {
         let name = case.file_name().unwrap().to_string_lossy().into_owned();
         let expect: Value = serde_json::from_str(&std::fs::read_to_string(case.join("expect.json")).unwrap())
@@ -47,24 +35,10 @@ fn conformance_corpus() {
             failures.push(format!("{name}: invalid expect.json: {e}"));
             continue;
         }
-        let missing: Vec<&str> = expect["requires"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-            .filter(|f| !features.contains(f))
-            .collect();
-        if !missing.is_empty() {
-            eprintln!("skip {name}: this prs does not support {}", missing.join(", "));
-            skipped += 1;
-            continue;
-        }
-        ran += 1;
-        if let Err(e) = run_case(case, &expect, &features) {
+        if let Err(e) = run_case(case, &expect) {
             failures.push(format!("{name}: {e}"));
         }
     }
-    eprintln!("conformance: {ran} ran, {skipped} skipped");
     assert!(failures.is_empty(), "conformance failures:\n{}", failures.join("\n"));
 }
 
@@ -114,7 +88,7 @@ fn strings(value: &Value) -> Vec<String> {
     value.as_array().into_iter().flatten().filter_map(|v| v.as_str().map(String::from)).collect()
 }
 
-fn run_case(case: &Path, expect: &Value, features: &[&str]) -> Result<(), String> {
+fn run_case(case: &Path, expect: &Value) -> Result<(), String> {
     static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let work = std::env::temp_dir().join(format!(
         "prs-conformance-{}-{}",
@@ -168,9 +142,7 @@ fn run_case(case: &Path, expect: &Value, features: &[&str]) -> Result<(), String
     if coverage {
         args.push("--coverage".into());
     }
-    if features.contains(&"unknown_events") {
-        args.extend(["--unknown-events".into(), unknown_events.into()]);
-    }
+    args.extend(["--unknown-events".into(), unknown_events.into()]);
     let output = Command::new(env!("CARGO_BIN_EXE_prs")).current_dir(&work).args(&args).output().unwrap();
     let report: Option<Value> =
         std::fs::read_to_string(work.join("report.json")).ok().and_then(|s| serde_json::from_str(&s).ok());

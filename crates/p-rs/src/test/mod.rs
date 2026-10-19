@@ -192,7 +192,7 @@ impl Model {
     }
 
     /// A new recording. Every recording starts with fresh spec instances.
-    /// It binds the current thread: global `crate::emit::emit` calls made on it go to this
+    /// It binds the current thread: global [`prs::emit::emit`](crate::emit::emit) calls made on it go to this
     /// recording until it is checked or dropped.
     pub fn recording(&self) -> Recording {
         let sink = EventSink::default();
@@ -307,7 +307,7 @@ struct Buffer {
     events: Vec<Event>,
     closed: bool,
     emitters: Vec<Emitter>,
-    /// Events from the global `crate::emit::emit` that could not be recorded.
+    /// Events from the global `prs::emit::emit` that could not be recorded.
     errors: Vec<(ErrorKind, String)>,
 }
 
@@ -468,7 +468,7 @@ impl Recording {
 
     /// This recording's events folder, created on first use. Child processes write
     /// events there when started with [`env`](Self::env) (`PRS_EVENTS_DIR`), e.g. with
-    /// `crate::emit::emit`. Stop or join them before checking.
+    /// [`prs::emit::emit`](crate::emit::emit). Stop or join them before checking.
     pub fn events_dir(&self) -> PathBuf {
         let dir = self.root().join("events");
         if let Err(e) = std::fs::create_dir_all(&dir) {
@@ -546,28 +546,30 @@ impl Recording {
     fn finish(&mut self, keep_artifacts: bool) -> Result<CheckReport, CheckError> {
         self.done = true;
         routing::close(&self.sink.state);
-        let events = {
+        let (events, failed) = {
             let mut state = self.sink.state.lock().unwrap_or_else(|e| e.into_inner());
             state.closed = true;
-            if !state.errors.is_empty() {
-                let kind = state.errors[0].0;
-                let message = state.errors.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n");
-                return Err(SetupError { kind, message, artifacts: None }.into());
-            }
             let dropped: u64 = state.emitters.iter().map(Emitter::dropped).sum();
-            if dropped > 0 {
-                return Err(SetupError {
+            let failed = if let Some(&(kind, _)) = state.errors.first() {
+                let message = state.errors.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n");
+                Some(SetupError { kind, message, artifacts: None })
+            } else if dropped > 0 {
+                Some(SetupError {
                     kind: ErrorKind::Parser,
                     message: format!(
                         "{dropped} event(s) emitted through an Emitter had payloads that cannot be serialized"
                     ),
                     artifacts: None,
-                }
-                .into());
-            }
-            std::mem::take(&mut state.events)
+                })
+            } else {
+                None
+            };
+            (std::mem::take(&mut state.events), failed)
         };
-        let result = self.run(&events);
+        let result = match failed {
+            Some(e) => Err(e.into()),
+            None => self.run(&events),
+        };
         let root = self.root.get();
         match result {
             Ok(report) => {
