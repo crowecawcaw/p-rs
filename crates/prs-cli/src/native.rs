@@ -13,6 +13,13 @@ pub struct NativeHost {
 }
 
 impl Host for NativeHost {
+    fn read_stdin_line(&self) -> io::Result<Option<String>> {
+        let mut line = String::new();
+        match io::stdin().read_line(&mut line)? {
+            0 => Ok(None),
+            _ => Ok(Some(line)),
+        }
+    }
     fn write(&mut self, stream: Stream, text: &str, color: Option<Color>) {
         let use_color = match stream {
             Stream::Out => self.color_out,

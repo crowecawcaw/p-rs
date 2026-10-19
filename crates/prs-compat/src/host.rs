@@ -28,6 +28,10 @@ pub enum Color {
 pub trait Host {
     /// Writes console text (no newline added).
     fn write(&mut self, stream: Stream, text: &str, color: Option<Color>);
+    /// Reads one complete stdin line, or `None` at EOF. Live observe hosts override this.
+    fn read_stdin_line(&self) -> io::Result<Option<String>> {
+        Err(io::Error::new(io::ErrorKind::Unsupported, "stdin is unavailable on this host"))
+    }
     /// The current directory (absolute).
     fn cwd(&self) -> PathBuf;
     fn read_to_string(&self, path: &Path) -> io::Result<String>;

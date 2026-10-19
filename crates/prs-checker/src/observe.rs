@@ -420,7 +420,7 @@ impl Report {
 }
 
 /// Monitors never reach a scheduling point; this strategy is never consulted.
-struct NoScheduling;
+pub struct NoScheduling;
 
 impl Strategy for NoScheduling {
     fn next_operation(&mut self, current: u64, _ops: &[OpInfo]) -> Option<u64> {
@@ -714,6 +714,185 @@ impl<'p> Spec<'p> {
         }
         report.metrics.elapsed_ms = ((clock() - start) * 1000.0).round() as i64;
         report
+    }
+}
+
+/// Incremental, ordered observation of a live stream. Each key has its own monitor;
+/// replay storage is bounded by `replay_window` per key. Call `finish` only at EOF.
+/// A failed session is terminal: no subsequent entry is processed.
+pub struct ObserveSession<'s> {
+    spec: &'s Spec<'s>,
+    rt: Runtime<'s>,
+    opts: ObserveOptions,
+    keys: HashMap<String, (usize, Option<Timestamp>, std::collections::VecDeque<ObservedEvent>)>,
+    report: Report,
+    started: f64,
+    coverage_tables: Option<Rc<CoverageTables>>,
+}
+
+impl<'s> ObserveSession<'s> {
+    /// `strategy` is never consulted by spec monitors; use [`NoScheduling`].
+    pub fn new(spec: &'s Spec<'s>, opts: ObserveOptions, strategy: &'s mut dyn Strategy, now: f64) -> Self {
+        let coverage_tables = opts.coverage.then(|| Rc::new(CoverageTables::new(spec.prog)));
+        let rt = Runtime::new(
+            spec.prog,
+            &spec.code,
+            &spec.module,
+            &spec.config,
+            strategy,
+            Setup {
+                java_semantics: Some(&spec.java),
+                time: (spec.time == Ok(true)).then(TimeOptions::default),
+                coverage: coverage_tables.as_ref().map(|t| Coverage::new(t.clone(), CoverageInfo::default())),
+                ..Setup::default()
+            },
+        );
+        let mut report =
+            Report { coverage: opts.coverage.then(|| ObserveCoverage::new(spec.prog, spec.decl)), ..Report::default() };
+        report.metrics.events = spec
+            .observes()
+            .iter()
+            .map(|e| EventMetrics { name: spec.prog.event(*e).name.clone(), ..Default::default() })
+            .collect();
+        if let Err(message) = &spec.time {
+            report.metrics.unknown_errors = 1;
+            report.errors.push(spec.failure_error(Some(Failure::Other(message.clone())), None, &mut report.log));
+        }
+        Self { spec, rt, opts, keys: HashMap::new(), report, started: now, coverage_tables }
+    }
+
+    pub fn failed(&self) -> bool {
+        !self.report.errors.is_empty()
+    }
+
+    fn fail(&mut self, error: ObserveError) {
+        match error.kind {
+            ErrorKind::Parser => self.report.metrics.parser_errors += 1,
+            ErrorKind::SpecViolation => self.report.metrics.spec_errors += 1,
+            ErrorKind::OutOfOrder => self.report.metrics.out_of_order_errors += 1,
+            ErrorKind::Unknown => self.report.metrics.unknown_errors += 1,
+        }
+        self.report.errors.push(error);
+    }
+
+    /// Records a transport error and stops the stream.
+    pub fn input_error(&mut self, message: String) {
+        if !self.failed() {
+            self.fail(self.spec.failure_error(Some(Failure::Other(message)), None, &mut Vec::new()));
+        }
+    }
+
+    /// Checks one complete log entry. `false` means stop reading immediately.
+    /// Events must be nondecreasing in timestamp within each key; no sorting occurs.
+    pub fn push(&mut self, entry: &str, parser: &dyn Parser, clock: &mut dyn FnMut() -> f64) -> bool {
+        if self.failed() {
+            return false;
+        }
+        let events = match parser.parse(java_trim(entry), self.spec) {
+            Ok(events) => events,
+            Err(cause) => {
+                self.fail(ObserveError {
+                    kind: ErrorKind::Parser,
+                    message: entry.to_string(),
+                    detail: format!("pobserve.commons.exceptions.PObserveLogParsingException: {}", entry),
+                    replay: None,
+                    cause: Some(cause),
+                });
+                return false;
+            }
+        };
+        for ev in events {
+            if !self.spec.observes_event(ev.event) || (!self.opts.keys.is_empty() && !self.opts.keys.contains(&ev.key))
+            {
+                continue;
+            }
+            self.report.metrics.events_read += 1;
+            if !self.keys.contains_key(&ev.key) {
+                let mon = match self.rt.start_monitor(self.spec.decl) {
+                    Ok(mon) => mon,
+                    Err(_) => {
+                        let error = self.spec.failure_error(self.rt.failure.take(), None, &mut self.report.log);
+                        self.fail(error);
+                        return false;
+                    }
+                };
+                self.keys.insert(ev.key.clone(), (mon, None, std::collections::VecDeque::new()));
+                self.report.metrics.partition_keys += 1;
+            }
+            let (mon, prev, replay) = self.keys.get_mut(&ev.key).unwrap();
+            if replay.len() == self.opts.replay_window.max(1) {
+                replay.pop_front();
+            }
+            replay.push_back(ev.clone());
+            let replay = Replay {
+                key: ev.key.clone(),
+                error_timestamp: ev.timestamp.to_millis(),
+                events: replay.iter().cloned().collect(),
+            };
+            if prev.is_some_and(|t| ev.timestamp < t) {
+                self.fail(ObserveError { kind: ErrorKind::OutOfOrder, message: format!("Event timestamp {} precedes the previous timestamp for key '{}'; live input must be ordered per key", ev.timestamp.to_iso(), ev.key), detail: "pobserve.commons.exceptions.PObserveEventOutOfOrderException".into(), replay: Some(replay), cause: None });
+                return false;
+            }
+            *prev = Some(ev.timestamp);
+            let start = clock();
+            let stamp = (self.spec.time == Ok(true))
+                .then(|| Rc::new(Stamp { at: Time::point(ev.timestamp.to_micros()), sender: 0 }));
+            self.rt.step_work = 0;
+            if self.rt.monitor_event(*mon, Event { id: ev.event, payload: ev.payload, stamp, vt: None }, None).is_err()
+            {
+                let error = self.spec.failure_error(self.rt.failure.take(), Some(replay), &mut self.report.log);
+                self.fail(error);
+                return false;
+            }
+            let ms = ((clock() - start) * 1000.0).max(0.0) as u64;
+            if let Some(m) =
+                self.report.metrics.events.iter_mut().find(|m| m.name == self.spec.prog.event(ev.event).name)
+            {
+                m.verified += 1;
+                m.total_ms += ms;
+                m.max_ms = m.max_ms.max(ms);
+            }
+        }
+        true
+    }
+
+    /// Finishes a checked prefix. Hot-state liveness checks run only for actual EOF,
+    /// never when a sibling spec failed or the input transport failed.
+    pub fn finish(mut self, eof: bool, now: f64) -> Report {
+        if !self.failed() && eof {
+            for (key, (mon, _, events)) in &self.keys {
+                if self.opts.check_hot {
+                    if let Some(state) = self.rt.monitor_hot_state(*mon) {
+                        let message = format!(
+                            "{} detected liveness bug in hot state '{}' at the end of program execution.",
+                            self.rt.monitor_full_name(*mon),
+                            state
+                        );
+                        self.report.metrics.spec_errors += 1;
+                        self.report.errors.push(ObserveError {
+                            kind: ErrorKind::SpecViolation,
+                            detail: format!("pobserve.runtime.exceptions.PAssertionFailureException: {}", message),
+                            message,
+                            replay: Some(Replay {
+                                key: key.clone(),
+                                error_timestamp: events.back().map(|e| e.timestamp.to_millis()).unwrap_or(0),
+                                events: events.iter().cloned().collect(),
+                            }),
+                            cause: None,
+                        });
+                        break;
+                    }
+                }
+                self.report.metrics.verified_keys += 1;
+            }
+        }
+        if let (Some(coverage), Some(tables), Some(runtime_coverage)) =
+            (&mut self.report.coverage, &self.coverage_tables, self.rt.coverage.take())
+        {
+            coverage.record(self.spec.prog, tables, &runtime_coverage.into_info());
+        }
+        self.report.metrics.elapsed_ms = ((now - self.started) * 1000.0).round() as i64;
+        self.report
     }
 }
 
