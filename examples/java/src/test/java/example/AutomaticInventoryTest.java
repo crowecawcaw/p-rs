@@ -1,23 +1,20 @@
 package example;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import java.nio.file.Path;
 import io.github.crowecawcaw.prs.PrsExtension;
-import io.github.crowecawcaw.prs.Recording;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import static org.junit.jupiter.api.Assertions.*;
 
+// Settings come from prs.properties. Each test is recorded from before @BeforeEach until
+// after @AfterEach, then checked.
+@ExtendWith(PrsExtension.class)
 class AutomaticInventoryTest {
-    @RegisterExtension static final PrsExtension PRS = PrsExtension.builder()
-            .specFiles(Path.of("specs/inventory.p")).specs("InventoryCorrect")
-            .coverage(Path.of("target/coverage/monitor.json")).build();
     private Inventory inventory;
 
-    // The injected Recording is open before @BeforeEach and checked after @AfterEach.
-    @BeforeEach void stockProducts(Recording events) {
-        inventory = new Inventory((sku, event, payload) -> events.emit(event, sku, payload));
+    @BeforeEach void stockProducts() {
+        inventory = new Inventory();
         inventory.addProduct("coffee", 3);
         inventory.addProduct("tea", 2);
         inventory.reserve("coffee", "fixture", 1);

@@ -386,17 +386,17 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `PRS_BIN`, `strict` default true, `checkHot`, `timeout`, `artifacts`
 - [x] Suite coverage via the extension; jqwik via `@AfterContainer`
 - [ ] Distribution per [Distribution](#distribution)
-- [ ] `specs` optional (default all), `exclude`
-- [ ] `SpecViolation extends AssertionFailedError` with structured fields; `SetupError` with `kind` (today `ObservationFailure` and `ObservationReport.errors`)
-- [ ] `expectViolation(spec, match)`
-- [ ] Failure output in Python's format, with `src` from `StackWalker`
-- [ ] `auto` (extension autodetection) / `marked` / `off`; `@Prs(skip=..., checkHot=...)`
-- [ ] `eventsDir()`, `environment()`, `addEventsDir`, `addLog` (#49)
-- [ ] `unknownEvents`, default `error` (#47)
-- [ ] Config file (`prs.properties` / `junit-platform.properties`), paths relative to it
-- [ ] `PRS_SPEC_FILES`, `PRS_COVERAGE`, `PRS_ARTIFACTS`, `PRS_MODE`
-- [ ] Production emitter package (#48)
-- [ ] Conformance runner
+- [x] `specs` optional (default all), `exclude`
+- [x] `SpecViolation extends AssertionFailedError` with structured fields; `SetupError` with `kind` (`ObservationFailure` stays as their deprecated superclass)
+- [x] `expectViolation(spec, match)`
+- [x] Failure output in Python's format, with `src` from `StackWalker`
+- [x] `auto` (extension autodetection) / `marked` / `off`; `@Prs(skip=..., checkHot=...)`
+- [x] `eventsDir()`, `environment()`, `addEventsDir`, `addLog` (#49)
+- [x] `unknownEvents`, default `error` (#47)
+- [x] Config file (`prs.properties` / `junit-platform.properties`), paths relative to it
+- [x] `PRS_SPEC_FILES`, `PRS_COVERAGE`, `PRS_ARTIFACTS`, `PRS_MODE`
+- [x] Production emitter package (#48)
+- [x] Conformance runner
 
 ### Rust
 

@@ -1,19 +1,20 @@
 package example;
 
-import java.util.Map;
-import java.nio.file.Path;
 import io.github.crowecawcaw.prs.PrsObserver;
-import io.github.crowecawcaw.prs.ObservationFailure;
+import io.github.crowecawcaw.prs.Recording;
+import io.github.crowecawcaw.prs.emit.PrsEmit;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExplicitInventoryTest {
-    private static final PrsObserver OBSERVER = PrsObserver.builder()
-            .specFiles(Path.of("specs/inventory.p")).specs("InventoryCorrect").build();
+    // Spec files and names come from prs.properties.
+    private static final PrsObserver OBSERVER = PrsObserver.builder().build();
 
-    @Test void reserveAndRelease() throws Exception {
+    @Test void reserveAndRelease() {
         try (var recording = OBSERVER.recording("reserve and release")) {
-            var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
+            var inventory = new Inventory();
             inventory.addProduct("coffee", 3);
             inventory.reserve("coffee", "order-1", 2);
             assertEquals(1, inventory.available("coffee"));
@@ -24,15 +25,26 @@ class ExplicitInventoryTest {
     }
 
     // A negative control: the spec must reject an overselling trace.
-    @Test void monitorRejectsOverselling() throws Exception {
-        var recording = OBSERVER.recording("expected oversell violation");
-        var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
-        inventory.addProduct("coffee", 1);
-        recording.emit("eReserved", "coffee", Map.of("order", "order-1", "units", 2));
-        var failure = assertThrows(ObservationFailure.class, recording::close);
-        var report = failure.report().orElseThrow();
-        assertEquals(2, report.exitCode());
-        assertEquals("spec_violation", report.errors().get(0).kind());
-        assertTrue(report.errors().get(0).message().contains("reservation exceeds available stock"));
+    @Test void monitorRejectsOverselling() {
+        var violation = Recording.expectViolation("InventoryCorrect", "exceeds available stock", () -> {
+            try (var recording = OBSERVER.recording("expected oversell violation")) {
+                new Inventory().addProduct("coffee", 1);
+                PrsEmit.emit("eReserved", "coffee", Map.of("order", "order-1", "units", 2));
+            }
+        });
+        assertEquals("coffee", violation.key());
+    }
+
+    // Events from another process: the worker inherits PRS_EVENTS_DIR and writes there.
+    @Test void workerProcess() throws Exception {
+        try (var recording = OBSERVER.recording("worker process")) {
+            var java = ProcessHandle.current().info().command().orElse("java");
+            var worker = new ProcessBuilder(java, "-cp", System.getProperty("java.class.path"),
+                    Worker.class.getName(), "tea", "2", "order-7", "2").inheritIO();
+            worker.environment().putAll(recording.environment());
+            var process = worker.start();
+            assertTrue(process.waitFor(60, TimeUnit.SECONDS)); // join children before the check
+            assertEquals(0, process.exitValue());
+        }
     }
 }
