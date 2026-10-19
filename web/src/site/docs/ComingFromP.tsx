@@ -184,8 +184,8 @@ $ prs observe --spec BankBalanceCorrect -l logs/
           <div>
             <dt>More from observe</dt>
             <dd>
-              Several specs per run, <code>--all-specs</code>, <code>--json-report</code>, <code>--coverage</code> and{" "}
-              <code>--strict</code>. Runs that use none of them behave as upstream. See{" "}
+              Several specs per run, <code>--all-specs</code>, <code>--check-hot</code>, <code>--json-report</code>,{" "}
+              <code>--coverage</code>, <code>--strict</code> and live input (<code>--live</code>). Runs that use none of them behave as upstream. See{" "}
               <a href={`${BLOB}/docs/observe.md`}>prs observe</a>.
             </dd>
           </div>
