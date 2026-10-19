@@ -19,8 +19,9 @@ go test ./fuzz -run='^$' -fuzz=FuzzInventory -fuzztime=5s -parallel=2
 
 `PRS_BIN` must be absolute (or a name on `PATH`) because Go runs each package from
 its own directory. A missing binary fails the tests rather than skipping them. The
-[CI workflow](../../.github/workflows/go-examples.yml) runs the tests, the fuzz seeds
-and a bounded fuzz campaign.
+[CI workflow](../../.github/workflows/go-examples.yml) runs the tests, the fuzz seeds,
+the [production log check](#5-production-logs-with-prs-observe) and a bounded fuzz
+campaign.
 
 The service takes an injected `Emit` func, so it has no test dependency: tests pass a
 recording's `Emit`, and [cmd/inventory](cmd/inventory/main.go) passes `prsemit.Emit`.
@@ -71,13 +72,21 @@ inventory in the test process; it reaches the recording. It is not parallel:
 [cmd/inventory](cmd/inventory/main.go), a program that reads operations from stdin and
 emits with `prsemit`. `TestWorkerProcesses` starts two of them with `cmd.Env =
 r.Env()`, waits for them, and the cleanup checks their events. `TestProductionLog`
-runs it the production way, writing a log, and checks the log with `r.AddLog`. The
-same log checks from the command line:
+runs it the production way, writing a log, and checks the log with `r.AddLog`.
+
+## 5. Production logs with `prs observe`
+
+[production.sh](production.sh) runs [cmd/inventory](cmd/inventory/main.go) as two
+"hosts", each writing its own log through `prsemit.SetSink(prsemit.File(...))`, the
+same `prsemit.Emit` calls the tests above check. It then checks the logs with
+`prs observe`, in batch (`-l '.../*.jsonl'`) and live (`--stdin`), and confirms that a
+forged oversell is reported as a violation. CI runs it:
 
 ```sh
-printf 'stock coffee 3\nreserve coffee order-1 2\n' | go run ./cmd/inventory -events events.jsonl
-prs observe -pf specs/inventory.p --spec InventoryCorrect -l events.jsonl
+PRS_BIN="$PRS_BIN" sh production.sh
 ```
+
+[Testing and production](../../docs/production.md) explains the deployment side.
 
 ## Adapt to your project
 

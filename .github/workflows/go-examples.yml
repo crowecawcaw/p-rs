@@ -45,6 +45,11 @@ jobs:
         env:
           PRS_BIN: ${{ github.workspace }}/target/debug/prs
         run: go test -v -race -count=1 ./...
+      - name: Production logs checked with prs observe
+        working-directory: examples/go
+        env:
+          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+        run: sh production.sh
       - name: Bounded native fuzz campaign
         working-directory: examples/go
         env:
