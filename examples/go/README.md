@@ -2,10 +2,12 @@
 
 One small inventory service, three ways to check its events with P. These examples
 use the same [InventoryCorrect spec](../python/specs/inventory.p) as Python; there
-are no P models, external services, third-party Go dependencies, or sleeps.
+are no P models, external services, or sleeps.
 The application has an injected event sink, which can also be backed by your
-production event logger. `prstest` is example test infrastructure using the
-`prs observe` CLI, not a published Go SDK.
+production event logger. Recording uses the supported
+[`prstest` helper](../../go/README.md), which invokes
+the separately installed `prs observe` CLI. The example module uses a local
+`replace` directive to consume `../../go` from this checkout.
 
 ## Run locally
 
@@ -29,17 +31,19 @@ need no network access.
 
 ## Adapt to your project
 
-Copy the `prstest` helper into your test support package and inject its `Emit`
-sink at your application's committed-change boundary. Update the spec path in
-`Recorder.Verify`: this example resolves it from the helper's source location
-using `runtime.Caller`, relative to the shared Python inventory spec. Point it at
-your own checked-in P spec instead. Build or install the matching `prs` CLI and
-set `PRS_BIN` to its absolute path in local test setup and CI.
+Use `github.com/crowecawcaw/p-rs/go/prstest` and inject its recorder's `Emit`
+sink at your application's committed-change boundary. The tiny example wrapper
+in `internal/prstest` supplies only inventory fixtures and explicit `SpecFiles`
+and `Specs` configuration. Point those paths at your own P specs relative to each
+Go test package directory (or set `Config.WorkDir`). Build or install the matching
+`prs` CLI and set `PRS_BIN` to its absolute path in local test setup and CI.
+See the [supported helper setup](../../go/README.md) for the source-module
+`replace` directive; this example already configures it in `go.mod`.
 
 ## 1. Explicit checks in selected tests
 
 Start at [explicit/inventory_test.go](explicit/inventory_test.go).
-`prstest.New()` creates a recorder; inject `r.Emit` when constructing the service,
+`prstest.New(t)` creates a recorder; inject `r.Emit` when constructing the service,
 then call `r.Check(t)` after the operations to verify. Create and seed the service
 *after* starting observation: the spec needs the initial stock event. Recording
 lives on that service instance, not in a process-wide environment variable.
@@ -61,10 +65,9 @@ A `TestMain` recorder would conflate tests and is unsuitable for this setup.
 
 Go runs cleanups in reverse registration order. Start recording first, then
 register application worker shutdown/join cleanups, so work completes before
-checking. The helper creates temporary artifacts during verification, retains the
-trace and checker report in failure output, then removes the files through
-`t.TempDir`. To retain files as CI artifacts in your own project, replace the
-temporary directory policy with a project-owned report directory.
+checking. The supported helper allocates temporary artifacts at construction and retains
+the trace and checker report in failure output, then removes files through
+`t.TempDir`. Set `Config.ArtifactRoot` to retain unique report directories for CI.
 
 Each parallel test has a separate service, recorder, files, and checker process.
 The recorder's lock preserves emission order; the inventory service itself is
@@ -103,33 +106,34 @@ check application state: P cannot see mutations omitted from the event stream.
 The spec allows reservations to remain open, so no end-of-sequence liveness check
 is needed. Generated sequences explore inputs and order, not thread schedules.
 
-Logical timestamps are increasing integers in one recorder, so clocks cannot
-reorder events. They are suitable for these ordering rules; latency specs would
-need real event times instead. Before accepting success, the helper rejects empty
-recordings and checks the JSON report names `InventoryCorrect` and verifies all
-recorded events and product keys. This avoids a green test that checked nothing.
+The recorder samples actual Unix milliseconds inside its emission lock; equal
+timestamps retain file order. It also supports `EmitAt` for explicit event times.
+The helper enables core strict observation by default, rejecting otherwise green
+checks with no relevant events, and validates required report fields and the
+selected spec names. Different monitors may observe different event subsets.
 
 For example, removing the application's insufficient-stock guard makes a checked
 test that reserves two lots of 2 against 3 units fail with output containing:
 
 ```text
-InventoryCorrect: exit status 1
+prstest observation: exit status 1
 PObserve Spec Violation::
 Assertion failure: .../inventory.p:27:7 reservation exceeds available stock
 ...
 recorded JSONL:
-{"event":"eStocked","key":"coffee","payload":{"units":3},"timestamp":1}
-{"event":"eReserved","key":"coffee","payload":{"order":"first","units":2},"timestamp":3}
-{"event":"eReserved","key":"coffee","payload":{"order":"second","units":2},"timestamp":4}
+{"event":"eStocked","key":"coffee","payload":{"units":3},"timestamp":1700000000000}
+{"event":"eReserved","key":"coffee","payload":{"order":"first","units":2},"timestamp":1700000000002}
+{"event":"eReserved","key":"coffee","payload":{"order":"second","units":2},"timestamp":1700000000003}
 ```
 
-The fixture stocks tea too, accounting for the gap in this per-product excerpt.
+The fixture stocks tea too, accounting for its omission in this per-product excerpt.
+Timestamps above illustrate one possible recording; actual values come from the clock.
 The complete Go failure includes checker diagnostics and the entire input trace;
 `go test` exits nonzero. See [the observation reference](../../docs/observe.md)
 for the JSONL schema and report format.
 
-The checked fixture uses `CheckedWithCoverage` to enable `observe --coverage` and collects raw reports
-under a mutex. `TestMain` waits for `m.Run()` (including parallel-test cleanups),
+The checked fixture passes an explicit `Suite` to `CheckedWithCoverage` to enable
+`observe --coverage`. The suite collects raw reports under a mutex. `TestMain` waits for `m.Run()` (including parallel-test cleanups),
 then prints the suite summary and writes `checked/coverage/model.json` when run
 from the module root. Use `go test -v` to see successful-package stdout. Explicit
 and fuzz tests do not join this report. Completed observations include the executed prefix of a failing check.
@@ -143,9 +147,8 @@ or report-write failure fails the test process.
 `Checked` performs observation without retaining suite coverage. Use it in fuzz
 callbacks, where a long campaign should release each recording after checking.
 Opt into `CheckedWithCoverage` only when the package's `TestMain` calls
-`WriteCoverage` after all tests and cleanups finish.
+`Suite.WriteCoverage` after all tests and cleanups finish.
 
-
-The global test setup opts into strict observation: every checked test must emit
+The supported helper enables strict observation by default: every checked test must emit
 at least one relevant event for each selected spec. This catches accidentally
 disabled instrumentation; it does not infer arbitrary missing events.

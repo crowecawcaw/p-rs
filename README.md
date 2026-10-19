@@ -102,6 +102,11 @@ recordings and automatic JUnit checks with fixture lifecycle and coverage suppor
 The [Java inventory examples](examples/java/README.md) cover explicit checks,
 JUnit fixtures, and jqwik sequences. Install the `prs` binary separately.
 
+From Go, [`prstest`](go/README.md) records application events and integrates checks
+with `testing.T`, subtests, and fuzz callbacks. The
+[Go inventory examples](examples/go/README.md) show explicit checks, cleanup fixtures,
+and native fuzzing. Install the `prs` binary separately.
+
 ## Goals
 
 1. Simplify or eliminate the toolchain for working with P models.

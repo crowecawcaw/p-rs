@@ -5,7 +5,7 @@ package inventory
 import "errors"
 
 // Emit receives a committed change. A nil sink disables observation.
-type Emit func(event, key string, payload map[string]any)
+type Emit func(event, key string, payload any)
 
 type product struct {
 	available int
@@ -21,7 +21,7 @@ func New(emit Emit) *Inventory {
 	return &Inventory{products: make(map[string]*product), emit: emit}
 }
 
-func (i *Inventory) record(event, sku string, payload map[string]any) {
+func (i *Inventory) record(event, sku string, payload any) {
 	if i.emit != nil {
 		i.emit(event, sku, payload)
 	}

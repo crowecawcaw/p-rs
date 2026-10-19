@@ -16,6 +16,9 @@ concurrency:
 jobs:
   inventory:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.22.x', 'stable']
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -25,10 +28,17 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.22.x'
+          go-version: ${{ matrix.go }}
           cache: false
       - name: Build this checkout's checker
         run: cargo build -p prs-cli --bin prs --locked
+      - name: Supported Go helper tests
+        working-directory: go
+        env:
+          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+        run: |
+          go test -v -race -count=1 ./...
+          go vet ./...
       - name: Go tests and fuzz seed corpus
         working-directory: examples/go
         env:
@@ -43,6 +53,6 @@ jobs:
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: go-model
+          name: go-model-${{ matrix.go }}
           path: examples/go/checked/coverage/model.json
           if-no-files-found: warn
