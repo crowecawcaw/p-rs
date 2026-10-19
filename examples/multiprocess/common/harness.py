@@ -7,6 +7,7 @@ its launcher (such as `docker run`) has already exited.
 """
 import json
 import queue
+import sqlite3
 import subprocess
 import threading
 import time
@@ -59,9 +60,11 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
 
             threading.Thread(target=watch_observer, daemon=True).start()
 
-            def read_worker(name, process):
+            def read_worker(name, process, worker_output):
                 try:
                     for line in process.stdout:
+                        worker_output.write(line)
+                        worker_output.flush()
                         messages.put((name, json.loads(line)))
                 except BaseException as exc:
                     messages.put((name, {"kind": "reader_error", "error": str(exc)}))
@@ -72,7 +75,8 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
                 stderr = files.enter_context((artifacts / (name + ".stderr")).open("w"))
                 process = backend.start(name, database, scenario == "oversell", stderr)
                 workers[name] = process
-                thread = threading.Thread(target=read_worker, args=(name, process), daemon=True)
+                worker_output = files.enter_context((artifacts / (name + ".stdout")).open("w"))
+                thread = threading.Thread(target=read_worker, args=(name, process, worker_output), daemon=True)
                 thread.start()
                 reader_threads.append(thread)
 
@@ -176,7 +180,11 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
                     raise AssertionError("expected native prs failure before EOF: " + str(report))
                 if len(violations) != 1 or violations[0]["kind"] != "spec_violation" or "reservation exceeds available stock" not in str(violations[0]) or violations[0]["key"] != "coffee":
                     raise AssertionError("unexpected violation: " + str(violations))
-            summary = {"scenario": scenario, "observer_process_exit": observer_code,
+            with sqlite3.connect(database) as db:
+                final_stock = db.execute("SELECT available FROM stock WHERE sku='coffee'").fetchone()[0]
+            if final_stock != (-1 if scenario == "oversell" else 3):
+                raise AssertionError("unexpected persisted inventory stock")
+            summary = {"scenario": scenario, "final_stock": final_stock, "observer_process_exit": observer_code,
                        "report_exit_code": report["exit_code"], "input_complete": report["input_complete"],
                        "emitters": sorted(emitters), "workers_alive_at_failure": alive_at_failure,
                        "coverage": coverage, "artifacts": str(artifacts)}
@@ -200,6 +208,8 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
                 process.stdout.close()
             for thread in reader_threads:
                 thread.join(timeout=TIMEOUT)
+                if thread.is_alive():
+                    cleanup_errors.append("worker reader thread survived cleanup")
             if cleanup_errors:
                 raise RuntimeError("cleanup failed: " + "; ".join(cleanup_errors))
     summary["workers_removed"] = True

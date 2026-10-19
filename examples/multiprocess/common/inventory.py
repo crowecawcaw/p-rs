@@ -11,7 +11,7 @@ def initialize_database(path):
     with sqlite3.connect(path) as db:
         db.executescript("""
             CREATE TABLE stock (sku TEXT PRIMARY KEY, available INTEGER NOT NULL);
-            CREATE TABLE reservations (order_id TEXT PRIMARY KEY, sku TEXT, units INTEGER);
+            CREATE TABLE reservations (order_id TEXT, sku TEXT, units INTEGER, PRIMARY KEY(sku, order_id));
             CREATE TABLE outbox (seq INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT NOT NULL);
         """)
 
@@ -34,7 +34,7 @@ class Inventory:
                 event = ("eStocked", {"units": units})
             elif operation == "reserve":
                 row = self.db.execute("SELECT available FROM stock WHERE sku=?", (sku,)).fetchone()
-                duplicate = self.db.execute("SELECT 1 FROM reservations WHERE order_id=?", (order,)).fetchone()
+                duplicate = self.db.execute("SELECT 1 FROM reservations WHERE order_id=? AND sku=?", (order, sku)).fetchone()
                 if row is not None and units > 0 and not duplicate and (self.allow_oversell or row[0] >= units):
                     self.db.execute("UPDATE stock SET available=available-? WHERE sku=?", (units, sku))
                     self.db.execute("INSERT INTO reservations VALUES (?, ?, ?)", (order, sku, units))
@@ -43,7 +43,7 @@ class Inventory:
                 row = self.db.execute("SELECT units FROM reservations WHERE order_id=? AND sku=?", (order, sku)).fetchone()
                 if row is not None:
                     self.db.execute("UPDATE stock SET available=available+? WHERE sku=?", (row[0], sku))
-                    self.db.execute("DELETE FROM reservations WHERE order_id=?", (order,))
+                    self.db.execute("DELETE FROM reservations WHERE order_id=? AND sku=?", (order, sku))
                     event = ("eReleased", {"order": order, "units": row[0]})
             else:
                 raise ValueError("unknown operation: " + operation)
