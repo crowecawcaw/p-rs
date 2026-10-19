@@ -209,7 +209,7 @@ P assert location; the artifacts path. Example in [python.md](python.md#failure-
 
 In order: explicit config, `PRS_BIN`, the bundled or embedded copy, `PATH`. A miss is a
 `SetupError` of kind `binary_missing` with install instructions. Rust checks in-process
-and has no binary. Distribution per language is under [Decisions](#distribution).
+and has no binary. Distribution per language is under [Packaging and distribution](#packaging-and-distribution).
 
 ## L3 Framework integration
 
@@ -296,25 +296,25 @@ One project file per ecosystem, same keys as the [concepts](#concepts):
 
 ## Decisions
 
-### Distribution
+### Packaging and distribution
 
-The checker must be there without a Rust toolchain, offline (agents often run in
-sandboxes without network), and with no per-user setup.
+Every language publishes **one package named `p-rs`**, holding the emitter, the test
+helper and a way to get the checker. Code uses the short name `prs`. (`prs` itself is
+taken on crates.io and PyPI.) Production code depends on the same package and uses only
+the emitter; unused test code is not loaded (Go, Java) or not compiled (Rust features).
 
-| Language | Now | Later |
-| --- | --- | --- |
-| Python | Native binary bundled in platform wheels (as today). | Same. |
-| Go | Release binary resolved by `PRS_BIN` or `PATH`; `binary_missing` names the release download and `cargo install` command. Go modules MUST NOT vendor native binaries. | Embed a `wasm32-wasip1` build of `prs` and run it with wazero (pure Go, no cgo, works offline, one artifact for every platform). |
-| Java | A `prs-native` jar bundling the release binaries for supported platforms, extracted to a per-version cache on first use; `prs-junit5` depends on it. | Evaluate the same WASI build under Chicory; switch if it passes the bar below and drops the platform matrix. |
-| Rust | In-process (`prs-checker`); no binary. | Same. |
+| Language | Package | Code name | Checker |
+| --- | --- | --- | --- |
+| Python | PyPI `p-rs` | `import prs` | Native binary in platform wheels. |
+| Rust | crates.io `p-rs`; features `emit` (production, no checker), `test`, `cli` (the `prs` binary) | `prs` | In-process; no binary. |
+| Go | module `github.com/crowecawcaw/p-rs` | packages `prsemit`, `prstest` | `PRS_BIN`, `PATH`, then a release binary downloaded into a per-version user cache and verified against checksums in the module. The module MUST NOT contain native binaries. |
+| Java | Maven Central `io.github.crowecawcaw:p-rs`; JUnit 5 optional | `io.github.crowecawcaw.prs` | Classifier jars `natives-<os>-<arch>` of the same artifact, extracted to a per-version cache on first use. |
 
-The WASI route is adopted per language only when it passes the conformance corpus and
-a check of the inventory example costs at most 2× the native binary, including module
-start-up (with a compilation cache). Until then, a release-binary download into a
-per-version user cache, verified against checksums shipped in the module, is the
-fallback for Go. **Needs maintainer sign-off:** adding wazero (Go) and Chicory (Java)
-dependencies, and publishing per-platform binaries and a WASI build from
-`release.yml`.
+All packages share one version and release (`release.yml`); Go tags are plain `vX.Y.Z`.
+The checker must work offline with no per-user setup, so only Go downloads, and only
+when no binary is found. A WASI build (wazero for Go, Chicory for Java) may later replace
+the native binaries if it passes the conformance corpus at no more than 2× native cost.
+Work is tracked in [#64](https://github.com/crowecawcaw/p-rs/issues/64).
 
 ### Go suite hook
 
@@ -397,7 +397,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `Emit(event, key, payload)`, `EmitAt`
 - [x] `PRS_BIN`, `strict` default true with named specs, `CheckHot`
 - [x] `timeout`, artifacts kept on failure
-- [ ] Distribution per [Distribution](#distribution)
+- [ ] Packaging per [Packaging and distribution](#packaging-and-distribution) (#64)
 - [x] `Specs` optional (default all), `Exclude`
 - [x] Rename `AllowUnobserved` to `Strict` (`*bool` or option func); keep the old field deprecated
 - [x] `*SpecViolation` / `*SetupError` for `errors.As` (#53)
@@ -415,7 +415,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `emit(event, key, payload)`, `emitAt`
 - [x] `PRS_BIN`, `strict` default true, `checkHot`, `timeout`, `artifacts`
 - [x] Suite coverage via the extension; jqwik via `@AfterContainer`
-- [ ] Distribution per [Distribution](#distribution)
+- [ ] Packaging per [Packaging and distribution](#packaging-and-distribution) (#64)
 - [x] `specs` optional (default all), `exclude`
 - [x] `SpecViolation extends AssertionFailedError` with structured fields; `SetupError` with `kind` (`ObservationFailure` stays as their deprecated superclass)
 - [x] `expectViolation(spec, match)`
@@ -430,6 +430,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 
 ### Rust
 
+- [ ] Packaging per [Packaging and distribution](#packaging-and-distribution): one `p-rs` crate with features (#64)
 - [x] In-process checking; strict default true; `check_hot`
 - [x] `emit(event, key, payload)` argument order
 - [x] `Model` per [Rust `Model`](#rust-model): paths, config, several specs, `exclude`
