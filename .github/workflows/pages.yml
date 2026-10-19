@@ -38,35 +38,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check for the web app
-        id: site
-        run: |
-          if [ -f web/package.json ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "No web/ app yet; nothing to publish."; fi
-
       - uses: dtolnay/rust-toolchain@stable
-        if: steps.site.outputs.exists == 'true'
         with:
           targets: wasm32-unknown-unknown
 
       - uses: Swatinem/rust-cache@v2
-        if: steps.site.outputs.exists == 'true'
 
       - uses: actions/setup-node@v7
-        if: steps.site.outputs.exists == 'true'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
 
       - name: Build
-        if: steps.site.outputs.exists == 'true'
         working-directory: web
         run: |
           npm ci
           npm run build
 
       - name: Publish to gh-pages
-        if: steps.site.outputs.exists == 'true'
         id: publish
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -83,7 +73,7 @@ jobs:
           echo "Published to ${url}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Comment preview link
-        if: steps.site.outputs.exists == 'true' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v9
         env:
           PREVIEW_URL: ${{ steps.publish.outputs.url }}

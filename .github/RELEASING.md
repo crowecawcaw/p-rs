@@ -12,6 +12,8 @@ every package at one version:
 | module `github.com/crowecawcaw/p-rs` | the `vX.Y.Z` tag (Go needs nothing else) |
 | `prs-vX.Y.Z-<target>.tar.gz` / `.zip` and `SHA256SUMS` | the GitHub release |
 
+`crates/prs-wasm` (the playground's WebAssembly build) is not published.
+
 ## Cut a release
 
 Actions → **Release** → Run workflow, on `main`, and pick a level:
@@ -89,8 +91,6 @@ Central, existing release assets), so a failed run can be finished:
 
 Actions → **Update release notes** → enter the tag. It regenerates the notes with
 Claude and replaces them on the release. Tick *dry run* to only print them.
-
-Only the `p-rs` crate is published; `prs-wasm` (the playground's WebAssembly build) is not.
 
 ## Requirements
 

@@ -38,7 +38,7 @@ jobs:
         run: python -m unittest discover -s examples/multiprocess/docker -p test_example.py -v
       - name: Save events, observer reports and worker logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: docker-inventory-reports
           path: ${{ runner.temp }}/docker-inventory

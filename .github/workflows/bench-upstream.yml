@@ -41,7 +41,7 @@ jobs:
     if: github.repository == 'crowecawcaw/p-rs'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # tags, for the prs version label
       - uses: dtolnay/rust-toolchain@stable
@@ -79,7 +79,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: ./.github/scripts/push-bench-data.sh append compare.json upstream.jsonl "Upstream benchmark ${GITHUB_SHA::7}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: bench-upstream
           path: |
