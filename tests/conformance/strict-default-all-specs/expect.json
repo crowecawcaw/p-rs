@@ -1,0 +1,4 @@
+{
+  "description": "With specs defaulted to all, strict defaults to false.",
+  "expect": { "outcome": "pass" }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Over-reserving one key is a violation of that key only.",
+  "expect": {
+    "outcome": "violation",
+    "spec": "InventoryCorrect",
+    "key": "p2",
+    "message": "reservation o2 exceeds available stock",
+    "liveness": false
+  }
+}

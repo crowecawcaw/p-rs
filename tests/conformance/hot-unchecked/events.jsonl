@@ -1,0 +1,3 @@
+{"event":"eReserved","key":"p1","timestamp":"2026-01-01T00:00:00.000000001Z","payload":{"order":"o1","units":1}}
+{"event":"eShipped","key":"p1","timestamp":"2026-01-01T00:00:00.000000002Z","payload":{"order":"o1"}}
+{"event":"eReserved","key":"p2","timestamp":"2026-01-01T00:00:00.000000003Z","payload":{"order":"o2","units":1}}

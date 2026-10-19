@@ -1,0 +1,4 @@
+{
+  "description": "Reservations within stock on two keys pass.",
+  "expect": { "outcome": "pass" }
+}

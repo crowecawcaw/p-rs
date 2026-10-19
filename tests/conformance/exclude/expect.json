@@ -1,0 +1,5 @@
+{
+  "description": "exclude leaves a spec out of the default all-specs selection.",
+  "options": { "exclude": ["SmallOrders"] },
+  "expect": { "outcome": "pass" }
+}
