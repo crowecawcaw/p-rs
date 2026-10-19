@@ -29,7 +29,7 @@ jobs:
       - name: Every example checks the shared spec
         run: |
           shared=examples/model/PSpec/inventory.p
-          for link in examples/{python,rust,java,multiprocess}/specs/inventory.p; do
+          for link in examples/{python,rust,java,go,multiprocess}/specs/inventory.p; do
             test -L "$link" || { echo "$link is not a symbolic link"; exit 1; }
             test "$(realpath "$link")" = "$(realpath "$shared")" || { echo "$link does not link to $shared"; exit 1; }
           done

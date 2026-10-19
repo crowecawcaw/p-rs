@@ -15,7 +15,7 @@ fn cancellation_restores_stock() {
 #[test]
 fn products_have_independent_monitor_state() {
     with_inventory(|inventory| {
-        // The same order ID is valid for different product partition keys.
+        // The same order ID is valid for different products (partition keys).
         inventory.reserve("coffee", "order-1", 3).unwrap();
         inventory.reserve("tea", "order-1", 2).unwrap();
         assert_eq!(inventory.available("coffee"), Some(0));

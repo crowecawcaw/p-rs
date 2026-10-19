@@ -26,8 +26,7 @@ class Inventory:
             raise ValueError("insufficient stock")
         self._stock[sku] -= units
         self._reservations[sku, order] = units
-        # Emit after the state change succeeds, at the same boundary a database
-        # implementation would commit. Rejected requests emit no change event.
+        # Emit only after the change succeeds (after commit, in a database service).
         emit("eReserved", key=sku, order=order, units=units)
 
     def release(self, sku, order):

@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-# A real application's tests can depend on the supported helper in the same way.
-# These crates currently ship from source; the published p-rs crate is a placeholder.
+# A standalone workspace; prs-test currently ships from source only.
 [workspace]
 
 [dev-dependencies]

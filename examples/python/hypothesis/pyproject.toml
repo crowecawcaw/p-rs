@@ -4,6 +4,4 @@ addopts = "--strict-markers"
 
 [tool.prs]
 spec_files = ["../specs/inventory.p"]
-# Hypothesis runs many independent histories inside one pytest test. A test-wide
-# recorder would combine their eStocked events and report "product stocked twice".
-mode = "off"
+mode = "off"  # One pytest test runs many histories; each machine records its own.

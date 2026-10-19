@@ -20,20 +20,19 @@ class GeneratedInventoryTest {
     record Operation(boolean release, String sku, String order, int units) {}
 
     @Provide Arbitrary<List<Operation>> sequences() {
-        var operation = Combinators.combine(Arbitraries.of(true, false), Arbitraries.of("book", "pen"),
-                Arbitraries.of("alice", "bob", "carol"), Arbitraries.integers().between(-1, 7))
+        var operation = Combinators.combine(Arbitraries.of(true, false), Arbitraries.of("coffee", "tea"),
+                Arbitraries.of("order-1", "order-2", "order-3"), Arbitraries.integers().between(-1, 7))
                 .as(Operation::new);
         return operation.list().ofMinSize(1).ofMaxSize(40);
     }
 
     @Property(tries = 60) void operationSequences(@ForAll("sequences") List<Operation> operations) throws Exception {
-        // jqwik invokes this method for EVERY candidate and shrink attempt. Jupiter's
-        // @BeforeEach/extension does not bracket a jqwik property invocation.
+        // Runs once per try and shrink attempt; Jupiter fixtures do not wrap jqwik tries.
         try (var recording = OBSERVER.recording("jqwik inventory sequence", COVERAGE)) {
             var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
-            inventory.addProduct("book", 5);
-            inventory.addProduct("pen", 3);
-            var available = new HashMap<>(Map.of("book", 5, "pen", 3));
+            inventory.addProduct("coffee", 3);
+            inventory.addProduct("tea", 2);
+            var available = new HashMap<>(Map.of("coffee", 3, "tea", 2));
             var reservations = new HashMap<String, Integer>();
             for (var op : operations) {
                 String key = op.sku() + ":" + op.order();

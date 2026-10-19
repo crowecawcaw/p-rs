@@ -5,24 +5,21 @@ from hypothesis import settings, strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, precondition, rule
 
 from inventory_app import Inventory
-from prs import check_spec
+from prs import Recorder
 
 
 class InventoryHistories(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
-        # Hypothesis constructs a new machine for every generated sequence AND
-        # every shrinking/replay attempt. A pytest fixture would live too long.
-        self.check = check_spec("InventoryCorrect")
-        self.events = self.check.__enter__()
+        # One machine per generated history and shrink attempt, so one recorder each.
+        self.events = Recorder(["InventoryCorrect"]).start()
         self.initial_stock = {"coffee": 3, "tea": 2}
         self.reservations = {}
         self.next_order = 0
 
     @initialize()
     def seed_inventory(self):
-        # Hypothesis calls teardown even if initialization fails. Construct and
-        # seed the application here so setup exceptions cannot leak a recorder.
+        # Seed inside the recording; teardown still runs if this fails.
         self.inventory = Inventory()
         for sku, units in self.initial_stock.items():
             self.inventory.add_product(sku, units)
@@ -63,23 +60,21 @@ class InventoryHistories(RuleBasedStateMachine):
 
     @invariant()
     def returned_stock_matches_successful_operations(self):
-        # P checks the event history; ordinary assertions also check the actual
-        # application state. An omitted or inaccurate emit must not hide a bug.
+        # P sees only emitted events; this also checks the service's own state.
         for sku, initial in self.initial_stock.items():
             reserved = sum(units for (product, _), units in self.reservations.items() if product == sku)
             assert self.inventory.available(sku) == initial - reserved
 
     def teardown(self):
-        # Stop and check before Hypothesis starts another history. SpecViolation
-        # is an AssertionError, so Hypothesis shrinks it like any other failure.
-        self.check.__exit__(None, None, None)
+        # Check before the next history. SpecViolation is an AssertionError,
+        # so Hypothesis shrinks it like any other failure.
+        self.events.stop()
+        self.events.check()
 
 
 TestInventoryHistories = InventoryHistories.TestCase
 TestInventoryHistories.settings = settings(
     max_examples=30,
     stateful_step_count=25,
-    # Each history invokes the checker process; avoid machine-speed-dependent
-    # deadlines. Example and step limits still bound routine CI exploration.
-    deadline=None,
+    deadline=None,  # each history starts the checker process
 )

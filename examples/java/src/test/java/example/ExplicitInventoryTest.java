@@ -10,24 +10,25 @@ import static org.junit.jupiter.api.Assertions.*;
 class ExplicitInventoryTest {
     private static final PrsObserver OBSERVER = PrsObserver.builder()
             .specFiles(Path.of("specs/inventory.p")).specs("InventoryCorrect").build();
+
     @Test void reserveAndRelease() throws Exception {
         try (var recording = OBSERVER.recording("reserve and release")) {
             var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
-            inventory.addProduct("book", 5);
-            inventory.reserve("book", "alice", 3);
-            assertEquals(2, inventory.available("book"));
-            assertThrows(IllegalArgumentException.class, () -> inventory.reserve("book", "bob", 3));
-            inventory.release("book", "alice");
-            assertEquals(5, inventory.available("book"));
+            inventory.addProduct("coffee", 3);
+            inventory.reserve("coffee", "order-1", 2);
+            assertEquals(1, inventory.available("coffee"));
+            assertThrows(IllegalArgumentException.class, () -> inventory.reserve("coffee", "order-2", 2));
+            inventory.release("coffee", "order-1");
+            assertEquals(3, inventory.available("coffee"));
         }
     }
 
+    // A negative control: the spec must reject an overselling trace.
     @Test void monitorRejectsOverselling() throws Exception {
         var recording = OBSERVER.recording("expected oversell violation");
         var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
-        inventory.addProduct("book", 1);
-        // Simulate a broken commit boundary. The test passes only if P detects it.
-        recording.emit("eReserved", "book", Map.of("order", "alice", "units", 2));
+        inventory.addProduct("coffee", 1);
+        recording.emit("eReserved", "coffee", Map.of("order", "order-1", "units", 2));
         var failure = assertThrows(ObservationFailure.class, recording::close);
         var report = failure.report().orElseThrow();
         assertEquals(2, report.exitCode());
