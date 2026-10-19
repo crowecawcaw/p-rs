@@ -74,7 +74,11 @@ jobs:
 
       - name: Report
         run: |
-          git fetch -q --depth 1 origin benchmarks && git show FETCH_HEAD:main.jsonl > history.jsonl || touch history.jsonl
+          if git fetch -q --depth 1 origin benchmarks; then
+            git show FETCH_HEAD:main.jsonl > history.jsonl || touch history.jsonl
+          else
+            touch history.jsonl
+          fi
           python3 scripts/bench.py report --current bench.json --history history.jsonl | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Record
