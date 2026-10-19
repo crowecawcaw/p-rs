@@ -71,9 +71,8 @@ when fixing a bug so later runs replay it.
 
 ## Adapt to your project
 
-Depend on the `p-rs` crate: `p-rs = "0.1"` under `[dev-dependencies]` (or by Git
-revision until a release has it). Add `[package.metadata.prs]` to your `Cargo.toml`, and map your
-existing domain events or outbox in a `record` function like the one in
+Depend on the `p-rs` crate: `p-rs = "0.1"` under `[dev-dependencies]`. Add
+`[package.metadata.prs]` to your `Cargo.toml`, and map your existing domain events or outbox in a `record` function like the one in
 [tests/support/mod.rs](tests/support/mod.rs). Or instrument with
 [`prs::emit`](../../crates/p-rs/src/emit/README.md), which feeds test recordings
 (`recording.emitter()`), child processes (`PRS_EVENTS_DIR`) and production logs for
