@@ -13,8 +13,8 @@ design, it does not explore it.
 pip install p-rs        # brings the prs binary; no Rust or Java needed
 ```
 
-The source is in [`python/`](../python). Until wheels are on PyPI, `pip install ./python`
-in a checkout builds the binary with cargo. Names, defaults and failure behaviour match
+The source is in [`python/`](../python); `pip install ./python` in a checkout builds the
+binary with cargo. Names, defaults and failure behaviour match
 the other language helpers ([language-support.md](language-support.md)).
 
 For runnable application projects with fixtures, configuration, and CI, see the

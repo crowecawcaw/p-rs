@@ -47,6 +47,7 @@
 
 .home-install { margin-top: 64px; }
 .home-install p { margin: 0 0 12px; }
+.home-install pre + p { margin-top: 20px; }
 .terminal {
   margin: 0; padding: 16px 18px; border-radius: 12px; overflow-x: auto;
   background: #15171c; color: #e6e8ee; font: 13.5px/1.7 var(--mono); border: 1px solid var(--border);

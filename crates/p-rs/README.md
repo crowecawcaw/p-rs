@@ -16,6 +16,8 @@ prs observe --spec BankBalanceCorrect -l logs/   # check production logs
 
 ## Library
 
+`cargo add --dev p-rs` for tests. Production code needs only the emitter:
+
 ```toml
 [dependencies]
 p-rs = { version = "0.1", default-features = false, features = ["emit"] }

@@ -1,21 +1,33 @@
-# Manually triggered release of the `p-rs` crate. See .github/RELEASING.md.
+# Manually triggered release of every p-rs package at one version. See .github/RELEASING.md.
 #
 #   Actions -> Release -> Run workflow (on main) -> pick a level
 #
-#   1. preflight  fmt, clippy, tests and a package dry run on main.
-#   2. prepare    bumps the workspace version in Cargo.toml (unless
-#                 level=release), which p-rs and the Python wheels use, commits,
-#                 tags v<version> and pushes both to main.
-#   3. publish    publishes to crates.io via trusted publishing (no stored token).
-#                 A version that is already on crates.io is skipped, so a failed
-#                 run can be re-run with level=release.
-#   4. github-release  creates the GitHub release. Claude writes the notes from
-#                 the merged PRs; GitHub's generated notes are the fallback.
-#   5. python     builds the Python package's wheels (python.yml), attaches them
-#                 to the release and publishes them to PyPI.
+#   preflight       fmt, clippy, tests and a package dry run on main.
+#   version         the release version (scripts/release.py next) and whether its tag
+#                   already exists (a re-run of a release that got as far as tagging).
+#   build           the prs binary for five targets, from this run's commit with the
+#                   version applied (scripts/release.py set), so `prs --version` is the
+#                   release. Archives prs-vX.Y.Z-<target>.tar.gz (.zip on Windows). If
+#                   the tag exists, the archives are downloaded from its GitHub release
+#                   instead: the tag's committed checksums name those exact files.
+#   prepare         SHA256SUMS of the archives. Commits the release (Cargo.toml, the Java
+#                   pom, Go's prsbin version and checksums), tags it v<version>, commits
+#                   Go and Java back to development versions, and pushes both commits
+#                   and the tag to main atomically.
+#   crates          publishes p-rs to crates.io (trusted publishing, no stored token).
+#   github-release  creates the GitHub release with the archives and SHA256SUMS (Go
+#                   downloads them), then Claude's notes; GitHub's notes are the fallback.
+#   python          the Python wheels (python.yml): attached to the release, to PyPI.
+#   maven           io.github.crowecawcaw:p-rs with natives jars built from the
+#                   archives, to Maven Central. Skipped, with a notice, until the
+#                   Maven secrets exist.
+#   Go needs only the tag.
 #
-# crates.io trusts this file name (release.yml) and the `release` environment;
-# keep both if you edit this workflow.
+# Every publish step skips a version that is already published, so a failed run can be
+# finished by re-running its failed jobs, or by a new run with level=release.
+#
+# crates.io trusts this file name (release.yml) and the `release` environment; keep
+# both if you edit this workflow.
 
 name: Release
 
@@ -64,79 +76,197 @@ jobs:
       - run: cargo test --workspace --locked
       - run: cargo publish -p p-rs --locked --dry-run
 
-  prepare:
-    name: Bump version and tag
-    needs: preflight
+  version:
+    name: Release version
+    if: github.repository == 'crowecawcaw/p-rs' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      tagged: ${{ steps.version.outputs.tagged }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Bump version
-        if: inputs.level != 'release'
+      - name: Compute the version
+        id: version
         env:
           LEVEL: ${{ inputs.level }}
         run: |
           set -euo pipefail
-          python3 - "$LEVEL" <<'PY'
-          import pathlib, re, sys
-          level = sys.argv[1]
-          path = pathlib.Path("Cargo.toml")  # [workspace.package]
-          text = path.read_text()
-          m = re.search(r'^version = "(\d+)\.(\d+)\.(\d+)"$', text, re.M)
-          if not m:
-              sys.exit("No plain x.y.z version in Cargo.toml")
-          major, minor, patch = map(int, m.groups())
-          if level == "major":
-              major, minor, patch = major + 1, 0, 0
-          elif level == "minor":
-              minor, patch = minor + 1, 0
-          else:
-              patch += 1
-          new = f'version = "{major}.{minor}.{patch}"'
-          path.write_text(text[: m.start()] + new + text[m.end() :])
-          print(f"{m.group(0)} -> {new}")
-          PY
+          version=$(python3 scripts/release.py next "$LEVEL")
+          tag="v${version}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null; then
+            if [ "$LEVEL" != release ]; then
+              echo "::error::${tag} already exists. Use level=release to finish that release." >&2
+              exit 1
+            fi
+            tagged=true
+            echo "${tag} already exists: finishing that release with its archives." >> "$GITHUB_STEP_SUMMARY"
+          else
+            tagged=false
+          fi
+          echo "Releasing ${tag}"
+          {
+            echo "version=${version}"
+            echo "tag=${tag}"
+            echo "tagged=${tagged}"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build prs (${{ matrix.target }})
+    needs: version
+    strategy:
+      matrix:
+        include:
+          # Linux: glibc 2.17 or newer, through cargo-zigbuild.
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest, zig: true, run: true }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest, zig: true }
+          - { target: x86_64-apple-darwin, os: macos-latest }
+          - { target: aarch64-apple-darwin, os: macos-latest, run: true }
+          # Static CRT: no Visual C++ redistributable needed.
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, run: true, rustflags: "-C target-feature=+crt-static" }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET: ${{ matrix.target }}
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+      EXE: ${{ contains(matrix.target, 'windows') && '.exe' || '' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Reuse the tagged release's archive
+        if: needs.version.outputs.tagged == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          git show "${TAG}:go/internal/prsbin/SHA256SUMS" | grep -F "  prs-${TAG}-${TARGET}." > "$RUNNER_TEMP/SHA256SUMS"
+          name=$(awk '{print $2}' "$RUNNER_TEMP/SHA256SUMS")
+          if ! gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist --pattern "$name"; then
+            echo "::error::${TAG} has no ${name} on its GitHub release. Re-run the failed jobs of the run that pushed ${TAG}: its artifacts hold the archives." >&2
+            exit 1
+          fi
+          python scripts/release.py verify dist "$RUNNER_TEMP/SHA256SUMS"
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: needs.version.outputs.tagged != 'true'
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install cargo-zigbuild
+        if: needs.version.outputs.tagged != 'true' && matrix.zig
+        run: pip install cargo-zigbuild==0.23.4 ziglang==0.16.0
+
+      - name: Apply the release version
+        if: needs.version.outputs.tagged != 'true'
+        run: |
+          python scripts/release.py set "$VERSION"
+          cargo update --workspace
+      - name: Build
+        if: needs.version.outputs.tagged != 'true'
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+          ZIG: ${{ matrix.zig }}
+        run: |
+          if [ "$ZIG" = true ]; then
+            cargo zigbuild --release --locked -p p-rs --bin prs --target "${TARGET}.2.17"
+          else
+            cargo build --release --locked -p p-rs --bin prs --target "$TARGET"
+          fi
+      - name: Check the version it reports
+        if: needs.version.outputs.tagged != 'true' && matrix.run
+        run: |
+          got=$("target/${TARGET}/release/prs${EXE}" --version | tr -d '\r')
+          [ "$got" = "prs ${VERSION}" ] || { echo "::error::prs --version says '${got}', want 'prs ${VERSION}'" >&2; exit 1; }
+      - name: Package
+        if: needs.version.outputs.tagged != 'true'
+        run: python scripts/release.py package "$TARGET" "$VERSION" "target/${TARGET}/release/prs${EXE}" dist
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: archive-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
+
+  prepare:
+    name: Commit and tag
+    needs: [preflight, version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ needs.version.outputs.version }}
+      tag: ${{ needs.version.outputs.tag }}
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: archive-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: python3 scripts/release.py sums dist "$VERSION"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: release-assets
+          path: dist/
+          if-no-files-found: error
+
+      - name: Check the tag's checksums
+        if: needs.version.outputs.tagged == 'true'
+        run: |
+          set -euo pipefail
+          git show "${TAG}:go/internal/prsbin/SHA256SUMS" | diff - dist/SHA256SUMS
+          echo "${TAG} exists and its checksums match the archives; nothing to commit."
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: needs.version.outputs.tagged != 'true'
+      - uses: actions/setup-go@v6
+        if: needs.version.outputs.tagged != 'true'
+        with:
+          go-version: stable
+          cache: false
+      - name: Commit, tag and push
+        if: needs.version.outputs.tagged != 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # The release: every package at VERSION, Go with the archives' checksums.
+          python3 scripts/release.py set "$VERSION" --sums dist/SHA256SUMS
           # Refresh the workspace's entries in the lock files without touching dependencies.
           cargo update --workspace
           cargo update --manifest-path examples/rust/Cargo.toml -p p-rs
-          version=$(cargo pkgid -p p-rs | sed 's/.*[#@]//')
-          git add Cargo.toml Cargo.lock examples/rust/Cargo.lock
-          git commit -m "Release p-rs v${version}"
+          go test -count=1 ./go/internal/prsbin
+          git add Cargo.toml Cargo.lock examples/rust/Cargo.lock java/pom.xml examples/java/pom.xml go/internal/prsbin
+          git commit -m "Release p-rs ${TAG}"
+          git tag -a "${TAG}" -m "p-rs ${TAG}"
 
-      - name: Tag and push
-        id: version
-        run: |
-          set -euo pipefail
-          version=$(cargo pkgid -p p-rs | sed 's/.*[#@]//')
-          tag="v${version}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
-            if [ "$(git rev-list -n1 "${tag}")" != "$(git rev-parse HEAD)" ]; then
-              echo "::error::${tag} already exists on a different commit. Bump the version instead." >&2
-              exit 1
-            fi
-            echo "${tag} already exists on HEAD; reusing it."
-          else
-            git tag -a "${tag}" -m "p-rs ${tag}"
-          fi
-          # Atomic: main and the tag move together or not at all.
-          git push --atomic origin HEAD:main "${tag}"
+          # Then main goes back to development versions: Go "dev" (a checkout downloads
+          # no binary) and Java <next patch>-SNAPSHOT (a local install never shadows the
+          # release). Cargo.toml keeps the release version.
+          python3 scripts/release.py dev
+          go test -count=1 ./go/internal/prsbin
+          git add java/pom.xml examples/java/pom.xml go/internal/prsbin
+          git commit -m "Release p-rs ${TAG}: back to development"
 
-  publish:
+          # Atomic: main and the tag move together or not at all. If main moved since
+          # the run started, the push fails and nothing is published.
+          git push --atomic origin HEAD:main "${TAG}"
+
+  crates:
     name: Publish to crates.io
     needs: prepare
     runs-on: ubuntu-latest
@@ -180,7 +310,7 @@ jobs:
 
   github-release:
     name: Create GitHub release
-    needs: [prepare, publish]
+    needs: prepare
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -188,25 +318,53 @@ jobs:
       id-token: write # claude-code-action exchanges an OIDC token
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.tag }}
           fetch-depth: 0
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-assets
+          path: ${{ runner.temp }}/assets
+
+      # First, so Go's download works right after the tag: the release, with the
+      # archives and SHA256SUMS. Never replaces an asset: their checksums are committed.
+      - name: Create the release with its archives
+        id: release
+        env:
+          ASSETS: ${{ runner.temp }}/assets
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+            have=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+            for file in "$ASSETS"/*; do
+              if ! grep -qxF "$(basename "$file")" <<<"$have"; then
+                gh release upload "$TAG" "$file"
+              fi
+            done
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            gh release create "$TAG" "$ASSETS"/* --title "p-rs $TAG" --verify-tag --generate-notes
+            echo "created=true" >> "$GITHUB_OUTPUT"
+            echo "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/setup-node@v7
+        if: steps.release.outputs.created == 'true'
         with:
           node-version: 22
 
       # Notes: code collects the merged PRs, Claude picks the user-visible
       # changes (.github/release-notes-prompt.md), code renders the markdown.
-      # Both note steps may fail without blocking: the crate is already
-      # published, so the release falls back to GitHub's generated notes.
+      # Both note steps may fail without blocking: the release keeps GitHub's
+      # generated notes.
       - name: Collect commit and PR context
         id: context
+        if: steps.release.outputs.created == 'true'
         continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node .github/scripts/release-notes.mjs context "$TAG" > release-notes-context.txt
 
       - name: Classify changes with Claude
@@ -225,30 +383,17 @@ jobs:
             Write the resulting JSON to `release-notes-entries.json` in the
             repository root. Write nothing else.
 
-      - name: Render release notes
-        id: notes
+      - name: Replace the notes with Claude's
+        if: steps.release.outputs.created == 'true'
         run: |
           notes="$RUNNER_TEMP/release-notes.md"
           if [ -s release-notes-entries.json ] \
              && node .github/scripts/release-notes.mjs render "$TAG" --entries release-notes-entries.json > "$notes"; then
-            echo "file=$notes" >> "$GITHUB_OUTPUT"
             cat "$notes"
+            gh release edit "$TAG" --notes-file "$notes"
           else
-            echo "::warning::Claude release notes unavailable; using GitHub's generated notes. Fix with the 'Update release notes' workflow."
+            echo "::warning::Claude release notes unavailable; keeping GitHub's generated notes. Fix with the 'Update release notes' workflow."
           fi
-
-      - name: Create release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NOTES_FILE: ${{ steps.notes.outputs.file }}
-        run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists."
-            exit 0
-          fi
-          if [ -n "$NOTES_FILE" ]; then notes=(--notes-file "$NOTES_FILE"); else notes=(--generate-notes); fi
-          gh release create "$TAG" --title "p-rs $TAG" --verify-tag "${notes[@]}"
-          echo "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"
 
   python:
     name: Python wheels to PyPI
@@ -260,3 +405,85 @@ jobs:
     with:
       tag: ${{ needs.prepare.outputs.tag }}
       publish: true
+
+  maven:
+    name: Publish to Maven Central
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+      CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+      MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+      HAS_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY != '' }}
+    steps:
+      - name: Check the secrets and whether this version is published
+        id: check
+        run: |
+          set -euo pipefail
+          if [ "$HAS_KEY" != true ] || [ -z "$MAVEN_GPG_PASSPHRASE" ] || [ -z "$CENTRAL_TOKEN_USERNAME" ] || [ -z "$CENTRAL_TOKEN_PASSWORD" ]; then
+            msg="Maven Central skipped: set MAVEN_GPG_PRIVATE_KEY, MAVEN_GPG_PASSPHRASE, CENTRAL_TOKEN_USERNAME and CENTRAL_TOKEN_PASSWORD (.github/RELEASING.md), then re-run this job."
+            echo "::notice title=Maven Central skipped::${msg}"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          auth=$(printf '%s:%s' "$CENTRAL_TOKEN_USERNAME" "$CENTRAL_TOKEN_PASSWORD" | base64 -w0)
+          published=$(curl -fsS -H "Authorization: Bearer ${auth}" \
+            "https://central.sonatype.com/api/v1/publisher/published?namespace=io.github.crowecawcaw&name=p-rs&version=${VERSION}" \
+            | jq -r '.published') || published=unknown
+          if [ "$published" = true ]; then
+            echo "io.github.crowecawcaw:p-rs:${VERSION} is already on Maven Central; skipping publish." >> "$GITHUB_STEP_SUMMARY"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.check.outputs.publish == 'true'
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v5
+        if: steps.check.outputs.publish == 'true'
+        with:
+          name: release-assets
+          path: ${{ runner.temp }}/assets
+      - name: Natives from the release archives
+        if: steps.check.outputs.publish == 'true'
+        run: python3 scripts/release.py natives "$RUNNER_TEMP/assets" "$RUNNER_TEMP/natives"
+
+      - uses: actions/setup-java@v5
+        if: steps.check.outputs.publish == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: java/pom.xml
+          # settings.xml server "central"; the credentials come from these variables.
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
+      - uses: stCarolas/setup-maven@v5
+        if: steps.check.outputs.publish == 'true'
+        with:
+          maven-version: '3.9.9'
+      - name: Import the signing key
+        if: steps.check.outputs.publish == 'true'
+        env:
+          MAVEN_GPG_PRIVATE_KEY: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+        run: printf '%s\n' "$MAVEN_GPG_PRIVATE_KEY" | gpg --batch --import
+
+      - name: Deploy
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          pom=$(mvn -q -f java/pom.xml help:evaluate -Dexpression=project.version -DforceStdout)
+          [ "$pom" = "$VERSION" ] || { echo "::error::java/pom.xml at ${TAG} is ${pom}, want ${VERSION}" >&2; exit 1; }
+          # The tests run against the release's Linux binary.
+          PRS_BIN="$RUNNER_TEMP/natives/natives-linux-x86_64/prs" \
+            mvn --batch-mode --no-transfer-progress -f java/pom.xml -Pnatives,release,central \
+            -Dprs.natives="$RUNNER_TEMP/natives" deploy
+          echo "Published io.github.crowecawcaw:p-rs:${VERSION} to Maven Central." >> "$GITHUB_STEP_SUMMARY"

@@ -29,11 +29,24 @@ is tested.
 
 ## Install
 
-There are no prebuilt binaries yet. With a Rust toolchain:
-
 ```sh
-cargo install --git https://github.com/crowecawcaw/p-rs p-rs   # installs prs and prs-compat
+cargo install p-rs   # prs and prs-compat, built with a Rust toolchain
+pip install p-rs     # prs, prebuilt, with the Python helper
 ```
+
+Each [GitHub release](https://github.com/crowecawcaw/p-rs/releases) also has a prebuilt
+`prs` for Linux (x86-64, ARM), macOS (Intel, Apple silicon) and Windows, with a
+`SHA256SUMS` file. To build the latest `main` instead:
+`cargo install --git https://github.com/crowecawcaw/p-rs p-rs`.
+
+The application helpers are one package per language, all named `p-rs`:
+
+| Language | Install |
+| --- | --- |
+| Python | `pip install p-rs` |
+| Rust | `cargo add p-rs` |
+| Go | `go get github.com/crowecawcaw/p-rs` |
+| Java | Maven `io.github.crowecawcaw:p-rs`, plus a `natives-<os>-<arch>` jar ([snippet](java/README.md#install)) |
 
 ## Usage
 
@@ -114,7 +127,8 @@ From Go, [`prstest`](go/README.md) records application events and integrates che
 with `testing.T`, subtests, and fuzz callbacks; `prsemit` emits from processes a test
 starts and writes production logs. The
 [Go inventory examples](examples/go/README.md) show explicit checks, cleanup fixtures,
-native fuzzing and child processes. Install the `prs` binary separately.
+native fuzzing and child processes. `prstest` downloads the matching `prs` release
+binary on first use.
 
 All helpers follow one set of names, defaults and behaviours:
 [docs/language-support.md](docs/language-support.md), checked by the shared

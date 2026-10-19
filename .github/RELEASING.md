@@ -1,7 +1,16 @@
 # Releasing p-rs
 
 Releases are cut by the manually triggered **Release** workflow
-(`.github/workflows/release.yml`). Nothing publishes on a tag push.
+(`.github/workflows/release.yml`). Nothing publishes on a tag push. One run releases
+every package at one version:
+
+| Package | Where |
+| --- | --- |
+| crate `p-rs` | crates.io |
+| `p-rs` wheels (with `prs`) and sdist | PyPI, and the GitHub release |
+| `io.github.crowecawcaw:p-rs` and its `natives-<os>-<arch>` jars | Maven Central |
+| module `github.com/crowecawcaw/p-rs` | the `vX.Y.Z` tag (Go needs nothing else) |
+| `prs-vX.Y.Z-<target>.tar.gz` / `.zip` and `SHA256SUMS` | the GitHub release |
 
 ## Cut a release
 
@@ -14,28 +23,67 @@ Actions → **Release** → Run workflow, on `main`, and pick a level:
 | major   | 0.1.0 → 1.0.0                                  |
 | release | publish the version already in `Cargo.toml`    |
 
-The version is `[workspace.package] version` in the root `Cargo.toml`: the `p-rs`
-crate and the Python wheels both use it.
+The version is `[workspace.package] version` in the root `Cargo.toml`.
+`scripts/release.py` computes it and writes it into the other packages.
 
 Or from a terminal: `gh workflow run release.yml --ref main -f level=patch`.
 
 The workflow:
 
 1. **Preflight**: fmt, clippy, tests and `cargo publish --dry-run` on `main`.
-2. **Bump and tag**: bumps `Cargo.toml` and the lock files, commits
-   `Release p-rs vX.Y.Z` to `main`, tags `vX.Y.Z` and pushes both atomically.
-   If `main` moved since the run started, the push fails and nothing is published.
-3. **Publish**: publishes `p-rs` to crates.io. A version already on crates.io is
-   skipped, so a run that failed after tagging can be finished with `level=release`.
-4. **GitHub release**: creates the release for the tag. Claude writes the notes
-   from the merged PRs' descriptions, following `.github/release-notes-prompt.md`.
-   If that fails (for example an expired token), the release gets GitHub's
-   generated notes instead and the run still succeeds.
+2. **Version**: the next version, and whether its tag already exists.
+3. **Build**: `prs` for `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`
+   (both glibc 2.17+, via cargo-zigbuild), `x86_64-apple-darwin`,
+   `aarch64-apple-darwin` and `x86_64-pc-windows-msvc` (static CRT), from the run's
+   commit with the version applied, so `prs --version` reports the release. Each is
+   archived as `prs-vX.Y.Z-<target>.tar.gz` (Windows: `.zip` with `prs.exe`).
+4. **Commit and tag**: writes `SHA256SUMS` for those exact archives, then commits
+   `Release p-rs vX.Y.Z` with every package at the version: `Cargo.toml` and the lock
+   files, `java/pom.xml` (and `examples/java`), and Go's
+   `go/internal/prsbin/version.go` and `SHA256SUMS` (checked by
+   `go test ./go/internal/prsbin`). It tags that commit `vX.Y.Z`, then commits
+   `Release p-rs vX.Y.Z: back to development`, and pushes both commits and the tag
+   atomically. If `main` moved since the run started, the push fails and nothing is
+   published.
+5. In parallel, from the tag:
+   - **crates.io**: publishes `p-rs`.
+   - **GitHub release**: created at once with the archives and `SHA256SUMS` (Go's
+     `prstest` downloads them, verified against the checksums in the module), then
+     Claude replaces GitHub's generated notes with notes written from the merged PRs,
+     following `.github/release-notes-prompt.md`. If that fails (for example an
+     expired token), the generated notes stay and the run still succeeds.
+   - **Python** (after the release exists): wheels with the `prs` binary for the same
+     five platforms, plus an sdist, built from the tag, attached to the release and
+     published to PyPI.
+   - **Maven Central**: natives jars made from the archives' binaries, the Java tests
+     against the Linux binary, then a signed upload through the Central Portal that
+     waits until the version is published. Skipped with a notice until the Maven
+     secrets below exist.
 
-5. **Python**: builds the `p-rs` Python package (`python/`): wheels with the `prs`
-   binary for Linux (x86-64, ARM), macOS (Intel, Apple Silicon) and Windows, plus an
-   sdist. They are attached to the GitHub release and published to PyPI. The wheels
-   are built from `crates/p-rs`, so they have the release's version. A version already on PyPI is skipped.
+### Versions between releases
+
+The tagged commit has the release version everywhere. Afterwards `main` keeps it in
+`Cargo.toml` (as before: the next release bumps it), while:
+
+- Go goes back to `Version = "dev"` with an empty `SHA256SUMS`, so a checkout or
+  pseudo-version never downloads a binary built from other sources.
+- Java goes to the next patch `-SNAPSHOT` (0.1.1 → 0.1.2-SNAPSHOT), so `mvn install`
+  from a checkout never overwrites the released version in `~/.m2`.
+
+`python3 scripts/release.py set X.Y.Z` and `python3 scripts/release.py dev` make these
+edits; the workflow is the only caller in normal use.
+
+### Re-runs
+
+Every publish step skips a version that is already there (crates.io, PyPI, Maven
+Central, existing release assets), so a failed run can be finished:
+
+- **Re-run failed jobs** of the same run. It reuses the run's archives, so this is the
+  way to recover when the tag was pushed but the GitHub release lacks its assets.
+- Or start a new run with `level=release`. When the tag exists, the build jobs
+  download the archives from its GitHub release and check them against the tag's
+  committed `SHA256SUMS` instead of rebuilding (a rebuilt archive would not match), and
+  nothing is committed.
 
 ## Fix a release's notes
 
@@ -47,7 +95,7 @@ Only the `p-rs` crate is published; `prs-wasm` (the playground's WebAssembly bui
 ## Requirements
 
 - The `github-actions[bot]` must be able to push to `main`. If `main` gets branch
-  protection, allow GitHub Actions to bypass it (or the bump step will fail).
+  protection, allow GitHub Actions to bypass it (or the commit step will fail).
 - crates.io trusted publishing for `p-rs` trusts:
   - Repository: `crowecawcaw/p-rs`
   - Workflow: `release.yml`
@@ -64,3 +112,28 @@ Only the `p-rs` crate is published; `prs-wasm` (the playground's WebAssembly bui
   Create the `pypi` environment in the repository settings.
 - The `CLAUDE_CODE_OAUTH_TOKEN` repository secret, for release notes. Create it
   with `claude setup-token`; it lasts about a year.
+- Maven Central (one-time; until it is done, releases skip Maven Central):
+  1. Sign in at <https://central.sonatype.com> with the `crowecawcaw` GitHub
+     account. Signing in with GitHub verifies the namespace `io.github.crowecawcaw`
+     (check it under **Namespaces**; otherwise add it there and follow the
+     verification steps, which create a temporary public repository).
+  2. **Account** → **Generate User Token**. The token's username and password become
+     the `CENTRAL_TOKEN_USERNAME` and `CENTRAL_TOKEN_PASSWORD` secrets. They are not
+     the account's login.
+  3. Create a signing key and publish its public half, which Central uses to check
+     the signatures:
+
+     ```sh
+     gpg --quick-gen-key "p-rs releases <you@example.com>" ed25519 sign 3y
+     gpg --list-secret-keys --keyid-format long          # note the key id
+     gpg --keyserver keyserver.ubuntu.com --send-keys KEYID
+     gpg --keyserver keys.openpgp.org --send-keys KEYID  # then confirm the email it sends
+     gpg --armor --export-secret-keys KEYID              # the MAVEN_GPG_PRIVATE_KEY secret
+     ```
+
+  4. Add four repository secrets (Settings → Secrets and variables → Actions):
+     `MAVEN_GPG_PRIVATE_KEY` (the armored private key, including the BEGIN/END
+     lines), `MAVEN_GPG_PASSPHRASE`, `CENTRAL_TOKEN_USERNAME`, `CENTRAL_TOKEN_PASSWORD`.
+
+  If a release already ran without them, re-run its **Publish to Maven Central** job
+  (or start a new run with `level=release`) to publish that version.

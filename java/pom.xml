@@ -229,7 +229,7 @@
       </build>
     </profile>
 
-    <!-- Sources and javadoc jars for Maven Central. Signing and upload live in the release workflow. -->
+    <!-- Sources and javadoc jars, which Maven Central requires. Signing and upload: the central profile. -->
     <profile>
       <id>release</id>
       <build>
@@ -259,6 +259,54 @@
                 <goals><goal>jar</goal></goals>
               </execution>
             </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!--
+      Signing and upload to Maven Central (the Sonatype Central Portal). The release
+      workflow runs:
+        mvn -f java/pom.xml -Pnatives,release,central -Dprs.natives=DIR deploy
+      It needs a GPG key in the agent (passphrase in MAVEN_GPG_PASSPHRASE) and a server
+      "central" in settings.xml holding a Central Portal user token. Locally,
+      -Dgpg.skip skips signing (use verify, not deploy). Kept out of `release` so CI
+      builds the sources and javadoc jars without a key.
+    -->
+    <profile>
+      <id>central</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.2.8</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals><goal>sign</goal></goals>
+                <configuration>
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.11.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>true</autoPublish>
+              <!-- Wait until the version is on Central, so a rejected upload fails the run. -->
+              <waitUntil>published</waitUntil>
+              <waitMaxTime>3600</waitMaxTime>
+            </configuration>
           </plugin>
         </plugins>
       </build>

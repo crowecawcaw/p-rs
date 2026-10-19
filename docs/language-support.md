@@ -313,6 +313,9 @@ the emitter; unused test code is not loaded (Go, Java) or not compiled (Rust fea
 | Java | Maven Central `io.github.crowecawcaw:p-rs`; JUnit 5 optional | `io.github.crowecawcaw.prs` | Classifier jars `natives-<os>-<arch>` of the same artifact, extracted to a per-version cache on first use. |
 
 All packages share one version and release (`release.yml`); Go tags are plain `vX.Y.Z`.
+The tagged commit holds the release version everywhere; afterwards `main` keeps it in
+`Cargo.toml` while Go goes back to `dev` and Java to the next `-SNAPSHOT`
+([RELEASING.md](../.github/RELEASING.md)).
 The checker must work offline with no per-user setup, so only Go downloads, and only
 when no binary is found. A WASI build (wazero for Go, Chicory for Java) may later replace
 the native binaries if it passes the conformance corpus at no more than 2× native cost.
@@ -399,7 +402,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `Emit(event, key, payload)`, `EmitAt`
 - [x] `PRS_BIN`, `strict` default true with named specs, `CheckHot`
 - [x] `timeout`, artifacts kept on failure
-- [ ] Packaging per [Packaging and distribution](#packaging-and-distribution) (#64)
+- [x] Packaging per [Packaging and distribution](#packaging-and-distribution): module at the repo root, release binary downloaded and verified (#64)
 - [x] `Specs` optional (default all), `Exclude`
 - [x] Rename `AllowUnobserved` to `Strict` (`*bool` or option func); keep the old field deprecated
 - [x] `*SpecViolation` / `*SetupError` for `errors.As` (#53)
@@ -417,7 +420,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `emit(event, key, payload)`, `emitAt`
 - [x] `PRS_BIN`, `strict` default true, `checkHot`, `timeout`, `artifacts`
 - [x] Suite coverage via the extension; jqwik via `@AfterContainer`
-- [ ] Packaging per [Packaging and distribution](#packaging-and-distribution) (#64)
+- [x] Packaging per [Packaging and distribution](#packaging-and-distribution): one `p-rs` artifact with natives classifier jars, on Maven Central (#64)
 - [x] `specs` optional (default all), `exclude`
 - [x] `SpecViolation extends AssertionFailedError` with structured fields; `SetupError` with `kind` (`ObservationFailure` stays as their deprecated superclass)
 - [x] `expectViolation(spec, match)`
