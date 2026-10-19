@@ -2,8 +2,12 @@
 
 `prs observe` checks events recorded by a running system against the spec monitors of
 a P project. It replaces [PObserve](https://github.com/p-org/P/tree/master/Src/PObserve)
-and follows its options, console output, `PObserve-<date>/` output and exit codes
-(0 ok, 1 command line, 2 spec violation, 3 internal error, 4 parser errors only).
+and follows its options, console output and `PObserve-<date>/` output. The
+`prs-compat` process and the structured report's `exit_code` preserve PObserve
+status codes (0 ok, 1 command line, 2 spec violation, 3 internal error, 4 parser
+errors only). The native `prs` process uses 0 for success, 1 for a spec violation,
+and 2 for tool or input errors; supervisors should check the process status and
+read the report for detail.
 
 The difference is where the spec comes from: there are no jars. The P sources are
 type-checked in memory, from the `.pproj` in the current folder, `-pp/--pproj <file>`

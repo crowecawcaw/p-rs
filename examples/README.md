@@ -14,3 +14,7 @@ executed model identities across isolated tests and product keys; percentages ar
 never summed. Observed transitions are listed without a denominator because P
 can choose goto targets dynamically. Declared but unreachable states/handlers may
 remain uncovered, so this is evidence of execution rather than a proof of safety.
+
+For live observation across service boundaries, see [two inventory workers in
+Docker](multiprocess/docker/README.md): both publish committed events, one observer
+checks the merged history, and the supervisor cancels producers on a violation.
