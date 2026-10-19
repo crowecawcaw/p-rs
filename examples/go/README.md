@@ -144,3 +144,8 @@ or report-write failure fails the test process.
 callbacks, where a long campaign should release each recording after checking.
 Opt into `CheckedWithCoverage` only when the package's `TestMain` calls
 `WriteCoverage` after all tests and cleanups finish.
+
+
+The global test setup opts into strict observation: every checked test must emit
+at least one relevant event for each selected spec. This catches accidentally
+disabled instrumentation; it does not infer arbitrary missing events.

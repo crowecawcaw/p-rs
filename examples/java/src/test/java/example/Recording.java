@@ -48,6 +48,7 @@ final class Recording implements Inventory.Events, AutoCloseable {
                 "--spec", "InventoryCorrect", "--logs", log.toString(),
                 "--outputDir", directory.resolve("observe").toString(),
                 "--json-report", report.toString()));
+        command.add("--strict");
         if (coverage != null) command.add("--coverage");
         var process = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(output.toFile()).start();
         if (!process.waitFor(30, TimeUnit.SECONDS)) {

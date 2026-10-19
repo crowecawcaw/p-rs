@@ -3,5 +3,6 @@ testpaths = ["."]
 addopts = "--strict-markers --prs-coverage=coverage/model.json"
 
 [tool.prs]
+strict = true
 spec_files = ["../specs/inventory.p"]
 mode = "auto"  # Every test checks all specs, including events from fixture setup.

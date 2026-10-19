@@ -51,7 +51,7 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
         try:
             observer = subprocess.Popen([
                 str(prs_bin), "observe", "--pfiles", str(SPEC), "--spec", "InventoryCorrect",
-                "--stdin", "--fail-fast", "--coverage", "--json-report", str(artifacts / "report.json"),
+                "--stdin", "--fail-fast", "--strict", "--coverage", "--json-report", str(artifacts / "report.json"),
                 "--outputDir", str(artifacts / "observe"),
             ], stdin=subprocess.PIPE, stdout=output, stderr=errors, text=True)
 

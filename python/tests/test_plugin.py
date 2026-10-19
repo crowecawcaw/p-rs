@@ -231,3 +231,13 @@ def test_coverage_empty_suite(project):
     result.assert_outcomes(passed=1, deselected=9)
     report = json.loads((project.path / "empty.json").read_text())
     assert report["specs"] == []
+
+
+def test_strict_opt_in_checks_no_event_tests(project):
+    result = run(project, "-k", "test_no_events", "--prs-strict")
+    result.assert_outcomes(failed=1, deselected=9)
+    result.stdout.fnmatch_lines(["*checked no relevant events*"])
+    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nstrict = true\n')
+    result = run(project, "-k", "test_no_events")
+    result.assert_outcomes(failed=1, deselected=9)
+    result.stdout.fnmatch_lines(["*checked no relevant events*"])

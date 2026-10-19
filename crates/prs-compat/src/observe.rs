@@ -113,6 +113,7 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         keys: cfg.keys.clone(),
         check_hot: cfg.check_hot,
         coverage: cfg.coverage,
+        strict: cfg.strict,
     };
     let mut inputs = Vec::new();
     let mut read_error = None;
@@ -169,7 +170,10 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         if !input_complete {
             host.out_line("Live observation stopped at the first error; reports cover the checked prefix.");
         }
-        sessions.into_iter().map(|s| s.finish(input_complete, host.now())).collect()
+        sessions
+            .into_iter()
+            .map(|s| if input_complete { s.finish(true, host.now()) } else { s.finish_after_failure(host.now()) })
+            .collect()
     } else {
         Vec::new()
     };
@@ -266,6 +270,7 @@ fn json_report(specs: &[Spec], reports: &[Report], exit_code: i32) -> String {
                         ErrorKind::OutOfOrder => "out_of_order",
                         ErrorKind::Parser => "parser",
                         ErrorKind::Unknown => "unknown",
+                        ErrorKind::Validation => "validation",
                     };
                     let (key, events) = match &e.replay {
                         Some(rp) => (
@@ -356,6 +361,9 @@ pub const USAGE: &str = "Usage: p observe [options]
     --inputkind, -ik
       Input log kind {TEXT or JSON}
       Possible Values: [JSON, TEXT, SERIALIZEDEVENTS]
+    --strict
+      Require at least one successfully checked relevant event per selected spec.
+      Applied after key filtering, at EOF for live input; does not imply --check-hot.
     --coverage
         Report observed monitor states and handlers on stdout (and in --json-report).
         Does not measure full model paths or scheduling coverage.
@@ -424,6 +432,7 @@ pub struct ObserveConfig {
     pub check_hot: bool,
     /// `--coverage`: report observed monitor state and handler coverage.
     pub coverage: bool,
+    pub strict: bool,
     pub stdin: bool,
     pub fail_fast: bool,
     pub parser: Option<String>,
@@ -458,6 +467,7 @@ const OPTIONS: &[(&[&str], Arity)] = &[
     (&["--json-report"], Arity::One),
     (&["--check-hot"], Arity::Flag),
     (&["--coverage"], Arity::Flag),
+    (&["--strict"], Arity::Flag),
     (&["--stdin"], Arity::Flag),
     (&["--fail-fast"], Arity::Flag),
     (&["--parser", "-p"], Arity::One),
@@ -513,6 +523,7 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
         json_report: None,
         check_hot: false,
         coverage: false,
+        strict: false,
         stdin: false,
         fail_fast: false,
         parser: None,
@@ -589,6 +600,7 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                 "--json-report" => cfg.json_report = Some(v),
                 "--check-hot" => cfg.check_hot = true,
                 "--coverage" => cfg.coverage = true,
+                "--strict" => cfg.strict = true,
                 "--parser" => {
                     validate_classname(tok, &v)?;
                     cfg.parser = Some(v);
@@ -1051,6 +1063,9 @@ fn emit_report(host: &mut dyn Host, spec: &Spec, report: &Report, out: &str) -> 
                 write_exception(host, e, &join(out, &format!("ParserError_{}.txt", parser_n)))?;
                 parser_n += 1;
             }
+            ErrorKind::Validation => {
+                host.out_colored_line(&e.message, Color::Red);
+            }
             ErrorKind::Unknown => {
                 host.out_colored_line(&format!("Failed with an unknown exception:: {}", e.message), Color::Red);
                 host.out_colored_line("Please report this issue to the P team", Color::Red);
@@ -1118,6 +1133,9 @@ fn emit_metrics(host: &mut dyn Host, m: &Metrics, out: &str) -> Result<(), Exit>
         "{:<23}  {:<23}  {:<28}  {:<23}\n\n",
         m.unknown_errors, m.spec_errors, m.out_of_order_errors, m.unknown_errors
     ));
+    if m.validation_errors > 0 {
+        s.push_str(&format!("Total Validation Errors: {}\n", m.validation_errors));
+    }
     host.out_line(&s);
     let mut f = s.clone();
     let d3 = "-".repeat(103);

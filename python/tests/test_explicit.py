@@ -232,3 +232,22 @@ def test_events_from_forked_processes():
         p.start()
         p.join()
         emit("eEnter", key="F", client="parent")
+
+
+def test_strict_requires_events_without_changing_default():
+    with check_spec("MutualExclusion", spec_files=FILES):
+        pass
+    with pytest.raises(PrsError, match="checked no relevant events"):
+        with check_spec("MutualExclusion", spec_files=FILES, strict=True):
+            pass
+    with check_spec("MutualExclusion", spec_files=FILES, strict=True):
+        emit("eEnter", client="a")
+    with pytest.raises(PrsError, match="RequestsGranted.*checked no relevant events"):
+        check_events([{"event": "eEnter", "payload": {"client": "a"}}], spec_files=FILES, strict=True)
+
+
+def test_strict_keeps_sibling_safety_violation_primary():
+    with pytest.raises(SpecViolation, match="entered while"):
+        with check_spec(spec_files=FILES, strict=True):
+            emit("eEnter", client="a")
+            emit("eEnter", client="b")

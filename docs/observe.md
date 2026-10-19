@@ -30,6 +30,7 @@ These options are not in PObserve; runs that do not use them behave as upstream.
 | `--exclude-specs A B ...` | Specs `--all-specs` leaves out. |
 | `--check-hot` | Also report a key whose spec is in a hot state after its last event, with the message `prs check` uses for liveness bugs at the end of an execution. |
 | `--json-report <file>` | Write the result as JSON (below). |
+| `--strict` | Require at least one successfully checked relevant event per selected spec, after key filtering. |
 | `--coverage` | Report observed monitor state and handler coverage, including in JSON when requested. |
 
 ```json
@@ -239,3 +240,25 @@ or unrelated compilation sources deliberately change the conservative fingerprin
 Reports for the same specification must have the same fingerprint and identical
 declarations; otherwise the merge fails before changing the result. Regenerate legacy
 reports with `observe --coverage` to obtain current version and fingerprint fields.
+
+
+## Strict observation
+
+Use `--strict` in integration tests to catch accidentally disabled instrumentation,
+empty recordings, or filters that discard all relevant events. Every selected spec
+must successfully check at least one event. A spec with an existing parser, ordering,
+or safety error keeps that error instead of receiving a secondary validation error.
+A missing explicitly requested spec is already an error without strict mode.
+
+Strict failures have JSON error kind `validation` and native `prs` exit code 2.
+Live streams validate nonempty input only at EOF. An actual violation still stops
+`--fail-fast` immediately, with prefix coverage and `input_complete: false`.
+Strict mode does not imply `--check-hot`, check every key named by a filter, or
+detect arbitrary missing events: use model assertions or explicit completion events
+for stronger application-specific guarantees.
+
+Rust callers set `ObserveOptions.strict = true`. A strict `ObserveSession.finish(false,
+now)` rejects an otherwise clean incomplete prefix. Supervisors finishing several
+sessions after a known error may use `finish_after_failure(now)` to preserve the
+original error without secondary validation failures; they must retain that original
+error in the overall test result.

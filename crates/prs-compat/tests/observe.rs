@@ -604,3 +604,50 @@ fn coverage_ignores_unselected_specs_and_reports_empty_logs() {
     assert_eq!(c["handlers"]["total"], 3);
     assert_eq!(c["handlers"]["covered"], 0);
 }
+
+#[test]
+fn strict_requires_relevant_events_after_filtering_and_preserves_other_errors() {
+    for log in ["", "{\"event\":\"eUnrelated\"}"] {
+        let mut h = host();
+        h.add_file("logs/run.log", log);
+        assert_eq!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "logs"]), 0);
+        assert_ne!(
+            run(&mut h, &["--spec", "NeverOverdrawn", "-l", "logs", "--strict", "--json-report", "report.json"]),
+            0
+        );
+        assert!(h.stdout.contains("checked no relevant events"), "{}", h.stdout);
+        assert!(!h.stdout.contains("Please report this issue"));
+        assert!(read(&h, "report.json").contains("\"kind\": \"validation\""));
+    }
+    let mut h = host();
+    h.add_file("logs/run.log", &line("a", 1, "eDeposit", 1, 10));
+    assert_eq!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "logs", "--strict"]), 0);
+    assert_ne!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "logs", "--strict", "--keys", "b"]), 0);
+    h.add_file("logs/run.log", "not json");
+    assert_ne!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "logs", "--strict"]), 0);
+    assert!(h.stdout.contains("Parser Exception"));
+    assert!(!h.stdout.contains("checked no relevant events"));
+}
+
+#[test]
+fn strict_applies_to_every_selected_spec() {
+    let mut h = host();
+    h.add_file("PSpec/Other.p", "spec Other observes eUnrelated { start state Ready { on eUnrelated do {} } }");
+    h.add_file("logs/run.log", &line("a", 1, "eDeposit", 1, 10));
+    assert_ne!(run(&mut h, &["--all-specs", "-l", "logs", "--strict"]), 0);
+    assert!(h.stdout.contains("spec 'Other' checked no relevant events"), "{}", h.stdout);
+}
+
+#[test]
+fn strict_validation_does_not_mask_a_sibling_safety_failure() {
+    let mut h = host();
+    h.add_file("PSpec/Other.p", "spec Other observes eUnrelated { start state Ready { on eUnrelated do {} } }");
+    h.add_file("logs/run.log", &line("a", 1, "eWithdraw", 1, 10));
+    assert_eq!(
+        run(&mut h, &["--all-specs", "-l", "logs", "--strict", "--json-report", "report.json"]),
+        prs_compat::observe::EXIT_ASSERTION
+    );
+    let report = read(&h, "report.json");
+    assert!(report.contains("spec_violation"));
+    assert!(report.contains("validation"));
+}

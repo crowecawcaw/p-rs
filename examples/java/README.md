@@ -90,3 +90,8 @@ command. The adapter retains complete observation reports and sends one JSON arr
 at suite end. Core validates and unions coverage identities, preserves metadata
 from failing checks, and writes the same report format across languages. A merge
 or report-write failure fails the test process.
+
+
+The global test setup opts into strict observation: every checked test must emit
+at least one relevant event for each selected spec. This catches accidentally
+disabled instrumentation; it does not infer arbitrary missing events.
