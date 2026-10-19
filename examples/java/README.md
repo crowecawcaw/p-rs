@@ -20,14 +20,15 @@ Java dependencies and Maven plugins are pinned in `pom.xml`; CI installs Maven
 
 - `ExplicitInventoryTest`: open a `Recording` before constructing fixtures and
   close it with try-with-resources. Selected tests opt in. The negative control
-  simulates an overselling event and requires the exact P failure, CLI bug exit (1), and report exit (2).
+  simulates an overselling event and requires the exact P failure,
+  `spec_violation` error kind, CLI bug exit (1), and report exit (2).
 - `AutomaticInventoryTest`: register `InventoryExtension` with `@ExtendWith`.
   It starts recording before `@BeforeEach` and checks after `@AfterEach`, resolving
   an `Inventory.Events` sink for dependency injection. Ordinary tests need no
   explicit checker calls. A fixture reservation is created in `@BeforeEach` and
   released in `@AfterEach`, so both lifecycle phases contribute observed events.
-  Both tests can reuse the same orders because each has
-  a fresh application and monitor. Product keys isolate stock within a test.
+  Both tests can reuse the same orders because each has a fresh application and
+  monitor. Product keys isolate stock within a test.
 - `GeneratedInventoryTest`: jqwik generates up to 60 sequences of 1–40 reserve
   and release operations. A small reference ledger checks returned stock and
   rejected requests while P independently checks the event history. Invalid
@@ -59,6 +60,9 @@ one named spec and all emitted events and product keys verified. Command,
 serialization, parser and spec failures propagate to the test. If a body assertion
 and teardown both fail, try-with-resources preserves the observation failure as a
 suppressed exception; Jupiter reports callback failures alongside test failures.
+When copying the adapter into your project, change its `specs/inventory.p` path
+and `InventoryCorrect` spec name to your own, and set `PRS_BIN` to the absolute
+path of the `prs` executable your local setup and CI build or install.
 
 Failed observations retain JSONL, console output, JSON report and P replay logs
 under `target/prs/recording-*`; assertions include that path and checker output.

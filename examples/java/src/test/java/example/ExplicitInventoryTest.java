@@ -28,5 +28,6 @@ class ExplicitInventoryTest {
         // prs maps PObserve's exit 2 (also retained in the report) to its BUG exit 1.
         assertTrue(failure.getMessage().contains("prs exit 1"), failure::getMessage);
         assertTrue(failure.getMessage().contains("\"exit_code\": 2"), failure::getMessage);
+        assertTrue(failure.getMessage().contains("\"kind\": \"spec_violation\""), failure::getMessage);
     }
 }
