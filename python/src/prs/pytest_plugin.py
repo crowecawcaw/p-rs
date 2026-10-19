@@ -14,6 +14,9 @@ Per test: ``@pytest.mark.prs(skip=True)``, ``@pytest.mark.prs(skip=["DraftSpec"]
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from typing import Any, Generator, List, Optional
 
 import pytest
@@ -24,10 +27,13 @@ from ._recorder import PrsError, Recorder
 _RECORDER = pytest.StashKey[Optional[Recorder]]()
 _CONFIG = pytest.StashKey[Optional[_config.Config]]()
 _ERROR = pytest.StashKey[Optional[str]]()
+_COVERAGE = pytest.StashKey[dict]()
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     group = parser.getgroup("prs", "checking P specs (p-rs)")
+    group.addoption("--prs-coverage", metavar="PATH", default=None,
+                    help="Print suite P model coverage and write its union as JSON to PATH.")
     group.addoption(
         "--prs",
         dest="prs_mode",
@@ -43,6 +49,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "prs(skip=False, liveness=False): P spec checking for this test. skip=True turns it off, "
         "skip=[names] leaves out some specs, liveness=True also fails on a spec left in a hot state.",
     )
+    config.stash[_COVERAGE] = {}
     config.stash[_ERROR] = None
     try:
         cfg = _config.load(str(config.rootpath))
@@ -121,6 +128,7 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         exclude=settings["exclude"] if settings else (),
         liveness=settings["liveness"] if settings else False,
         output_root=_output_root(item.config),
+        coverage=bool(item.config.getoption("prs_coverage")),
     )
     rec._plugin_checks = settings is not None  # type: ignore[attr-defined]
     item.stash[_RECORDER] = rec.start()
@@ -143,7 +151,11 @@ def pytest_runtest_call(item: pytest.Item) -> Generator[None, Any, Any]:
         rec.stop()
         if getattr(rec, "_plugin_checks", False):
             __tracebackhide__ = True
-            rec.check()
+            try:
+                rec.check()
+            finally:
+                if rec.coverage_report is not None:
+                    _merge_coverage(item.config.stash[_COVERAGE], rec.coverage_report)
         else:
             rec._cleanup_owned()
     return result
@@ -164,3 +176,48 @@ def prs_events(request: pytest.FixtureRequest) -> Recorder:
     if rec is None:
         raise PrsError("prs_events: the prs plugin did not start a recorder for this test")
     return rec
+
+
+def _merge_coverage(aggregate: dict, report: dict) -> None:
+    """Union executable identities, never add percentages across tests or keys."""
+    for spec in report.get("specs", []):
+        coverage = spec.get("coverage")
+        if coverage is None:
+            continue
+        target = aggregate.setdefault(spec["spec"], {"scope": "observed_monitor",
+            "states": {"declared": [], "visited": []},
+            "handlers": {"declared": [], "visited": []}, "transitions": []})
+        for category in ("states", "handlers"):
+            for kind in ("declared", "visited"):
+                target[category][kind] = _union(target[category][kind], coverage[category][kind])
+            target[category]["total"] = len(target[category]["declared"])
+            target[category]["covered"] = len(target[category]["visited"])
+        target["transitions"] = _union(target["transitions"], coverage["transitions"])
+
+
+def _union(left: list, right: list) -> list:
+    values = {json.dumps(value, sort_keys=True): value for value in [*left, *right]}
+    return [values[key] for key in sorted(values)]
+
+
+def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: pytest.Config) -> None:
+    destination = config.getoption("prs_coverage")
+    if not destination:
+        return
+    aggregate = config.stash[_COVERAGE]
+    report = {"scope": "pytest_completed_checks", "specs": [
+        {"spec": name, "coverage": coverage} for name, coverage in sorted(aggregate.items())]}
+    path = Path(destination)
+    if not path.is_absolute():
+        path = config.rootpath / path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    terminalreporter.section("P model coverage (union of completed test checks)")
+    for name, coverage in sorted(aggregate.items()):
+        states, handlers = coverage["states"], coverage["handlers"]
+        terminalreporter.write_line(f"{name}: states {states['covered']}/{states['total']}, "
+            f"handlers {handlers['covered']}/{handlers['total']}, "
+            f"observed transitions {len(coverage['transitions'])}")
+    if not aggregate:
+        terminalreporter.write_line("No completed checks supplied model coverage.")
+    terminalreporter.write_line(f"JSON: {path}")

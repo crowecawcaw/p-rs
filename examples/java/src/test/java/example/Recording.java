@@ -17,8 +17,12 @@ final class Recording implements Inventory.Events, AutoCloseable {
     private final StringBuilder lines = new StringBuilder();
     private final Set<String> keys = new HashSet<>();
     private int count;
+    private final Coverage coverage;
 
-    Recording() throws IOException {
+    Recording() throws IOException { this(null); }
+
+    Recording(Coverage coverage) throws IOException {
+        this.coverage = coverage;
         Files.createDirectories(Path.of("target", "prs"));
         directory = Files.createTempDirectory(Path.of("target", "prs"), "recording-").toAbsolutePath();
         log = directory.resolve("events.jsonl");
@@ -39,11 +43,13 @@ final class Recording implements Inventory.Events, AutoCloseable {
         var report = directory.resolve("report.json");
         var output = directory.resolve("console.txt");
         var binary = System.getenv().getOrDefault("PRS_BIN", "prs");
-        var process = new ProcessBuilder(binary, "observe", "--pfiles",
+        var command = new java.util.ArrayList<>(java.util.List.of(binary, "observe", "--pfiles",
                 Path.of("specs", "inventory.p").toAbsolutePath().toString(),
                 "--spec", "InventoryCorrect", "--logs", log.toString(),
                 "--outputDir", directory.resolve("observe").toString(),
-                "--json-report", report.toString()).redirectErrorStream(true).redirectOutput(output.toFile()).start();
+                "--json-report", report.toString()));
+        if (coverage != null) command.add("--coverage");
+        var process = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(output.toFile()).start();
         if (!process.waitFor(30, TimeUnit.SECONDS)) {
             process.destroyForcibly().waitFor();
             throw new AssertionError("prs timed out: " + directory);
@@ -51,9 +57,14 @@ final class Recording implements Inventory.Events, AutoCloseable {
         String diagnostics = "prs exit " + process.exitValue() + "; artifacts: " + directory
                 + "\n" + Files.readString(output)
                 + (Files.exists(report) ? "\n" + Files.readString(report) : "\nNo JSON report");
-        if (process.exitValue() != 0) throw new AssertionError(diagnostics);
+        // Parse and merge a completed observation even when it found a violation.
+        // Missing/malformed reports still fail the test rather than hiding tool errors.
         var result = JSON.readTree(report.toFile());
         var specs = result.path("specs");
+        if (!specs.isArray() || specs.size() != 1)
+            throw new AssertionError("Invalid observation report: " + diagnostics);
+        if (coverage != null) coverage.add(specs);
+        if (process.exitValue() != 0) throw new AssertionError(diagnostics);
         if (result.path("exit_code").asInt(-1) != 0 || specs.size() != 1
                 || !specs.get(0).path("spec").asText().equals("InventoryCorrect")
                 || specs.get(0).path("events_read").asInt(-1) != count

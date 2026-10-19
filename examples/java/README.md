@@ -77,3 +77,10 @@ for child processes, merge their structured logs with a documented ordering rule
 Keep resource cleanup inside the recording's lifetime so teardown events are
 observed, and keep normal application assertions: the monitor only sees emitted
 events and cannot detect missing instrumentation by itself.
+
+The JUnit extension enables `observe --coverage` for each isolated recording and
+merges coverage in a root-scoped `CloseableResource`. At suite end it prints a
+summary and writes `target/coverage/model.json`; Maven displays the summary and CI
+uploads the report. Explicit and jqwik recordings stay outside this suite report.
+Completed observations include the executed prefix of a failing check. Tool failures
+that produce no valid report still fail the test and do not contribute coverage.

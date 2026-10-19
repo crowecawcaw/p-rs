@@ -127,3 +127,9 @@ The fixture stocks tea too, accounting for the gap in this per-product excerpt.
 The complete Go failure includes checker diagnostics and the entire input trace;
 `go test` exits nonzero. See [the observation reference](../../docs/observe.md)
 for the JSONL schema and report format.
+
+The checked fixture enables `observe --coverage` and merges covered identities
+under a mutex. `TestMain` waits for `m.Run()` (including parallel-test cleanups),
+then prints the suite summary and writes `checked/coverage/model.json` when run
+from the module root. Use `go test -v` to see successful-package stdout. Explicit
+and fuzz tests do not join this report. Completed observations include the executed prefix of a failing check.

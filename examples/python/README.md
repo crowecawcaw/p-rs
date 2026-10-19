@@ -149,3 +149,9 @@ do not explore other schedules.
 
 See [the Python integration reference](../../docs/python.md) for selective marks,
 liveness checks, subprocesses, and failure-report details.
+
+The automatic pytest project enables `--prs-coverage=coverage/model.json` in its
+pytest options. The terminal summary prints P model state and handler coverage even
+when pytest captures test output; the JSON contains the union of completed checks,
+including checks that find violations. Each test still gets fresh monitor state.
+Use the same option in your own project; leave it out to keep coverage disabled.

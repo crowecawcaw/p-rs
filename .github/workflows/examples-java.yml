@@ -30,10 +30,11 @@ jobs:
           PRS_BIN: ${{ github.workspace }}/target/debug/prs
         run: mvn --batch-mode --no-transfer-progress test
       - uses: actions/upload-artifact@v5
-        if: failure()
+        if: always()
         with:
           name: java-inventory-diagnostics
           path: |
+            examples/java/target/coverage/
             examples/java/target/prs/
             examples/java/target/surefire-reports/
             examples/java/.jqwik-database

@@ -173,3 +173,32 @@ def test_events_in_fixture_setup_count(project):
     r = run(project, "test_fixture_events.py")
     r.assert_outcomes(failed=1)
     r.stdout.fnmatch_lines(["*test entered while setup is inside*"])
+
+
+def test_coverage_union_is_not_sum():
+    from prs.pytest_plugin import _merge_coverage
+    aggregate = {}
+    def report(visited):
+        return {"specs": [{"spec": "InventoryCorrect", "coverage": {
+            "states": {"declared": ["Inventory.Ready", "Inventory.Empty"], "visited": visited},
+            "handlers": {"declared": [{"state": "Inventory.Ready", "event": "eStocked"}],
+                         "visited": [{"state": "Inventory.Ready", "event": "eStocked"}]},
+            "transitions": [{"source": "Inventory.Empty", "target": "Inventory.Ready"}],
+        }}]}
+    _merge_coverage(aggregate, report(["Inventory.Ready"]))
+    _merge_coverage(aggregate, report(["Inventory.Ready", "Inventory.Empty"]))
+    coverage = aggregate["InventoryCorrect"]
+    assert coverage["states"]["covered"] == coverage["states"]["total"] == 2
+    assert coverage["handlers"]["covered"] == coverage["handlers"]["total"] == 1
+    assert len(coverage["transitions"]) == 1
+
+
+def test_opt_in_coverage_summary_and_json(project):
+    import json
+    result = run(project, "-k", "test_correct or test_fixture", "--prs-coverage=coverage/model.json")
+    result.assert_outcomes(passed=2, deselected=8)
+    result.stdout.fnmatch_lines(["*P model coverage (union of completed test checks)*", "*MutualExclusion: states*", "*JSON:*model.json*"])
+    report = json.loads((project.path / "coverage" / "model.json").read_text())
+    assert report["scope"] == "pytest_completed_checks"
+    assert report["specs"]
+    assert all(spec["coverage"]["states"]["covered"] > 0 for spec in report["specs"])

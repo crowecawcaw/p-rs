@@ -26,6 +26,10 @@ impl Recorder {
     }
 
     pub fn check(&self) -> Result<(), String> {
+        self.check_with_coverage(false)
+    }
+
+    fn check_with_coverage(&self, coverage: bool) -> Result<(), String> {
         let mut sources = prs_syntax::SourceMap::new();
         sources.add("inventory.p", include_str!("../../specs/inventory.p"));
         let analysis = prs_sema::compile(&sources, &Default::default())
@@ -41,9 +45,12 @@ impl Recorder {
         let report = spec.observe(
             &[entries],
             &DomainEvents(&events),
-            &ObserveOptions { assume_sorted: true, ..Default::default() },
+            &ObserveOptions { assume_sorted: true, coverage, ..Default::default() },
             &mut || 0.0,
         );
+        if coverage {
+            publish_coverage(report.coverage.as_ref().ok_or("coverage missing from observe report")?)?;
+        }
         // Include parser errors: Report::error_count() intentionally excludes them.
         if !report.errors.is_empty() {
             return Err(format!("P inventory check failed:\n{:#?}\nDomain events: {events:#?}", report.errors));
@@ -83,5 +90,33 @@ pub fn with_inventory(test: impl FnOnce(&mut TestInventory)) {
     inventory.stock("coffee", 3).unwrap();
     inventory.stock("tea", 2).unwrap();
     test(&mut inventory);
-    recorder.check().unwrap_or_else(|message| panic!("{message}"));
+    recorder.check_with_coverage(true).unwrap_or_else(|message| panic!("{message}"));
+}
+
+// Integration tests run concurrently. Hold the lock across merge, write and print,
+// so the last published report is the union of all completed fixture checks.
+fn publish_coverage(coverage: &prs_checker::observe_coverage::ObserveCoverage) -> Result<(), String> {
+    use std::sync::{Mutex, OnceLock};
+    static SUITE: OnceLock<Mutex<Option<prs_checker::observe_coverage::ObserveCoverage>>> = OnceLock::new();
+    let mut guard = SUITE.get_or_init(|| Mutex::new(None)).lock().map_err(|e| e.to_string())?;
+    if let Some(aggregate) = guard.as_mut() {
+        aggregate.merge(coverage);
+    } else {
+        *guard = Some(coverage.clone());
+    }
+    let aggregate = guard.as_ref().unwrap();
+    let value = serde_json::json!({
+        "scope": "rust_completed_fixture_checks",
+        "specs": [{"spec":"InventoryCorrect", "coverage": aggregate.to_json()}]
+    });
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/coverage/model.json");
+    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    std::fs::write(&path, serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    println!(
+        "P model coverage (union of completed fixture checks so far):\n{}\nJSON: {}",
+        aggregate.render_text(),
+        path.display()
+    );
+    Ok(())
 }

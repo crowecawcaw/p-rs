@@ -13,3 +13,4 @@ prs-syntax = { path = "../../crates/prs-syntax" }
 prs-sema = { path = "../../crates/prs-sema" }
 prs-checker = { path = "../../crates/prs-checker" }
 proptest = "1.11"
+serde_json = "1"
