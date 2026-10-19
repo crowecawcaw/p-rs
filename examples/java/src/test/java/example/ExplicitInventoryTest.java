@@ -1,13 +1,18 @@
 package example;
 
 import java.util.Map;
+import java.nio.file.Path;
+import io.github.crowecawcaw.prs.PrsObserver;
+import io.github.crowecawcaw.prs.ObservationFailure;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExplicitInventoryTest {
+    private static final PrsObserver OBSERVER = PrsObserver.builder()
+            .specFiles(Path.of("specs/inventory.p")).specs("InventoryCorrect").build();
     @Test void reserveAndRelease() throws Exception {
-        try (var recording = new Recording()) {
-            var inventory = new Inventory(recording);
+        try (var recording = OBSERVER.recording("reserve and release")) {
+            var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
             inventory.addProduct("book", 5);
             inventory.reserve("book", "alice", 3);
             assertEquals(2, inventory.available("book"));
@@ -18,16 +23,15 @@ class ExplicitInventoryTest {
     }
 
     @Test void monitorRejectsOverselling() throws Exception {
-        var recording = new Recording();
-        var inventory = new Inventory(recording);
+        var recording = OBSERVER.recording("expected oversell violation");
+        var inventory = new Inventory((sku, event, payload) -> recording.emit(event, sku, payload));
         inventory.addProduct("book", 1);
         // Simulate a broken commit boundary. The test passes only if P detects it.
-        recording.emit("book", "eReserved", Map.of("order", "alice", "units", 2));
-        var failure = assertThrows(AssertionError.class, recording::close);
-        assertTrue(failure.getMessage().contains("reservation exceeds available stock"), failure::getMessage);
-        // prs maps PObserve's exit 2 (also retained in the report) to its BUG exit 1.
-        assertTrue(failure.getMessage().contains("prs exit 1"), failure::getMessage);
-        assertTrue(failure.getMessage().contains("\"exit_code\": 2"), failure::getMessage);
-        assertTrue(failure.getMessage().contains("\"kind\": \"spec_violation\""), failure::getMessage);
+        recording.emit("eReserved", "book", Map.of("order", "alice", "units", 2));
+        var failure = assertThrows(ObservationFailure.class, recording::close);
+        var report = failure.report().orElseThrow();
+        assertEquals(2, report.exitCode());
+        assertEquals("spec_violation", report.errors().get(0).kind());
+        assertTrue(report.errors().get(0).message().contains("reservation exceeds available stock"));
     }
 }
