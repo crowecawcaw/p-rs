@@ -120,10 +120,7 @@ impl ObserveCoverageReport {
     pub fn from_observation(spec_name: &str, report: &crate::observe::Report) -> Result<Self, String> {
         let coverage = report.coverage.as_ref().ok_or("observation has no coverage; enable ObserveOptions.coverage")?;
         Self::from_json(&json!({
-            "exit_code": if report.errors.is_empty() { 0 }
-                else if report.errors.iter().any(|e| !matches!(e.kind, crate::observe::ErrorKind::SpecViolation | crate::observe::ErrorKind::Parser)) { 3 }
-                else if report.errors.iter().any(|e| e.kind == crate::observe::ErrorKind::SpecViolation) { 2 }
-                else { 4 },
+            "exit_code": report.exit_status(),
             "specs": [{"spec": spec_name, "coverage": coverage.to_json(),
                 "events_read": report.metrics.events_read,
                 "partition_keys": report.metrics.partition_keys,
@@ -219,7 +216,7 @@ impl ObserveCoverageReport {
         let failed = self.observations.iter().filter(|v| v["exit_code"] != 0).count();
         let incomplete = self.observations.iter().filter(|v| v["input_complete"] == false).count();
         let unknown = self.observations.iter().filter(|v| !v["input_complete"].is_boolean()).count();
-        let mut out = format!("Observed monitor suite coverage: {} specifications\nDistinct source observations: {}; failed: {failed}; incomplete: {incomplete}; completion unknown: {unknown}\nCoverage union does not imply successful verification.\n", self.specs.len(), self.observations.len());
+        let mut out = format!("Observed monitor suite coverage: {} specifications\nDistinct observation metadata records: {}; failed: {failed}; incomplete: {incomplete}; completion unknown: {unknown}\nCoverage union does not imply successful verification.\n", self.specs.len(), self.observations.len());
         for (spec, coverage) in &self.specs {
             out.push_str(&format!("\n{spec}\n{}", coverage.render_text()));
         }
