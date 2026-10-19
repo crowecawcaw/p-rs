@@ -9,6 +9,11 @@ const l = links("./");
 
 const FEATURES = [
   {
+    title: "One file, runs anywhere",
+    text: "One 4 MB binary parses, type-checks and model-checks P directly: no generated C#, no .NET SDK, no Java for PObserve. Drop it into CI, a container or an agent's sandbox.",
+    link: { label: "Install", href: "#install" },
+  },
+  {
     title: "Model checking",
     text: "Explore message orderings, failures and timing with random, PCT, POS or exhaustive search, on every CPU core. Replay any bug from its schedule file.",
     link: { label: "Overview", href: l.overview },
@@ -97,7 +102,7 @@ export function Home() {
           </div>
         </section>
 
-        <section className="home-install">
+        <section className="home-install" id="install">
           <h2>Install</h2>
           <p>There are no prebuilt binaries yet. With a Rust toolchain:</p>
           <pre className="terminal">
