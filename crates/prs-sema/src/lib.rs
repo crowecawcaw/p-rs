@@ -236,3 +236,28 @@ fn run<'a>(a: &mut Analyzer<'a>, programs: &'a [ast::Program]) -> Result<(), Dia
     a.populate_module_system()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod fingerprint_tests {
+    use super::*;
+
+    fn fingerprint(files: &[(&str, &str)]) -> String {
+        let mut sm = SourceMap::new();
+        for (name, contents) in files {
+            sm.add(*name, *contents);
+        }
+        compile(&sm, &Options::default()).unwrap().program.source_fingerprint.unwrap()
+    }
+
+    #[test]
+    fn source_identity_ignores_paths_and_load_order_but_detects_changed_guards() {
+        let first = "event E: int; spec S observes E { start state A { on E do (n: int) { assert n > 0; } } }";
+        let second = first.replace("n > 0", "n > 1");
+        let helper = "event Other;";
+        assert_eq!(
+            fingerprint(&[("/a/spec.p", first), ("/a/helper.p", helper)]),
+            fingerprint(&[("/b/helper.p", helper), ("/b/spec.p", first)])
+        );
+        assert_ne!(fingerprint(&[("spec.p", first)]), fingerprint(&[("spec.p", &second)]));
+    }
+}

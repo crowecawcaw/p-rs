@@ -191,3 +191,51 @@ itself. A shell pipeline alone cannot reliably supervise long-running children.
 Embedding applications can use `ObserveSession` to push one entry at a time and
 inspect `failed()`, then `finish(eof, now)` to collect a report. Give each selected
 spec its own session and feed all sessions before reading another line.
+
+### Combining coverage across tests and processes
+
+Coverage collection and suite union belong to the core library. A report keeps declared
+and visited states, state/event handlers, and observed transitions. Merge takes their
+set union: repeated inputs do not inflate counts. Counts are derived from the sets.
+It does not run a P model or recheck events.
+
+Save each complete observation with `--coverage --json-report`, then combine reports:
+
+```sh
+prs coverage merge-observe reports/*.json --json-report suite-coverage.json
+```
+
+The command prints a human-readable summary, including uncovered declarations. Use
+`--json` for structured stdout instead. `--json-report` writes structured data without
+mixing JSON into the human-readable stdout. The existing `prs coverage merge` command
+continues to merge scenario coverage and is separate from observed monitor coverage.
+
+Test adapters can avoid an extra subprocess per test by collecting full observation
+reports in memory and passing their JSON array once at suite completion:
+
+```sh
+prs coverage merge-observe --stdin --json-report suite-coverage.json < observations.json
+```
+
+An empty array produces an empty coverage aggregation. Each input must contain coverage;
+missing, malformed, unsupported-version, or internally inconsistent coverage is rejected.
+Merged reports can themselves be merged again. The core Rust API is
+`prs_checker::observe_report::ObserveCoverageReport`: use `from_observation` for an
+in-process `Report`, `from_json` / `from_json_str` for stored reports, `merge` for an
+atomic validated union, and `render_text` / `to_json` to report the result.
+
+The versioned suite format has `scope: "observed_monitor_suite"`, `schema_version: 1`,
+a `specs` array containing each specification's union, and an `observations` array
+retaining distinct source report metadata (exit status, errors, and input completion
+when supplied). A successful merge means only that aggregation succeeded. Failed and
+partial observations still contribute useful coverage; their failure and completion
+metadata remains visible. File observations from older tools may have unknown completion.
+Identical metadata entries are deduplicated, so the observation count is not a test count.
+
+Each specification's coverage carries a SHA-256 fingerprint of all compilation source
+contents, sorted with explicit file-count and length delimiters. Source paths do not
+participate: reports from different checkout directories can merge. Changes to formatting
+or unrelated compilation sources deliberately change the conservative fingerprint.
+Reports for the same specification must have the same fingerprint and identical
+declarations; otherwise the merge fails before changing the result. Regenerate legacy
+reports with `observe --coverage` to obtain current version and fingerprint fields.

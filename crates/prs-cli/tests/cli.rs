@@ -295,9 +295,9 @@ fn merge_observed_reports_without_models_and_reject_bad_input() {
         "input_complete": code == 0, "specs":[{"spec":"Inventory", "errors":[], "coverage":coverage.to_json()}]})
         .to_string()
     };
-    h.add_file("first.json", report(&coverage, 0));
+    h.add_file("first.json", &report(&coverage, 0));
     coverage.visited_states.insert("Inventory.Ready".into());
-    h.add_file("second.json", report(&coverage, 1));
+    h.add_file("second.json", &report(&coverage, 1));
     assert_eq!(
         prs(&mut h, &["coverage", "merge-observe", "first.json", "second.json", "--json-report", "suite.json"]),
         0,
@@ -308,7 +308,7 @@ fn merge_observed_reports_without_models_and_reject_bad_input() {
     assert!(h.stdout.contains("failed: 1; incomplete: 1"));
     assert!(!h.stdout.contains("schema_version"));
     let output = read(&h, "/w/suite.json");
-    h.add_file("again.json", output.clone());
+    h.add_file("again.json", &output);
     assert_eq!(prs(&mut h, &["coverage", "merge-observe", "suite.json", "again.json", "--json"]), 0);
     assert_eq!(
         serde_json::from_str::<serde_json::Value>(&h.stdout).unwrap(),
