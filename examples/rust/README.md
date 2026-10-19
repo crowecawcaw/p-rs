@@ -54,9 +54,9 @@ The cloned event sink works in thread callbacks. `emit` assigns epoch millisecon
 while inserting each event under a lock; `emit_at` allows deterministic timestamps.
 Join worker threads and finish cleanup before `check`, which closes the recording.
 No checks occur in `Drop` or while an application panic unwinds. A monitor failure
-includes readable diagnostics, replay, and the recorded JSON event history. The copied
-[spec](specs/inventory.p) is the same inventory contract as the Python example, with
-no model machines or test drivers. It allows outstanding reservations at the end and
+includes readable diagnostics, replay, and the recorded JSON event history. The
+[spec](specs/inventory.p) links to the [shared spec](../model/PSpec/inventory.p) that
+the P model and the other languages check. It allows outstanding reservations at the end and
 needs only safety checks.
 Ordinary assertions still matter: a monitor cannot detect state changes that the
 application never emits.

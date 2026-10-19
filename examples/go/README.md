@@ -1,8 +1,9 @@
 # Go: inventory reservations
 
 One small inventory service, three ways to check its events with P. These examples
-use the same [InventoryCorrect spec](../python/specs/inventory.p) as Python; there
-are no P models, external services, or sleeps.
+use the same [InventoryCorrect spec](../model/PSpec/inventory.p) as the
+[P model](../model/README.md) and the other languages. They need no external
+services or sleeps.
 The application has an injected event sink, which can also be backed by your
 production event logger. Recording uses the supported
 [`prstest` helper](../../go/README.md), which invokes

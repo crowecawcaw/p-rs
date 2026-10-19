@@ -27,3 +27,6 @@ __pycache__/
 # Example model coverage artifacts
 examples/**/coverage/
 examples/multiprocess/**/artifacts/
+
+# P checker output from the model example
+examples/model/PCheckerOutput/

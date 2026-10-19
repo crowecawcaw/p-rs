@@ -3,7 +3,8 @@
 A small inventory service reserves stock for orders and releases it on cancellation.
 All three examples run the same [application](inventory_app/__init__.py) against the same
 [P spec](specs/inventory.p). The difference is how tests start recording and check
-that spec. These are application integration examples; there is no P model to run.
+that spec. The same spec checks the [P model](../model/README.md) of this service;
+these tests use only the spec and do not need the model.
 
 ## Install and run
 
@@ -25,7 +26,9 @@ Run each project separately so pytest uses that project's configuration:
 ```
 
 On Windows, activate with `examples\.venv\Scripts\activate` and run `cd` and
-`python -m pytest` separately in each example directory. After installation, running
+`python -m pytest` separately in each example directory. `specs/inventory.p` is a
+symbolic link: clone with `git clone -c core.symlinks=true` and Developer Mode on, or
+use WSL. After installation, running
 the examples needs no Rust commands, external services, network access, or sleeps.
 The [Python CI workflow](../../.github/workflows/python.yml) runs all three projects
 against this checkout's package on Linux and macOS with Python 3.9 and 3.13.

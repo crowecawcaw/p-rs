@@ -1,0 +1,9 @@
+<!-- The inventory design: a P model checked against the same spec as the example applications. -->
+<Project>
+<ProjectName>Inventory</ProjectName>
+<InputFiles>
+	<PFile>./PSrc/</PFile>
+	<PFile>./PSpec/</PFile>
+	<PFile>./PTst/</PFile>
+</InputFiles>
+</Project>

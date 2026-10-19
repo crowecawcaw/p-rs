@@ -11,9 +11,9 @@ import (
 )
 
 // Go runs each package from its own directory. All example test packages are one
-// level below the module root; specs live in the shared Python example directory.
+// level below the module root; the spec lives with the shared P model.
 func Config() helper.Config {
-	return helper.Config{SpecFiles: []string{"../../python/specs/inventory.p"}, Specs: []string{"InventoryCorrect"}}
+	return helper.Config{SpecFiles: []string{"../../model/PSpec/inventory.p"}, Specs: []string{"InventoryCorrect"}}
 }
 
 func New(t testing.TB) *helper.Recorder { t.Helper(); return helper.New(t, Config()) }
