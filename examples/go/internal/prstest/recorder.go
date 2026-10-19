@@ -127,8 +127,21 @@ func (r *Recorder) Check(t testing.TB) {
 // any application worker cleanup AFTER this call, so workers finish before check.
 func Checked(t testing.TB) *inventory.Inventory {
 	t.Helper()
+	return checked(t, false)
+}
+
+// CheckedWithCoverage additionally retains each observation for WriteCoverage.
+// Use this only in suites whose TestMain publishes a final report. Generated
+// tests should use Checked so long fuzz campaigns retain no suite reports.
+func CheckedWithCoverage(t testing.TB) *inventory.Inventory {
+	t.Helper()
+	return checked(t, true)
+}
+
+func checked(t testing.TB, coverage bool) *inventory.Inventory {
+	t.Helper()
 	r := New()
-	r.coverage = true
+	r.coverage = coverage
 	t.Cleanup(func() { r.Check(t) })
 	return inventory.New(r.Emit)
 }

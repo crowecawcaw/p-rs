@@ -62,3 +62,27 @@ func TestCoverageWriteErrorIsNotHidden(t *testing.T) {
 		t.Fatal("expected coverage report write error")
 	}
 }
+
+// The helper used by fuzz callbacks must release each observation after checking.
+// Subtests ensure cleanup checks have finished before inspecting suite retention.
+func TestCheckedDoesNotRetainCoverage(t *testing.T) {
+	suiteCoverage.Lock()
+	before := len(suiteCoverage.Reports)
+	suiteCoverage.Unlock()
+	for sequence := 0; sequence < 16; sequence++ {
+		t.Run("generated-sequence", func(t *testing.T) {
+			app := Checked(t)
+			if err := app.Stock("coffee", 3); err != nil {
+				t.Fatal(err)
+			}
+			if err := app.Reserve("coffee", "alice", 2); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	suiteCoverage.Lock()
+	defer suiteCoverage.Unlock()
+	if len(suiteCoverage.Reports) != before {
+		t.Fatalf("ordinary/fuzz checks retained %d suite reports", len(suiteCoverage.Reports)-before)
+	}
+}
