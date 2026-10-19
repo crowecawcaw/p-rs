@@ -51,7 +51,7 @@ The test passes only if the healthy command exits 0 and the overselling command
 exits 1 with the exact structured spec violation, both workers emitted events,
 both containers were still running at detection, and both were removed afterward.
 An unexpected spec failure or setup error fails the test. The
-[CI workflow](../../../../.github/workflows/multiprocess-docker.yml) builds the
+[CI workflow](../../../.github/workflows/multiprocess-docker.yml) builds the
 image, runs these real containers, and uploads all reports even if a test fails.
 
 ## Setup and lifetime
