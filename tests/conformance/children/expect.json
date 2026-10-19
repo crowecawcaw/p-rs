@@ -1,0 +1,11 @@
+{
+  "description": "Events from child-process files are merged with in-process events by timestamp, not by file order.",
+  "requires": ["events_dir"],
+  "expect": {
+    "outcome": "violation",
+    "spec": "InventoryCorrect",
+    "key": "p1",
+    "message": "reservation o1 exceeds available stock",
+    "liveness": false
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "description": "Observed monitor coverage counts states and handlers visited by the check.",
+  "options": { "check_hot": true },
+  "expect": {
+    "outcome": "pass",
+    "coverage": {
+      "EveryReservationShips": {
+        "states": { "covered": 2, "total": 2 },
+        "handlers": { "covered": 2, "total": 3 }
+      }
+    }
+  }
+}

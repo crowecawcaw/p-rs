@@ -1,0 +1,5 @@
+{
+  "description": "strict = false allows a named spec to check no events.",
+  "options": { "specs": ["InventoryCorrect"], "strict": false },
+  "expect": { "outcome": "pass" }
+}

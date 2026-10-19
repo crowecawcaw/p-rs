@@ -1,0 +1,4 @@
+{
+  "description": "check_hot defaults to false: ending in a hot state passes.",
+  "expect": { "outcome": "pass" }
+}

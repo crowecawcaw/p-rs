@@ -1,0 +1,6 @@
+{
+  "description": "unknown_events = ignore drops undeclared names, as upstream PObserve does.",
+  "requires": ["unknown_events"],
+  "options": { "unknown_events": "ignore" },
+  "expect": { "outcome": "pass" }
+}

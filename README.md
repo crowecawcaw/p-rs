@@ -109,6 +109,10 @@ with `testing.T`, subtests, and fuzz callbacks. The
 [Go inventory examples](examples/go/README.md) show explicit checks, cleanup fixtures,
 and native fuzzing. Install the `prs` binary separately.
 
+All helpers follow one set of names, defaults and behaviours:
+[docs/language-support.md](docs/language-support.md), checked by the shared
+[conformance corpus](tests/conformance/README.md).
+
 ## Goals
 
 Make P easier for developers to incorporate into application design and development.

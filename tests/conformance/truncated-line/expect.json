@@ -1,0 +1,5 @@
+{
+  "description": "A truncated last line from a crashed writer is a parser error, never dropped.",
+  "requires": ["events_dir"],
+  "expect": { "outcome": "setup_error", "kind": "parser" }
+}

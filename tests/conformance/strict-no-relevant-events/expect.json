@@ -1,0 +1,9 @@
+{
+  "description": "Named specs default to strict: a spec that checks no event is a setup error, not a pass.",
+  "options": { "specs": ["InventoryCorrect"] },
+  "expect": {
+    "outcome": "setup_error",
+    "kind": "validation",
+    "message": "InventoryCorrect"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "description": "A misspelled event name, declared nowhere, is an error under the default unknown_events policy.",
+  "requires": ["unknown_events"],
+  "expect": {
+    "outcome": "setup_error",
+    "kind": "unknown_event",
+    "message": "eReserverd"
+  }
+}

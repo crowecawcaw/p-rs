@@ -298,3 +298,57 @@ lines), and `stdin:<line>` for live input. The built-in parsers report undeclare
 names; a custom Rust `Parser` does so by overriding `parse_entry`. Rust callers set
 `ObserveOptions.unknown_events` (with `input_names` for locations), for both
 `Spec::observe` and `ObserveSession`.
+
+## Events folder format
+
+Test helpers and emitters exchange events through a folder: each process writes its own
+file there, and `prs observe -l <folder>` (or a helper) checks every file together. The
+[language helpers](language-support.md) use it for events from child processes, and it
+is the shape to use for any producer that writes events for later checking.
+
+**The folder.** Named by the `PRS_EVENTS_DIR` environment variable. A recording creates
+one folder and sets the variable for the processes it starts. Each writing process
+appends to one file of its own, `<name>-<pid>-<random>.jsonl`, where `<name>` is the
+program or service name when known (it shows up in failure reports) and `<random>` keeps
+names unique across containers that share a volume and a pid. A writer never rewrites or
+truncates a file, and never writes another process's file. Readers read every regular
+file in the folder, in name order; they do not depend on the name.
+
+**The line format.** One JSON object per line, ending in `\n`, as the `JsonLines`
+parser above reads it:
+
+```json
+{"key": "L1", "timestamp": "2026-10-18T00:00:00.123456789Z", "event": "eEnter", "payload": {"client": "c1"}, "src": "app/locks.py:42", "seq": 7, "pid": 4120}
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `event` | yes | The P event name. |
+| `key` | yes | Partition key; each key gets its own spec instances. `""` is one shared stream. |
+| `timestamp` | yes | ISO-8601 UTC with nanoseconds (preferred), or an integer of epoch **milliseconds**. |
+| `payload` | no | Matched against the event's payload type: an object for a named tuple, a single value otherwise, or `null` / absent for none. |
+| `src` | no | `file:line` of the emit call, shown in failure reports. |
+| `seq` | no | Emission order within the writing process. |
+| `pid` | no | The writing process. |
+| `at` | no | `true` when the caller set the time (a logical clock), not the wall clock. |
+
+Readers ignore other fields. A writer emits each line with a single append (`O_APPEND`
+or equivalent) and flushes it, so concurrent writers in one process never interleave a
+line and a crash loses at most the line being written.
+
+**Ordering.** Batch observation sorts each key's events by timestamp. Equal timestamps
+keep input order: files in name order, lines in file order. Helpers put the test
+process's own events first. A wall-clock writer never lets its timestamps decrease
+(keep the larger of now and the previous value). Processes on one machine share a
+clock; across machines clock skew can reorder a key's events, so give each key one
+writer, or pass a logical counter as the timestamp.
+
+**When a file is complete.** Nothing in the folder marks completion. The test stops or
+joins every process that writes to the folder before checking it; events written after
+the check are lost. A truncated last line (not valid JSON), from a crashed or
+still-running writer, is a `parser` error (exit 2), never dropped silently.
+
+Undeclared event names in these files follow the same policy as any other input
+([#47](https://github.com/crowecawcaw/p-rs/issues/47)). Checking several folders, or
+folders that are still being written, is
+[#46](https://github.com/crowecawcaw/p-rs/issues/46).

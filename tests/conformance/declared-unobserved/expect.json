@@ -1,0 +1,5 @@
+{
+  "description": "An event declared in the spec files but observed by no selected spec is ignored, even when strict.",
+  "options": { "specs": ["InventoryCorrect"], "strict": true },
+  "expect": { "outcome": "pass" }
+}

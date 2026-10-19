@@ -1,0 +1,11 @@
+{
+  "description": "With check_hot, a key whose spec ends in a hot state is a liveness violation.",
+  "options": { "check_hot": true },
+  "expect": {
+    "outcome": "violation",
+    "spec": "EveryReservationShips",
+    "key": "p2",
+    "message": "Waiting",
+    "liveness": true
+  }
+}
