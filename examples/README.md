@@ -16,5 +16,7 @@ can choose goto targets dynamically. Declared but unreachable states/handlers ma
 remain uncovered, so this is evidence of execution rather than a proof of safety.
 
 For live observation across service boundaries, see [two inventory workers in
-Docker](multiprocess/docker/README.md): both publish committed events, one observer
-checks the merged history, and the supervisor cancels producers on a violation.
+Docker](multiprocess/docker/README.md) or [two local OS
+processes](multiprocess/native/README.md): both publish committed events, one
+observer checks the merged history, and the supervisor cancels producers on a
+violation. Both examples use the same application and monitor.

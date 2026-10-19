@@ -1,0 +1,44 @@
+name: Native multiprocess integration example
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-multiprocess-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: native-multiprocess
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build this checkout's checker
+        run: cargo build -p prs-cli --bin prs --locked
+      - name: Check healthy and faulty subprocess histories
+        env:
+          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+        run: python -m unittest discover -s examples/multiprocess/native -v
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: native-multiprocess-reports-${{ matrix.os }}
+          path: examples/multiprocess/native/artifacts/
+          if-no-files-found: warn
