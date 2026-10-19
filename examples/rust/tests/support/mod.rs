@@ -99,8 +99,8 @@ fn publish_coverage(report: &prs_checker::observe::Report) -> Result<(), String>
     use prs_checker::observe_report::ObserveCoverageReport;
     use std::sync::{Mutex, OnceLock};
     static SUITE: OnceLock<Mutex<ObserveCoverageReport>> = OnceLock::new();
-    let mut aggregate = SUITE.get_or_init(|| Mutex::new(ObserveCoverageReport::default()))
-        .lock().map_err(|e| e.to_string())?;
+    let mut aggregate =
+        SUITE.get_or_init(|| Mutex::new(ObserveCoverageReport::default())).lock().map_err(|e| e.to_string())?;
     aggregate.merge(&ObserveCoverageReport::from_observation("InventoryCorrect", report)?)?;
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/coverage/model.json");
     std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
