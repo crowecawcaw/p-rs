@@ -8,6 +8,8 @@ use std::collections::BTreeMap;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
+pub use prs_checker::observe_inputs::{LiveRead, LiveSource};
+
 /// Console stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stream {
@@ -56,6 +58,61 @@ pub trait Host {
     /// none, and checks then run a single worker.
     fn threads(&self) -> Option<Threads> {
         None
+    }
+    /// Opens live observation inputs (`--live`). The default reads them one after another,
+    /// stdin through [`Host::read_stdin_line`] and files to their current end; hosts that
+    /// can wait on several streams at once override it.
+    fn open_live(&self, inputs: &[LiveInput]) -> Box<dyn LiveSource + '_> {
+        Box::new(SequentialLive { host: self, inputs: inputs.to_vec(), current: 0, lines: None })
+    }
+}
+
+/// One `--live` input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveInput {
+    /// `-`: standard input.
+    Stdin,
+    /// A file, named pipe or other readable path (absolute).
+    Path(PathBuf),
+}
+
+/// [`Host::open_live`]'s default: each input in turn, to its end.
+struct SequentialLive<'a, H: Host + ?Sized> {
+    host: &'a H,
+    inputs: Vec<LiveInput>,
+    current: usize,
+    /// The remaining lines of the current file input.
+    lines: Option<std::vec::IntoIter<String>>,
+}
+
+impl<H: Host + ?Sized> LiveSource for SequentialLive<'_, H> {
+    fn next(&mut self) -> LiveRead {
+        let input = self.current;
+        let line = match self.inputs.get(input) {
+            None => return LiveRead::End { input },
+            Some(LiveInput::Stdin) => self.host.read_stdin_line(),
+            Some(LiveInput::Path(p)) => {
+                if self.lines.is_none() {
+                    match self.host.read_to_string(p) {
+                        Ok(text) => {
+                            let lines: Vec<String> = text.lines().map(String::from).collect();
+                            self.lines = Some(lines.into_iter());
+                        }
+                        Err(e) => return LiveRead::Error { input, error: e.to_string() },
+                    }
+                }
+                Ok(self.lines.as_mut().and_then(|l| l.next()))
+            }
+        };
+        match line {
+            Ok(Some(line)) => LiveRead::Line { input, line },
+            Ok(None) => {
+                self.current += 1;
+                self.lines = None;
+                LiveRead::End { input }
+            }
+            Err(e) => LiveRead::Error { input, error: e.to_string() },
+        }
     }
 }
 

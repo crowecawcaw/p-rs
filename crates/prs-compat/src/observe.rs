@@ -19,11 +19,12 @@ use prs_checker::observe::{
     split_entries, ErrorKind, Metrics, NoScheduling, ObserveError, ObserveOptions, ObserveSession, ObservedEvent,
     ParsedEntry, Parser, Report, Spec, Timestamp, UnknownEvents,
 };
+use prs_checker::observe_inputs::{add_log_paths, observe_live, LogFiles, SequenceMerger};
 use prs_checker::value::{MachineRef, NamedTuple, SlotMap, SlotSet, Value};
 use prs_sema::{MachineKind, PType, Program};
 use serde_json::Value as Json;
 
-use crate::host::{full_path, relative_path, Color, Host, HostExt, Stream};
+use crate::host::{full_path, relative_path, Color, Host, HostExt, LiveInput, Stream};
 use crate::{pproj, project, write_output, Exit};
 
 /// `PObserveExitStatus`.
@@ -87,7 +88,8 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         return cmdline_error(host, &format!("Failed to create output directory ({}).", output_dir));
     }
     let parser = parsers[parser_idx].as_ref();
-    if cfg.stdin && parser.log_delimiter().replace("\\n", "\n") != "\n" {
+    let live = !cfg.live.is_empty();
+    if live && parser.log_delimiter().replace("\\n", "\n") != "\n" {
         return cmdline_error(host, "--stdin requires a newline-delimited parser.");
     }
     let spec_names: Vec<String> = specs.iter().map(|s| s.name().to_string()).collect();
@@ -108,13 +110,14 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
 
     // read the logs
     let cwd = host.cwd();
-    let input_names = if cfg.stdin {
-        vec!["stdin".to_string()]
-    } else {
-        cfg.log_files
+    let display = |f: &Path| if f.starts_with(&cwd) { relative_path(&cwd, f) } else { f.display().to_string() };
+    let input_names: Vec<String> = if live {
+        cfg.live
             .iter()
-            .map(|f| if f.starts_with(&cwd) { relative_path(&cwd, f) } else { f.display().to_string() })
+            .map(|v| if v == "-" { "stdin".to_string() } else { display(&full_path(&cwd, Path::new(v))) })
             .collect()
+    } else {
+        cfg.log_files.iter().map(|f| display(f)).collect()
     };
     let opts = ObserveOptions {
         replay_window: cfg.replay_window,
@@ -151,33 +154,38 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
     // check each spec; with several, each writes its files to a folder of its own
     let several = specs.len() > 1;
     let mut input_complete = false;
-    let mut reports = if cfg.stdin {
+    let mut recorded = String::new();
+    let mut reports = if live {
         let mut strategies: Vec<_> = specs.iter().map(|_| NoScheduling).collect();
         let mut sessions: Vec<_> = specs
             .iter()
             .zip(strategies.iter_mut())
             .map(|(spec, strategy)| ObserveSession::new(spec, opts.clone(), strategy, host.now()))
             .collect();
-        while !sessions.iter().any(|s| s.failed()) {
-            match host.read_stdin_line() {
-                Ok(Some(entry)) => {
-                    let mut clock = || host.now();
-                    for session in &mut sessions {
-                        session.push(&entry, parser, &mut clock);
-                    }
-                }
-                Ok(None) => {
-                    input_complete = true;
-                    break;
-                }
-                Err(e) => {
-                    for session in &mut sessions {
-                        session.input_error(e.to_string());
-                    }
-                    break;
-                }
+        let inputs: Vec<LiveInput> = cfg
+            .live
+            .iter()
+            .map(|v| if v == "-" { LiveInput::Stdin } else { LiveInput::Path(full_path(&cwd, Path::new(v))) })
+            .collect();
+        let mut merger = cfg.sequence.as_deref().map(SequenceMerger::new);
+        let mut source = host.open_live(&inputs);
+        let mut record = |line: &str| {
+            if cfg.record.is_some() {
+                recorded.push_str(line);
+                recorded.push('\n');
             }
-        }
+        };
+        let outcome = observe_live(
+            &mut sessions,
+            parser,
+            source.as_mut(),
+            &opts.input_names,
+            merger.as_mut(),
+            &mut record,
+            &mut || host.now(),
+        );
+        drop(source);
+        input_complete = outcome.complete;
         if !input_complete {
             host.out_line("Live observation stopped at the first error; reports cover the checked prefix.");
         }
@@ -188,8 +196,13 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
     } else {
         Vec::new()
     };
+    if let Some(path) = &cfg.record {
+        if let Err(Exit(c)) = write_output(host, path, &recorded) {
+            return c;
+        }
+    }
     for (index, spec) in specs.iter().enumerate() {
-        let report = if cfg.stdin {
+        let report = if live {
             reports[index].clone()
         } else {
             match &read_error {
@@ -232,7 +245,7 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
         if let Some(coverage) = &report.coverage {
             host.out_line(&coverage.render_text());
         }
-        if cfg.stdin {
+        if live {
             reports[index] = report;
         } else {
             reports.push(report);
@@ -253,7 +266,7 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
     let code = exit_status(&all);
     if let Some(path) = &cfg.json_report {
         let mut text = json_report(&specs, &reports, code);
-        if cfg.stdin {
+        if live {
             let mut json: Json = serde_json::from_str(&text).expect("valid report JSON");
             json["input_complete"] = Json::Bool(input_complete);
             json["stop_reason"] = Json::from(if input_complete { "eof" } else { "error" });
@@ -386,8 +399,17 @@ pub const USAGE: &str = "Usage: p observe [options]
     --stdin
       Read a live newline-delimited TEXT stream from stdin (requires --fail-fast).
       Events must be ordered by timestamp per key. Cannot combine with --logs.
+      Same as --live - (prs extension)
+    --live
+      Live newline-delimited TEXT streams (files, named pipes; - is stdin), read
+      until each ends. Several need --sequence. Requires --fail-fast (prs extension)
+    --sequence
+      Check live lines in the order of this JSON field: a global sequence number
+      starting at 1 with no gaps or duplicates (prs extension)
+    --record
+      Write the checked live lines, in check order, to this file (prs extension)
     --fail-fast
-      Stop reading and exit on the first error (requires --stdin).
+      Stop reading and exit on the first error (requires --stdin or --live).
     --filters, -f
       pobserve event filter exact class names
     --help, -h
@@ -415,7 +437,8 @@ pub const USAGE: &str = "Usage: p observe [options]
     --keys
       Keys to be filtered and verified
     --logs, -l
-      log file to read or directory with multiple log files
+      log file to read or directory with multiple log files. Several files,
+      directories and glob patterns (quoted, ** for subfolders) are a prs extension
     --outputDir, -o
       Output directory
     --parser, -p
@@ -475,7 +498,12 @@ pub struct ObserveConfig {
     pub strict: bool,
     /// `--unknown-events`: event names no P source declares.
     pub unknown_events: UnknownEvents,
-    pub stdin: bool,
+    /// `--live` (and `--stdin`, as `-`): live inputs, as given.
+    pub live: Vec<String>,
+    /// `--sequence`: the field ordering live lines.
+    pub sequence: Option<String>,
+    /// `--record`: file for the checked live lines.
+    pub record: Option<String>,
     pub fail_fast: bool,
     pub parser: Option<String>,
     pub parser_configuration: Option<String>,
@@ -512,11 +540,14 @@ const OPTIONS: &[(&[&str], Arity)] = &[
     (&["--strict"], Arity::Flag),
     (&["--unknown-events"], Arity::One),
     (&["--stdin"], Arity::Flag),
+    (&["--live"], Arity::Variable),
+    (&["--sequence"], Arity::One),
+    (&["--record"], Arity::One),
     (&["--fail-fast"], Arity::Flag),
     (&["--parser", "-p"], Arity::One),
     (&["--parserConfiguration", "-pc"], Arity::One),
     (&["--filters", "-f"], Arity::Variable),
-    (&["--logs", "-l"], Arity::One),
+    (&["--logs", "-l"], Arity::Variable),
     (&["--socket-mode"], Arity::Flag),
     (&["--port"], Arity::One),
     (&["--host"], Arity::One),
@@ -568,7 +599,9 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
         coverage: false,
         strict: false,
         unknown_events: UnknownEvents::Ignore,
-        stdin: false,
+        live: Vec::new(),
+        sequence: None,
+        record: None,
         fail_fast: false,
         parser: None,
         parser_configuration: None,
@@ -635,7 +668,15 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                     spec_given = true;
                 }
                 "--all-specs" => cfg.all_specs = true,
-                "--stdin" => cfg.stdin = true,
+                "--stdin" | "--live" => {
+                    let v = if canon == "--stdin" { "-".to_string() } else { v };
+                    if v == "-" && cfg.live.iter().any(|l| l == "-") {
+                        return Err("stdin can be read only once (--stdin is --live -).".into());
+                    }
+                    cfg.live.push(v);
+                }
+                "--sequence" => cfg.sequence = Some(v),
+                "--record" => cfg.record = Some(v),
                 "--fail-fast" => cfg.fail_fast = true,
                 "--exclude-specs" => {
                     validate_classname(tok, &v)?;
@@ -660,17 +701,7 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
                     validate_classname(tok, &v)?;
                     cfg.filters.push(v);
                 }
-                "--logs" => {
-                    let p = full_path(&host.cwd(), Path::new(&v));
-                    if !host.is_file(&p) && !host.is_dir(&p) {
-                        return Err(format!("The specified log location({}) does not exist.", v));
-                    }
-                    cfg.log_files = if host.is_dir(&p) {
-                        host.read_dir(&p).unwrap_or_default().into_iter().filter(|f| host.is_file(f)).collect()
-                    } else {
-                        vec![p]
-                    };
-                }
+                "--logs" => add_log_paths(&HostFiles(host), &host.cwd(), &v, &mut cfg.log_files)?,
                 "--socket-mode" => socket_mode = true,
                 "--port" => match v.parse::<i32>() {
                     Ok(n) if (1..=65535).contains(&n) => {}
@@ -754,19 +785,44 @@ pub fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<Observe
     if socket_mode {
         return Err("Socket mode (--socket-mode) is not supported by p observe.".into());
     }
-    if cfg.stdin != cfg.fail_fast {
-        return Err("Live observation requires both --stdin and --fail-fast.".into());
+    let live = !cfg.live.is_empty();
+    if live != cfg.fail_fast {
+        return Err("Live observation requires both --stdin and --fail-fast (or --live and --fail-fast).".into());
     }
-    if cfg.stdin && (!cfg.log_files.is_empty() || cfg.input_kind != InputKind::Text) {
-        return Err("--stdin requires TEXT input and cannot be combined with --logs.".into());
+    if live && (!cfg.log_files.is_empty() || cfg.input_kind != InputKind::Text) {
+        return Err("Live input (--stdin, --live) requires TEXT input and cannot be combined with --logs.".into());
     }
-    if cfg.log_files.is_empty() && !cfg.stdin {
+    if cfg.live.len() > 1 && cfg.sequence.is_none() {
+        return Err("Several live inputs need --sequence to order their lines.".into());
+    }
+    if !live && (cfg.sequence.is_some() || cfg.record.is_some()) {
+        return Err("--sequence and --record apply to live input (--live or --stdin).".into());
+    }
+    if cfg.log_files.is_empty() && !live {
         return Err("No log files specified. Please provide log file or directory with --logs parameter.".into());
     }
     if serialized {
         return Err("Input kind SERIALIZEDEVENTS is not supported by p observe.".into());
     }
     Ok(Some(cfg))
+}
+
+/// The host's file system, for expanding `--logs`.
+struct HostFiles<'a>(&'a dyn Host);
+
+impl LogFiles for HostFiles<'_> {
+    fn is_file(&self, path: &Path) -> bool {
+        self.0.is_file(path)
+    }
+    fn is_dir(&self, path: &Path) -> bool {
+        self.0.is_dir(path)
+    }
+    fn read_dir(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
+        self.0.read_dir(path)
+    }
+    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+        self.0.read_to_string(path)
+    }
 }
 
 fn push_key(keys: &mut Vec<String>, k: String) {

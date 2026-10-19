@@ -1,10 +1,11 @@
 //! The native [`Host`]: the real file system, console, clock and threads.
 
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::time::Instant;
 
-use prs_compat::host::{Color, Host, Job, Stream, Threads};
+use prs_compat::host::{Color, Host, Job, LiveInput, LiveRead, LiveSource, Stream, Threads};
 
 pub struct NativeHost {
     start: Instant,
@@ -19,6 +20,9 @@ impl Host for NativeHost {
             0 => Ok(None),
             _ => Ok(Some(line)),
         }
+    }
+    fn open_live(&self, inputs: &[LiveInput]) -> Box<dyn LiveSource + '_> {
+        Box::new(ThreadedLive::new(inputs))
     }
     fn write(&mut self, stream: Stream, text: &str, color: Option<Color>) {
         let use_color = match stream {
@@ -129,6 +133,62 @@ pub fn run_threads<'a>(jobs: Vec<Job<'a>>, main: &mut (dyn FnMut() + 'a)) {
         }
         main();
     });
+}
+
+/// Live inputs read on a thread each. The channel has no buffer, so a reader holds at
+/// most one line that has not been checked yet; readers still blocked when observation
+/// stops end with the process.
+struct ThreadedLive {
+    rx: mpsc::Receiver<LiveRead>,
+}
+
+impl ThreadedLive {
+    fn new(inputs: &[LiveInput]) -> ThreadedLive {
+        let (tx, rx) = mpsc::sync_channel(0);
+        for (input, source) in inputs.iter().cloned().enumerate() {
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                // opening a named pipe waits for its writer
+                let reader: Box<dyn BufRead> = match source {
+                    LiveInput::Stdin => Box::new(io::stdin().lock()),
+                    LiveInput::Path(p) => match std::fs::File::open(&p) {
+                        Ok(f) => Box::new(io::BufReader::new(f)),
+                        Err(e) => {
+                            let _ = tx.send(LiveRead::Error { input, error: format!("cannot open: {}", e) });
+                            return;
+                        }
+                    },
+                };
+                let _ = tx.send(read_lines(input, reader, &tx));
+            });
+        }
+        ThreadedLive { rx }
+    }
+}
+
+/// Sends each line of `reader`; returns how the input ended.
+fn read_lines(input: usize, mut reader: Box<dyn BufRead>, tx: &mpsc::SyncSender<LiveRead>) -> LiveRead {
+    loop {
+        let mut buf = Vec::new();
+        match reader.read_until(b'\n', &mut buf) {
+            Ok(0) => return LiveRead::End { input },
+            Ok(_) => {
+                let line = String::from_utf8_lossy(&buf).into_owned();
+                if tx.send(LiveRead::Line { input, line }).is_err() {
+                    return LiveRead::End { input };
+                }
+            }
+            Err(e) => return LiveRead::Error { input, error: e.to_string() },
+        }
+    }
+}
+
+impl LiveSource for ThreadedLive {
+    fn next(&mut self) -> LiveRead {
+        // every reader sends an End or Error before exiting, so this only fails if the
+        // caller asks for more than that
+        self.rx.recv().unwrap_or(LiveRead::End { input: usize::MAX })
+    }
 }
 
 impl NativeHost {

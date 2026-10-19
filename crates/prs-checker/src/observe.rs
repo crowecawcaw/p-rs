@@ -1048,6 +1048,20 @@ impl<'s> ObserveSession<'s> {
     /// Checks one complete log entry. `false` means stop reading immediately.
     /// Events must be nondecreasing in timestamp within each key; no sorting occurs.
     pub fn push(&mut self, entry: &str, parser: &dyn Parser, clock: &mut dyn FnMut() -> f64) -> bool {
+        let line = self.entries;
+        self.push_at(0, line, entry, parser, clock)
+    }
+
+    /// [`push`](Self::push) for entry `line` (0-based) of input `input`
+    /// ([`ObserveOptions::input_names`]), for messages that locate it.
+    pub fn push_at(
+        &mut self,
+        input: usize,
+        line: usize,
+        entry: &str,
+        parser: &dyn Parser,
+        clock: &mut dyn FnMut() -> f64,
+    ) -> bool {
         if self.failed() {
             return false;
         }
@@ -1060,9 +1074,8 @@ impl<'s> ObserveSession<'s> {
         let events = match parsed {
             Ok(ParsedEntry { events, unknown_events }) => {
                 for name in unknown_events {
-                    let line = self.entries - 1;
                     let (opts, prog) = (&self.opts, self.spec.prog);
-                    let first = self.unknown.note(prog, &name, || entry_location(opts, parser, 0, line));
+                    let first = self.unknown.note(prog, &name, || entry_location(opts, parser, input, line));
                     if first && self.opts.unknown_events == UnknownEvents::Error {
                         // stop at the first unknown name: report it with what is known so far
                         let error = self.unknown.seen.last().expect("just noted").error();
