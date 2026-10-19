@@ -1,8 +1,9 @@
 # Java inventory integration
 
 Three scenarios check one real inventory service with a P safety monitor, using
-the supported [Java helpers](../../java/README.md). The P file contains only event
-declarations and a monitor; no P model or test driver is involved.
+the supported [Java helpers](../../java/README.md). The
+[spec](specs/inventory.p) links to the [shared spec](../model/PSpec/inventory.p) that
+the [P model](../model/README.md) also checks; these tests use only the spec.
 
 Requires JDK 17+, Maven 3.9.9, and the repository's Rust toolchain. From the root:
 
