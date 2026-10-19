@@ -40,10 +40,9 @@ jobs:
         with:
           name: java-inventory-diagnostics
           path: |
+            java/prs-emit/target/surefire-reports/
             java/prs-test-core/target/surefire-reports/
-            java/prs-test-core/target/prs/
             java/prs-junit5/target/surefire-reports/
-            java/prs-junit5/target/prs/
             examples/java/target/coverage/
             examples/java/target/prs/
             examples/java/target/surefire-reports/

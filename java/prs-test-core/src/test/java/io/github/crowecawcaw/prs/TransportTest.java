@@ -11,6 +11,7 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("deprecation")
 class TransportTest {
     @TempDir Path temporary;
 
@@ -22,7 +23,7 @@ class TransportTest {
     }
 
     private Recording recording(Path executable) {
-        return PrsObserver.builder().binary(executable.toString()).specFiles(Path.of("spec.p"))
+        return PrsObserver.builder().config(PrsConfig.NONE).binary(executable.toString()).specFiles(ObserverTest.spec())
                 .specs("Spec").artifacts(temporary.resolve("artifacts")).build().recording("fake transport");
     }
 
@@ -82,7 +83,7 @@ class TransportTest {
                     + "  if [ \"$1\" = '--json-report' ]; then shift; report=$1; fi\n  shift\ndone\n"
                     + "printf '%s' '" + json + "' > \"$report\"\nexit " + exit + "\n");
             String[] specs = mutation.equals("one strict spec empty") ? new String[]{"Spec", "Another"} : new String[]{"Spec"};
-            var events = PrsObserver.builder().binary(binary.toString()).specFiles(Path.of("spec.p"))
+            var events = PrsObserver.builder().config(PrsConfig.NONE).binary(binary.toString()).specFiles(ObserverTest.spec())
                     .specs(specs).artifacts(temporary.resolve("artifacts")).build().recording("malformed metrics");
             events.emit("event", "key");
             var failure = assertThrows(ObservationFailure.class, events::close, mutation);
@@ -97,8 +98,9 @@ class TransportTest {
         var binary = executable("report=''\nwhile [ \"$#\" -gt 0 ]; do\n"
                 + "  if [ \"$1\" = '--json-report' ]; then shift; report=$1; fi\n  shift\ndone\n"
                 + "printf '%s' '" + json + "' > \"$report\"\nexit 0\n");
-        var events = PrsObserver.builder().binary(binary.toString()).specFiles(Path.of("spec.p"))
+        var events = PrsObserver.builder().config(PrsConfig.NONE).binary(binary.toString()).specFiles(ObserverTest.spec())
                 .specs("Spec").strict(false).artifacts(temporary.resolve("artifacts")).build().recording("empty opt out");
+        events.emit("event", "key"); // with no events at all, the checker would not run
         assertDoesNotThrow(events::close);
         assertEquals(0, events.report().orElseThrow().exitCode());
     }
