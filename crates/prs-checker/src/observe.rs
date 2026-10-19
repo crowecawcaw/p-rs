@@ -321,16 +321,28 @@ pub struct ObserveOptions {
     pub check_hot: bool,
     /// Collect observed monitor state and handler coverage.
     pub coverage: bool,
+    /// Reject a completed observation with no successfully checked relevant events.
+    /// Applied independently to every selected spec, after key filtering.
+    pub strict: bool,
 }
 
 impl Default for ObserveOptions {
     fn default() -> Self {
-        ObserveOptions { replay_window: 100, assume_sorted: false, keys: Vec::new(), check_hot: false, coverage: false }
+        ObserveOptions {
+            replay_window: 100,
+            assume_sorted: false,
+            keys: Vec::new(),
+            check_hot: false,
+            coverage: false,
+            strict: false,
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
+    /// Strict observation validation failed (no checked events or incomplete input).
+    Validation,
     /// A spec assertion failed (`PAssertionFailureException`).
     SpecViolation,
     /// An event older than its predecessor (`PObserveEventOutOfOrderException`).
@@ -388,6 +400,7 @@ pub struct Metrics {
     pub spec_errors: u64,
     pub out_of_order_errors: u64,
     pub unknown_errors: u64,
+    pub validation_errors: u64,
     pub events_read: u64,
     /// Per observed event type, in the order upstream prints them.
     pub events: Vec<EventMetrics>,
@@ -413,13 +426,14 @@ pub struct Report {
 }
 
 impl Report {
-    /// PObserve-compatible status: 0 success, 2 assertion, 3 internal/ordering,
-    /// or 4 parser errors. Shared by file reports and CLI observation.
+    /// PObserve-compatible status: 0 success, 2 safety/liveness violation,
+    /// 3 validation/ordering/internal error, or 4 parser error. A secondary
+    /// strict validation failure does not mask a violation from another spec.
     pub fn exit_status(&self) -> i32 {
         Self::errors_exit_status(&self.errors)
     }
 
-    /// Status for combined errors from multiple selected specifications.
+    /// Status for a combined set of spec errors, using [`Self::exit_status`] priority.
     pub fn errors_exit_status(errors: &[ObserveError]) -> i32 {
         if errors.is_empty() {
             0
@@ -427,14 +441,33 @@ impl Report {
             3
         } else if errors.iter().any(|e| e.kind == ErrorKind::SpecViolation) {
             2
+        } else if errors.iter().any(|e| e.kind == ErrorKind::Validation) {
+            3
         } else {
             4
         }
     }
 
+    fn require_events(&mut self, spec: &str) {
+        if self.errors.is_empty() && self.metrics.verified_events() == 0 {
+            self.metrics.validation_errors += 1;
+            let message = format!("Strict observation: spec '{}' checked no relevant events after key filtering; check instrumentation, spec selection, and key filters.", spec);
+            self.errors.push(ObserveError {
+                kind: ErrorKind::Validation,
+                detail: message.clone(),
+                message,
+                replay: None,
+                cause: None,
+            });
+        }
+    }
+
     /// Errors counted in the final summary (all but parser errors).
     pub fn error_count(&self) -> u64 {
-        self.metrics.spec_errors + self.metrics.out_of_order_errors + self.metrics.unknown_errors
+        self.metrics.spec_errors
+            + self.metrics.out_of_order_errors
+            + self.metrics.unknown_errors
+            + self.metrics.validation_errors
     }
 }
 
@@ -731,6 +764,9 @@ impl<'p> Spec<'p> {
                 }
             }
         }
+        if opts.strict {
+            report.require_events(self.name());
+        }
         report.metrics.elapsed_ms = ((clock() - start) * 1000.0).round() as i64;
         report
     }
@@ -790,6 +826,7 @@ impl<'s> ObserveSession<'s> {
             ErrorKind::SpecViolation => self.report.metrics.spec_errors += 1,
             ErrorKind::OutOfOrder => self.report.metrics.out_of_order_errors += 1,
             ErrorKind::Unknown => self.report.metrics.unknown_errors += 1,
+            ErrorKind::Validation => self.report.metrics.validation_errors += 1,
         }
         self.report.errors.push(error);
     }
@@ -877,7 +914,18 @@ impl<'s> ObserveSession<'s> {
 
     /// Finishes a checked prefix. Hot-state liveness checks run only for actual EOF,
     /// never when a sibling spec failed or the input transport failed.
-    pub fn finish(mut self, eof: bool, now: f64) -> Report {
+    pub fn finish(self, eof: bool, now: f64) -> Report {
+        self.finish_inner(eof, false, now)
+    }
+
+    /// Finish a prefix because another session already reported an error. The caller
+    /// must preserve that error in the overall result; do not add secondary strict
+    /// validation errors or run end-of-input liveness checks.
+    pub fn finish_after_failure(self, now: f64) -> Report {
+        self.finish_inner(false, true, now)
+    }
+
+    fn finish_inner(mut self, eof: bool, sibling_failed: bool, now: f64) -> Report {
         if !self.failed() && eof {
             for (key, (mon, _, events)) in &self.keys {
                 if self.opts.check_hot {
@@ -903,6 +951,19 @@ impl<'s> ObserveSession<'s> {
                     }
                 }
                 self.report.metrics.verified_keys += 1;
+            }
+        }
+        if self.opts.strict && !self.failed() {
+            if eof {
+                self.report.require_events(self.spec.name());
+            } else if !sibling_failed {
+                self.fail(ObserveError {
+                    kind: ErrorKind::Validation,
+                    message: "Strict observation: input ended before EOF; only a prefix was checked.".into(),
+                    detail: "Incomplete observation input".into(),
+                    replay: None,
+                    cause: None,
+                });
             }
         }
         if let (Some(coverage), Some(tables), Some(runtime_coverage)) =

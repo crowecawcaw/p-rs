@@ -45,7 +45,7 @@ impl Recorder {
         let report = spec.observe(
             &[entries],
             &DomainEvents(&events),
-            &ObserveOptions { assume_sorted: true, coverage, ..Default::default() },
+            &ObserveOptions { assume_sorted: true, coverage, strict: true, ..Default::default() },
             &mut || 0.0,
         );
         if coverage {

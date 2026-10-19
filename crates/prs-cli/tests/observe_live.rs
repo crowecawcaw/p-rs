@@ -139,3 +139,19 @@ fn partitions_have_fresh_state_and_bounded_replays() {
     assert!(!report.contains("\"event\": \"Stock\""));
     assert!(report.contains("\"event\": \"Take\""));
 }
+
+#[test]
+fn strict_live_validates_at_eof_without_implying_hot_checks() {
+    let (code, output, report) = run("", true, &["--strict", "--coverage"]);
+    assert_eq!(code, 2, "{output}");
+    assert!(report.contains("\"kind\": \"validation\""));
+    assert!(report.contains("\"input_complete\": true"));
+    let (code, output, _) = run("{\"event\":\"Stock\",\"payload\":1}\n", true, &["--strict"]);
+    assert_eq!(code, 0, "{output}");
+    // No Stock events for Other: its strict check must not mask Inventory's violation
+    // or wait for EOF after the first failing event.
+    let (code, output, report) = run("{\"event\":\"Take\",\"payload\":1}\n", false, &["--strict", "--spec", "Other"]);
+    assert_eq!(code, 1, "{output}");
+    assert!(report.contains("spec_violation"));
+    assert!(!report.contains("\"kind\": \"validation\""));
+}

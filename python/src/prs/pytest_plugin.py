@@ -35,6 +35,8 @@ _COVERAGE_SUMMARY = pytest.StashKey[tuple]()
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     group = parser.getgroup("prs", "checking P specs (p-rs)")
+    group.addoption("--prs-strict", action="store_true", default=False,
+                    help="Require relevant events for every selected P spec in each checked test.")
     group.addoption("--prs-coverage", metavar="PATH", default=None,
                     help="Print suite P model coverage and write its union as JSON to PATH.")
     group.addoption(
@@ -112,7 +114,7 @@ def _settings(item: pytest.Item) -> Optional[dict]:
             skip.extend([s] if isinstance(s, str) else s)
         if "liveness" in m.kwargs:
             liveness = bool(m.kwargs["liveness"])
-    return {"exclude": [*cfg.exclude, *skip], "liveness": liveness, "files": cfg.files()}
+    return {"exclude": [*cfg.exclude, *skip], "liveness": liveness, "files": cfg.files(), "strict": cfg.strict}
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -132,6 +134,7 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         liveness=settings["liveness"] if settings else False,
         output_root=_output_root(item.config),
         coverage=bool(item.config.getoption("prs_coverage")),
+        strict=bool(item.config.getoption("prs_strict")) or bool(settings and settings["strict"]),
     )
     rec._plugin_checks = settings is not None  # type: ignore[attr-defined]
     item.stash[_RECORDER] = rec.start()

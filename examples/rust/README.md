@@ -114,3 +114,7 @@ The shared report format retains observation errors and checks source compatibil
 It writes `target/coverage/model.json` under a mutex and prints the cumulative union (`cargo test -- --nocapture` shows it).
 The final write contains all completed fixture checks; a panic before checking
 leaves partial coverage. Explicit and generated tests do not join this report.
+
+The global test setup opts into strict observation: every checked test must emit
+at least one relevant event for each selected spec. This catches accidentally
+disabled instrumentation; it does not infer arbitrary missing events.

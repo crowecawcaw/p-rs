@@ -73,6 +73,7 @@ func (r *Recorder) Verify(t testing.TB) error {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, "observe", "-pf", spec,
 		"--spec", "InventoryCorrect", "-l", logs, "--outputDir", filepath.Join(dir, "report"), "--json-report", reportPath)
+	cmd.Args = append(cmd.Args, "--strict")
 	if r.coverage {
 		cmd.Args = append(cmd.Args, "--coverage")
 	}

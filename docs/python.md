@@ -225,3 +225,15 @@ Tests retain independent monitor state. Skipped checks, tests whose bodies fail
 before checking, and tests emitting no events do not contribute coverage.
 This measures P execution rather than Python line coverage. For explicit recording,
 `Recorder(coverage=True)` exposes the check's JSON as `coverage_report` after checking.
+
+### Strict integration checks
+
+Set `strict = true` under `[tool.prs]`, or run `pytest --prs-strict`, to require
+at least one successfully checked relevant event for every selected spec in each
+checked test. This includes tests that emit no events; ordinary tests without
+instrumentation should use `@pytest.mark.prs(skip=True)` or marked mode.
+Explicit checks support `check_spec(..., strict=True)`,
+`check_events(..., strict=True)`, and `Recorder(strict=True)`. Strict setup failures
+raise `PrsError`; application safety violations remain `SpecViolation`.
+The default remains permissive. Strict mode does not infer arbitrary missing events
+or imply liveness checks.

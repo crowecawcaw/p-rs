@@ -65,3 +65,32 @@ fn observed_coverage_unions_real_monitor_runs() {
     assert!(!left.render_text().contains("Unvisited state:"));
     assert!(!left.render_text().contains("Uncovered handler:"));
 }
+
+#[test]
+fn strict_live_prefix_cannot_be_success_without_eof() {
+    use prs_checker::observe::{ErrorKind, NoScheduling, ObserveOptions, ObserveSession, Spec};
+    let mut sm = prs_syntax::SourceMap::new();
+    sm.add("spec.p", "event e; spec S observes e { start state Ready { on e do {} } }");
+    let analysis = prs_sema::compile(&sm, &prs_sema::Options::default()).unwrap();
+    let spec = Spec::new(&analysis.program, "S").unwrap();
+    let opts = ObserveOptions { strict: true, coverage: true, ..Default::default() };
+    let mut strategy = NoScheduling;
+    let session = ObserveSession::new(&spec, opts.clone(), &mut strategy, 0.0);
+    let report = session.finish(false, 0.0);
+    assert_eq!(report.errors.len(), 1);
+    assert_eq!(report.errors[0].kind, ErrorKind::Validation);
+    assert!(report.errors[0].message.contains("before EOF"));
+    let suite = prs_checker::observe_report::ObserveCoverageReport::from_observation("S", &report).unwrap();
+    let metadata = &suite.to_json()["observations"][0];
+    assert_eq!(metadata["exit_code"], 3);
+    assert_eq!(metadata["specs"][0]["errors"][0]["kind"], "validation");
+    assert!(metadata["specs"][0]["errors"][0]["message"].as_str().unwrap().contains("before EOF"));
+    let roundtrip = prs_checker::observe_report::ObserveCoverageReport::from_json(&suite.to_json()).unwrap();
+    assert_eq!(roundtrip.to_json(), suite.to_json());
+    let mut strategy = NoScheduling;
+    let session = ObserveSession::new(&spec, opts, &mut strategy, 0.0);
+    assert!(session.finish_after_failure(0.0).errors.is_empty());
+    let mut strategy = NoScheduling;
+    let session = ObserveSession::new(&spec, ObserveOptions::default(), &mut strategy, 0.0);
+    assert!(session.finish(false, 0.0).errors.is_empty());
+}

@@ -117,11 +117,13 @@ class Recorder:
         liveness: bool = False,
         output_root: Optional[str] = None,
         coverage: bool = False,
+        strict: bool = False,
     ):
         self.specs: List[str] = list(specs)
         self.spec_files = list(spec_files) if spec_files is not None else None
         self.exclude: List[str] = list(exclude)
         self.liveness = liveness
+        self.strict = strict
         self.coverage = coverage
         self.coverage_report: Optional[dict] = None
         #: Specs whose violations this recorder ignores (broken on purpose inside
@@ -257,7 +259,7 @@ class Recorder:
         """Runs prs over the events and returns the violations found (empty if none)."""
         lines = [e.to_json() for e in self._events] + [line for line, _ in self._external_lines()]
         try:
-            if not lines:
+            if not lines and not self.strict:
                 return []  # nothing happened: every spec still holds
             return self._run(lines)
         finally:
@@ -304,6 +306,8 @@ class Recorder:
             cmd.append("--check-hot")
         if self.coverage:
             cmd.append("--coverage")
+        if self.strict:
+            cmd.append("--strict")
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=workdir)
         output = proc.stdout.decode("utf-8", errors="replace")
         with open(os.path.join(workdir, "prs-output.txt"), "w", encoding="utf-8") as f:
@@ -326,10 +330,14 @@ class Recorder:
         __tracebackhide__ = True
         violations: List[SpecViolation] = []
         bad_lines: Dict[str, str] = {}
+        validation_errors: List[str] = []
         for s in report.get("specs", []):
             spec = s["spec"]
             for err in s.get("errors", []):
                 kind = err.get("kind")
+                if kind == "validation":
+                    validation_errors.append(err.get("message", "Strict observation failed"))
+                    continue
                 if kind == "parser":
                     bad_lines.setdefault(err.get("message", ""), err.get("cause") or "")
                     continue
@@ -338,6 +346,8 @@ class Recorder:
                 violations.append(_violation(spec, err, workdir))
         if bad_lines:
             raise PrsError(_payload_error(bad_lines, workdir))
+        if validation_errors and not violations:
+            raise PrsError("\n".join(validation_errors) + f"\nOutput: {workdir}")
         if not violations:
             shutil.rmtree(workdir, ignore_errors=True)
         return violations

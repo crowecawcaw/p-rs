@@ -84,7 +84,7 @@ The example invokes the equivalent of:
 
 ```sh
 prs observe --pfiles examples/multiprocess/specs/inventory.p \
-  --spec InventoryCorrect --stdin --fail-fast --coverage \
+  --spec InventoryCorrect --stdin --fail-fast --strict --coverage \
   --json-report report.json --outputDir observe
 ```
 
@@ -147,3 +147,6 @@ coverage declarations and visited elements under `specs[0].coverage`, allowing C
 to inspect what ran and what did not. This measures the P monitor exercised by
 the actual history; it does not measure application code coverage or all possible
 P paths, schedules, or distributed failures.
+
+The observer also uses `--strict`, so a completed stream containing no checked
+relevant events fails instead of silently passing.

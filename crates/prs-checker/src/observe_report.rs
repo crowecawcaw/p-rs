@@ -128,6 +128,7 @@ impl ObserveCoverageReport {
                 "errors": report.errors.iter().map(|e| json!({"kind": match e.kind {
                     crate::observe::ErrorKind::SpecViolation => "spec_violation",
                     crate::observe::ErrorKind::Parser => "parser",
+                    crate::observe::ErrorKind::Validation => "validation",
                     crate::observe::ErrorKind::OutOfOrder => "out_of_order",
                     _ => "unknown",
                 },
@@ -335,6 +336,10 @@ mod tests {
         assert_eq!(suite.observations[0]["specs"][0]["errors"][0]["kind"], "spec_violation");
         report.errors[0].kind = ErrorKind::Parser;
         assert_eq!(ObserveCoverageReport::from_observation("Spec", &report).unwrap().observations[0]["exit_code"], 4);
+        report.errors[0].kind = ErrorKind::Validation;
+        let strict = ObserveCoverageReport::from_observation("Spec", &report).unwrap();
+        assert_eq!(strict.observations[0]["exit_code"], 3);
+        assert_eq!(strict.observations[0]["specs"][0]["errors"][0]["kind"], "validation");
         report.errors[0].kind = ErrorKind::Unknown;
         assert_eq!(ObserveCoverageReport::from_observation("Spec", &report).unwrap().observations[0]["exit_code"], 3);
     }

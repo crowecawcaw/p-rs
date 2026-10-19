@@ -73,7 +73,7 @@ The service accepts an event sink, keeping transport out of its business logic.
 in the same SQLite transaction as the inventory change and publishes only after
 commit. A shared outbox sequence captures commit order across workers. The
 supervisor buffers arrivals by that sequence before flushing newline-delimited
-JSON to `prs observe --stdin --fail-fast --coverage --json-report ...`.
+JSON to `prs observe --stdin --fail-fast --strict --coverage --json-report ...`.
 This ordering matters because two stdout pipes can deliver committed events in
 a different order. Rejected operations emit no state-change event. The monitor
 checks the shared product key, so it can detect a violation caused by actions
@@ -110,3 +110,6 @@ than exhaustive P model paths. See [the coverage format](../../../docs/observe.m
 The [native workflow](../../../.github/workflows/native-multiprocess.yml) builds
 this checkout's checker, executes both scenarios, and uploads reports even on a
 test failure. `MULTIPROCESS_ARTIFACTS` can set the test suite's artifact parent.
+
+The observer also uses `--strict`, so a completed stream containing no checked
+relevant events fails instead of silently passing.

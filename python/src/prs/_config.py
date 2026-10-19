@@ -33,6 +33,8 @@ class Config:
     root: str = "."
     #: The pyproject.toml, if one had a [tool.prs] table.
     path: Optional[str] = None
+    #: Require relevant events for every selected spec in each checked test.
+    strict: bool = False
 
     def files(self) -> List[str]:
         """The P files, expanded and sorted."""
@@ -60,13 +62,16 @@ def parse(table: dict, root: str, path: Optional[str]) -> Config:
             raise ConfigError(f"[tool.prs] {name} must be a list of strings")
         return v
 
-    unknown = set(table) - {"spec_files", "exclude", "mode"}
+    unknown = set(table) - {"spec_files", "exclude", "mode", "strict"}
     if unknown:
         raise ConfigError(f"[tool.prs]: unknown setting(s) {', '.join(sorted(unknown))}")
     mode = table.get("mode", "auto")
     if mode not in MODES:
         raise ConfigError(f"[tool.prs] mode must be one of {', '.join(MODES)}, not {mode!r}")
-    return Config(str_list("spec_files"), str_list("exclude"), mode, root, path)
+    strict = table.get("strict", False)
+    if not isinstance(strict, bool):
+        raise ConfigError("[tool.prs] strict must be a boolean")
+    return Config(str_list("spec_files"), str_list("exclude"), mode, root, path, strict)
 
 
 def load(start: str) -> Config:
@@ -76,7 +81,7 @@ def load(start: str) -> Config:
     cfg = _load(os.path.abspath(start))
     env = os.environ.get(SPEC_FILES_ENV)
     if env:
-        cfg = Config([p for p in env.split(os.pathsep) if p], cfg.exclude, cfg.mode, os.getcwd(), cfg.path)
+        cfg = Config([p for p in env.split(os.pathsep) if p], cfg.exclude, cfg.mode, os.getcwd(), cfg.path, cfg.strict)
     return cfg
 
 

@@ -41,10 +41,11 @@ class check_spec:
     No spec names means every spec in the spec files. Raises :class:`SpecViolation`
     (an ``AssertionError``) at the end of the block, so the test fails on this line.
     ``liveness=True`` also fails if a spec is left in a hot state.
+    ``strict=True`` requires relevant events for every selected spec.
     """
 
-    def __init__(self, *specs: str, spec_files: Optional[Sequence[str]] = None, liveness: bool = False):
-        self.recorder = Recorder(specs, spec_files=spec_files, liveness=liveness)
+    def __init__(self, *specs: str, spec_files: Optional[Sequence[str]] = None, liveness: bool = False, strict: bool = False):
+        self.recorder = Recorder(specs, spec_files=spec_files, liveness=liveness, strict=strict)
 
     def __enter__(self) -> Recorder:
         return self.recorder.start()
@@ -122,6 +123,7 @@ def check_events(
     *specs: str,
     spec_files: Optional[Sequence[str]] = None,
     liveness: bool = False,
+    strict: bool = False,
 ) -> None:
     """Checks a hand-written list of events: unit tests for a spec itself::
 
@@ -135,6 +137,6 @@ def check_events(
     list order. These events do not reach any enclosing check.
     """
     __tracebackhide__ = True
-    rec = Recorder(specs, spec_files=spec_files, liveness=liveness)
+    rec = Recorder(specs, spec_files=spec_files, liveness=liveness, strict=strict)
     rec._events.extend(events_from_dicts(events))
     rec.check()
