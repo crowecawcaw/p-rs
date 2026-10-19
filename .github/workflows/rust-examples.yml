@@ -1,0 +1,37 @@
+name: Rust integration examples
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-examples-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Format
+        run: cargo fmt --manifest-path examples/rust/Cargo.toml --all -- --check
+      - name: Lint
+        run: cargo clippy --manifest-path examples/rust/Cargo.toml --all-targets --locked -- -D warnings
+      - name: Run all three integration setups
+        run: cargo test --manifest-path examples/rust/Cargo.toml --locked
