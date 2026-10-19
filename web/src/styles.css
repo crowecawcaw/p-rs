@@ -109,7 +109,7 @@ input[type="number"] { width: 100%; }
   display: flex; align-items: center; gap: 12px; height: 52px; flex-shrink: 0;
   padding: 0 calc(var(--g) - 4px) 0 var(--g); background: var(--panel); border-bottom: 1px solid var(--border);
 }
-.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.brand { text-decoration: none; color: var(--fg); display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
 .logo {
   display: inline-grid; place-items: center; height: 28px; padding: 0 8px; border-radius: 7px;
   background: var(--accent); color: var(--accent-fg); font: 700 14px var(--mono); letter-spacing: -0.02em;
@@ -332,6 +332,7 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
   .out-tab.gear { margin-left: auto; color: var(--muted); padding: 0 10px; }
   .out-tab.gear.active { color: var(--accent); border-bottom-color: var(--accent); }
   .gh-text { display: none; }
+  .docs-link { white-space: nowrap; padding: 0 6px; }
   .top .gh { min-width: 44px; padding: 0; }
   .status-line { padding-top: 8px; }
   .goto-long { display: none; }
