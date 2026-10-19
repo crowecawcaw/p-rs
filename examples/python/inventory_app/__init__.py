@@ -1,4 +1,4 @@
-"""A small in-memory service; both examples test this same application."""
+"""A small in-memory service; all three examples test this same application."""
 
 from prs import emit
 
