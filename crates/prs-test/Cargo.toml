@@ -14,3 +14,9 @@ prs-sema = { workspace = true }
 prs-checker = { workspace = true }
 prs-compat = { workspace = true }
 serde_json = { workspace = true }
+prs-emit = { workspace = true }
+serde = "1"
+regex = { version = "1", default-features = false, features = ["std", "unicode"] }
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }

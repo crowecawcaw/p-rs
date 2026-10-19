@@ -1,105 +1,177 @@
 # prs-test
 
-Supported in-process P monitor integration for native Rust tests. Compile a spec,
-connect its recorder to existing application events, and explicitly check after setup,
-the test body, and cleanup. No CLI subprocess, custom parser, or generated P model is
-required. The runnable [inventory examples](../../examples/rust) show explicit checks,
-a shared checked fixture, and proptest sequences.
+Check the events your Rust application emits against P specs, from ordinary `#[test]`s.
+Checking runs in process (no `prs` binary). The runnable
+[inventory examples](../../examples/rust) show a fixture, explicit checks, a negative
+control and proptest sequences. Application code can emit through
+[`prs-emit`](../prs-emit), which also writes production logs for `prs observe`.
 
-These crates are currently distributed from source. In another repository, pin the
-repository Git revision in your dev-dependency; the published `p-rs` crate is a placeholder.
+Both crates ship from source for now; pin a Git revision:
 
 ```toml
 [dev-dependencies]
 prs-test = { git = "https://github.com/crowecawcaw/p-rs", rev = "<commit>" }
 ```
 
+## Configure once
+
+```toml
+# Cargo.toml of the crate under test. Paths are relative to this file.
+[package.metadata.prs]
+spec_files = ["specs"]           # files, globs, or folders of .p files
+# specs = ["InventoryCorrect"]   # default: every spec in spec_files
+# exclude = []                   # left out of the default selection
+# strict = true                  # default: true when specs are named
+# check_hot = false
+# unknown_events = "error"       # or "warn", "ignore"
+# coverage = "target/coverage/monitor.json"
+# mode = "auto"                  # "off" disables Model::check
+```
+
+`Model::load()` reads it. `Model::from_files(paths)` and `Model::compile(&[(name, text)])`
+(for `include_str!`) set up explicitly. Builders override any setting:
+`.specs([..])`, `.exclude([..])`, `.strict(..)`, `.check_hot(..)`, `.unknown_events(..)`,
+`.coverage(path)`. Compile once and share: a `Model` is cheap to clone.
+
+| Variable | Meaning |
+| --- | --- |
+| `PRS_SPEC_FILES` | Spec files (`PATH`-separated), overriding `spec_files` |
+| `PRS_COVERAGE` | Suite coverage file, overriding `coverage` (`.coverage()` wins) |
+| `PRS_MODE` | `off` makes `Model::check` run the body without checking |
+| `PRS_ARTIFACTS` | Folder for the events of failed checks |
+| `PRS_EVENTS_DIR` | Set by a recording for its child processes |
+
+## Check a test
+
 ```rust
 use prs_test::{json, Model};
 
-let model = Model::compile(&[("inventory.p", r#"
-    event Stock: int;
-    spec Inventory observes Stock {
-        start state Ready {
-            on Stock do (n: int) { assert n >= 0, "negative stock"; }
-        }
-    }
-"#)], "Inventory")?;
-let recording = model.recording();
-let sink = recording.sink();
-// Connect this sink before seeding your application. Publish after commit.
-sink.emit("coffee", "Stock", json!(3))?;
-recording.check()?;
-# Ok::<(), Box<dyn std::error::Error>>(())
+# let model = Model::compile(&[("inventory.p", r#"
+#   event eStocked: (units: int);
+#   spec InventoryCorrect observes eStocked {
+#     start state Ready { on eStocked do (p: (units: int)) { assert p.units >= 0, "negative stock"; } }
+#   }
+# "#)])?;
+// let model = Model::load()?;  (in a LazyLock)
+model.check(|recording| {
+    // Connect before setup, so the spec sees seeded state too.
+    let sink = recording.sink();
+    sink.emit("eStocked", "coffee", json!({"units": 3})).unwrap();
+});
+# Ok::<(), prs_test::SetupError>(())
 ```
 
-`Model` owns the source map and compiled declarations. Reuse it between tests (for
-example through `OnceLock`); semantic compilation happens once. Interpreter bytecode
-preparation currently repeats at each check. Every recording has fresh monitor state,
-with one monitor instance per partition key. Strict mode is on by default: zero relevant
-verified events fails. Opt out with `.strict(false)` when intentional. `.check_hot(true)`
-separately rejects monitor instances left in hot states; strictness does not enable
-liveness checking.
+`model.check(|recording| ...)` records while the closure runs, then checks and panics
+with the failure output. Put setup and cleanup inside the closure and join worker
+threads there. A panic in the closure propagates unchanged, with no second check.
+Cargo has no global test hook, so each test opts in by calling the fixture; never share
+a recording between tests.
 
-`EventSink` is cloneable, `Send`, and `Sync`. It buffers owned JSON data under a mutex;
-P values are constructed only on the checking thread. Both the timestamp assignment
-and insertion happen under the lock. `emit` records current epoch milliseconds;
-`emit_at` accepts explicit epoch milliseconds for deterministic or timed tests. Events
-are checked in emission order, and decreasing timestamps for a key fail. Coordinate
-application operations and publish after they commit; a sink lock does not make the
-application's transactions atomic.
-
-Payloads follow `prs observe` JSON conversion: scalar JSON for scalar events, objects
-or positional arrays for named tuples, arrays for ordinary tuples, and `null` for unit
-events. Names absent from the P model and events not observed by the selected spec
-are ignored before payload conversion, as in `prs observe`. This lets applications
-connect a shared event stream. An invalid payload on a relevant event fails at `check`.
-Strict mode detects a trace with no verified relevant events; it cannot detect partially
-missing events or every typo when other relevant events remain. Use explicit counts or
-application assertions when a test expects a particular event. Emission itself returns
-a lifecycle error if checking has already closed the recorder.
-
-Finish cleanup and join producer threads before calling `Recording::check`. It consumes
-the recording and closes its cloned sinks; later emissions return errors. There is no
-assertion in `Drop`. `Model::with_recording` is a small closure helper: perform setup,
-the body, and explicit cleanup inside the closure. It checks on normal return; an
-application panic propagates unchanged without a secondary check during unwinding.
-
-`check` returns a `CheckReport`, or a `CheckError` containing the failed report, readable
-assertion/parser diagnostics and replay, and owned JSON event history through `events()`.
-The failed report remains accessible through `error.report()` for coverage reporting.
-Ordinary application assertions still matter: a monitor cannot see uninstrumented state
-changes, and these buffered checks do not stop producer threads while they run.
-
-## Optional suite coverage
-
-`Suite` unions coverage through the core report API. Add either result before propagating
-its failure; never let a reporting error hide the original application/monitor error.
+The explicit form returns the result instead of panicking:
 
 ```rust,ignore
-let checked = recording.check();
-let report = match &checked {
-    Ok(report) => report,
-    Err(error) => error.report(),
-};
-let coverage = suite.add(report)
-    .and_then(|_| suite.write_json("target/coverage/monitor.json"));
-println!("{}", suite.render_text());
-if let Err(error) = &coverage { eprintln!("coverage reporting failed: {error}"); }
-checked?; // Preserve the monitor failure if reporting also failed.
-coverage?;
+let recording = model.recording();
+let mut app = App::new(recording.sink());
+app.reserve("coffee", "o1", 2);
+recording.check()?; // Result<CheckReport, CheckError>
 ```
 
-The JSON format is the same as `prs coverage merge-observe`. Output directories are
-created, incompatible source versions are rejected atomically, and failed observation
-metadata remains visible. Coverage reports measure observed monitor states and handlers,
-not full model paths or schedules. Completion for this fully consumed in-process check
-is not currently represented by the core `Report`; suite output labels it unknown.
+## Emit
 
-Aggregation is explicit. It retains coverage sets and distinct observation metadata,
-including errors, but not complete successful event traces. Use it for the ordinary
-shared fixture. Generated tests should check and discard each case and shrink attempt,
-retaining the final failure through the property-testing framework instead of collecting
-all case reports in a suite. A `Suite` is not an automatic cross-process global: use one
-per test target/process, and merge saved reports with `prs coverage merge-observe` if
-multiple Cargo test binaries collect coverage.
+`emit(event, key, payload)` takes the P event name, the partition key (anything
+`Display`; each key gets its own spec instances) and a `Serialize` payload: `json!`, a
+`#[derive(Serialize)]` struct, a scalar, or `()`. Named tuples are objects; enums go by
+name. `emit_at(time, event, key, payload)` sets the time (`SystemTime`, or `i64` epoch
+nanoseconds for a logical clock); each key's events are checked in time order.
+
+- `recording.sink()`: a cloneable, `Send + Sync` `EventSink`; `emit` returns an error
+  after the check.
+- `prs_emit::emit(...)` (the global emitter) in application code: a recording binds the
+  thread that creates it, so emits on that thread go to it. Bind threads the test
+  spawns with `let _guard = recording.sink().bind();`. An emit on an unbound thread
+  goes to the only open recording; with several open (Cargo runs tests in parallel)
+  it fails them all with a `Config` error, so bind or inject instead.
+- `recording.emitter()`: a `prs_emit::Emitter` to pass to code that takes one. It
+  panics if used after the check.
+
+The call site is recorded (`#[track_caller]`) and shown in failure output. Emit after
+the operation commits. Events the P files declare but no selected spec observes are
+ignored; names no P file declares fail the check (`unknown_events = "error"`).
+
+## Failures
+
+`check()` returns `CheckError::Violation(SpecViolation)` or `CheckError::Setup(SetupError)`.
+Assert on fields, not text:
+
+```rust,ignore
+let Err(CheckError::Violation(v)) = recording.check() else { panic!() };
+assert_eq!((v.spec.as_str(), v.key.as_str()), ("InventoryCorrect", "coffee"));
+// v.message, v.location (P assert file:line), v.events (last 20, with src),
+// v.liveness (hot state under check_hot), v.others (more violations)
+```
+
+`SetupError.kind` is `Config` (options, files, compile errors, unknown spec, emitting
+after the check), `Parser` (a payload that does not match its P type, or an unreadable
+line), `Validation` (strict: a spec checked no event), `UnknownEvent` or `OutOfOrder`.
+
+Displayed (and as the `Model::check` panic):
+
+```text
+P spec InventoryCorrect was broken: reservation o2 exceeds available stock
+
+  Events (key "coffee"):
+      1  eStocked   units=3            tests/support/mod.rs:31
+      2  eReserved  order=o1 units=2   tests/support/mod.rs:32
+      3  eReserved  order=o2 units=2   tests/explicit.rs:44  <- broke the spec here
+
+  Spec: specs/inventory.p:21
+```
+
+A negative control proves the spec catches a bug; it panics unless exactly that spec
+is broken with a message matching the regular expression:
+
+```rust,ignore
+recording.expect_violation("InventoryCorrect", "exceeds available stock");
+```
+
+## Other processes and logs
+
+```rust,ignore
+let recording = model.recording();
+let status = Command::new(server_bin).envs(recording.env()).status()?; // sets PRS_EVENTS_DIR
+recording.add_events_dir("/shared/events");     // a folder the test did not create
+recording.add_log("logs/events.jsonl");          // JSON lines in the events format
+recording.add_log_with("logs/app.log", |line| parse(line)); // -> Option<Value> event line
+recording.check()?;
+```
+
+A child writes to `recording.events_dir()` with `prs_emit::emit` (which reads
+`PRS_EVENTS_DIR`), or any writer of the
+[events folder format](../../docs/observe.md#events-folder-format). Stop or join
+children before the check. A failed check keeps the folder (plus `recording.jsonl`) and
+names it.
+
+## Coverage
+
+Set `coverage` (or `PRS_COVERAGE`) and every check merges its observed monitor coverage
+into that file, under a file lock, so parallel tests and test binaries share it. It
+prints the summary when the coverage changes (`cargo test -- --nocapture` shows it). The JSON is
+`prs coverage merge-observe`'s format. Delete a stale file before a run; CI starts
+clean. `CheckReport::coverage()` returns one check's coverage.
+
+## Property tests
+
+Create the recording inside the property body, which runs once per case and shrink
+attempt, and report with `prop_assert!` so proptest shrinks the input:
+
+```rust,ignore
+proptest! {
+    #[test]
+    fn ops(commands in commands()) {
+        let recording = model().recording();
+        // ... run commands against a fresh application ...
+        let checked = recording.check();
+        prop_assert!(checked.is_ok(), "{}", checked.unwrap_err());
+    }
+}
+```

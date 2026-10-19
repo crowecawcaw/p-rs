@@ -94,8 +94,10 @@ code emits during its ordinary pytest tests, and installs the `prs` binary. See
 [docs/python.md](docs/python.md) and the runnable
 [inventory integration examples](examples/python/README.md).
 
-From Rust, [`prs-test`](crates/prs-test) provides in-process test recording,
-strict observation, replay diagnostics, and suite coverage. See the
+From Rust, [`prs-test`](crates/prs-test) checks in process: recordings configured
+from `Cargo.toml`, structured violations, events from child processes, and suite
+coverage. [`prs-emit`](crates/prs-emit) emits the same events in tests and to
+production logs for `prs observe`. See the
 [Rust inventory examples](examples/rust/README.md) for explicit checks, checked
 fixtures, and generated operation sequences.
 

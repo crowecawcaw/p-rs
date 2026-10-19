@@ -36,6 +36,17 @@ fn negative_control_detects_overselling() {
     inventory.stock("coffee", 3).unwrap();
     inventory.reserve("coffee", "order-1", 2).unwrap();
     record(&recorder.sink(), Event::Reserved { sku: "coffee".into(), order: "order-2".into(), units: 2 });
-    let error = recorder.check().expect_err("the spec must reject the broken trace");
-    assert!(error.to_string().contains("reservation exceeds available stock"), "{error}");
+    let violation = recorder.expect_violation("InventoryCorrect", "exceeds available stock");
+    assert_eq!(violation.key, "coffee");
+    assert_eq!(violation.events.last().unwrap().payload["order"], "order-2");
+}
+
+// Code instrumented with the global `prs_emit::emit` needs no sink: the recording
+// binds the test's thread. Bind threads you spawn with `recorder.sink().bind()`.
+#[test]
+fn global_emit_is_recorded() {
+    let recorder = model().recording();
+    prs_test::prs_emit::emit("eStocked", "coffee", prs_test::json!({"units": 3}));
+    prs_test::prs_emit::emit("eReserved", "coffee", prs_test::json!({"order": "o1", "units": 2}));
+    assert_eq!(recorder.check().unwrap().verified_events(), 2);
 }
