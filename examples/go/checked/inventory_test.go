@@ -52,5 +52,5 @@ func TestRejectedReservation(t *testing.T) {
 	}
 }
 
-// Main runs the tests, then writes coverage/monitor.json and prints its summary.
+// TestMain runs the tests, then writes coverage/monitor.json and prints its summary.
 func TestMain(m *testing.M) { prstest.Main(m) }

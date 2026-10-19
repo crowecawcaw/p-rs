@@ -112,12 +112,12 @@ checks of `r` ignore that spec.
 | `Mode`: `auto`/`marked` (same in Go) or `off` | `PRS_MODE` | `auto` |
 | `Binary` | `PRS_BIN`, then `prs` on `PATH` | the release binary, downloaded (`PRS_DOWNLOAD=0`: off) |
 
-Environment variables override fields. `Config` paths are relative to `WorkDir`
-(default: the package folder `go test` runs in); environment paths to the working
-directory. `PRS_MODE=off` makes recordings inert. A missing binary is a
-`binary_missing` error saying how to install one. `AllowUnobserved` and
-`ArtifactRoot` are deprecated aliases for `Strict: prstest.Bool(false)` and
-`Artifacts`.
+Environment variables override fields, except `PRS_BIN`, which `Binary` overrides.
+`Config` paths are relative to `WorkDir` (default: the package folder `go test` runs
+in); environment paths to the working directory. `PRS_MODE=off` makes recordings
+inert. A missing binary is a `binary_missing` error saying how to install one.
+`AllowUnobserved` and `ArtifactRoot` are deprecated aliases for
+`Strict: prstest.Bool(false)` and `Artifacts`.
 
 ## Events from other processes
 
