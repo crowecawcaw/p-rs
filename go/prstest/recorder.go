@@ -380,9 +380,10 @@ func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []stri
 	if count == 0 && !s.strict && len(dirs) == 0 && len(logs) == 0 && isEmptyDir(r.events) {
 		return nil, nil // nothing to check
 	}
-	if err := findBinary(s.binary); err != nil {
-		err.ArtifactsDir = r.dir
-		return nil, err
+	binary, missing := findBinary(ctx, s.binary)
+	if missing != nil {
+		missing.ArtifactsDir = r.dir
+		return nil, missing
 	}
 
 	args := append([]string{"observe", "-pf"}, s.specFiles...)
@@ -410,12 +411,12 @@ func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []stri
 
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, s.binary, args...)
+	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Dir = s.workDir
 	cmd.WaitDelay = time.Second
 	output, cmdErr := cmd.CombinedOutput()
 	r.result.Output = string(output)
-	_ = os.WriteFile(filepath.Join(r.dir, "prs-output.txt"), []byte(fmt.Sprintf("%s %q\n\n%s", s.binary, args, output)), 0o600)
+	_ = os.WriteFile(filepath.Join(r.dir, "prs-output.txt"), []byte(fmt.Sprintf("%s %q\n\n%s", binary, args, output)), 0o600)
 	if ctx.Err() != nil {
 		return nil, setup("timeout", fmt.Sprintf("prs did not finish within %v", s.timeout), errors.Join(ctx.Err(), cmdErr))
 	}
@@ -425,7 +426,7 @@ func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []stri
 		if cmdErr != nil && !errors.As(cmdErr, &exitErr) {
 			return nil, setup("config", "cannot run prs: "+cmdErr.Error(), cmdErr)
 		}
-		return nil, setup("config", commandError(string(output), s.binary), cmdErr)
+		return nil, setup("config", commandError(string(output), binary), cmdErr)
 	}
 	r.result.Report = data
 	if err := validateReport(data, s.specs, cmdErr == nil, s.strict); err != nil {

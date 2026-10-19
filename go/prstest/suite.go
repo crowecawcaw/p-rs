@@ -184,6 +184,10 @@ func (s *Suite) WriteCoverage(ctx context.Context, jsonPath string, human io.Wri
 // runMerge merges beside the destination and publishes only after all checks succeed,
 // so a failed merge never destroys an earlier report.
 func runMerge(ctx context.Context, binary, workDir string, timeout time.Duration, data []byte, jsonPath string, human io.Writer) error {
+	binary, missing := findBinary(ctx, binary)
+	if missing != nil {
+		return missing
+	}
 	pending, err := os.CreateTemp(filepath.Dir(jsonPath), ".prstest-coverage-*.json")
 	if err != nil {
 		return err

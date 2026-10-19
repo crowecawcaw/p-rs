@@ -37,6 +37,7 @@ old name as a deprecated alias for one minor release, warning when it is used.
 | `PRS_ARTIFACTS` | Folder to keep artifacts of failed checks in | overrides config |
 | `PRS_COVERAGE` | Suite coverage JSON path; setting it enables L4 | overrides config |
 | `PRS_MODE` | L3 mode: `auto`, `marked` or `off` | overrides config |
+| `PRS_DOWNLOAD` | `0` turns off downloading the checker (Go only) | |
 
 Relative paths in environment variables resolve against the process working directory.
 
@@ -207,9 +208,10 @@ P assert location; the artifacts path. Example in [python.md](python.md#failure-
 
 ### Binary resolution
 
-In order: explicit config, `PRS_BIN`, the bundled or embedded copy, `PATH`. A miss is a
-`SetupError` of kind `binary_missing` with install instructions. Rust checks in-process
-and has no binary. Distribution per language is under [Packaging and distribution](#packaging-and-distribution).
+In order: explicit config, `PRS_BIN`, the bundled or embedded copy, `PATH`; Go then
+downloads a release binary. A miss is a `SetupError` of kind `binary_missing` with
+install instructions. Rust checks in-process and has no binary. Distribution per
+language is under [Packaging and distribution](#packaging-and-distribution).
 
 ## L3 Framework integration
 
