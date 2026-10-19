@@ -130,6 +130,17 @@ name = "prs-syntax"
 version = "0.1.0"
 
 [[package]]
+name = "prs-test"
+version = "0.1.0"
+dependencies = [
+ "prs-checker",
+ "prs-compat",
+ "prs-sema",
+ "prs-syntax",
+ "serde_json",
+]
+
+[[package]]
 name = "prs-wasm"
 version = "0.1.0"
 dependencies = [

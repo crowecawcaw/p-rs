@@ -1,0 +1,16 @@
+[package]
+name = "prs-test"
+version.workspace = true
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "In-process P monitor integration for Rust application tests"
+
+[dependencies]
+prs-syntax = { workspace = true }
+prs-sema = { workspace = true }
+prs-checker = { workspace = true }
+prs-compat = { workspace = true }
+serde_json = { workspace = true }

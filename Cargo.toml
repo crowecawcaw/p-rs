@@ -8,6 +8,7 @@ members = [
     "crates/prs-compat",
     "crates/prs-cli",
     "crates/prs-wasm",
+    "crates/prs-test",
 ]
 
 [workspace.package]
@@ -23,6 +24,7 @@ prs-sema = { path = "crates/prs-sema" }
 prs-checker = { path = "crates/prs-checker" }
 prs-compat = { path = "crates/prs-compat" }
 prs-cli = { path = "crates/prs-cli" }
+prs-test = { path = "crates/prs-test" }
 indexmap = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

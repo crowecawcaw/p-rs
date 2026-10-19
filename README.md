@@ -92,6 +92,11 @@ code emits during its ordinary pytest tests, and installs the `prs` binary. See
 [docs/python.md](docs/python.md) and the runnable
 [inventory integration examples](examples/python/README.md).
 
+From Rust, [`prs-test`](crates/prs-test) provides in-process test recording,
+strict observation, replay diagnostics, and suite coverage. See the
+[Rust inventory examples](examples/rust/README.md) for explicit checks, checked
+fixtures, and generated operation sequences.
+
 ## Goals
 
 1. Simplify or eliminate the toolchain for working with P models.

@@ -20,13 +20,14 @@ cargo test --manifest-path examples/rust/Cargo.toml --locked --test checked_fixt
 cargo test --manifest-path examples/rust/Cargo.toml --locked --test generated_sequences
 ```
 
-This is an independent Cargo workspace with its own lockfile. Its dev-dependencies
-use the public APIs of this checkout's `prs-syntax`, `prs-sema`, and `prs-checker`
-crates through path dependencies. These internal crates are not currently published;
-the published `p-rs` crate is a placeholder. In another repository, pin a p-rs Git
-revision for these three dependencies, or vendor them and use paths. The application
-itself has no third-party dependencies. No `prs` binary, external services, Python,
-clock delays, or network access are needed after Cargo has fetched dependencies.
+This is an independent Cargo workspace with its own lockfile. Its only integration
+helper dev-dependency is [`prs-test`](../../crates/prs-test/README.md), plus `proptest`
+for generated cases. The helper owns source compilation, recording, monitor execution,
+diagnostics, and coverage union. These crates currently ship from source; the published
+`p-rs` crate is a placeholder. In another repository, pin a p-rs Git revision for
+`prs-test`, or vendor it and use paths. The application itself has no third-party
+dependencies. No `prs` binary, external services, Python, clock delays, or network
+access are needed after Cargo has fetched dependencies.
 The [CI workflow](../../.github/workflows/rust-examples.yml) formats, lints, and runs
 all three targets against source.
 
@@ -39,23 +40,30 @@ bus or transaction outbox instead of adding P calls throughout their service. Fo
 database-backed project, publish after commit. A production sink could write logs;
 a caller that wants no recording can pass `|_| {}`.
 
-The [test support](tests/support/mod.rs) connects that callback to a fresh local
-recorder. Its adapter maps typed events to the public observe API's tuple payloads.
-It uses logical sequence numbers as timestamps and the SKU as a partition key, so
-each product gets independent monitor state. Events are buffered and checked in
-process; this example does not start a subprocess or invoke model checking.
+The [test support](tests/support/mod.rs) only maps application domain events to JSON
+payloads and sets up the inventory fixture. `prs-test` buffers events and checks them in
+process. The SKU is the partition key, so each product gets independent monitor state.
+A shared `Model` semantically compiles the spec once; every recording starts fresh
+monitors (interpreter bytecode preparation currently repeats). The helper is strict by
+default: a trace with no verified relevant events fails. Bad payloads for relevant
+events fail, while unrelated events are ignored like `prs observe`. Strictness cannot
+detect every typo or partially missing instrumentation; assert specific event counts
+when the test requires them.
 
-The recorder requires a nonempty trace, checks parser errors as well as spec
-errors, and verifies that every emitted event was monitored. Failures include the
-P assertion and the typed event history. The copied [spec](specs/inventory.p) is
-the same inventory contract as the Python example, with no model machines or test
-drivers. It allows outstanding reservations at the end and needs only safety checks.
+The cloned event sink works in thread callbacks. `emit` assigns epoch milliseconds
+while inserting each event under a lock; `emit_at` allows deterministic timestamps.
+Join worker threads and finish cleanup before `check`, which closes the recording.
+No checks occur in `Drop` or while an application panic unwinds. A monitor failure
+includes readable diagnostics, replay, and the recorded JSON event history. The copied
+[spec](specs/inventory.p) is the same inventory contract as the Python example, with
+no model machines or test drivers. It allows outstanding reservations at the end and
+needs only safety checks.
 Ordinary assertions still matter: a monitor cannot detect state changes that the
 application never emits.
 
 ## 1. Explicit checks for selected tests
 
-[tests/explicit.rs](tests/explicit.rs) constructs a recorder and inventory, seeds
+[tests/explicit.rs](tests/explicit.rs) constructs a `model().recording()` and inventory, seeds
 stock while recording, runs the operation sequence, and calls `recorder.check()`.
 The result is unwrapped so a violation fails Cargo tests and CI. Rejected requests
 are also checked to emit no events. A passing negative control deliberately records
@@ -73,9 +81,8 @@ Rust's built-in test harness has no pytest-style global fixture plugin. Checking
 applies to tests that explicitly adopt this helper. Add it to your project's
 existing fixture factory so a new test has one setup call. Avoid global recorders:
 Cargo runs tests concurrently, and combining histories would mix unrelated state.
-The local `Rc<RefCell<_>>` recorder is intentionally single-threaded; a threaded
-application needs a synchronized sink with an explicit event-ordering policy and
-must join workers before checking.
+The helper provides a synchronized cloneable sink for thread callbacks. A threaded
+application must coordinate operation/event order and join workers before checking.
 
 A P violation panics in the helper after the body, propagating as a normal failed
 Cargo test. A body that already panics stays failed. No checking runs in `Drop`,
@@ -108,13 +115,13 @@ runs under Cargo with the other integration tests. A byte-oriented `cargo-fuzz`
 target is more useful for parsers/codecs. These tests explore generated sequential
 calls; they do not explore concurrent schedules.
 
-The checked fixture opts into `ObserveOptions.coverage` and merges each completed
-check using the core `ObserveCoverageReport::from_observation` and `merge` APIs.
+The checked fixture opts into suite coverage by adding each completed successful or
+failed check to `prs_test::Suite`.
 The shared report format retains observation errors and checks source compatibility.
 It writes `target/coverage/model.json` under a mutex and prints the cumulative union (`cargo test -- --nocapture` shows it).
 The final write contains all completed fixture checks; a panic before checking
 leaves partial coverage. Explicit and generated tests do not join this report.
 
-The global test setup opts into strict observation: every checked test must emit
+The helper uses strict observation by default: every checked test must emit
 at least one relevant event for each selected spec. This catches accidentally
 disabled instrumentation; it does not infer arbitrary missing events.

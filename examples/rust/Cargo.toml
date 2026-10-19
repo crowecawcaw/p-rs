@@ -4,13 +4,10 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-# A real application's Cargo workspace can depend on the checker in the same way.
+# A real application's tests can depend on the supported helper in the same way.
 # These crates currently ship from source; the published p-rs crate is a placeholder.
 [workspace]
 
 [dev-dependencies]
-prs-syntax = { path = "../../crates/prs-syntax" }
-prs-sema = { path = "../../crates/prs-sema" }
-prs-checker = { path = "../../crates/prs-checker" }
+prs-test = { path = "../../crates/prs-test" }
 proptest = "1.11"
-serde_json = "1"
