@@ -50,11 +50,13 @@ Where an event goes:
    opened. Nested recordings all get it.
 2. `PRS_EVENTS_DIR`, when a test started this process: one file per process,
    `<name>-<pid>-<random>.jsonl` (`<name>` is `-Dprs.name`, else the main class).
-3. The production sink, if set: `PrsEmit.toFile(path)`, `toStdout()` or
-   `toConsumer(line -> ...)`. Lines are the JSON `prs observe -l` reads. File and stdout
-   writes happen on a background thread; `emit` never throws or waits, and drops
-   (full queue, I/O error, bad payload) are counted in `PrsEmit.dropped()`.
-   `PrsEmit.flush(timeout)` waits for the queue.
+3. The production sink, if set: `PrsEmit.setSink(Sink.file(path))`, `Sink.stdout()`,
+   `Sink.writer(out)` or `Sink.callback(line -> ...)`. Lines are the JSON
+   `prs observe -l` reads, written on a background thread; `emit` never throws or
+   waits, and drops (full queue, I/O error, bad payload) are counted in
+   `PrsEmit.dropped()`. `PrsEmit.flush(timeout)` waits for the queue;
+   `PrsEmit.close()` (or `setSink(null)`) writes it and turns the sink off. See
+   [Testing and production](../docs/production.md).
 4. Nowhere: the default costs two volatile reads. Use `PrsEmit.enabled()` to skip
    building an expensive payload.
 

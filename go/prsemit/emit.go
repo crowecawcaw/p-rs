@@ -8,8 +8,9 @@
 //   - Started by a test recording (PRS_EVENTS_DIR set): each line is appended to this
 //     process's own file in that folder, which the test checks
 //     (docs/observe.md#events-folder-format).
-//   - Production, after SetOutput or OpenFile: JSON lines that `prs observe -l` reads,
-//     written by a background goroutine.
+//   - Production, after SetSink(File(path)), SetSink(Stdout()), SetSink(Writer(w)) or
+//     SetSink(Callback(f)): JSON lines that `prs observe -l` reads, written by a
+//     background goroutine.
 //   - Otherwise: nothing. Emit costs one atomic load.
 //
 // Emit never panics or blocks the caller: a line that cannot be encoded or written, or
@@ -49,7 +50,7 @@ var (
 	current atomic.Pointer[sink]
 	dropped atomic.Uint64
 	setMu   sync.Mutex
-	testDir bool // PRS_EVENTS_DIR was set: SetOutput and OpenFile do nothing
+	testDir bool // PRS_EVENTS_DIR was set: SetSink does nothing
 	async   *asyncSink
 )
 
@@ -116,51 +117,94 @@ func emit(ctx context.Context, at time.Time, event, key string, payload any) {
 // started.
 func Dropped() uint64 { return dropped.Load() }
 
-// SetOutput sends events to w as JSON lines from a background goroutine, replacing any
-// earlier output; nil turns emitting off. Each line is one Write call. When w falls
-// behind by QueueSize lines, further events are dropped. Under a test recording
-// (PRS_EVENTS_DIR set) it does nothing: events go to the test.
-func SetOutput(w io.Writer) { setOutput(w, nil) }
+// Sink is a production destination for events: JSON lines that `prs observe -l` reads.
+// Make one with File, Stdout, Writer or Callback and install it with SetSink.
+type Sink struct {
+	w      io.Writer
+	closer io.Closer
+}
 
-func setOutput(w io.Writer, closer io.Closer) {
+// File appends events to path, creating it and its folder.
+func File(path string) (*Sink, error) {
+	if dir := filepath.Dir(path); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, err
+		}
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	return &Sink{w: f, closer: f}, nil
+}
+
+// Stdout writes events to standard output.
+func Stdout() *Sink { return &Sink{w: os.Stdout} }
+
+// Writer writes events to w, one Write call per line. Close does not close w.
+func Writer(w io.Writer) *Sink { return &Sink{w: w} }
+
+// Callback calls f with each JSON line (without the newline), from the sink's
+// background goroutine. A panic in f drops that event.
+func Callback(f func(line string)) *Sink {
+	return &Sink{w: callbackWriter(f)}
+}
+
+type callbackWriter func(string)
+
+func (f callbackWriter) Write(p []byte) (int, error) {
+	f(strings.TrimSuffix(string(p), "\n"))
+	return len(p), nil
+}
+
+// SetSink sends events to s outside tests, from a background goroutine, replacing and
+// closing any earlier sink; nil turns production emitting off. When s falls behind by
+// QueueSize lines, further events are dropped. In a process a test started
+// (PRS_EVENTS_DIR set) it does nothing: events go to the test.
+func SetSink(s *Sink) {
 	setMu.Lock()
 	defer setMu.Unlock()
 	if testDir {
+		if s != nil && s.closer != nil {
+			_ = s.closer.Close()
+		}
 		return
 	}
 	old := async
 	async = nil
-	if w == nil {
+	if s == nil {
 		current.Store(nil)
 	} else {
-		async = newAsync(w, closer)
-		var s sink = async
-		current.Store(&s)
+		async = newAsync(s.w, s.closer)
+		var out sink = async
+		current.Store(&out)
 	}
 	if old != nil {
-		old.close()
+		_ = old.close()
 	}
 }
 
-// OpenFile appends events to path, creating it, as SetOutput does for a writer. Close
-// flushes and closes it. Under a test recording it does nothing.
-func OpenFile(path string) error {
+// Flush waits up to timeout for queued events to be written. It reports whether they
+// were.
+func Flush(timeout time.Duration) bool {
 	setMu.Lock()
-	if testDir {
-		setMu.Unlock()
-		return nil
-	}
+	a := async
 	setMu.Unlock()
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
+	if a == nil {
+		return true
 	}
-	setOutput(f, f)
-	return nil
+	deadline := time.Now().Add(timeout)
+	for a.pending.Load() > 0 {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(time.Millisecond)
+	}
+	return true
 }
 
-// Close writes the queued events, stops the production output and closes a file opened
-// by OpenFile. Call it at shutdown. Events emitted afterwards are discarded.
+// Close writes the queued events, turns production emitting off and closes a file
+// opened by File. Call it at shutdown. Events emitted afterwards are discarded.
 func Close() error {
 	setMu.Lock()
 	defer setMu.Unlock()
@@ -221,11 +265,12 @@ func fileName() string {
 }
 
 type asyncSink struct {
-	lines  chan []byte
-	done   chan struct{}
-	closer io.Closer
-	once   sync.Once
-	err    error
+	lines   chan []byte
+	pending atomic.Int64
+	done    chan struct{}
+	closer  io.Closer
+	once    sync.Once
+	err     error
 }
 
 func newAsync(w io.Writer, closer io.Closer) *asyncSink {
@@ -240,6 +285,7 @@ func (a *asyncSink) run(w io.Writer) {
 		if !writeLine(w, line) {
 			dropped.Add(1)
 		}
+		a.pending.Add(-1)
 	}
 }
 
@@ -255,14 +301,17 @@ func writeLine(w io.Writer, line []byte) (ok bool) {
 
 func (a *asyncSink) write(line []byte) (ok bool) {
 	defer func() {
-		if recover() != nil { // closed by a concurrent SetOutput or Close
+		if recover() != nil { // closed by a concurrent SetSink or Close
+			a.pending.Add(-1)
 			ok = false
 		}
 	}()
+	a.pending.Add(1)
 	select {
 	case a.lines <- line:
 		return true
 	default:
+		a.pending.Add(-1)
 		return false
 	}
 }
@@ -276,7 +325,7 @@ func (a *asyncSink) close() error {
 		}
 	})
 	if a.err != nil {
-		return errors.Join(errors.New("prsemit: close output"), a.err)
+		return errors.Join(errors.New("prsemit: close sink"), a.err)
 	}
 	return nil
 }

@@ -59,6 +59,9 @@ Relative paths in environment variables resolve against the process working dire
 | Name | Layer | Meaning |
 | --- | --- | --- |
 | `emit`, `emit_at` | L1 | Record an event now / at a given time |
+| `set_sink` | L1 | Send events outside tests to a production sink, replacing the previous one; none/nil/off turns it off |
+| `file`, `stdout`, `writer`, `callback` | L1 | Production sink constructors |
+| `dropped`, `flush`, `close` | L1 | Events dropped so far; wait for queued events (with a timeout); write them and turn the sink off |
 | `check_spec` (or the language's scoped form) | L2 | Scoped recording that checks on exit |
 | `Recording` / `Recorder`, `start`, `stop`, `check` | L2 | Manual form |
 | `events_dir`, `env` | L2 | The recording's `PRS_EVENTS_DIR` folder, and an environment for children |
@@ -79,9 +82,9 @@ Relative paths in environment variables resolve against the process working dire
   `unknown_events` → `--unknown-events` ([#47](https://github.com/crowecawcaw/p-rs/issues/47));
   coverage → `--coverage`.
 - Events go to the core in the [events folder format](observe.md#events-folder-format),
-  with `-l <folder>`. Extra inputs (`add_events_dir`, `add_log`) are merged by the core,
-  or, until multiple `-l` lands ([#46](https://github.com/crowecawcaw/p-rs/issues/46)),
-  by copying them into one folder in the documented order.
+  with `-l <folder>`. Extra inputs (`add_events_dir`, `add_log`) are passed as further
+  `-l` values, which the core merges into one input set
+  ([several logs](observe.md#several-logs-and-glob-patterns)).
 - Coverage: per-check `coverage` objects from the report; suite union with
   `prs coverage merge-observe` (or `ObserveCoverageReport::merge` in Rust). Helpers MUST
   NOT merge coverage sets themselves.
@@ -98,9 +101,9 @@ Relative paths in environment variables resolve against the process working dire
   tuples as lists.
 - Zero dependencies beyond the standard library (Rust: `serde` / `serde_json`, which the
   `json!` payload form needs). No test-framework dependency.
-- Outside a recording and with no `PRS_EVENTS_DIR`, `emit` does nothing and costs at most
-  a lock-free check. In production it MUST NOT throw, panic or block; production sinks are
-  [#48](https://github.com/crowecawcaw/p-rs/issues/48).
+- Outside a recording, with no `PRS_EVENTS_DIR` and no production sink, `emit` does
+  nothing and costs at most a lock-free check. In production it MUST NOT throw, panic or
+  block.
 - In tests, emitting into a recording that was already checked MUST make the check (or
   the test) fail; it is never silently dropped.
 - Record the call site as `src` (`file:line`) wherever the language provides it
@@ -110,6 +113,32 @@ Relative paths in environment variables resolve against the process working dire
   value).
 - With `PRS_EVENTS_DIR` set and no in-process recording, `emit` appends to the process's
   own file in that folder ([format](observe.md#events-folder-format)).
+- Production sink (see [Testing and production](production.md)):
+  - `set_sink(sink)` sends events, when no recording takes them and `PRS_EVENTS_DIR` is
+    unset, to `sink` as [event lines](observe.md#events-folder-format). It replaces
+    the previous sink, writing what that one had queued. With `PRS_EVENTS_DIR` set it
+    does nothing: a test started the process, and its folder wins.
+  - Sinks: `file(path)` appends (creating the file and its folder), `stdout()`,
+    `writer(w)` (flushed, never closed by the helper) and `callback(f)` (gets each line
+    without the newline). Lines from one process never interleave or split; give each
+    process its own file.
+  - Sinks write from a background thread through a bounded queue. A full queue, a
+    failed write, a callback that throws, or a payload that cannot be encoded drops the
+    event and adds one to `dropped()`; `emit` never sees it.
+  - `flush(timeout)` waits for the queue and returns whether it emptied. `close()`
+    flushes (bounded) and turns the sink off; call it at shutdown. Helpers SHOULD also
+    flush at process exit where the language has a hook.
+
+  | Language | Set | Sinks | Dropped / flush / close |
+  | --- | --- | --- | --- |
+  | Python | `prs.set_sink(target)` returns a `Sink`; `None` is off | a path, `"-"` or a text stream, a callable | `sink.dropped`, `sink.flush(timeout)`, `sink.close()` |
+  | Go | `prsemit.SetSink(s)`; `nil` is off | `prsemit.File(path)` (`(*Sink, error)`), `Stdout()`, `Writer(w)`, `Callback(f)` | `prsemit.Dropped()`, `Flush(timeout)`, `Close()` |
+  | Java | `PrsEmit.setSink(sink)`; `null` is off | `Sink.file(path)`, `Sink.stdout()`, `Sink.writer(out)`, `Sink.callback(f)` | `PrsEmit.dropped()`, `flush(timeout)`, `close()` |
+  | Rust | `prs_emit::set_sink(emitter)`; `Emitter::off()` is off | `Emitter::file(path)?`, `stdout()`, `writer(w)`, `callback(f)` | `prs_emit::dropped()`, `flush(timeout)`, `close()` |
+
+  Rust's sink is an `Emitter` value, which code can also take as a dependency; its
+  `callback` gets each `Event` on the emitting thread, because test recordings are
+  built on it.
 - Unknown event names MAY be rejected at emit time in tests when the recording has
   loaded the declared names; they MUST be rejected at check time under
   `unknown_events = error`.

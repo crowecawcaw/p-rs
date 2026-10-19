@@ -6,10 +6,11 @@ use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender, TrySendError};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub use serde_json::{json, Value};
 
@@ -223,8 +224,12 @@ impl Emitter {
         Emitter::with_sink(Sink::Dir { dir: dir.into(), file: None }, Arc::default())
     }
 
-    /// Appends JSON lines to `path`, creating it if needed.
+    /// Appends JSON lines to `path`, creating it and its folder if needed.
     pub fn file(path: impl AsRef<Path>) -> std::io::Result<Emitter> {
+        let path = path.as_ref();
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            std::fs::create_dir_all(parent)?;
+        }
         let file = OpenOptions::new().create(true).append(true).open(path)?;
         Ok(Emitter::writer(file))
     }
@@ -307,18 +312,31 @@ impl Emitter {
         }
     }
 
-    /// Waits until a background writer has written everything emitted so far. Call it
-    /// before the process exits; other sinks write synchronously.
-    pub fn flush(&self) {
-        let Some(inner) = &self.inner else { return };
+    /// Waits up to `timeout` for a background writer to write everything emitted so far,
+    /// and returns whether it did. Other sinks write synchronously.
+    pub fn flush(&self, timeout: Duration) -> bool {
+        let Some(inner) = &self.inner else { return true };
         let tx = match &*inner.sink.lock().unwrap_or_else(|e| e.into_inner()) {
             Sink::Queue(tx) => tx.clone(),
-            _ => return,
+            _ => return true,
         };
+        let deadline = Instant::now() + timeout;
         let (done, wait) = mpsc::channel();
-        if tx.send(Message::Flush(done)).is_ok() {
-            let _ = wait.recv();
+        let mut message = Message::Flush(done);
+        loop {
+            match tx.try_send(message) {
+                Ok(()) => break,
+                Err(TrySendError::Disconnected(_)) => return false,
+                Err(TrySendError::Full(m)) => {
+                    if Instant::now() >= deadline {
+                        return false;
+                    }
+                    message = m;
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+            }
         }
+        wait.recv_timeout(deadline.saturating_duration_since(Instant::now())).is_ok()
     }
 }
 
@@ -413,37 +431,101 @@ fn random_suffix() -> String {
     s
 }
 
-static GLOBAL: OnceLock<Emitter> = OnceLock::new();
-
-/// The process-wide emitter [`emit`] uses: the one passed to [`set_global`], else
-/// [`Emitter::from_env`].
-pub fn global() -> &'static Emitter {
-    GLOBAL.get_or_init(Emitter::from_env)
+/// The process-wide emitter [`emit`] uses.
+struct Global {
+    emitter: RwLock<Emitter>,
+    /// `PRS_EVENTS_DIR` was set: a test started this process, and [`set_sink`] does nothing.
+    from_env: bool,
+    /// Drops counted by emitters [`set_sink`] replaced.
+    retired_drops: AtomicU64,
 }
 
-/// Sets the process-wide emitter, e.g. `Emitter::file("events.jsonl")` at startup.
-/// Fails, returning `emitter`, once [`global`] has been used or set.
-pub fn set_global(emitter: Emitter) -> Result<(), Emitter> {
-    GLOBAL.set(emitter)
+static GLOBAL: OnceLock<Global> = OnceLock::new();
+/// Whether the global emitter is on, so that `emit` costs one atomic load when it is off.
+static ON: AtomicBool = AtomicBool::new(false);
+
+fn global() -> &'static Global {
+    GLOBAL.get_or_init(|| {
+        let emitter = Emitter::from_env();
+        let from_env = emitter.is_on();
+        ON.store(from_env, Ordering::Release);
+        Global { emitter: RwLock::new(emitter), from_env, retired_drops: AtomicU64::new(0) }
+    })
 }
 
-/// [`Emitter::emit`] on the [`global`] emitter, or into an in-process test recording
-/// while a test helper routes events (see [`test_hook`]).
+/// The global emitter, or `None` when it is off.
+fn current() -> Option<Emitter> {
+    let global = global();
+    if !ON.load(Ordering::Acquire) {
+        return None;
+    }
+    Some(global.emitter.read().unwrap_or_else(|e| e.into_inner()).clone())
+}
+
+/// Sends events from [`emit`] outside tests to `sink` (`Emitter::file(path)?`,
+/// `Emitter::stdout()`, `Emitter::writer(w)` or `Emitter::callback(f)`), replacing the
+/// earlier sink and writing what it had queued. `Emitter::off()` turns it off. In a
+/// process a test started (`PRS_EVENTS_DIR` set) it does nothing: events go to the test.
+pub fn set_sink(sink: Emitter) {
+    let global = global();
+    if global.from_env {
+        return;
+    }
+    let on = sink.is_on();
+    let old = {
+        let mut current = global.emitter.write().unwrap_or_else(|e| e.into_inner());
+        let old = std::mem::replace(&mut *current, sink);
+        ON.store(on, Ordering::Release);
+        old
+    };
+    old.flush(CLOSE_TIMEOUT);
+    global.retired_drops.fetch_add(old.dropped(), Ordering::Relaxed);
+}
+
+/// How long [`close`] and [`set_sink`] wait for the replaced sink's queue.
+const CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Events the global emitter dropped since the process started: a full queue, a failed
+/// write, or a payload that could not be serialized.
+pub fn dropped() -> u64 {
+    let global = global();
+    let current = global.emitter.read().unwrap_or_else(|e| e.into_inner()).dropped();
+    global.retired_drops.load(Ordering::Relaxed) + current
+}
+
+/// [`Emitter::flush`] on the global emitter.
+pub fn flush(timeout: Duration) -> bool {
+    current().is_none_or(|e| e.flush(timeout))
+}
+
+/// Writes what the global sink has queued (waiting up to 5 s) and turns it off. Call it
+/// at shutdown.
+pub fn close() {
+    set_sink(Emitter::off())
+}
+
+/// Records `event` on stream `key` now: into an in-process test recording while a test
+/// helper routes events (see [`test_hook`]), else to `PRS_EVENTS_DIR` when a test started
+/// this process, else to the sink set with [`set_sink`], else nowhere.
 #[track_caller]
 pub fn emit(event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
     if test_hook::ROUTING.load(Ordering::Relaxed) {
         return test_hook::route(None, event, key, payload);
     }
-    global().emit(event, key, payload)
+    if let Some(emitter) = current() {
+        emitter.emit(event, key, payload)
+    }
 }
 
-/// [`Emitter::emit_at`] on the [`global`] emitter, or into a test recording like [`emit`].
+/// [`emit`] at a given time instead of the wall clock.
 #[track_caller]
 pub fn emit_at(at: impl Into<Time>, event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
     if test_hook::ROUTING.load(Ordering::Relaxed) {
         return test_hook::route(Some(at.into()), event, key, payload);
     }
-    global().emit_at(at, event, key, payload)
+    if let Some(emitter) = current() {
+        emitter.emit_at(at, event, key, payload)
+    }
 }
 
 /// For test helpers such as `prs-test`: lets in-process recordings receive the events
@@ -453,8 +535,8 @@ pub mod test_hook {
     use std::sync::atomic::AtomicBool;
 
     /// Receives each global event (`Err` names an event whose payload could not be
-    /// serialized). Returns the event back when no recording takes it; it then goes to
-    /// the [`global`](super::global) emitter.
+    /// serialized). Returns the event back when no recording takes it; it then goes where
+    /// [`emit`](super::emit) would send it.
     pub type Router = fn(Result<Event, String>) -> Option<Event>;
 
     pub(crate) static ROUTING: AtomicBool = AtomicBool::new(false);
@@ -469,7 +551,12 @@ pub mod test_hook {
 
     #[track_caller]
     pub(crate) fn route(at: Option<Time>, event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
-        let Some(router) = ROUTER.get() else { return global().emit_inner(at, event, key, payload) };
+        let Some(router) = ROUTER.get() else {
+            if let Some(emitter) = current() {
+                emitter.emit_inner(at, event, key, payload);
+            }
+            return;
+        };
         let routed = match serde_json::to_value(payload) {
             Ok(payload) => router(Ok(Event::new(at, event, key, payload))),
             Err(e) => {
@@ -481,15 +568,12 @@ pub mod test_hook {
                 )))
             }
         };
-        if let (Some(event), Some(inner)) = (routed, &global().inner) {
-            inner.send(event);
+        if let (Some(event), Some(emitter)) = (routed, current()) {
+            if let Some(inner) = &emitter.inner {
+                inner.send(event);
+            }
         }
     }
-}
-
-/// [`Emitter::flush`] on the [`global`] emitter.
-pub fn flush() {
-    global().flush()
 }
 
 #[cfg(test)]
@@ -529,7 +613,7 @@ mod tests {
         let e = Emitter::writer(out.clone());
         e.emit("eStocked", "coffee", json!({"units": 3}));
         e.emit_at(Time::from_millis(5), "eDone", 7, ());
-        e.flush();
+        assert!(e.flush(Duration::from_secs(5)));
         let text = String::from_utf8(out.0.lock().unwrap().clone()).unwrap();
         let lines: Vec<Value> = text.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
         assert_eq!(lines.len(), 2);
@@ -567,6 +651,27 @@ mod tests {
         let e = Emitter::callback(|_| {});
         e.emit("a", "k", bad);
         assert_eq!(e.dropped(), 1);
+    }
+
+    #[test]
+    fn global_sink_is_replaceable() {
+        if std::env::var_os(EVENTS_DIR_ENV).is_some() {
+            return; // set_sink does nothing under a test's events folder
+        }
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let shared = seen.clone();
+        set_sink(Emitter::callback(move |e| shared.lock().unwrap().push(e.event)));
+        emit("a", "k", 1);
+        let mut bad = std::collections::HashMap::new();
+        bad.insert((1, 2), 3);
+        let before = dropped();
+        emit("bad", "k", bad);
+        set_sink(Emitter::callback(|_| {}));
+        assert_eq!(dropped(), before + 1, "drops survive replacing the sink");
+        close();
+        emit("b", "k", 2);
+        assert!(flush(Duration::from_secs(1)));
+        assert_eq!(*seen.lock().unwrap(), vec!["a".to_string()]);
     }
 
     #[test]

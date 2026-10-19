@@ -15,13 +15,13 @@ import java.util.function.Consumer;
  *   <li>a recording in this JVM (a test using {@code prs-test-core} or {@code prs-junit5});</li>
  *   <li>the folder in {@code PRS_EVENTS_DIR}, when a test started this process: one file
  *       per process, {@code <name>-<pid>-<random>.jsonl};</li>
- *   <li>the production sink set with {@link #toFile}, {@link #toStdout} or {@link #toConsumer}:
- *       JSON lines that {@code prs observe} reads;</li>
+ *   <li>the production sink installed with {@link #setSink}: JSON lines that
+ *       {@code prs observe} reads;</li>
  *   <li>nowhere (the default): {@code emit} costs two volatile reads.</li>
  * </ol>
  *
- * <p>Outside tests, {@code emit} never throws and never waits for I/O: file and stdout sinks
- * write from a background thread, and an event that cannot be written (full queue, I/O
+ * <p>Outside tests, {@code emit} never throws and never waits for I/O: sinks write from a
+ * background thread, and an event that cannot be written (full queue, I/O
  * error, a payload JSON cannot hold) is dropped and counted in {@link #dropped()}.
  *
  * <p>Payloads: a {@code Map} or record for a P named tuple, a single value, or none. Enums
@@ -29,10 +29,10 @@ import java.util.function.Consumer;
  */
 public final class PrsEmit {
     static final String EVENTS_DIR_ENV = "PRS_EVENTS_DIR";
-    private static final Sinks.Sink ENV_SINK = Sinks.fromEnvironment(System.getenv(EVENTS_DIR_ENV));
+    private static final Sinks.Out ENV_SINK = Sinks.fromEnvironment(System.getenv(EVENTS_DIR_ENV));
     static volatile EmitHook.Router router;
-    private static volatile Sinks.Sink sink = ENV_SINK;
-    private static Sinks.Sink configured;
+    private static volatile Sinks.Out sink = ENV_SINK;
+    private static Sinks.Out configured;
 
     private PrsEmit() {}
 
@@ -86,35 +86,23 @@ public final class PrsEmit {
         out.offer(line);
     }
 
-    /** Production: append events to {@code file} (created if missing), one JSON line each. */
-    public static void toFile(Path file) {
-        configure(Sinks.file(Objects.requireNonNull(file, "file")));
-    }
-
-    /** Production: write events to standard output, one JSON line each. */
-    public static void toStdout() {
-        configure(Sinks.stdout());
-    }
-
     /**
-     * Production: hand each JSON line to {@code consumer}, on the emitting thread. Exceptions
-     * from the consumer are caught and counted as dropped events; keep the consumer fast.
+     * Production: sends events to {@code sink} ({@link Sink#file}, {@link Sink#stdout},
+     * {@link Sink#writer} or {@link Sink#callback}), replacing and closing any earlier sink;
+     * {@code null} turns production emitting off. In a process a test started
+     * ({@code PRS_EVENTS_DIR} set) it does nothing: events go to the test.
      */
-    public static void toConsumer(Consumer<String> consumer) {
-        configure(Sinks.consumer(Objects.requireNonNull(consumer, "consumer")));
-    }
-
-    /** Production: stop writing events (the default). */
-    public static void off() {
-        configure(null);
-    }
-
-    private static synchronized void configure(Sinks.Sink next) {
+    public static synchronized void setSink(Sink sink) {
         var previous = configured;
-        configured = next;
         // PRS_EVENTS_DIR means a test started this process: its folder wins.
-        sink = ENV_SINK != null ? ENV_SINK : next;
+        configured = sink == null || ENV_SINK != null ? null : sink.open.get();
+        PrsEmit.sink = ENV_SINK != null ? ENV_SINK : configured;
         if (previous != null) previous.close();
+    }
+
+    /** Writes the queued events and turns production emitting off. Call it at shutdown. */
+    public static void close() {
+        setSink(null);
     }
 
     /** Events dropped since start: a full queue, an I/O error, or a payload JSON cannot hold. */
