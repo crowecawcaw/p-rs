@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
  * {@code junit-platform.properties}), then the default.
  */
 public final class PrsObserver {
-    static final String INSTALL = "Install prs with `cargo install --git https://github.com/crowecawcaw/p-rs p-rs` "
+    static final String INSTALL = "Install prs with `cargo install p-rs` "
             + "(or `cargo build -p p-rs` in a checkout), then set PRS_BIN to the binary or put prs on PATH.";
     static final String NATIVES_DOC = "https://github.com/crowecawcaw/p-rs/tree/main/java#install";
     private final List<Path> files;
@@ -222,7 +222,7 @@ public final class PrsObserver {
     public CoverageCollector coverage() { return new CoverageCollector(this, coverage); }
 
     /** Used to reject collectors sharing a destination but using different CLI settings. */
-    public String coverageCompatibilityKey() {
+    String coverageCompatibilityKey() {
         return binary + "\n" + timeout + "\n" + artifacts;
     }
 
@@ -308,7 +308,6 @@ public final class PrsObserver {
         return null;
     }
 
-    String binary() { return binary; }
     Path artifacts() { return artifacts; }
     Duration timeout() { return timeout; }
     boolean strict() { return strict; }

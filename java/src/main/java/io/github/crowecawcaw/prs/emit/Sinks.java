@@ -42,7 +42,7 @@ final class Sinks {
         DROPPED.increment();
         if (WARNED.compareAndSet(false, true)) {
             try {
-                System.err.println("prs-emit: dropping events (" + why + (error == null ? "" : ": " + error)
+                System.err.println("p-rs: dropping events (" + why + (error == null ? "" : ": " + error)
                         + "); see PrsEmit.dropped(). This warning is printed once.");
             } catch (Throwable ignored) {
                 // nothing more to do
@@ -179,7 +179,7 @@ final class Sinks {
         AsyncSink(String what, Opener opener) {
             this.what = what;
             this.opener = opener;
-            thread = new Thread(this::run, "prs-emit " + what);
+            thread = new Thread(this::run, "p-rs sink " + what);
             thread.setDaemon(true);
             thread.start();
             try {

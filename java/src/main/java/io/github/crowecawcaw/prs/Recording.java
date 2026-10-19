@@ -375,17 +375,12 @@ public final class Recording implements AutoCloseable {
             var option = Pattern.compile("'(--[a-z-]+)'").matcher(text);
             if (option.find()) {
                 text = "This prs (" + Processes.version(executable) + ") does not support " + option.group(1)
-                        + ", which p-rs " + helperVersion() + " needs. Use a newer prs. " + PrsObserver.INSTALL
+                        + ", which p-rs " + BundledBinary.version() + " needs. Use a newer prs. " + PrsObserver.INSTALL
                         + "\n" + text;
             }
         }
         return new SetupError(SetupError.CONFIG, "prs could not check the events of " + label + ":\n" + text
                 + "\n\n  prs output: " + directory, directory, null, null);
-    }
-
-    private static String helperVersion() {
-        var version = Recording.class.getPackage().getImplementationVersion();
-        return version == null ? "(development build)" : version;
     }
 
     private void validateReport(Object value, int processExit) throws IOException {

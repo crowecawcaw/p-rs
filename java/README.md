@@ -87,8 +87,7 @@ PRS_BIN="$PWD/target/debug/prs" mvn -f java/pom.xml -Pnatives install
 
 The `natives` profile packages every `java/natives/<classifier>/prs` (or `prs.exe`) it
 finds, or the folders under `-Dprs.natives=DIR`, as classifier jars. Or skip the
-natives jar and set `PRS_BIN` (or put `prs` on `PATH`), as
-`cargo install --git https://github.com/crowecawcaw/p-rs p-rs` does.
+natives jar and set `PRS_BIN`, or put `prs` on `PATH` with `cargo install --path crates/p-rs`.
 
 ## Emit events
 
