@@ -9,21 +9,35 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/crowecawcaw/p-rs/go/prsemit"
 )
 
-// Exercise command boundaries without a shell or the real CLI's failure modes.
+// The test binary doubles as a fake prs and as a child process that emits events.
 func init() {
 	mode := os.Getenv("PRSTEST_CHILD")
 	if mode == "" {
 		return
 	}
-	if mode == "timeout" {
+	switch mode {
+	case "timeout":
 		time.Sleep(2 * time.Second)
 		os.Exit(0)
+	case "emit":
+		prsemit.Emit("eCount", "child", 5)
+		os.Exit(0)
+	case "old":
+		if len(os.Args) > 1 && os.Args[1] == "--version" {
+			fmt.Println("prs 0.0.1")
+			os.Exit(0)
+		}
+		fmt.Println("Failed parsing ::\nWas passed main parameter '--unknown-events' but no main parameter was defined in your arg class\nUsage: prs observe [options]\n  --spec")
+		os.Exit(2)
 	}
 	for n, arg := range os.Args {
 		if arg == "--json-report" && n+1 < len(os.Args) {
@@ -57,54 +71,90 @@ func init() {
 	fmt.Println("fixture diagnostics")
 	os.Exit(0)
 }
+
 func fixtureConfig(t *testing.T) Config {
 	t.Helper()
 	binary, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Config{Binary: binary, SpecFiles: []string{"unused.p"}, Specs: []string{"S"}}
+	return Config{Binary: binary, SpecFiles: []string{"unused.p"}, Specs: []string{"S"}, Artifacts: t.TempDir()}
 }
-func TestEmissionSnapshotAndTime(t *testing.T) {
+
+func setupKind(t *testing.T, err error, kind string) *SetupError {
+	t.Helper()
+	var se *SetupError
+	if !errors.As(err, &se) || se.Kind != kind {
+		t.Fatalf("want a %s SetupError, got %T: %v", kind, err, err)
+	}
+	return se
+}
+
+func lines(t *testing.T, data []byte) []map[string]any {
+	t.Helper()
+	var out []map[string]any
+	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte{'\n'}) {
+		var m map[string]any
+		if err := json.Unmarshal(line, &m); err != nil {
+			t.Fatalf("invalid line %s: %v", line, err)
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
+// lineOf runs f, written on the caller's line, and returns that file:line.
+func lineOf(f func()) string {
+	f()
+	_, file, line, _ := runtime.Caller(1)
+	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+}
+
+func TestEmissionLineFormat(t *testing.T) {
 	r := New(t, fixtureConfig(t))
 	payload := map[string]any{"value": 1}
-	before := time.Now().UnixMilli()
+	before := time.Now()
 	r.EmitAt(time.Unix(10, 123), "tuple", "key", []any{1, "hello"})
-	r.Emit("named", "key", payload)
+	named := lineOf(func() { r.Emit("named", "key", payload) })
 	payload["value"] = 99
 	r.Emit("scalar", "key", 3)
 	r.Emit("unit", "key", nil)
-	after := time.Now().UnixMilli()
-	lines := bytes.Split(bytes.TrimSpace(r.trace.Bytes()), []byte{'\n'})
-	if len(lines) != 4 {
-		t.Fatalf("got %d events", len(lines))
+	after := time.Now()
+	got := lines(t, r.trace.Bytes())
+	if len(got) != 4 {
+		t.Fatalf("got %d events", len(got))
 	}
-	for n, line := range lines {
-		var event struct {
-			Timestamp json.RawMessage
-			Payload   json.RawMessage
+	if got[0]["timestamp"] != "1970-01-01T00:00:10.000000123Z" || got[0]["at"] != true || fmt.Sprint(got[0]["payload"]) != "[1 hello]" {
+		t.Fatalf("lost precise tuple: %v", got[0])
+	}
+	var prev time.Time
+	for n, e := range got[1:] {
+		ts, err := time.Parse(time.RFC3339Nano, e["timestamp"].(string))
+		if err != nil || ts.Before(before.Truncate(time.Microsecond)) || ts.After(after) || ts.Before(prev) || e["at"] != nil {
+			t.Fatalf("event %d: bad wall-clock time %v (%v)", n, e["timestamp"], err)
 		}
-		if err := json.Unmarshal(line, &event); err != nil {
-			t.Fatal(err)
-		}
-		if n == 0 {
-			if string(event.Timestamp) != `"1970-01-01T00:00:10.000000123Z"` || string(event.Payload) != `[1,"hello"]` {
-				t.Fatalf("lost precise tuple: %s", line)
-			}
-		} else {
-			var stamp int64
-			if err := json.Unmarshal(event.Timestamp, &stamp); err != nil {
-				t.Fatal(err)
-			}
-			if stamp < before || stamp > after {
-				t.Fatalf("not Unix millis: %s", line)
-			}
+		prev = ts
+		if e["seq"].(float64) <= got[n]["seq"].(float64) || e["pid"].(float64) != float64(os.Getpid()) {
+			t.Fatalf("bad seq or pid: %v", e)
 		}
 	}
-	if !bytes.Contains(lines[1], []byte(`"value":1`)) || !bytes.Contains(lines[2], []byte(`"payload":3`)) || !bytes.Contains(lines[3], []byte(`"payload":null`)) {
+	if got[1]["src"] != named {
+		t.Fatalf("src = %v", got[1]["src"])
+	}
+	if fmt.Sprint(got[1]["payload"]) != "map[value:1]" || got[2]["payload"] != 3.0 || got[3]["payload"] != nil {
 		t.Fatalf("payload not snapshotted: %s", r.trace.Bytes())
 	}
 }
+
+func TestSrcThroughMethodValue(t *testing.T) {
+	r := New(t, fixtureConfig(t))
+	emit := r.Emit
+	here := lineOf(func() { emit("e", "k", nil) })
+	if src := lines(t, r.trace.Bytes())[0]["src"]; src != here {
+		t.Fatalf("src = %v", src)
+	}
+}
+
 func TestConcurrentEmission(t *testing.T) {
 	r := New(t, fixtureConfig(t))
 	var workers sync.WaitGroup
@@ -118,30 +168,36 @@ func TestConcurrentEmission(t *testing.T) {
 		}(n)
 	}
 	workers.Wait()
-	lines := bytes.Split(bytes.TrimSpace(r.trace.Bytes()), []byte{'\n'})
-	if len(lines) != 256 {
-		t.Fatalf("lost emissions: %d", len(lines))
-	}
-	for _, line := range lines {
-		if !json.Valid(line) {
-			t.Fatalf("interleaved JSON: %s", line)
-		}
+	if got := lines(t, r.trace.Bytes()); len(got) != 256 {
+		t.Fatalf("lost emissions: %d", len(got))
 	}
 }
+
 func TestEncodingErrorIsSticky(t *testing.T) {
 	r := New(t, fixtureConfig(t))
 	r.Emit("bad", "k", make(chan int))
 	r.Emit("fine", "k", nil)
 	for n := 0; n < 2; n++ {
 		result, err := r.Verify(context.Background())
-		if err == nil || !strings.Contains(err.Error(), "encode event") {
-			t.Fatalf("lost encoding error: %v", err)
-		}
-		if len(result.Report) != 0 {
-			t.Fatal("checker ran after encoding failure")
+		se := setupKind(t, err, "parser")
+		if !strings.Contains(se.Message, "cannot encode the payload of bad") || len(result.Report) != 0 {
+			t.Fatalf("lost encoding error or ran the checker: %v", err)
 		}
 	}
 }
+
+func TestEmitAfterCheckFails(t *testing.T) {
+	t.Setenv("PRSTEST_CHILD", "empty-observation")
+	r := New(t, fixtureConfig(t))
+	r.Emit("e", "k", nil)
+	r.Verify(context.Background())
+	r.Emit("late", "k", nil)
+	_, err := r.Verify(context.Background())
+	if se := setupKind(t, err, "config"); !strings.Contains(se.Message, "late emitted at recorder_test.go:") {
+		t.Fatalf("late emission message: %v", se)
+	}
+}
+
 func TestMalformedAndMismatchedToolReports(t *testing.T) {
 	for _, mode := range []string{"malformed", "missing-spec"} {
 		t.Run(mode, func(t *testing.T) {
@@ -149,12 +205,25 @@ func TestMalformedAndMismatchedToolReports(t *testing.T) {
 			r := New(t, fixtureConfig(t))
 			r.Emit("e", "k", nil)
 			result, err := r.Verify(context.Background())
-			if err == nil || !strings.Contains(err.Error(), "report") || !strings.Contains(result.Output, "fixture diagnostics") {
+			setupKind(t, err, "config")
+			if !strings.Contains(err.Error(), "report") || !strings.Contains(result.Output, "fixture diagnostics") {
 				t.Fatalf("lost malformed tool diagnostics: %v %+v", err, result)
 			}
 		})
 	}
 }
+
+func TestOldBinaryNamesVersions(t *testing.T) {
+	t.Setenv("PRSTEST_CHILD", "old")
+	r := New(t, fixtureConfig(t))
+	r.Emit("e", "k", nil)
+	_, err := r.Verify(context.Background())
+	se := setupKind(t, err, "config")
+	if !strings.Contains(se.Message, "prs 0.0.1") || !strings.Contains(se.Message, "prstest "+Version) || strings.Contains(se.Message, "Usage") {
+		t.Fatalf("message: %s", se.Message)
+	}
+}
+
 func TestTimeoutAndMissingBinary(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		t.Setenv("PRSTEST_CHILD", "timeout")
@@ -163,45 +232,165 @@ func TestTimeoutAndMissingBinary(t *testing.T) {
 		r := New(t, cfg)
 		r.Emit("e", "k", nil)
 		_, err := r.Verify(context.Background())
+		setupKind(t, err, "timeout")
 		if !errors.Is(err, context.DeadlineExceeded) {
-			t.Fatalf("lost timeout: %v", err)
+			t.Fatalf("lost timeout cause: %v", err)
 		}
 	})
 	t.Run("missing", func(t *testing.T) {
 		cfg := fixtureConfig(t)
 		cfg.Binary = filepath.Join(t.TempDir(), "missing")
-		_, err := New(t, cfg).Verify(context.Background())
-		if err == nil || !strings.Contains(err.Error(), cfg.Binary) {
-			t.Fatalf("missing executable did not fail: %v", err)
+		r := New(t, cfg)
+		r.Emit("e", "k", nil)
+		_, err := r.Verify(context.Background())
+		se := setupKind(t, err, "binary_missing")
+		if !strings.Contains(se.Message, cfg.Binary) || !strings.Contains(se.Message, "cargo install") {
+			t.Fatalf("missing binary message: %v", se)
 		}
 	})
+	t.Run("not-on-path", func(t *testing.T) {
+		t.Setenv("PRS_BIN", "")
+		t.Setenv("PATH", t.TempDir())
+		cfg := fixtureConfig(t)
+		cfg.Binary = ""
+		r := New(t, cfg)
+		r.Emit("e", "k", nil)
+		_, err := r.Verify(context.Background())
+		setupKind(t, err, "binary_missing")
+	})
 }
+
+func TestNothingToCheckSkipsTheChecker(t *testing.T) {
+	cfg := fixtureConfig(t)
+	cfg.Binary = filepath.Join(t.TempDir(), "missing")
+	cfg.Specs = nil // every spec: not strict
+	if _, err := New(t, cfg).Verify(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestModeOff(t *testing.T) {
+	t.Setenv("PRS_MODE", "off")
+	cfg := fixtureConfig(t)
+	cfg.Binary = filepath.Join(t.TempDir(), "missing")
+	r := New(t, cfg)
+	r.Emit("e", "k", nil)
+	if _, err := r.Verify(context.Background()); err != nil || r.trace.Len() != 0 {
+		t.Fatalf("off mode checked or recorded: %v", err)
+	}
+}
+
 func TestConfiguration(t *testing.T) {
-	for _, cfg := range []Config{{}, {SpecFiles: []string{"a"}}, {SpecFiles: []string{"a"}, Specs: []string{"S", "S"}}, {SpecFiles: []string{"a"}, Specs: []string{"S"}, Timeout: -1}} {
-		if _, err := normalize(cfg); err == nil {
+	dir := t.TempDir()
+	for _, cfg := range []Config{
+		{},
+		{SpecFiles: []string{"a"}, Specs: []string{"S", "S"}},
+		{SpecFiles: []string{"a"}, Timeout: -1},
+		{SpecFiles: []string{"a"}, UnknownEvents: "drop"},
+		{SpecFiles: []string{"a"}, Mode: "always"},
+		{SpecFiles: []string{filepath.Join(dir, "*.p")}},
+		{SpecFiles: []string{"a"}, Specs: []string{"S"}, Exclude: []string{"S"}},
+	} {
+		if _, err := resolve(cfg); err == nil {
 			t.Fatalf("accepted invalid config: %+v", cfg)
 		}
 	}
-	original := Config{SpecFiles: []string{"spec.p"}, Specs: []string{"S"}, WorkDir: t.TempDir(), Binary: "./prs"}
-	normalized, err := normalize(original)
+	for _, name := range []string{"a.p", "b.p", "c.txt"} {
+		os.WriteFile(filepath.Join(dir, name), nil, 0o600)
+	}
+	s, err := resolve(Config{SpecFiles: []string{dir}, WorkDir: dir, Binary: "./prs", Exclude: []string{"X"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	original.SpecFiles[0] = "mutated"
-	original.Specs[0] = "mutated"
-	if !filepath.IsAbs(normalized.Binary) || !filepath.IsAbs(normalized.SpecFiles[0]) || normalized.Specs[0] != "S" {
-		t.Fatalf("incorrect snapshot: %+v", normalized)
+	if len(s.specFiles) != 2 || !filepath.IsAbs(s.binary) || s.strict || s.unknownEvents != "error" || s.specs != nil || s.exclude[0] != "X" {
+		t.Fatalf("defaults: %+v", s)
+	}
+	s, _ = resolve(Config{SpecFiles: []string{"a.p"}, Specs: []string{"S", "T"}, Exclude: []string{"T"}})
+	if !s.strict || len(s.specs) != 1 {
+		t.Fatalf("named specs: %+v", s)
+	}
+	s, _ = resolve(Config{SpecFiles: []string{"a.p"}, Specs: []string{"S"}, Strict: Bool(false)})
+	if s.strict {
+		t.Fatal("Strict: Bool(false) ignored")
+	}
+	s, _ = resolve(Config{SpecFiles: []string{"a.p"}, Specs: []string{"S"}, AllowUnobserved: true, ArtifactRoot: "art"})
+	if s.strict || len(s.deprecated) != 2 || !strings.HasSuffix(s.artifacts, "art") {
+		t.Fatalf("deprecated fields: %+v", s)
+	}
+
+	t.Setenv("PRS_SPEC_FILES", "x.p"+string(os.PathListSeparator)+"y.p")
+	t.Setenv("PRS_ARTIFACTS", "artifacts")
+	t.Setenv("PRS_COVERAGE", "cov.json")
+	t.Setenv("PRS_MODE", "off")
+	s, err = resolve(Config{SpecFiles: []string{"ignored.p"}, Artifacts: "other", Coverage: "other.json", WorkDir: dir})
+	cwd, _ := os.Getwd()
+	if err != nil || len(s.specFiles) != 2 || s.specFiles[0] != filepath.Join(cwd, "x.p") || s.artifacts != filepath.Join(cwd, "artifacts") || s.coverage != filepath.Join(cwd, "cov.json") || !s.off {
+		t.Fatalf("environment overrides: %+v %v", s, err)
 	}
 }
+
 func TestReportValidation(t *testing.T) {
 	valid := `{"exit_code":0,"specs":[{"spec":"S","events_read":1,"partition_keys":1,"verified_keys":1,"errors":[]}]}`
 	if err := validateReport([]byte(valid), []string{"S"}, true, true); err != nil {
 		t.Fatal(err)
 	}
+	if err := validateReport([]byte(strings.Replace(valid, `"S"`, `"other"`, 1)), nil, true, true); err != nil {
+		t.Fatalf("all specs: %v", err)
+	}
 	for _, bad := range []string{strings.Replace(valid, `"S"`, `"other"`, 1), strings.Replace(valid, `"verified_keys":1`, `"verified_keys":2`, 1), strings.Replace(valid, `"errors":[]`, `"errors":null`, 1), strings.Replace(valid, `"exit_code":0`, `"exit_code":2`, 1), `{"specs":[]}`, `{"exit_code":0,"specs":[{"spec":"S"}]}`} {
 		if err := validateReport([]byte(bad), []string{"S"}, true, true); err == nil {
 			t.Fatalf("accepted invalid report: %s", bad)
 		}
+	}
+}
+
+func TestClassifyReport(t *testing.T) {
+	line := func(event, payload, src string) string {
+		data, _ := json.Marshal(fmt.Sprintf(`{"event":%q,"key":"p1","timestamp":"2026-01-01T00:00:00.000000001Z","payload":%s,"src":%q}`, event, payload, src))
+		return string(data)
+	}
+	report := `{"specs":[
+	 {"spec":"Inv","errors":[{"kind":"spec_violation","key":"p1","message":"Assertion failure: /work/specs/inv.p:12:5 too many","events":[
+	   {"event":"eStocked","log_line":` + line("eStocked", `{"units":1}`, "app.go:10") + `},
+	   {"event":"eReserved","log_line":` + line("eReserved", `{"order":"o1","units":2}`, "app.go:20") + `}]}]},
+	 {"spec":"Ships","errors":[{"kind":"spec_violation","key":"p2","message":"PImplementation.Ships detected liveness bug in hot state 'Waiting' at the end of program execution.","events":[]}]}]}`
+	vs, se := classify([]byte(report), "/work", "/tmp/out")
+	if se != nil || len(vs) != 2 {
+		t.Fatalf("classify: %v %v", vs, se)
+	}
+	v := vs[0]
+	if v.Spec != "Inv" || v.Key != "p1" || v.Message != "too many" || v.Location != filepath.FromSlash("specs/inv.p:12") || v.Liveness || len(v.Events) != 2 {
+		t.Fatalf("violation: %+v", v)
+	}
+	if e := v.Events[1]; e.Event != "eReserved" || e.Src != "app.go:20" || e.Payload.(map[string]any)["order"] != "o1" || e.Time.IsZero() {
+		t.Fatalf("event: %+v", e)
+	}
+	v.Others = vs[1:]
+	want := []string{
+		"P spec Inv was broken: too many",
+		`  Events (key "p1"):`,
+		"      1  eStocked   units=1",
+		"      2  eReserved  order=o1 units=2  app.go:20  <- broke the spec here",
+		"  Spec: " + filepath.FromSlash("specs/inv.p:12"),
+		"  prs output: /tmp/out",
+		`    Ships (key "p2"): it ended in hot state 'Waiting'`,
+	}
+	for _, w := range want {
+		if !strings.Contains(v.Error(), w) {
+			t.Fatalf("report lacks %q:\n%s", w, v.Error())
+		}
+	}
+	if !vs[1].Liveness || !strings.Contains(vs[1].Error(), "was still waiting when the events ended") || !strings.Contains(vs[1].Error(), "(none)") {
+		t.Fatalf("liveness report:\n%s", vs[1].Error())
+	}
+
+	_, se = classify([]byte(`{"specs":[{"spec":"S","errors":[{"kind":"validation","message":"S checked no events"},{"kind":"parser","message":`+line("eCount", `"x"`, "a.go:3")+`,"cause":"cannot read \"x\" as int"}]}]}`), "/work", "")
+	if se == nil || se.Kind != "parser" || !strings.Contains(se.Message, `eCount (a.go:3): cannot read "x" as int`) {
+		t.Fatalf("parser error: %v", se)
+	}
+	_, se = classify([]byte(`{"specs":[{"spec":"S","errors":[{"kind":"validation","message":"S checked no events"}]}]}`), "/work", "")
+	if se == nil || se.Kind != "validation" {
+		t.Fatalf("validation error: %v", se)
 	}
 }
 
@@ -272,17 +461,43 @@ func TestInvalidMergePreservesPreviousDestination(t *testing.T) {
 // Opting out of strict observation permits emptiness, never skipped partitions.
 func TestToolSuccessMetricInvariants(t *testing.T) {
 	for _, mode := range []string{"unverified-partition", "empty-observation", "keys-without-events", "events-without-keys"} {
-		for _, allow := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s/allow-unobserved=%t", mode, allow), func(t *testing.T) {
+		for _, strict := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s/strict=%t", mode, strict), func(t *testing.T) {
 				t.Setenv("PRSTEST_CHILD", mode)
 				cfg := fixtureConfig(t)
-				cfg.AllowUnobserved = allow
-				_, err := New(t, cfg).Verify(context.Background())
-				wantSuccess := allow && mode == "empty-observation"
+				cfg.Strict = Bool(strict)
+				r := New(t, cfg)
+				r.Emit("e", "k", nil)
+				_, err := r.Verify(context.Background())
+				wantSuccess := !strict && mode == "empty-observation"
 				if (err == nil) != wantSuccess {
 					t.Fatalf("success=%t, want %t: %v", err == nil, wantSuccess, err)
 				}
 			})
 		}
+	}
+}
+
+func TestArtifactsKeptOnlyOnFailure(t *testing.T) {
+	root := t.TempDir()
+	t.Run("pass", func(t *testing.T) {
+		t.Setenv("PRSTEST_CHILD", "empty-observation")
+		cfg := fixtureConfig(t)
+		cfg.Artifacts, cfg.Strict = root, Bool(false)
+		Start(t, cfg).Emit("e", "k", nil)
+	})
+	t.Run("fail", func(t *testing.T) {
+		t.Setenv("PRSTEST_CHILD", "malformed")
+		cfg := fixtureConfig(t)
+		cfg.Artifacts = root
+		r := New(t, cfg)
+		r.Emit("e", "k", nil)
+		if _, err := r.Verify(context.Background()); err == nil {
+			t.Fatal("malformed report passed")
+		}
+	})
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 1 || !strings.Contains(entries[0].Name(), "fail") {
+		t.Fatalf("want only the failed check's folder; got %v %v", entries, err)
 	}
 }

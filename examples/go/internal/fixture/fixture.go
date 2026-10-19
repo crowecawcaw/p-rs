@@ -10,6 +10,7 @@ import (
 )
 
 // Config is relative to each test package, one level below the module root.
+// Naming the spec makes the check strict: it fails if no event reaches it.
 func Config() prstest.Config {
 	return prstest.Config{SpecFiles: []string{"../specs/inventory.p"}, Specs: []string{"InventoryCorrect"}}
 }
@@ -20,16 +21,23 @@ func New(t testing.TB) *prstest.Recorder {
 	return prstest.New(t, Config())
 }
 
-// Checked returns an empty inventory whose events are checked at test cleanup.
-func Checked(t testing.TB) *inventory.Inventory {
+// Start returns a recorder that is checked when the test ends.
+func Start(t testing.TB) *prstest.Recorder {
 	t.Helper()
-	return inventory.New(prstest.Start(t, Config()).Emit)
+	return prstest.Start(t, Config())
 }
 
-// CheckedWithCoverage is Checked, also adding the observation to suite.
-func CheckedWithCoverage(t testing.TB, suite *prstest.Suite) *inventory.Inventory {
+// Checked returns an empty inventory whose events are checked when the test ends.
+func Checked(t testing.TB) *inventory.Inventory {
+	t.Helper()
+	return inventory.New(Start(t).Emit)
+}
+
+// CheckedWithCoverage is Checked, also adding the check's monitor coverage to
+// coverage/monitor.json in the test package (written by prstest.Main).
+func CheckedWithCoverage(t testing.TB) *inventory.Inventory {
 	t.Helper()
 	cfg := Config()
-	cfg.Suite = suite
+	cfg.Coverage = "coverage/monitor.json"
 	return inventory.New(prstest.Start(t, cfg).Emit)
 }

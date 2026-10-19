@@ -1,9 +1,6 @@
 package explicit_test
 
 import (
-	"context"
-	"encoding/json"
-	"strings"
 	"testing"
 
 	"example.com/inventory/internal/fixture"
@@ -36,17 +33,8 @@ func TestSpecRejectsOverselling(t *testing.T) {
 	r.Emit("eStocked", "coffee", map[string]any{"units": 3})
 	r.Emit("eReserved", "coffee", map[string]any{"order": "order-1", "units": 2})
 	r.Emit("eReserved", "coffee", map[string]any{"order": "order-2", "units": 2})
-	result, err := r.Verify(context.Background())
-	if err == nil {
-		t.Fatal("want an overselling spec violation; the check passed")
-	}
-	var report struct {
-		Specs []struct{ Errors []struct{ Kind, Message string } }
-	}
-	if err := json.Unmarshal(result.Report, &report); err != nil || len(report.Specs) != 1 || len(report.Specs[0].Errors) == 0 {
-		t.Fatalf("want a report with one spec's errors; got %v\n%s", err, result.Report)
-	}
-	if e := report.Specs[0].Errors[0]; e.Kind != "spec_violation" || !strings.Contains(e.Message, "reservation exceeds available stock") {
-		t.Fatalf("want an overselling spec violation; got %+v", e)
+	v := r.ExpectViolation(t, "InventoryCorrect", "exceeds available stock")
+	if v.Key != "coffee" || len(v.Events) != 3 {
+		t.Fatalf("want the violation on coffee's third event; got\n%v", v)
 	}
 }

@@ -1,9 +1,6 @@
 package checked_test
 
 import (
-	"context"
-	"fmt"
-	"os"
 	"testing"
 
 	"example.com/inventory/internal/fixture"
@@ -11,13 +8,11 @@ import (
 	"github.com/crowecawcaw/p-rs/go/prstest"
 )
 
-var suite *prstest.Suite
-
 // stocked starts recording, registers the cleanup check, then seeds stock.
 // Every participating test must call it: Go has no global per-test hook.
 func stocked(t *testing.T) *inventory.Inventory {
 	t.Helper()
-	app := fixture.CheckedWithCoverage(t, suite)
+	app := fixture.CheckedWithCoverage(t)
 	stock := map[string]int{"coffee": 3, "tea": 2}
 	for _, sku := range []string{"coffee", "tea"} {
 		if err := app.Stock(sku, stock[sku]); err != nil {
@@ -57,17 +52,5 @@ func TestRejectedReservation(t *testing.T) {
 	}
 }
 
-func TestMain(m *testing.M) {
-	var err error
-	suite, err = prstest.NewSuite(prstest.SuiteConfig{})
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	code := m.Run()
-	if err := suite.WriteCoverage(context.Background(), "coverage/monitor.json", os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		code = 1
-	}
-	os.Exit(code)
-}
+// Main runs the tests, then writes coverage/monitor.json and prints its summary.
+func TestMain(m *testing.M) { prstest.Main(m) }
