@@ -6,7 +6,9 @@ import org.junit.jupiter.api.extension.*;
 final class InventoryExtension implements BeforeEachCallback, AfterEachCallback, ParameterResolver {
     private static final ExtensionContext.Namespace NS = ExtensionContext.Namespace.create(InventoryExtension.class);
     @Override public void beforeEach(ExtensionContext context) throws Exception {
-        context.getStore(NS).put("recording", new Recording());
+        var coverage = context.getRoot().getStore(NS).getOrComputeIfAbsent(
+                "coverage", key -> new Coverage(), Coverage.class);
+        context.getStore(NS).put("recording", new Recording(coverage));
     }
     @Override public void afterEach(ExtensionContext context) throws Exception {
         context.getStore(NS).remove("recording", Recording.class).close();

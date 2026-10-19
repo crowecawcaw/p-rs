@@ -116,11 +116,14 @@ class Recorder:
         exclude: Iterable[str] = (),
         liveness: bool = False,
         output_root: Optional[str] = None,
+        coverage: bool = False,
     ):
         self.specs: List[str] = list(specs)
         self.spec_files = list(spec_files) if spec_files is not None else None
         self.exclude: List[str] = list(exclude)
         self.liveness = liveness
+        self.coverage = coverage
+        self.coverage_report: Optional[dict] = None
         #: Specs whose violations this recorder ignores (broken on purpose inside
         #: `expect_violation`).
         self.ignored: set = set()
@@ -299,10 +302,17 @@ class Recorder:
         cmd += ["-l", events_dir, "-o", out_dir, "--json-report", report_path]
         if self.liveness:
             cmd.append("--check-hot")
+        if self.coverage:
+            cmd.append("--coverage")
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=workdir)
         output = proc.stdout.decode("utf-8", errors="replace")
         with open(os.path.join(workdir, "prs-output.txt"), "w", encoding="utf-8") as f:
             f.write(" ".join(cmd) + "\n\n" + output)
+        if self.coverage and os.path.isfile(report_path):
+            with open(report_path, encoding="utf-8") as f:
+                self.coverage_report = json.load(f)
+            if any("coverage" not in spec for spec in self.coverage_report.get("specs", [])):
+                raise PrsError("prs did not report model coverage; use a binary supporting observe --coverage")
         if proc.returncode == 0:
             shutil.rmtree(workdir, ignore_errors=True)
             return []

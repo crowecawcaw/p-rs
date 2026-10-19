@@ -19,10 +19,11 @@ import (
 )
 
 type Recorder struct {
-	mu     sync.Mutex
-	events bytes.Buffer
-	seq    int
-	keys   map[string]bool
+	mu       sync.Mutex
+	events   bytes.Buffer
+	seq      int
+	keys     map[string]bool
+	coverage bool
 }
 
 func New() *Recorder { return &Recorder{keys: make(map[string]bool)} }
@@ -72,6 +73,9 @@ func (r *Recorder) Verify(t testing.TB) error {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, "observe", "-pf", spec,
 		"--spec", "InventoryCorrect", "-l", logs, "--outputDir", filepath.Join(dir, "report"), "--json-report", reportPath)
+	if r.coverage {
+		cmd.Args = append(cmd.Args, "--coverage")
+	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		report, _ := os.ReadFile(reportPath)
@@ -93,6 +97,11 @@ func (r *Recorder) Verify(t testing.TB) error {
 	}
 	if err := json.Unmarshal(data, &report); err != nil {
 		return err
+	}
+	if r.coverage {
+		if mergeErr := collectCoverage(data); mergeErr != nil {
+			return mergeErr
+		}
 	}
 	if report.ExitCode != 0 || len(report.Specs) != 1 {
 		return fmt.Errorf("unexpected checker report: %s", data)
@@ -117,6 +126,7 @@ func (r *Recorder) Check(t testing.TB) {
 func Checked(t testing.TB) *inventory.Inventory {
 	t.Helper()
 	r := New()
+	r.coverage = true
 	t.Cleanup(func() { r.Check(t) })
 	return inventory.New(r.Emit)
 }

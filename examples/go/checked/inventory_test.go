@@ -1,6 +1,8 @@
 package checked_test
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"example.com/inventory/internal/prstest"
@@ -48,4 +50,13 @@ func TestRejectedReservation(t *testing.T) {
 	if app.Available("coffee") != 1 {
 		t.Fatal("rejected operation changed stock")
 	}
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if err := prstest.WriteCoverage("coverage/model.json"); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		code = 1
+	}
+	os.Exit(code)
 }

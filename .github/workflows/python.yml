@@ -70,6 +70,13 @@ jobs:
         working-directory: examples/python/hypothesis
         run: python -m pytest -p no:cacheprovider
 
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: python-model-${{ matrix.os }}-${{ matrix.python }}
+          path: examples/python/pytest/coverage/model.json
+          if-no-files-found: warn
+
   wheels:
     name: wheel (${{ matrix.target }})
     if: ${{ inputs.tag }}

@@ -34,4 +34,11 @@ jobs:
       - name: Lint
         run: cargo clippy --manifest-path examples/rust/Cargo.toml --all-targets --locked -- -D warnings
       - name: Run all three integration setups
-        run: cargo test --manifest-path examples/rust/Cargo.toml --locked
+        run: cargo test --manifest-path examples/rust/Cargo.toml --locked -- --nocapture
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: rust-model
+          path: examples/rust/target/coverage/model.json
+          if-no-files-found: warn
