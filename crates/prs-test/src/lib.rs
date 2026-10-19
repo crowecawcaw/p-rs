@@ -104,7 +104,8 @@ struct Buffer {
 
 /// Thread-safe handle suitable for application callbacks. Clones share one ordered
 /// recording. The mutex establishes event order; publish after the operation commits.
-/// An event with a bad name/payload remains in the recording and fails its final check.
+/// Unrelated event names are ignored at check time, like `prs observe`. An invalid
+/// payload for a relevant event remains recorded and fails the check.
 #[derive(Debug, Clone)]
 pub struct EventSink {
     state: Arc<Mutex<Buffer>>,
@@ -255,9 +256,11 @@ impl Parser for Events<'_> {
     fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
         let index: usize = entry.parse().map_err(|e| format!("invalid recording index: {e}"))?;
         let event = self.0.get(index).ok_or("missing recorded event")?;
-        let id = spec.event_id(&event.name).ok_or_else(|| format!("unknown event '{}'", event.name))?;
+        // Shared event streams may include names absent from this P model or events
+        // declared for another monitor. Filter before conversion, like `prs observe`.
+        let Some(id) = spec.event_id(&event.name) else { return Ok(Vec::new()) };
         if !spec.observes_event(id) {
-            return Err(format!("event '{}' is not observed by selected specification '{}'", event.name, spec.name()));
+            return Ok(Vec::new());
         }
         if matches!(spec.payload_type(id), prs_sema::PType::Null) && !event.payload.is_null() {
             return Err(format!("unit event '{}' requires a null JSON payload", event.name));

@@ -44,14 +44,9 @@ fn scalar_named_and_ordinary_tuple_and_unit_payloads() {
 
 #[test]
 fn invalid_mappings_stay_recorded_and_fail_with_parser_details() {
-    for (name, payload) in [
-        ("Typo", json!(1)),
-        ("Stock", json!("wrong")),
-        ("Stock", json!(null)),
-        ("Done", json!(1)),
-        ("Unobserved", json!(null)),
-        ("Pair", json!({"units":1})),
-    ] {
+    for (name, payload) in
+        [("Stock", json!("wrong")), ("Stock", json!(null)), ("Done", json!(1)), ("Pair", json!({"units":1}))]
+    {
         let model = model();
         let recording = model.recording();
         recording.emit("coffee", name, payload).unwrap();
@@ -59,6 +54,28 @@ fn invalid_mappings_stay_recorded_and_fail_with_parser_details() {
         assert!(!failure.report().passed());
         assert!(failure.to_string().contains("Parser"), "{failure}");
         assert_eq!(failure.events().len(), 1);
+    }
+}
+
+#[test]
+fn unrelated_events_are_ignored_before_payload_conversion() {
+    let model = model();
+    let mixed = model.recording();
+    mixed.emit("coffee", "Stock", json!(1)).unwrap();
+    mixed.emit("coffee", "NotInThisModel", json!({"arbitrary":"data"})).unwrap();
+    mixed.emit("coffee", "Unobserved", json!({"not":"a unit payload"})).unwrap();
+    let report = mixed.check().unwrap();
+    assert_eq!(report.verified_events(), 1);
+    for name in ["NotInThisModel", "Unobserved"] {
+        let recording = model.recording();
+        recording.emit("coffee", name, json!({"arbitrary":"data"})).unwrap();
+        let error = recording.check().unwrap_err();
+        assert!(error.to_string().contains("Validation"), "{error}");
+        assert!(!error.to_string().contains("Parser"), "{error}");
+        let opt_out = Model::compile(&[("inventory.p", SPEC)], "Inventory").unwrap().strict(false);
+        let recording = opt_out.recording();
+        recording.emit("coffee", name, json!({"arbitrary":"data"})).unwrap();
+        assert_eq!(recording.check().unwrap().verified_events(), 0);
     }
 }
 

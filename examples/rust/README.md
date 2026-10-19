@@ -45,7 +45,10 @@ payloads and sets up the inventory fixture. `prs-test` buffers events and checks
 process. The SKU is the partition key, so each product gets independent monitor state.
 A shared `Model` semantically compiles the spec once; every recording starts fresh
 monitors (interpreter bytecode preparation currently repeats). The helper is strict by
-default and rejects missing instrumentation, event-name mistakes, and bad payloads.
+default: a trace with no verified relevant events fails. Bad payloads for relevant
+events fail, while unrelated events are ignored like `prs observe`. Strictness cannot
+detect every typo or partially missing instrumentation; assert specific event counts
+when the test requires them.
 
 The cloned event sink works in thread callbacks. `emit` assigns epoch milliseconds
 while inserting each event under a lock; `emit_at` allows deterministic timestamps.

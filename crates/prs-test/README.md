@@ -50,9 +50,13 @@ application's transactions atomic.
 
 Payloads follow `prs observe` JSON conversion: scalar JSON for scalar events, objects
 or positional arrays for named tuples, arrays for ordinary tuples, and `null` for unit
-events. Unknown event names, unobserved events, and bad payload mappings are retained
-and fail at `check`, so callbacks cannot silently discard instrumentation mistakes.
-Emission itself returns a lifecycle error if checking has already closed the recorder.
+events. Names absent from the P model and events not observed by the selected spec
+are ignored before payload conversion, as in `prs observe`. This lets applications
+connect a shared event stream. An invalid payload on a relevant event fails at `check`.
+Strict mode detects a trace with no verified relevant events; it cannot detect partially
+missing events or every typo when other relevant events remain. Use explicit counts or
+application assertions when a test expects a particular event. Emission itself returns
+a lifecycle error if checking has already closed the recorder.
 
 Finish cleanup and join producer threads before calling `Recording::check`. It consumes
 the recording and closes its cloned sinks; later emissions return errors. There is no
