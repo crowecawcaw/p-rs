@@ -1,8 +1,5 @@
 package io.github.crowecawcaw.prs;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.crowecawcaw.prs.emit.EmitHook;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -13,6 +10,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -31,7 +29,6 @@ import java.util.regex.Pattern;
  * and stop or join child processes and threads first.
  */
 public final class Recording implements AutoCloseable {
-    static final ObjectMapper JSON = new ObjectMapper();
     private static final Pattern ASSERTION = Pattern.compile("(?s)Assertion failure: (.+?:\\d+):\\d+ (.*)");
     private static final Pattern HOT = Pattern.compile("(?s).*detected liveness bug in hot state '(.*)' at the end of program execution\\.?");
 
@@ -287,20 +284,22 @@ public final class Recording implements AutoCloseable {
                     + "\n\n  prs output: " + directory, directory, null, error);
         }
         if (!Files.isRegularFile(reportPath)) return commandError(executable, console);
-        ObjectNode full;
+        Map<String, Object> full;
         try {
-            JsonNode value = JSON.readTree(reportPath.toFile());
+            var value = Json.read(reportPath);
             validateReport(value, exit);
-            full = (ObjectNode) value;
+            @SuppressWarnings("unchecked") var object = (Map<String, Object>) value;
+            full = object;
         } catch (IOException | RuntimeException error) {
             return new SetupError(SetupError.CONFIG, "prs wrote an unusable report for " + label + ": " + error + "\n"
                     + Processes.tail(console) + "\n\n  prs output: " + directory, directory, null, error);
         }
-        var source = full.putObject("source");
+        var source = new LinkedHashMap<String, Object>();
         source.put("label", label);
         source.put("recording_id", directory.getFileName().toString());
+        full.put("source", source);
         try {
-            JSON.writerWithDefaultPrettyPrinter().writeValue(reportPath.toFile(), full);
+            Files.writeString(reportPath, Json.pretty(full));
         } catch (IOException error) {
             return new SetupError(SetupError.CONFIG, "Cannot write " + reportPath + ": " + error, directory, null, error);
         }
@@ -389,47 +388,47 @@ public final class Recording implements AutoCloseable {
         return version == null ? "(development build)" : version;
     }
 
-    private void validateReport(JsonNode value, int processExit) throws IOException {
-        if (value == null || !value.isObject() || !value.path("exit_code").isIntegralNumber()
-                || !value.path("exit_code").canConvertToInt()
-                || !Set.of(0, 2, 3, 4).contains(value.path("exit_code").intValue())
-                || !value.path("specs").isArray()) throw new IOException("Malformed observation report");
-        boolean success = value.path("exit_code").intValue() == 0;
+    private void validateReport(Object value, int processExit) throws IOException {
+        if (!(value instanceof Map) || !(Json.get(value, "exit_code") instanceof Integer exitCode)
+                || !Set.of(0, 2, 3, 4).contains(exitCode)
+                || !(Json.get(value, "specs") instanceof List)) throw new IOException("Malformed observation report");
+        boolean success = exitCode == 0;
         boolean hasErrors = false;
         var names = new java.util.HashSet<String>();
-        for (var spec : value.path("specs")) {
-            if (!spec.path("spec").isTextual() || !names.add(spec.path("spec").asText())
-                    || !spec.path("errors").isArray()) throw new IOException("Malformed spec report");
+        for (var spec : Json.items(Json.get(value, "specs"))) {
+            var name = Json.text(Json.get(spec, "spec"));
+            if (name == null || !names.add(name) || !(Json.get(spec, "errors") instanceof List))
+                throw new IOException("Malformed spec report");
             for (String metric : List.of("events_read", "partition_keys", "verified_keys")) {
-                var number = spec.path(metric);
-                if (!number.isIntegralNumber() || !number.canConvertToLong() || number.longValue() < 0)
-                    throw new IOException("Malformed observation metric: " + metric);
+                var number = Json.integer(Json.get(spec, metric));
+                if (number == null || number < 0) throw new IOException("Malformed observation metric: " + metric);
             }
-            long events = spec.path("events_read").longValue();
-            long partitions = spec.path("partition_keys").longValue();
-            long verified = spec.path("verified_keys").longValue();
+            long events = Json.integer(Json.get(spec, "events_read"));
+            long partitions = Json.integer(Json.get(spec, "partition_keys"));
+            long verified = Json.integer(Json.get(spec, "verified_keys"));
             if (events < partitions) throw new IOException("partition_keys exceeds events_read");
             if ((events == 0) != (partitions == 0))
                 throw new IOException("events_read and partition_keys disagree on empty observation");
             if (verified > partitions) throw new IOException("verified_keys exceeds partition_keys");
             if (success && verified != partitions) throw new IOException("Successful report contains unverified keys");
             if (success && observer.strict() && events == 0)
-                throw new IOException("Strict observation reported success without relevant events for " + spec.path("spec").asText());
-            for (var error : spec.path("errors")) {
+                throw new IOException("Strict observation reported success without relevant events for " + name);
+            for (var error : Json.items(Json.get(spec, "errors"))) {
                 hasErrors = true;
-                if (!error.path("kind").isTextual() || !Set.of("spec_violation", "parser", "out_of_order", "unknown",
-                        "validation", "unknown_event").contains(error.path("kind").asText())
-                        || !error.path("message").isTextual())
+                var kind = Json.text(Json.get(error, "kind"));
+                if (kind == null || !Set.of("spec_violation", "parser", "out_of_order", "unknown",
+                        "validation", "unknown_event").contains(kind)
+                        || Json.text(Json.get(error, "message")) == null)
                     throw new IOException("Malformed observation error");
                 for (String field : List.of("key", "cause")) {
-                    var optional = error.get(field);
-                    if (optional == null || (!optional.isNull() && !optional.isTextual()))
+                    var optional = Json.get(error, field);
+                    if (!Json.has(error, field) || (optional != null && !(optional instanceof String)))
                         throw new IOException("Malformed observation error " + field);
                 }
-                if (!error.path("events").isArray()) throw new IOException("Malformed error replay events");
-                for (var replay : error.path("events")) {
+                if (!(Json.get(error, "events") instanceof List)) throw new IOException("Malformed error replay events");
+                for (var replay : Json.items(Json.get(error, "events"))) {
                     for (String field : List.of("key", "timestamp", "event", "log_line")) {
-                        if (!replay.path(field).isTextual()) throw new IOException("Malformed replay " + field);
+                        if (Json.text(Json.get(replay, field)) == null) throw new IOException("Malformed replay " + field);
                     }
                 }
             }
@@ -504,10 +503,13 @@ public final class Recording implements AutoCloseable {
                         text.append("  unreadable line: ").append(error.message()).append('\n');
                         if (error.cause() != null) text.append("    ").append(error.cause()).append('\n');
                     } else {
-                        var src = line.path("src").isTextual() ? " (" + line.path("src").asText() + ")" : "";
-                        text.append("  ").append(line.path("event").asText("?")).append(src).append(": ")
-                                .append(error.cause() == null ? "payload does not match" : error.cause()).append('\n');
-                        text.append("    payload: ").append(line.path("payload")).append('\n');
+                        var src = Json.text(Json.get(line, "src"));
+                        var event = Json.text(Json.get(line, "event"));
+                        text.append("  ").append(event == null ? "?" : event).append(src == null ? "" : " (" + src + ")")
+                                .append(": ").append(error.cause() == null ? "payload does not match" : error.cause())
+                                .append('\n');
+                        text.append("    payload: ").append(Json.has(line, "payload") ? Json.write(Json.get(line, "payload")) : "")
+                                .append('\n');
                     }
                 }
             } else {
@@ -530,16 +532,17 @@ public final class Recording implements AutoCloseable {
             if (!m.find()) return null;
             try (var lines = Files.lines(Path.of(m.group(1)))) {
                 var line = lines.skip(Long.parseLong(m.group(2)) - 1).findFirst().map(Outcomes::parse).orElse(null);
-                return line != null && line.path("src").isTextual() ? line.path("src").asText() : null;
+                return Json.text(Json.get(line, "src"));
             } catch (IOException | RuntimeException error) {
                 return null;
             }
         }
 
-        private static JsonNode parse(String line) {
+        /** One event line as an object, or null when it is not one. */
+        private static Object parse(String line) {
             try {
-                var node = JSON.readTree(line);
-                return node != null && node.isObject() ? node : null;
+                var value = Json.parse(line);
+                return value instanceof Map ? value : null;
             } catch (IOException error) {
                 return null;
             }
@@ -567,9 +570,9 @@ public final class Recording implements AutoCloseable {
                 String src = null;
                 boolean at = false;
                 if (line != null) {
-                    payload = line.has("payload") ? JSON.convertValue(line.get("payload"), Object.class) : null;
-                    src = line.path("src").isTextual() ? line.path("src").asText() : null;
-                    at = line.path("at").asBoolean(false);
+                    payload = Json.get(line, "payload");
+                    src = Json.text(Json.get(line, "src"));
+                    at = Boolean.TRUE.equals(Json.get(line, "at"));
                 }
                 events.add(new SpecViolation.Event(replay.event(), replay.key(), payload, src, replay.timestamp(), at));
             }

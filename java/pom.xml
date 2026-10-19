@@ -45,7 +45,6 @@
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
-    <jackson.version>2.18.3</jackson.version>
     <!-- natives profile: a folder holding <classifier>/prs (or prs.exe), one per platform -->
     <prs.natives>${project.basedir}/natives</prs.natives>
     <prs.natives.staging>${project.build.directory}/natives</prs.natives.staging>
@@ -64,13 +63,7 @@
   </dependencyManagement>
 
   <dependencies>
-    <!-- Test helpers only; the emitter (io.github.crowecawcaw.prs.emit) needs nothing but the JDK. -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
-    </dependency>
-    <!-- Come with the user's test framework (JUnit 5, jqwik, ...); never pulled into production. -->
+    <!-- No runtime dependencies. These come with the user's test framework (JUnit 5, jqwik, ...). -->
     <dependency>
       <groupId>org.opentest4j</groupId>
       <artifactId>opentest4j</artifactId>

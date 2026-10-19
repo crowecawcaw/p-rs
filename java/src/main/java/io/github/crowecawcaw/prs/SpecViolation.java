@@ -113,8 +113,8 @@ public final class SpecViolation extends ObservationFailure {
         String text;
         if (value instanceof String s) text = s;
         else {
-            try { text = Recording.JSON.writeValueAsString(value); }
-            catch (Exception error) { text = String.valueOf(value); }
+            try { text = Json.write(value); }
+            catch (RuntimeException error) { text = String.valueOf(value); }
         }
         return text.length() <= 40 ? text : text.substring(0, 37) + "...";
     }

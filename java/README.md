@@ -9,10 +9,10 @@ One artifact, `io.github.crowecawcaw:p-rs`, holds both halves:
 | Package | Use it for | Needs |
 | --- | --- | --- |
 | `io.github.crowecawcaw.prs.emit` | `PrsEmit.emit(...)` in application code; production sinks | the JDK only |
-| `io.github.crowecawcaw.prs` | Recordings and checks from any test framework; the JUnit 5 extension | Jackson; opentest4j and JUnit Jupiter API from your test framework |
+| `io.github.crowecawcaw.prs` | Recordings and checks from any test framework; the JUnit 5 extension | opentest4j and the JUnit Jupiter API, from your test framework |
 
-JUnit and opentest4j are optional dependencies, so production code depending on
-`p-rs` pulls neither and loads no test classes. The `prs` checker comes in a classifier
+`p-rs` has no runtime dependencies: JUnit and opentest4j are optional, so production
+code depending on `p-rs` pulls nothing else and loads no test classes. The `prs` checker comes in a classifier
 jar of the same artifact, `natives-<os>-<arch>`: `natives-linux-x86_64`,
 `natives-linux-aarch64`, `natives-macos-x86_64`, `natives-macos-aarch64`,
 `natives-windows-x86_64`.

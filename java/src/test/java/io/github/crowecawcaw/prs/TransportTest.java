@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -48,13 +49,13 @@ class TransportTest {
 
     @Test @EnabledOnOs(OS.LINUX)
     void invalidMetricStatusAndErrorTypesCannotMasqueradeAsSuccess() throws Exception {
-        var valid = Recording.JSON.readTree("{\"exit_code\":0,\"specs\":[{\"spec\":\"Spec\","
-                + "\"events_read\":1,\"partition_keys\":1,\"verified_keys\":1,\"errors\":[]}]}");
+        var valid = "{\"exit_code\":0,\"specs\":[{\"spec\":\"Spec\","
+                + "\"events_read\":1,\"partition_keys\":1,\"verified_keys\":1,\"errors\":[]}]}";
         for (String mutation : List.of("large status", "unknown status", "missing metric", "negative metric",
                 "fractional metric", "too many verified", "unknown kind", "missing message", "process mismatch",
                 "strict empty", "unverified keys", "partitions exceed events", "events without partitions", "one strict spec empty")) {
-            var value = (com.fasterxml.jackson.databind.node.ObjectNode) valid.deepCopy();
-            var spec = (com.fasterxml.jackson.databind.node.ObjectNode) value.path("specs").get(0);
+            @SuppressWarnings("unchecked") var value = (Map<String, Object>) Json.parse(valid);
+            @SuppressWarnings("unchecked") var spec = (Map<String, Object>) Json.items(value.get("specs")).get(0);
             int exit = 0;
             switch (mutation) {
                 case "large status" -> value.put("exit_code", 4_294_967_296L);
@@ -63,22 +64,22 @@ class TransportTest {
                 case "negative metric" -> spec.put("events_read", -1);
                 case "fractional metric" -> spec.put("events_read", 1.5);
                 case "too many verified" -> spec.put("verified_keys", 2);
-                case "unknown kind" -> spec.putArray("errors").addObject().put("kind", "typo").put("message", "bad");
-                case "missing message" -> spec.putArray("errors").addObject().put("kind", "parser");
+                case "unknown kind" -> spec.put("errors", List.of(Map.of("kind", "typo", "message", "bad")));
+                case "missing message" -> spec.put("errors", List.of(Map.of("kind", "parser")));
                 case "process mismatch" -> exit = 2;
                 case "strict empty" -> {
-                    spec.put("events_read", 0).put("partition_keys", 0).put("verified_keys", 0);
+                    spec.putAll(Map.of("events_read", 0, "partition_keys", 0, "verified_keys", 0));
                 }
                 case "unverified keys" -> spec.put("verified_keys", 0);
                 case "partitions exceed events" -> spec.put("events_read", 0);
-                case "events without partitions" -> spec.put("partition_keys", 0).put("verified_keys", 0);
+                case "events without partitions" -> spec.putAll(Map.of("partition_keys", 0, "verified_keys", 0));
                 case "one strict spec empty" -> {
-                    var empty = spec.deepCopy().put("spec", "Another").put("events_read", 0)
-                            .put("partition_keys", 0).put("verified_keys", 0);
-                    ((com.fasterxml.jackson.databind.node.ArrayNode) value.path("specs")).add(empty);
+                    var empty = new java.util.LinkedHashMap<>(spec);
+                    empty.putAll(Map.of("spec", "Another", "events_read", 0, "partition_keys", 0, "verified_keys", 0));
+                    Json.items(value.get("specs")).add(empty);
                 }
             }
-            var json = value.toString();
+            var json = Json.write(value);
             var binary = executable("report=''\nwhile [ \"$#\" -gt 0 ]; do\n"
                     + "  if [ \"$1\" = '--json-report' ]; then shift; report=$1; fi\n  shift\ndone\n"
                     + "printf '%s' '" + json + "' > \"$report\"\nexit " + exit + "\n");

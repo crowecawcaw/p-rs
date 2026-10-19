@@ -81,8 +81,7 @@ class ObserverTest {
         assertTrue(text.contains("  Spec: "), text);
         assertTrue(text.contains("  prs output: " + violation.artifacts()), text);
         assertTrue(Files.exists(violation.artifacts().resolve("events.jsonl")));
-        assertEquals("overspend", Recording.JSON.readTree(violation.report().orElseThrow().json())
-                .path("source").path("label").asText());
+        assertEquals("overspend", Json.get(Json.get(Json.parse(violation.report().orElseThrow().json()), "source"), "label"));
         assertDoesNotThrow(recording::close);
         assertThrows(IllegalStateException.class, () -> recording.emit("eOther", "late"));
     }
@@ -132,10 +131,10 @@ class ObserverTest {
         var failure = assertThrows(SpecViolation.class, recording::close);
         var lines = Files.readAllLines(failure.artifacts().resolve("events.jsonl"));
         assertEquals(101, lines.size());
-        var first = Recording.JSON.readTree(lines.get(0));
-        assertTrue(first.path("timestamp").asText().matches("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{9}Z"));
-        assertTrue(first.path("seq").asLong() > 0);
-        assertEquals(ProcessHandle.current().pid(), first.path("pid").asLong());
+        var first = Json.parse(lines.get(0));
+        assertTrue(Json.text(Json.get(first, "timestamp")).matches("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d\\.\\d{9}Z"));
+        assertTrue(Json.integer(Json.get(first, "seq")) > 0);
+        assertEquals(ProcessHandle.current().pid(), Json.integer(Json.get(first, "pid")));
         var exact = builder("Counter").build().recording("timestamp");
         exact.emitAt(Instant.parse("2026-10-19T00:00:00.123456789Z"), "eTake", "sku", 1);
         var exactFailure = assertThrows(SpecViolation.class, exact::close);
@@ -215,16 +214,17 @@ class ObserverTest {
             failed.emit("eTake", "sku", 1);
             assertThrows(SpecViolation.class, failed::close);
         }
-        var merged = Recording.JSON.readTree(target.toFile());
-        assertEquals("observed_monitor_suite", merged.path("scope").asText());
-        assertEquals(2, merged.path("observations").size());
-        assertTrue(merged.path("observations").toString().contains("spec_violation"));
-        assertEquals(2, merged.path("specs").get(0).path("coverage").path("handlers").path("covered").asInt());
+        var merged = Json.read(target);
+        assertEquals("observed_monitor_suite", Json.get(merged, "scope"));
+        assertEquals(2, Json.items(Json.get(merged, "observations")).size());
+        assertTrue(Json.write(Json.get(merged, "observations")).contains("spec_violation"));
+        var handlers = Json.get(Json.get(Json.items(Json.get(merged, "specs")).get(0), "coverage"), "handlers");
+        assertEquals(2, Json.get(handlers, "covered"));
         // A second collector (another JVM fork) merges into the file instead of replacing it.
         try (var coverage = observer.coverage(target)) {
             try (var events = observer.recording("another fork", coverage)) { events.emit("eAdd", "sku", 2); }
         }
-        assertEquals(3, Recording.JSON.readTree(target.toFile()).path("observations").size());
+        assertEquals(3, Json.items(Json.get(Json.read(target), "observations")).size());
     }
 
     @Test void configuredCoverageCollectorIsInertWithoutADestination() {

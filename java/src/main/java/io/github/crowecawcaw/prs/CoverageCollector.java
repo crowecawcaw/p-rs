@@ -96,10 +96,12 @@ public final class CoverageCollector implements AutoCloseable {
                     int exit = Processes.run(List.of(observer.executable(), "coverage", "merge-observe", "--stdin",
                             "--json-report", temporary.toString()), input, console, observer.timeout());
                     if (exit != 0) throw new IOException("Coverage merge exit " + exit);
-                    var merged = Recording.JSON.readTree(temporary.toFile());
-                    if (merged == null || !merged.path("scope").asText().equals("observed_monitor_suite")
-                            || merged.path("schema_version").asInt(-1) != 1 || !merged.path("specs").isArray()
-                            || !merged.path("observations").isArray()) throw new IOException("Malformed merged coverage report");
+                    var merged = Json.read(temporary);
+                    if (!"observed_monitor_suite".equals(Json.get(merged, "scope"))
+                            || !Integer.valueOf(1).equals(Json.get(merged, "schema_version"))
+                            || !(Json.get(merged, "specs") instanceof List)
+                            || !(Json.get(merged, "observations") instanceof List))
+                        throw new IOException("Malformed merged coverage report");
                     try {
                         Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
                     } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {

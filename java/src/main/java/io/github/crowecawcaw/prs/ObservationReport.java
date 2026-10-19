@@ -1,6 +1,5 @@
 package io.github.crowecawcaw.prs;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,16 +11,19 @@ public final class ObservationReport {
         public Error { events = List.copyOf(events); }
     }
 
-    private final JsonNode value;
+    private final int exitCode;
+    private final String json;
     private final List<Error> errors;
 
-    ObservationReport(JsonNode value) {
-        this.value = value.deepCopy();
+    /** {@code value} is a report {@code Recording} validated. */
+    ObservationReport(Object value) {
+        exitCode = Json.get(value, "exit_code") instanceof Integer code ? code : 0;
+        json = Json.pretty(value);
         var found = new ArrayList<Error>();
-        for (var spec : value.path("specs")) {
-            for (var error : spec.path("errors")) {
+        for (var spec : Json.items(Json.get(value, "specs"))) {
+            for (var error : Json.items(Json.get(spec, "errors"))) {
                 var events = new ArrayList<ReplayEvent>();
-                for (var event : error.path("events")) {
+                for (var event : Json.items(Json.get(error, "events"))) {
                     events.add(new ReplayEvent(text(event, "key"), text(event, "timestamp"),
                             text(event, "event"), text(event, "log_line")));
                 }
@@ -32,13 +34,12 @@ public final class ObservationReport {
         errors = List.copyOf(found);
     }
 
-    private static String text(JsonNode node, String field) {
-        var value = node.get(field);
-        return value == null || value.isNull() ? null : value.asText();
+    private static String text(Object node, String field) {
+        var value = Json.get(node, field);
+        return value == null ? null : value instanceof String s ? s : Json.write(value);
     }
 
-    public int exitCode() { return value.path("exit_code").intValue(); }
+    public int exitCode() { return exitCode; }
     public List<Error> errors() { return errors; }
-    public String json() { return value.toPrettyString(); }
-    JsonNode value() { return value.deepCopy(); }
+    public String json() { return json; }
 }
