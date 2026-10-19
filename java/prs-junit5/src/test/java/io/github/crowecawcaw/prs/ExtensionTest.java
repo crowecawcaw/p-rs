@@ -48,7 +48,7 @@ class ExtensionTest {
         var summary = run(true, ParallelFixture.class, AnotherClassFixture.class);
         assertEquals(3, summary.getTestsSucceededCount(), summary.getFailures().toString());
         assertEquals(0, summary.getTotalFailureCount(), summary.getFailures().toString());
-        var json = Files.readString(temporary.resolve("coverage/model.json"));
+        var json = Files.readString(temporary.resolve("coverage/monitor.json"));
         assertTrue(json.contains("observed_monitor_suite"));
         assertTrue(json.contains("first("));
         assertTrue(json.contains("second("));
@@ -118,7 +118,7 @@ class ExtensionTest {
 
     static class ParallelFixture {
         @RegisterExtension static final PrsExtension PRS = builder("Counter", "Other")
-                .coverage(root.resolve("coverage/model.json")).build();
+                .coverage(root.resolve("coverage/monitor.json")).build();
         @BeforeEach void setup(Recording events) throws Exception {
             events.emit("eAdd", "sku", 2);
             simultaneous.countDown();
@@ -131,7 +131,7 @@ class ExtensionTest {
 
     static class AnotherClassFixture {
         @RegisterExtension static final PrsExtension PRS = builder("Other")
-                .coverage(root.resolve("coverage/model.json")).build();
+                .coverage(root.resolve("coverage/monitor.json")).build();
         @Test void another(Recording events) { events.emit("eOther", "other"); }
     }
 

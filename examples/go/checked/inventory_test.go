@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	code := m.Run()
-	if err := suite.WriteCoverage(context.Background(), "coverage/model.json", os.Stdout); err != nil {
+	if err := suite.WriteCoverage(context.Background(), "coverage/monitor.json", os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		code = 1
 	}

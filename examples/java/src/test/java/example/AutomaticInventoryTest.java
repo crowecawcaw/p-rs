@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AutomaticInventoryTest {
     @RegisterExtension static final PrsExtension PRS = PrsExtension.builder()
             .specFiles(Path.of("specs/inventory.p")).specs("InventoryCorrect")
-            .coverage(Path.of("target/coverage/model.json")).build();
+            .coverage(Path.of("target/coverage/monitor.json")).build();
     private Inventory inventory;
 
     // The injected Recording is open before @BeforeEach and checked after @AfterEach.

@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["."]
-addopts = "--strict-markers --prs-coverage=coverage/model.json"
+addopts = "--strict-markers --prs-coverage=coverage/monitor.json"
 
 [tool.prs]
 strict = true

@@ -40,7 +40,7 @@ it checks. The negative control asserts the structured `spec_violation` error.
 `PrsExtension`. The injected `Recording` opens before `@BeforeEach` stocks products
 and checks after `@AfterEach` releases the fixture's reservation, so both are
 recorded. [Coverage](../README.md#coverage) is written to
-`target/coverage/model.json`.
+`target/coverage/monitor.json`.
 
 ## 3. Generated sequences with jqwik
 
@@ -64,7 +64,7 @@ build. `prs-test-core` works without Jupiter. Failed recordings keep events, rep
 and replay logs under `target/prs`. To combine the two suite reports:
 
 ```sh
-"$PRS_BIN" coverage merge-observe target/coverage/model.json target/coverage/generated.json \
+"$PRS_BIN" coverage merge-observe target/coverage/monitor.json target/coverage/generated.json \
   --json-report target/coverage/suite.json
 ```
 

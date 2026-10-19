@@ -216,14 +216,14 @@ prs observe -pf <spec files> --all-specs [--exclude-specs ...] -l <events> \
 `--check-hot` are prs extensions to PObserve's options (see [observe.md](observe.md)).
 A check costs about 5 ms; tests that emit nothing cost nothing.
 
-### P model coverage
+### Monitor coverage
 
-Opt into suite coverage with `pytest --prs-coverage=coverage/model.json`.
+Opt into suite coverage with `pytest --prs-coverage=coverage/monitor.json`.
 The terminal summary reports the union of P monitor states and handlers visited
 by completed automatic checks, and writes their identities as JSON for CI.
 Tests retain independent monitor state. Skipped checks, tests whose bodies fail
 before checking, and tests emitting no events do not contribute coverage.
-This measures P execution rather than Python line coverage. For explicit recording,
+This measures spec monitors, not Python lines or P model paths. For explicit recording,
 `Recorder(coverage=True)` exposes the check's JSON as `coverage_report` after checking.
 
 ### Strict integration checks

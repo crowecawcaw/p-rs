@@ -54,5 +54,5 @@ jobs:
         if: always()
         with:
           name: go-model-${{ matrix.go }}
-          path: examples/go/checked/coverage/model.json
+          path: examples/go/checked/coverage/monitor.json
           if-no-files-found: warn

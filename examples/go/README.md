@@ -47,7 +47,7 @@ check. In a concurrent service, emit inside the same critical section as the com
 so the recorded order matches.
 
 `TestMain` waits for all tests and cleanups, then prints
-[coverage](../README.md#coverage) and writes `checked/coverage/model.json`
+[coverage](../README.md#coverage) and writes `checked/coverage/monitor.json`
 (`go test -v` shows it). Set `Config.ArtifactRoot` to keep failure artifacts in CI.
 
 ## 3. Native fuzzing of action sequences

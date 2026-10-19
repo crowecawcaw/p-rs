@@ -119,7 +119,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 static final PrsExtension PRS = PrsExtension.builder()
     .specFiles(Path.of("specs/service.p"))
     .specs("ServiceCorrect")
-    .coverage(Path.of("target/coverage/model.json")) // optional
+    .coverage(Path.of("target/coverage/monitor.json")) // optional
     .build();
 
 @BeforeEach

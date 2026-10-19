@@ -40,5 +40,5 @@ jobs:
         if: always()
         with:
           name: rust-model
-          path: examples/rust/target/coverage/model.json
+          path: examples/rust/target/coverage/monitor.json
           if-no-files-found: warn
