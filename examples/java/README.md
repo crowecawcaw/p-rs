@@ -7,17 +7,21 @@ which run the `prs observe` CLI. See the
 
 ## Run
 
-From the repository root, with JDK 17+, Maven 3.9.9 and Rust:
+From the repository root, with JDK 17+, Maven 3.9.9 and Rust (on another platform,
+replace `natives-macos-aarch64` with yours, such as `natives-linux-x86_64`):
 
 ```sh
 cargo build --locked -p prs-cli
-export PRS_BIN="$PWD/target/debug/prs"
-mvn --batch-mode --no-transfer-progress -f java/pom.xml install
+mkdir -p java/natives/natives-macos-aarch64
+cp target/debug/prs java/natives/natives-macos-aarch64/
+PRS_BIN="$PWD/target/debug/prs" mvn --batch-mode --no-transfer-progress -f java/pom.xml -Pnatives install
 mvn --batch-mode --no-transfer-progress -f examples/java/pom.xml test
 ```
 
-The helpers aren't on Maven Central, so the first Maven command installs them
-locally. From `examples/java`, run one class with
+`p-rs` isn't on Maven Central yet, so the first Maven command installs it locally,
+with a natives jar holding the checker. The [pom](pom.xml) depends on `p-rs` and, in
+test scope, on the natives jar its profiles pick for the platform; the tests then need
+no `PRS_BIN`. From `examples/java`, run one class with
 `mvn test -Dtest=GeneratedInventoryTest`. The
 [CI workflow](../../.github/workflows/examples-java.yml) runs them with Java 17.
 

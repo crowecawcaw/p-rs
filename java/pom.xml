@@ -3,20 +3,54 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.crowecawcaw</groupId>
-  <artifactId>prs-test-parent</artifactId>
+  <artifactId>p-rs</artifactId>
   <version>0.1.0-SNAPSHOT</version>
-  <packaging>pom</packaging>
-  <modules>
-    <module>prs-emit</module>
-    <module>prs-test-core</module>
-    <module>prs-junit5</module>
-  </modules>
+  <packaging>jar</packaging>
+
+  <name>p-rs</name>
+  <description>Check the events your Java code emits against P specs: a JDK-only emitter for application
+    code, and test helpers (any framework, plus JUnit 5) that run the prs checker. The checker binary
+    comes in the classifier jars natives-{linux,macos,windows}-{x86_64,aarch64}.</description>
+  <url>https://github.com/crowecawcaw/p-rs</url>
+  <licenses>
+    <license>
+      <name>MIT</name>
+      <url>https://opensource.org/license/mit</url>
+      <distribution>repo</distribution>
+    </license>
+    <license>
+      <name>Apache-2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>crowecawcaw</id>
+      <name>Stephen Crowe</name>
+      <url>https://github.com/crowecawcaw</url>
+    </developer>
+  </developers>
+  <scm>
+    <connection>scm:git:https://github.com/crowecawcaw/p-rs.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/crowecawcaw/p-rs.git</developerConnection>
+    <url>https://github.com/crowecawcaw/p-rs</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/crowecawcaw/p-rs/issues</url>
+  </issueManagement>
+
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
     <jackson.version>2.18.3</jackson.version>
+    <!-- natives profile: a folder holding <classifier>/prs (or prs.exe), one per platform -->
+    <prs.natives>${project.basedir}/natives</prs.natives>
+    <prs.natives.staging>${project.build.directory}/natives</prs.natives.staging>
   </properties>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -28,7 +62,48 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <dependencies>
+    <!-- Test helpers only; the emitter (io.github.crowecawcaw.prs.emit) needs nothing but the JDK. -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <!-- Come with the user's test framework (JUnit 5, jqwik, ...); never pulled into production. -->
+    <dependency>
+      <groupId>org.opentest4j</groupId>
+      <artifactId>opentest4j</artifactId>
+      <version>1.3.0</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-launcher</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <directory>src/main/resources-filtered</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -37,9 +112,163 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.2</version>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.2</version>
+        <configuration>
+          <archive>
+            <manifest>
+              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-install-plugin</artifactId>
+        <version>3.1.3</version>
+      </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!--
+      Classifier jars with the checker binary, attached to this artifact:
+        mvn -f java/pom.xml -Pnatives -Dprs.natives=DIR install
+      DIR holds one folder per platform with the binary in it: DIR/natives-linux-x86_64/prs,
+      DIR/natives-windows-x86_64/prs.exe, ... Missing platforms are skipped. Each jar holds
+      io/github/crowecawcaw/prs/native/<classifier>/prs[.exe] and prs.sha256 beside it.
+    -->
+    <profile>
+      <id>natives</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>3.1.0</version>
+            <executions>
+              <execution>
+                <id>stage-natives</id>
+                <phase>prepare-package</phase>
+                <goals><goal>run</goal></goals>
+                <configuration>
+                  <target>
+                    <delete dir="${prs.natives.staging}"/>
+                    <copy todir="${prs.natives.staging}">
+                      <fileset dir="${prs.natives}" includes="natives-*/prs,natives-*/prs.exe"/>
+                      <regexpmapper handledirsep="true" from="^(natives-[a-z0-9_-]+)/(prs(\.exe)?)$"
+                                    to="\1/io/github/crowecawcaw/prs/native/\1/\2"/>
+                    </copy>
+                    <checksum algorithm="SHA-256" fileext=".sha256" pattern="{0}  {1}" forceoverwrite="yes">
+                      <fileset dir="${prs.natives.staging}" includes="**/prs,**/prs.exe"/>
+                    </checksum>
+                    <move todir="${prs.natives.staging}">
+                      <fileset dir="${prs.natives.staging}" includes="**/prs.exe.sha256"/>
+                      <globmapper handledirsep="true" from="*prs.exe.sha256" to="*prs.sha256"/>
+                    </move>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>natives-linux-x86_64</id>
+                <goals><goal>jar</goal></goals>
+                <configuration>
+                  <classifier>natives-linux-x86_64</classifier>
+                  <classesDirectory>${prs.natives.staging}/natives-linux-x86_64</classesDirectory>
+                  <skipIfEmpty>true</skipIfEmpty>
+                </configuration>
+              </execution>
+              <execution>
+                <id>natives-linux-aarch64</id>
+                <goals><goal>jar</goal></goals>
+                <configuration>
+                  <classifier>natives-linux-aarch64</classifier>
+                  <classesDirectory>${prs.natives.staging}/natives-linux-aarch64</classesDirectory>
+                  <skipIfEmpty>true</skipIfEmpty>
+                </configuration>
+              </execution>
+              <execution>
+                <id>natives-macos-x86_64</id>
+                <goals><goal>jar</goal></goals>
+                <configuration>
+                  <classifier>natives-macos-x86_64</classifier>
+                  <classesDirectory>${prs.natives.staging}/natives-macos-x86_64</classesDirectory>
+                  <skipIfEmpty>true</skipIfEmpty>
+                </configuration>
+              </execution>
+              <execution>
+                <id>natives-macos-aarch64</id>
+                <goals><goal>jar</goal></goals>
+                <configuration>
+                  <classifier>natives-macos-aarch64</classifier>
+                  <classesDirectory>${prs.natives.staging}/natives-macos-aarch64</classesDirectory>
+                  <skipIfEmpty>true</skipIfEmpty>
+                </configuration>
+              </execution>
+              <execution>
+                <id>natives-windows-x86_64</id>
+                <goals><goal>jar</goal></goals>
+                <configuration>
+                  <classifier>natives-windows-x86_64</classifier>
+                  <classesDirectory>${prs.natives.staging}/natives-windows-x86_64</classesDirectory>
+                  <skipIfEmpty>true</skipIfEmpty>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!-- Sources and javadoc jars for Maven Central. Signing and upload live in the release workflow. -->
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.3.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals><goal>jar-no-fork</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.11.2</version>
+            <configuration>
+              <doclint>none</doclint>
+              <quiet>true</quiet>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals><goal>jar</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

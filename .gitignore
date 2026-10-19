@@ -30,3 +30,6 @@ examples/multiprocess/**/artifacts/
 
 # P checker output from the model example
 examples/model/PCheckerOutput/
+
+# Checker binaries staged for the Java natives profile
+java/natives/
