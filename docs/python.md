@@ -82,6 +82,7 @@ prs observe -pf specs/*.p --spec InventoryCorrect -l /var/log/app/events.jsonl
   precedence over the sink.
 * Wall-clock times never decrease within a process. Across hosts, give each key one
   writer or pass `at=` from a logical clock ([ordering](observe.md#events-folder-format)).
+* [Testing and production](production.md) covers deploying and checking these logs.
 
 ## Every test (the pytest plugin)
 

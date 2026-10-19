@@ -40,6 +40,9 @@ Each fixture stocks coffee=3 and tea=2.
 - **One recording per history.** Each test, generated case and shrink attempt gets
   fresh application state and a fresh recorder. A recorder shared across them would
   merge unrelated histories.
+- **The same calls feed production.** With a production sink set, the same emits
+  write a log that `prs observe` checks; the [Go example](go/README.md#5-production-logs-with-prs-observe)
+  does it in CI. See [Testing and production](../docs/production.md).
 - **Ordinary assertions still matter.** P sees only emitted events, so the tests also
   assert on the application's own state.
 - **Strict observation** is on: a checked test must emit at least one relevant event

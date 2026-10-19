@@ -20,7 +20,7 @@ class PrsEmitTest {
     enum Color { RED }
     record Reservation(String order, int units) {}
 
-    @AfterEach void reset() { PrsEmit.off(); }
+    @AfterEach void reset() { PrsEmit.close(); }
 
     @Test void offByDefaultAndNeverThrows() {
         assertFalse(PrsEmit.enabled());
@@ -63,7 +63,7 @@ class PrsEmitTest {
 
     @Test void fileSinkWritesLinesAndCountsBadPayloads() throws Exception {
         var file = temporary.resolve("logs/events.jsonl");
-        PrsEmit.toFile(file);
+        PrsEmit.setSink(Sink.file(file));
         assertTrue(PrsEmit.enabled());
         long dropped = PrsEmit.dropped();
         for (int i = 0; i < 100; i++) PrsEmit.emit("eStocked", "p" + i, Map.of("units", i));
@@ -76,16 +76,32 @@ class PrsEmitTest {
         assertEquals(dropped + 1, PrsEmit.dropped());
     }
 
-    @Test void consumerSinkSwallowsConsumerErrors() {
-        var seen = new ArrayList<String>();
-        PrsEmit.toConsumer(seen::add);
+    @Test void callbackSinkSwallowsCallbackErrors() {
+        var seen = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        PrsEmit.setSink(Sink.callback(seen::add));
         PrsEmit.emitAt(Instant.ofEpochSecond(0, 5), "eTick", "clock");
+        assertTrue(PrsEmit.flush(Duration.ofSeconds(5)));
         assertEquals(1, seen.size());
         assertTrue(seen.get(0).contains("\"timestamp\":\"1970-01-01T00:00:00.000000005Z\""));
+        assertFalse(seen.get(0).endsWith("\n"));
         long dropped = PrsEmit.dropped();
-        PrsEmit.toConsumer(line -> { throw new IllegalStateException("broken"); });
+        PrsEmit.setSink(Sink.callback(line -> { throw new IllegalStateException("broken"); }));
         PrsEmit.emit("eTick", "clock");
+        assertTrue(PrsEmit.flush(Duration.ofSeconds(5)));
         assertEquals(dropped + 1, PrsEmit.dropped());
+    }
+
+    @Test void writerSinkFlushesButDoesNotCloseTheWriter() {
+        var out = new java.io.StringWriter() {
+            boolean closed;
+            @Override public void close() { closed = true; }
+        };
+        PrsEmit.setSink(Sink.writer(out));
+        PrsEmit.emit("eTick", "clock");
+        PrsEmit.close();
+        assertTrue(out.toString().endsWith("}\n"), out.toString());
+        assertFalse(out.closed);
+        assertFalse(PrsEmit.enabled());
     }
 
     @Test void folderSinkWritesOneFilePerProcess() throws Exception {

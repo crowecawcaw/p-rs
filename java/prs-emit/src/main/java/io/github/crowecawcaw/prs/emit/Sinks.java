@@ -1,6 +1,10 @@
 package io.github.crowecawcaw.prs.emit;
 
+import java.io.BufferedWriter;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.OutputStream;
 import java.io.Writer;
 import java.nio.ByteBuffer;
@@ -19,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
-/** Where events go outside an in-process recording. Never throws from {@link Sink#offer}. */
+/** Where events go outside an in-process recording. Never throws from {@link Out#offer}. */
 final class Sinks {
     static final LongAdder DROPPED = new LongAdder();
     private static final AtomicBoolean WARNED = new AtomicBoolean();
@@ -27,7 +31,7 @@ final class Sinks {
 
     private Sinks() {}
 
-    interface Sink {
+    interface Out {
         void offer(String line);
         default boolean wantsSource() { return false; }
         default boolean flush(Duration timeout) { return true; }
@@ -46,33 +50,35 @@ final class Sinks {
         }
     }
 
-    static Sink fromEnvironment(String folder) {
+    static Out fromEnvironment(String folder) {
         return folder == null || folder.isBlank() ? null : new FolderSink(Path.of(folder), processName());
     }
 
-    static Sink file(Path file) {
+    static Out file(Path file) {
         var path = file.toAbsolutePath();
         return new AsyncSink("file " + path, () -> {
             var parent = path.getParent();
             if (parent != null) Files.createDirectories(parent);
-            return Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            return Lines.of(Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.APPEND), true);
         });
     }
 
-    static Sink stdout() {
-        return new AsyncSink("stdout", () -> new java.io.FileOutputStream(java.io.FileDescriptor.out) {
-            @Override public void close() throws IOException { flush(); } // never close the process's stdout
-        });
+    static Out stdout() {
+        return new AsyncSink("stdout", () -> Lines.of(new FileOutputStream(FileDescriptor.out), false));
     }
 
-    static Sink consumer(Consumer<String> consumer) {
-        return line -> {
-            try {
-                consumer.accept(line);
-            } catch (Throwable error) {
-                drop("the consumer threw", error);
-            }
-        };
+    static Out writer(OutputStream out) {
+        return new AsyncSink("an output stream", () -> Lines.of(out, false));
+    }
+
+    static Out writer(Writer out) {
+        return new AsyncSink("a writer", () -> Lines.of(out, false));
+    }
+
+    static Out callback(Consumer<String> callback) {
+        return new AsyncSink("the callback", () -> new Lines() {
+            @Override public void write(String line) { callback.accept(line); }
+        });
     }
 
     /** The program name for events folder file names: {@code -Dprs.name}, else the main class or jar. */
@@ -94,7 +100,7 @@ final class Sinks {
      * This process's own file in a {@code PRS_EVENTS_DIR} folder. Each line is one append,
      * written straight to the file (no user-space buffer), so a crash loses at most that line.
      */
-    static final class FolderSink implements Sink {
+    static final class FolderSink implements Out {
         private final Path folder;
         private final String name;
         private FileChannel channel;
@@ -130,12 +136,38 @@ final class Sinks {
         }
     }
 
+    /** Writes lines for an {@link AsyncSink}, on its thread. */
+    interface Lines {
+        void write(String line) throws IOException;
+        default void flush() throws IOException {}
+        default void close() throws IOException {}
+
+        static Lines of(OutputStream out, boolean owned) {
+            return of(new OutputStreamWriter(out, StandardCharsets.UTF_8), owned);
+        }
+
+        static Lines of(Writer out, boolean owned) {
+            var buffered = new BufferedWriter(out, 1 << 16);
+            return new Lines() {
+                @Override public void write(String line) throws IOException {
+                    buffered.write(line);
+                    buffered.write('\n');
+                }
+                @Override public void flush() throws IOException { buffered.flush(); }
+                @Override public void close() throws IOException {
+                    if (owned) buffered.close();
+                    else buffered.flush();
+                }
+            };
+        }
+    }
+
     interface Opener {
-        OutputStream open() throws IOException;
+        Lines open() throws IOException;
     }
 
     /** A bounded queue drained by a daemon thread: {@code offer} never waits for I/O. */
-    static final class AsyncSink implements Sink {
+    static final class AsyncSink implements Out {
         private static final String STOP = new String("stop");
         private final String what;
         private final Opener opener;
@@ -159,7 +191,7 @@ final class Sinks {
 
         @Override public void offer(String line) {
             if (closed) {
-                drop(what + " was replaced", null);
+                drop(what + " was closed", null);
                 return;
             }
             pending.incrementAndGet();
@@ -170,7 +202,7 @@ final class Sinks {
         }
 
         private void run() {
-            Writer writer = null;
+            Lines writer = null;
             try {
                 while (true) {
                     String line = queue.poll();
@@ -182,10 +214,8 @@ final class Sinks {
                     }
                     if (line == STOP) break;
                     try {
-                        if (writer == null) writer = new java.io.BufferedWriter(new java.io.OutputStreamWriter(
-                                opener.open(), StandardCharsets.UTF_8), 1 << 16);
+                        if (writer == null) writer = opener.open();
                         writer.write(line);
-                        writer.write('\n');
                         if (queue.isEmpty()) writer.flush();
                     } catch (IOException | RuntimeException error) {
                         writer = reset(writer, error);
@@ -202,7 +232,7 @@ final class Sinks {
             }
         }
 
-        private Writer reset(Writer writer, Throwable error) {
+        private Lines reset(Lines writer, Throwable error) {
             drop("cannot write to " + what, error);
             if (writer != null) {
                 try { writer.close(); } catch (IOException ignored) { /* reopened on the next line */ }

@@ -22,8 +22,9 @@ locally. From `examples/java`, run one class with
 [CI workflow](../../.github/workflows/examples-java.yml) runs them with Java 17.
 
 `Inventory` calls `PrsEmit.emit(...)` after each successful change. Outside a test
-recording that does nothing; a production deployment could call
-`PrsEmit.toFile(...)` at startup and check the file with `prs observe`.
+recording that does nothing; a production deployment calls
+`PrsEmit.setSink(Sink.file(...))` at startup and checks the file with `prs observe`
+([Testing and production](../../docs/production.md)).
 [`prs.properties`](prs.properties) holds the spec files, spec name, artifacts folder
 and coverage path for every test class.
 

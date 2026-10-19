@@ -193,7 +193,8 @@ def test_release_makes_stock_available_again(inventory_factory):
           <a href={`${BLOB}/examples/rust/README.md`}>Rust</a>, <a href={`${BLOB}/examples/java/README.md`}>Java</a>{" "}
           and <a href={`${BLOB}/examples/go/README.md`}>Go</a>. To check events from running services, see{" "}
           <a href={`${BLOB}/examples/multiprocess/docker/README.md`}>live observation across processes</a> and{" "}
-          <a href={`${BLOB}/docs/observe.md`}>prs observe</a>.
+          <a href={`${BLOB}/docs/observe.md`}>prs observe</a>. The same emit calls can write production logs
+          for <code>prs observe</code>: see <a href={`${BLOB}/docs/production.md`}>testing and production</a>.
         </p>
       </section>
 

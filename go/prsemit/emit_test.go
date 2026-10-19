@@ -55,11 +55,17 @@ func TestOffByDefault(t *testing.T) {
 	}
 }
 
-func TestOutput(t *testing.T) {
+func TestWriterSink(t *testing.T) {
 	var out syncBuffer
-	SetOutput(&out)
+	SetSink(Writer(&out))
 	src := lineOf(func() { Emit("eReserved", "coffee", map[string]any{"order": "o1", "units": 2}) })
 	EmitAt(time.Unix(5, 7), "eShipped", "coffee", nil)
+	if !Flush(5 * time.Second) {
+		t.Fatal("Flush timed out")
+	}
+	if n := len(decode(t, out.buf.Bytes())); n != 2 {
+		t.Fatalf("flushed %d lines", n)
+	}
 	if err := Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -76,12 +82,14 @@ func TestOutput(t *testing.T) {
 	}
 }
 
-func TestOpenFileAppends(t *testing.T) {
+func TestFileSinkAppends(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "events.jsonl")
 	os.WriteFile(path, []byte(`{"event":"old","key":"","timestamp":1}`+"\n"), 0o600)
-	if err := OpenFile(path); err != nil {
+	s, err := File(path)
+	if err != nil {
 		t.Fatal(err)
 	}
+	SetSink(s)
 	Emit("new", "k", 1)
 	if err := Close(); err != nil {
 		t.Fatal(err)
@@ -102,7 +110,7 @@ func (panickingWriter) Write([]byte) (int, error) { panic("broken writer") }
 
 func TestNeverBlocksOrPanics(t *testing.T) {
 	w := blockingWriter{make(chan struct{})}
-	SetOutput(w)
+	SetSink(Writer(w))
 	before := Dropped()
 	done := make(chan struct{})
 	go func() {
@@ -122,13 +130,31 @@ func TestNeverBlocksOrPanics(t *testing.T) {
 	close(w.release)
 	Close()
 
-	SetOutput(panickingWriter{})
+	SetSink(Writer(panickingWriter{}))
 	before = Dropped()
 	Emit("e", "k", nil)
 	Emit("bad", "k", make(chan int))
 	Close()
 	if Dropped()-before != 2 {
 		t.Fatalf("dropped %d, want 2", Dropped()-before)
+	}
+}
+
+func TestCallbackSink(t *testing.T) {
+	var mu sync.Mutex
+	var lines []string
+	SetSink(Callback(func(line string) {
+		mu.Lock()
+		defer mu.Unlock()
+		lines = append(lines, line)
+	}))
+	Emit("eStocked", "coffee", map[string]any{"units": 3})
+	SetSink(nil) // replaces the sink: writes what was queued
+	Emit("off", "k", nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(lines) != 1 || strings.HasSuffix(lines[0], "\n") || !strings.Contains(lines[0], `"eStocked"`) {
+		t.Fatalf("lines: %q", lines)
 	}
 }
 

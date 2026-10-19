@@ -139,7 +139,7 @@ app := inventory.New(prsemit.Emit)
 | --- | --- |
 | A test process with a `prstest` recording | that recording |
 | Started by a test (`PRS_EVENTS_DIR` set) | its own `<program>-<pid>-<random>.jsonl` in that folder, one append per line |
-| After `prsemit.OpenFile(path)` or `prsemit.SetOutput(w)` | JSON lines for `prs observe -l`, written by a background goroutine |
+| After `prsemit.SetSink(...)` | JSON lines for `prs observe -l`, written by a background goroutine |
 | Otherwise | nowhere: one atomic load per `Emit` |
 
 In a test process `prsemit.Emit` reaches the recording without injecting `r.Emit`,
@@ -148,13 +148,26 @@ active, an `Emit` fails them all with a `config` error. Pass a context instead:
 `prsemit.EmitCtx(ctx, ...)` reaches the recording `ctx` came from
 (`ctx := r.Context(context.Background())`), or inject `r.Emit`.
 
-`Emit` never panics or blocks: a line that cannot be encoded or written, or that
-finds 4096 lines already queued, is dropped and counted by `prsemit.Dropped()`. Call
-`prsemit.Close()` at shutdown to write what is queued. Then check the log:
+### Production sink
+
+```go
+sink, err := prsemit.File("/var/log/app/events/inventory.jsonl") // or Stdout(), Writer(w), Callback(f)
+if err != nil { log.Fatal(err) }
+prsemit.SetSink(sink)
+defer prsemit.Close() // writes what is queued, closes the file
+```
+
+`SetSink(nil)` turns it off; `prsemit.Flush(timeout)` waits for the queue. In a
+process a test started (`PRS_EVENTS_DIR` set), `SetSink` does nothing: events go to
+the test. `Emit` never panics or blocks: a line that cannot be encoded or written, or
+that finds 4096 lines already queued, is dropped and counted by `prsemit.Dropped()`.
+Then check the log:
 
 ```sh
-prs observe -pf specs/inventory.p --spec InventoryCorrect -l events.jsonl
+prs observe -pf specs/inventory.p --spec InventoryCorrect -l '/var/log/app/events/*.jsonl'
 ```
+
+[Testing and production](../docs/production.md) covers deploying this.
 
 ## Suite coverage
 

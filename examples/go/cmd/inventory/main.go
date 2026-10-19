@@ -24,10 +24,12 @@ func main() {
 	events := flag.String("events", "", "append events as JSON lines to this file, for prs observe")
 	flag.Parse()
 	if *events != "" {
-		if err := prsemit.OpenFile(*events); err != nil {
+		sink, err := prsemit.File(*events)
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+		prsemit.SetSink(sink)
 	}
 	defer prsemit.Close()
 

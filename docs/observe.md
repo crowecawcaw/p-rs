@@ -418,7 +418,10 @@ joins every process that writes to the folder before checking it; events written
 the check are lost. A truncated last line (not valid JSON), from a crashed or
 still-running writer, is a `parser` error (exit 2), never dropped silently.
 
-Undeclared event names in these files follow the same policy as any other input
-([#47](https://github.com/crowecawcaw/p-rs/issues/47)). Checking several folders, or
-folders that are still being written, is
-[#46](https://github.com/crowecawcaw/p-rs/issues/46).
+Undeclared event names in these files follow the same policy as any other
+[input](#unknown-event-names). Several folders are checked together with several `-l`
+values ([above](#several-logs-and-glob-patterns)); folders still being written are
+checked with `--live`.
+
+The emitters write this format in production too, to a file, stdout or a callback:
+see [Testing and production](production.md).
