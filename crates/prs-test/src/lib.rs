@@ -68,7 +68,7 @@ impl Model {
         self
     }
 
-    /// Check that all monitor instances end in a cold state. Separate from strictness.
+    /// Reject monitor instances left in hot states. Separate from strictness.
     pub fn check_hot(mut self, check_hot: bool) -> Self {
         self.options.check_hot = check_hot;
         self

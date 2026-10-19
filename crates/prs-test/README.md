@@ -38,7 +38,8 @@ example through `OnceLock`); semantic compilation happens once. Interpreter byte
 preparation currently repeats at each check. Every recording has fresh monitor state,
 with one monitor instance per partition key. Strict mode is on by default: zero relevant
 verified events fails. Opt out with `.strict(false)` when intentional. `.check_hot(true)`
-separately checks cold termination; strictness does not enable liveness checking.
+separately rejects monitor instances left in hot states; strictness does not enable
+liveness checking.
 
 `EventSink` is cloneable, `Send`, and `Sync`. It buffers owned JSON data under a mutex;
 P values are constructed only on the checking thread. Both the timestamp assignment
