@@ -1,19 +1,23 @@
 package checked_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
 
 	"example.com/inventory/internal/prstest"
 	"example.com/inventory/inventory"
+	helper "github.com/crowecawcaw/p-rs/go/prstest"
 )
+
+var suite *helper.Suite
 
 // The project fixture opts each test into cleanup checking. Go has no global
 // per-test hook: TestMain alone cannot give every test an isolated recorder.
 func stocked(t *testing.T) *inventory.Inventory {
 	t.Helper()
-	app := prstest.CheckedWithCoverage(t)
+	app := prstest.CheckedWithCoverage(t, suite)
 	for _, sku := range []string{"coffee", "tea"} {
 		if err := app.Stock(sku, 3); err != nil {
 			t.Fatal(err)
@@ -53,8 +57,14 @@ func TestRejectedReservation(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+	var err error
+	suite, err = helper.NewSuite(helper.SuiteConfig{})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	code := m.Run()
-	if err := prstest.WriteCoverage("coverage/model.json"); err != nil {
+	if err := suite.WriteCoverage(context.Background(), "coverage/model.json", os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		code = 1
 	}

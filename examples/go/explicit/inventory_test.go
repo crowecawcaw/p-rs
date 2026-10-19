@@ -1,6 +1,7 @@
 package explicit_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 
 func TestReservationAndCancellation(t *testing.T) {
 	t.Parallel()
-	r := prstest.New()
+	r := prstest.New(t)
 	app := inventory.New(r.Emit)
 	if err := app.Stock("coffee", 3); err != nil {
 		t.Fatal(err)
@@ -30,11 +31,11 @@ func TestReservationAndCancellation(t *testing.T) {
 
 func TestSpecRejectsOverselling(t *testing.T) {
 	t.Parallel()
-	r := prstest.New()
+	r := prstest.New(t)
 	r.Emit("eStocked", "coffee", map[string]any{"units": 3})
 	r.Emit("eReserved", "coffee", map[string]any{"order": "first", "units": 2})
 	r.Emit("eReserved", "coffee", map[string]any{"order": "second", "units": 2})
-	err := r.Verify(t)
+	_, err := r.Verify(context.Background())
 	if err == nil || !strings.Contains(err.Error(), `"kind": "spec_violation"`) ||
 		!strings.Contains(err.Error(), "reservation exceeds available stock") {
 		t.Fatalf("want an overselling spec violation; got %v", err)
