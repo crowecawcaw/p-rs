@@ -3,8 +3,8 @@
 This integration test starts two independent Python application processes with
 `subprocess.Popen`, sharing a SQLite inventory database, and a third process
 running `prs observe`. Both applications emit events from committed inventory
-transactions. The parent streams their combined history into the observer and
-owns every process's lifetime. Python's standard library is the only application
+transactions, each into a pipe of its own that the observer reads. The parent
+drives the workers with commands and owns every process's lifetime. Python's standard library is the only application
 dependency; no Docker daemon or Python `prs` package is required.
 
 The application, worker protocol, P specification, and observer supervisor are
@@ -26,13 +26,13 @@ The two integration tests launch actual workers and validate these histories:
 
 * **Healthy:** worker A stocks three units and reserves two. Worker B's attempt
   to reserve two is rejected. After A releases its reservation, B reserves and
-  releases successfully. Both workers stop, then the supervisor closes observer
-  stdin. The observer exits successfully at EOF.
+  releases successfully. Both workers stop, which closes their event pipes, and
+  the observer exits successfully at EOF.
 * **Oversell:** the service's stock guard is disabled. After A reserves two,
   B incorrectly reserves another two. The P monitor fails with
   `reservation exceeds available stock`. The supervisor verifies the observer
-  exited with both workers still alive and stdin still open, then terminates
-  and reaps both workers. A parser error, missing event, timeout, or different
+  exited with both workers still alive and their event pipes still open, then
+  terminates and reaps both workers. A parser error, missing event, timeout, or different
   assertion cannot satisfy this test.
 
 Run either as a standalone command as well:
@@ -61,30 +61,40 @@ Cleanup runs in `finally` even when startup or checking fails. The adapter
 terminates each still-running worker, escalates to kill after five seconds, and
 waits to reap it. These workers do not launch child processes.
 
+Each worker gets two channels. Its stdin and stdout carry commands and replies
+(`ready`, `ack`). Committed events go to `--events`, the write end of a pipe the
+harness creates; the observer reads every pipe:
+
+```sh
+prs observe --pfiles specs/inventory.p --spec InventoryCorrect \
+  --live /dev/fd/5 --live /dev/fd/7 --sequence seq \
+  --fail-fast --strict --coverage --record events.jsonl --json-report report.json
+```
+
 To integrate your own service, replace the launch command in `SubprocessBackend`
-and the commands/readiness adapter in the supervisor. Keep the observer's exit
-watcher and process ownership in the outer test fixture. That fixture can run
-around an external test executable as well: stop it on an observer failure,
-and close observer stdin only after the producers have finished successfully.
-The observer checks events; the supervisor cancels the producers.
+and the commands/readiness adapter in the supervisor. Give each process its own
+event stream (a pipe, a named pipe from `mkfifo`, or stdin for a single one).
+Keep the observer's exit watcher and process ownership in the outer test
+fixture: stop the producers on an observer failure, and let their exits end the
+streams otherwise. The observer checks events; the supervisor cancels the
+producers.
 
 The service accepts an event sink, keeping transport out of its business logic.
 [`common/inventory.py`](../common/inventory.py) writes each event to an outbox
 in the same SQLite transaction as the inventory change and publishes only after
-commit. A shared outbox sequence captures commit order across workers. The
-supervisor buffers arrivals by that sequence before flushing newline-delimited
-JSON to `prs observe --stdin --fail-fast --strict --coverage --json-report ...`.
-This ordering matters because two stdout pipes can deliver committed events in
-a different order. Rejected operations emit no state-change event. The monitor
-checks the shared product key, so it can detect a violation caused by actions
-from different processes.
+commit. The outbox sequence number (`seq`) captures commit order across workers.
+Two pipes can deliver committed events in a different order, so `--sequence seq`
+has the observer check event *n* as soon as events 1 to *n*-1 have been checked,
+whichever pipe they came from. A duplicate number, or a gap still open when every
+pipe has ended, fails the run. Rejected operations emit no state-change event.
+The monitor checks the shared product key, so it can detect a violation caused
+by actions from different processes.
 
 The sequence also supplies a logical timestamp for this safety property. If your
 monitor checks elapsed time, record real timestamps and define an ordering policy
 appropriate to your application. This small publisher does not retry deliveries;
 a production outbox dispatcher also needs delivery tracking and a deduplication
-policy. The supervisor detects duplicate sequence numbers and gaps before a
-successful EOF.
+policy.
 
 ## Reports and CI
 
@@ -95,9 +105,9 @@ Each scenario preserves:
 | `observer.stdout` / `observer.stderr` | Human-readable checker diagnostics and monitor coverage |
 | `report.json` | Structured checker result, errors, completion status, and coverage |
 | `result.json` | Validated scenario summary, final stock, both emitters, cleanup, and whether workers were alive at failure |
-| `events.jsonl` | The ordered event stream sent to the observer |
+| `events.jsonl` | The events in the order the observer checked them (`--record`); `src` names the worker |
 | `inventory.sqlite` | Committed service state and outbox |
-| `worker-*.stdout`, `worker-*.stderr`, `observe/` | Worker protocol logs, diagnostics, and checker traces |
+| `worker-*.stdout`, `worker-*.stderr`, `observe/` | Worker replies, diagnostics, and checker traces |
 
 `report.json` includes each spec's `coverage` with `scope: "observed_monitor"`,
 declared and visited states and handlers, and observed transitions. Healthy runs

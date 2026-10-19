@@ -168,3 +168,49 @@ fn unknown_event_error_stops_at_the_first_undeclared_name() {
     let (code, output, _) = run("{\"event\":\"Done\"}\n", true, &["--unknown-events", "error", "--spec", "Other"]);
     assert_eq!(code, 0, "{output}");
 }
+
+/// Two producers on named pipes, merged by sequence number while both stay open.
+#[cfg(unix)]
+#[test]
+fn named_pipes_merge_by_sequence_and_fail_while_producers_are_open() {
+    use std::fs::OpenOptions;
+    let root = std::env::temp_dir().join(format!("prs-live-pipes-{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("inventory.p"), SPEC).unwrap();
+    for pipe in ["a", "b"] {
+        assert!(Command::new("mkfifo").arg(root.join(pipe)).status().unwrap().success());
+    }
+    let mut child = Command::new(env!("CARGO_BIN_EXE_prs"))
+        .current_dir(&root)
+        .args(["observe", "--pfiles", "inventory.p", "--spec", "Inventory", "--outputDir", "out"])
+        .args(["--live", "a", "--live", "b", "--sequence", "seq", "--fail-fast", "--record", "events.jsonl"])
+        .args(["--json-report", "report.json"])
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let open = |name: &str| OpenOptions::new().write(true).open(root.join(name)).unwrap();
+    let (mut a, mut b) = (open("a"), open("b"));
+    // b's take arrives first but must wait for a's stock
+    writeln!(b, "{{\"seq\":2,\"event\":\"Take\",\"payload\":1}}").unwrap();
+    std::thread::sleep(Duration::from_millis(100));
+    writeln!(a, "{{\"seq\":1,\"event\":\"Stock\",\"payload\":1}}").unwrap();
+    writeln!(b, "{{\"seq\":3,\"event\":\"Take\",\"payload\":1}}").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        assert!(Instant::now() < deadline, "observer waited for EOF");
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(status.code(), Some(1), "{}", String::from_utf8_lossy(&output.stdout));
+    let report = std::fs::read_to_string(root.join("report.json")).unwrap();
+    assert!(report.contains("oversold"), "{report}");
+    assert!(report.contains("\"input_complete\": false"));
+    let recorded = std::fs::read_to_string(root.join("events.jsonl")).unwrap();
+    let order: Vec<&str> = recorded.lines().map(|l| &l[7..8]).collect();
+    assert_eq!(order, ["1", "2", "3"], "{recorded}");
+    drop((a, b));
+    std::fs::remove_dir_all(root).unwrap();
+}

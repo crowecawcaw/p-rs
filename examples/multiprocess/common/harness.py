@@ -1,11 +1,13 @@
 """Copyable integration-test supervisor, independent of process launch method.
 
-Backends start(name, database, broken, stderr), alive(name, process),
+Backends start(name, database, events, broken, stderr), alive(name, process),
 cleanup(name, process), and absent(name, process). Each worker is a Popen with
-text stdin/stdout pipes. Cleanup must remove the underlying worker, even when
-its launcher (such as `docker run`) has already exited.
+text stdin/stdout pipes for commands and replies; `events` is the write end of a
+pipe (a file descriptor) for its committed events. Cleanup must remove the
+underlying worker, even when its launcher (such as `docker run`) has already exited.
 """
 import json
+import os
 import queue
 import sqlite3
 import subprocess
@@ -18,6 +20,7 @@ from inventory import initialize_database
 
 TIMEOUT = 30
 SPEC = Path(__file__).resolve().parents[1] / "specs" / "inventory.p"
+WORKERS = ("worker-a", "worker-b")
 
 
 def run_scenario(backend, prs_bin, artifacts, scenario):
@@ -25,7 +28,8 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
 
     Returns a summary suitable for JSON serialization. An expected violation is
     a passing integration test only after checking its exact cause and proving
-    detection happened before producer EOF and that cleanup removed workers.
+    detection happened while both workers were still running, and that cleanup
+    removed them.
     """
     if scenario not in ("healthy", "oversell"):
         raise ValueError("unknown scenario")
@@ -37,23 +41,27 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
     workers = {}
     observer = None
     reader_threads = []
-    emitters = set()
-    pending = {}
-    next_seq = 1
     command_id = 0
     alive_at_failure = False
     summary = None
     cleanup_errors = []
     with ExitStack() as files:
-        events_file = files.enter_context((artifacts / "events.jsonl").open("w"))
         output = files.enter_context((artifacts / "observer.stdout").open("w"))
         errors = files.enter_context((artifacts / "observer.stderr").open("w"))
         try:
+            # One pipe per worker. The observer reads every read end and checks events
+            # in outbox sequence order, whichever pipe delivers them first. A pipe ends
+            # when its worker exits; the observer finishes once all of them have ended.
+            pipes = {name: os.pipe() for name in WORKERS}
+            live = []
+            for read_end, _ in pipes.values():
+                live += ["--live", "/dev/fd/%d" % read_end]
             observer = subprocess.Popen([
                 str(prs_bin), "observe", "--pfiles", str(SPEC), "--spec", "InventoryCorrect",
-                "--stdin", "--fail-fast", "--strict", "--coverage", "--json-report", str(artifacts / "report.json"),
-                "--outputDir", str(artifacts / "observe"),
-            ], stdin=subprocess.PIPE, stdout=output, stderr=errors, text=True)
+                *live, "--sequence", "seq", "--fail-fast", "--strict", "--coverage",
+                "--record", str(artifacts / "events.jsonl"),
+                "--json-report", str(artifacts / "report.json"), "--outputDir", str(artifacts / "observe"),
+            ], stdout=output, stderr=errors, pass_fds=[r for r, _ in pipes.values()])
 
             def watch_observer():
                 messages.put(("observer", observer.wait()))
@@ -71,23 +79,23 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
                 finally:
                     messages.put((name, {"kind": "eof"}))
 
-            for name in ("worker-a", "worker-b"):
+            for name, (read_end, write_end) in pipes.items():
+                os.close(read_end)  # only the observer reads
                 stderr = files.enter_context((artifacts / (name + ".stderr")).open("w"))
-                process = backend.start(name, database, scenario == "oversell", stderr)
-                workers[name] = process
+                workers[name] = backend.start(name, database, write_end, scenario == "oversell", stderr)
+                os.close(write_end)  # only the worker writes, so its exit ends the pipe
                 worker_output = files.enter_context((artifacts / (name + ".stdout")).open("w"))
-                thread = threading.Thread(target=read_worker, args=(name, process, worker_output), daemon=True)
+                thread = threading.Thread(target=read_worker, args=(name, workers[name], worker_output), daemon=True)
                 thread.start()
                 reader_threads.append(thread)
 
             def wait_for(predicate, *, allow_observer=False, allow_eof=False):
-                nonlocal next_seq
                 deadline = time.monotonic() + TIMEOUT
                 while True:
                     remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise TimeoutError("timed out waiting for workers/observer; see " + str(artifacts))
                     try:
+                        if remaining <= 0:
+                            raise queue.Empty
                         name, message = messages.get(timeout=remaining)
                     except queue.Empty as exc:
                         raise TimeoutError("timed out waiting for workers/observer; see " + str(artifacts)) from exc
@@ -95,32 +103,16 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
                         if allow_observer:
                             return message
                         raise AssertionError("observer exited early (%s); see %s" % (message, artifacts))
-                    kind = message["kind"]
-                    if kind == "event":
-                        emitters.add(name)
-                        event = message["event"]
-                        seq = event["seq"]
-                        if seq < next_seq or seq in pending:
-                            raise AssertionError("duplicate outbox event")
-                        pending[seq] = event
-                        while next_seq in pending:
-                            line = json.dumps(pending.pop(next_seq)) + "\n"
-                            events_file.write(line)
-                            events_file.flush()
-                            observer.stdin.write(line)
-                            observer.stdin.flush()
-                            next_seq += 1
-                    elif kind == "reader_error":
+                    if message["kind"] == "reader_error":
                         raise AssertionError(message)
-                    elif kind == "eof" and not allow_eof:
+                    if message["kind"] == "eof" and not allow_eof:
                         raise AssertionError("worker exited before its stop command: " + name)
                     if predicate(name, message):
                         return message
 
             ready = set()
             while len(ready) < len(workers):
-                msg = wait_for(lambda name, msg: msg["kind"] == "ready")
-                ready.add(msg["worker"])
+                ready.add(wait_for(lambda name, msg: msg["kind"] == "ready")["worker"])
 
             def command(name, operation, **fields):
                 nonlocal command_id
@@ -156,9 +148,7 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
                 for process in workers.values():
                     if process.wait(timeout=TIMEOUT) != 0:
                         raise AssertionError("worker failed; inspect stderr")
-                if pending:
-                    raise AssertionError("gap in commit sequence")
-                observer.stdin.close()  # Only healthy runs finish by EOF.
+                # The workers' exits closed their pipes; the observer finishes at EOF.
                 observer_code = wait_for(lambda *_: False, allow_observer=True, allow_eof=True)
             report = json.loads((artifacts / "report.json").read_text())
             spec = report["specs"][0]
@@ -167,6 +157,8 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
             coverage = spec["coverage"]
             if coverage["scope"] != "observed_monitor" or coverage["states"]["covered"] != 2:
                 raise AssertionError("missing observed monitor coverage")
+            recorded = [json.loads(line) for line in (artifacts / "events.jsonl").read_text().splitlines()]
+            emitters = {event["src"] for event in recorded}
             if emitters != set(workers):
                 raise AssertionError("both workers must emit committed events")
             if scenario == "healthy":
@@ -200,8 +192,6 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
                 if observer.poll() is None:
                     observer.kill()
                 observer.wait(timeout=TIMEOUT)
-                if observer.stdin and not observer.stdin.closed:
-                    observer.stdin.close()
             for process in workers.values():
                 if process.stdin and not process.stdin.closed:
                     process.stdin.close()

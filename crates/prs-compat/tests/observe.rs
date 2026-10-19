@@ -693,3 +693,116 @@ fn unknown_events_are_ignored_warned_or_errors_but_declared_ones_always_pass() {
     assert!(read(&h, "report.json").contains("spec_violation"));
     assert_eq!(run(&mut h, &with("warn")), prs_compat::observe::EXIT_ASSERTION);
 }
+
+#[test]
+fn several_log_paths_combine_into_one_input_set() {
+    let mut h = host();
+    h.add_file("a/1.log", &line("x", 1, "eDeposit", 1, 10));
+    h.add_file("b/2.log", &line("x", 2, "eWithdraw", 1, 10));
+    h.add_file("c.log", &line("x", 3, "eWithdraw", 1, 0));
+    // the withdrawal alone overdraws; with the deposit from another path it does not
+    assert_eq!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "b"]), 2, "{}", h.stdout);
+    for args in [
+        &["-l", "a", "b", "c.log"][..],
+        &["-l", "a", "-l", "b/2.log", "-l", "c.log"],
+        &["-l", "a", "b", "-l", "c.log", "a/1.log", "a"],
+    ] {
+        let args: Vec<&str> =
+            ["--spec", "NeverOverdrawn", "--json-report", "r.json"].into_iter().chain(args.iter().copied()).collect();
+        assert_eq!(run(&mut h, &args), 0, "{}", h.stdout);
+        let report: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+        assert_eq!(report["specs"][0]["events_read"], 3, "files read once each: {:?}", args);
+    }
+    let code = run(&mut h, &["--spec", "NeverOverdrawn", "-l", "a", "nope"]);
+    assert_eq!(code, 1);
+    assert!(h.stdout.contains("The specified log location(nope) does not exist."), "{}", h.stdout);
+}
+
+#[test]
+fn log_globs_are_expanded_by_prs() {
+    let mut h = host();
+    h.add_file("logs/day1/a.log", &line("x", 1, "eDeposit", 1, 10));
+    h.add_file("logs/day2/deep/b.log", &line("x", 2, "eWithdraw", 1, 10));
+    h.add_file("logs/day2/b.txt", &line("x", 3, "eWithdraw", 1, 10));
+    h.add_file("logs/.hidden/c.log", &line("x", 4, "eWithdraw", 1, 10));
+    let events = |h: &mut MemHost, pattern: &str| {
+        let code = run(h, &["--spec", "NeverOverdrawn", "--json-report", "r.json", "-l", pattern]);
+        let report: serde_json::Value = serde_json::from_str(&read(h, "r.json")).unwrap();
+        (code, report["specs"][0]["events_read"].as_u64().unwrap())
+    };
+    assert_eq!(events(&mut h, "logs/**/*.log"), (0, 2));
+    assert_eq!(events(&mut h, "/work/logs/day?/a.log"), (0, 1));
+    assert_eq!(events(&mut h, "logs/day[12]/*.txt"), (2, 1));
+    // a matched directory reads its files, as `-l dir` does
+    assert_eq!(events(&mut h, "logs/day*"), (0, 2));
+    assert_eq!(run(&mut h, &["--spec", "NeverOverdrawn", "-l", "logs/**/*.csv"]), 1);
+    assert!(h.stdout.contains("The specified log location(logs/**/*.csv) matches no files."), "{}", h.stdout);
+}
+
+#[test]
+fn live_inputs_merge_by_sequence_and_record_the_checked_order() {
+    let ev = |seq: u64, event: &str, amount: i64| {
+        format!(r#"{{"seq": {seq}, "key": "x", "event": "{event}", "payload": {{"account": 1, "amount": {amount}}}}}"#)
+    };
+    let live = |h: &mut MemHost, extra: &[&str]| {
+        let args: Vec<&str> =
+            ["--spec", "NeverOverdrawn", "--fail-fast", "--json-report", "r.json", "--live", "a", "b"]
+                .into_iter()
+                .chain(extra.iter().copied())
+                .collect();
+        run(h, &args)
+    };
+    let mut h = host();
+    // `a` is read first, but its withdrawal comes after `b`'s deposit
+    h.add_file("a", &[ev(2, "eWithdraw", 10), ev(3, "eDeposit", 1)].join("\n"));
+    h.add_file("b", &format!("{}\n\n", ev(1, "eDeposit", 10)));
+    assert_eq!(live(&mut h, &["--sequence", "seq", "--record", "events.jsonl"]), 0, "{}", h.stdout);
+    let report: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    assert_eq!(report["input_complete"], true);
+    assert_eq!(report["stop_reason"], "eof");
+    let recorded: Vec<u64> = read(&h, "events.jsonl")
+        .lines()
+        .map(|l| serde_json::from_str::<serde_json::Value>(l).unwrap()["seq"].as_u64().unwrap())
+        .collect();
+    assert_eq!(recorded, [1, 2, 3]);
+
+    assert_eq!(live(&mut h, &[]), 1);
+    assert!(h.stdout.contains("Several live inputs need --sequence"), "{}", h.stdout);
+
+    // entries are located by their own input and line, not by check order
+    h.add_file("b", &format!("{}\n{}", ev(1, "eDeposit", 10), r#"{"seq": 4, "key": "x", "event": "eDepost"}"#));
+    assert_eq!(live(&mut h, &["--sequence", "seq", "--unknown-events", "warn"]), 0, "{}", h.stdout);
+    assert!(h.stderr.contains("first at b:2)"), "{}", h.stderr);
+
+    let failures = [
+        (vec![ev(1, "eDeposit", 10), ev(3, "eDeposit", 1)], "sequence number 2 is missing"),
+        (vec![ev(1, "eDeposit", 10), ev(1, "eDeposit", 1)], "duplicate sequence number 1"),
+        (vec![r#"{"key": "x"}"#.to_string()], "no whole-number sequence field 'seq'"),
+    ];
+    for (lines, message) in failures {
+        h.add_file("a", &lines.join("\n"));
+        h.add_file("b", "");
+        assert_eq!(live(&mut h, &["--sequence", "seq"]), 3, "{}", h.stdout);
+        let report = read(&h, "r.json");
+        assert!(report.contains(message), "{report}");
+        assert!(report.contains("\"input_complete\": false"), "{report}");
+    }
+}
+
+#[test]
+fn live_option_errors() {
+    let mut h = host();
+    h.add_file("run.log", "");
+    let cases: &[(&[&str], &str)] = &[
+        (&["--stdin", "--live", "-", "--fail-fast"], "stdin can be read only once"),
+        (&["--live", "a"], "requires both --stdin and --fail-fast"),
+        (&["-l", "run.log", "--sequence", "seq"], "--sequence and --record apply to live input"),
+        (&["-l", "run.log", "--record", "out.jsonl"], "--sequence and --record apply to live input"),
+        (&["--live", "a", "-l", "run.log", "--fail-fast"], "cannot be combined with --logs"),
+    ];
+    for (args, message) in cases {
+        let args: Vec<&str> = ["--spec", "NeverOverdrawn"].into_iter().chain(args.iter().copied()).collect();
+        assert_eq!(run(&mut h, &args), 1, "{:?}", args);
+        assert!(h.stdout.contains(message), "{:?}: {}", args, h.stdout);
+    }
+}

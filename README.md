@@ -152,8 +152,9 @@ files, with its own options.
   named `--help`).
 * `observe` reports a null dereference with its own message.
 * `observe` extensions: several names after `--spec`, `--all-specs`,
-  `--exclude-specs`, `--json-report`, `--coverage`, `--strict`, `--unknown-events` and `--check-hot`. Runs that use none of them are
-  unchanged.
+  `--exclude-specs`, `--json-report`, `--coverage`, `--strict`, `--unknown-events`,
+  `--check-hot`, several `-l` values and glob patterns, and live input (`--stdin`,
+  `--live`, `--sequence`, `--record`). Runs that use none of them are unchanged.
 * Foreign functions and log parsers are written in Rust, not C# or Java.
 
 **Not supported yet**:
