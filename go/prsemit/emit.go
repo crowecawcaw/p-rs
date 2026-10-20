@@ -37,7 +37,7 @@ import (
 )
 
 // EventsDirEnv names the folder a test recording gives the processes it starts.
-const EventsDirEnv = "PRS_EVENTS_DIR"
+const EventsDirEnv = eventline.EventsDirEnv
 
 // QueueSize is how many lines the production sink buffers before dropping.
 const QueueSize = 4096
@@ -249,13 +249,7 @@ func (d *dirSink) write(line []byte) bool {
 
 // fileName is <program>-<pid>-<random>.jsonl.
 func fileName() string {
-	name := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-	name = strings.Map(func(r rune) rune {
-		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.' {
-			return r
-		}
-		return '_'
-	}, name)
+	name := eventline.FileSafe(strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe"))
 	if name == "" || name == "." {
 		name = "go"
 	}

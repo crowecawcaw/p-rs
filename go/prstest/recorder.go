@@ -75,7 +75,7 @@ func New(t testing.TB, cfg Config) *Recorder {
 	if err = os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("prstest artifacts: %v", err)
 	}
-	dir, err := os.MkdirTemp(root, "prstest-"+fileSafe(t.Name())+"-")
+	dir, err := os.MkdirTemp(root, "prstest-"+eventline.FileSafe(t.Name())+"-")
 	if err != nil {
 		t.Fatalf("prstest artifacts: %v", err)
 	}
@@ -139,16 +139,6 @@ func Start(t testing.TB, cfg Config) *Recorder {
 	return r
 }
 
-func fileSafe(name string) string {
-	name = strings.Map(func(r rune) rune {
-		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' {
-			return r
-		}
-		return '_'
-	}, name)
-	return name[:min(len(name), 80)]
-}
-
 // Emit records an event now. payload is a struct or map whose JSON field names match
 // the P event's named-tuple fields, a single value, a slice for a tuple, or nil. It is
 // encoded immediately, so later changes to it are not recorded. The call site is
@@ -199,11 +189,11 @@ func (r *Recorder) EventsDir() string { return r.events }
 func (r *Recorder) Env() []string {
 	env := []string{}
 	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, "PRS_EVENTS_DIR=") {
+		if !strings.HasPrefix(kv, eventline.EventsDirEnv+"=") {
 			env = append(env, kv)
 		}
 	}
-	return append(env, "PRS_EVENTS_DIR="+r.events)
+	return append(env, eventline.EventsDirEnv+"="+r.events)
 }
 
 // AddEventsDir also checks the events folder at path (a container volume, a service
@@ -371,7 +361,7 @@ func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []stri
 			inputs = append(inputs, l.path)
 			continue
 		}
-		path := filepath.Join(r.dir, fmt.Sprintf("log-%d-%s.jsonl", n, fileSafe(filepath.Base(l.path))))
+		path := filepath.Join(r.dir, fmt.Sprintf("log-%d-%s.jsonl", n, eventline.FileSafe(filepath.Base(l.path))))
 		if err := convertLog(l, path); err != nil {
 			return nil, setup("config", err.Error(), err)
 		}
