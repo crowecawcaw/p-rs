@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>p-rs benchmarks</title>
+<title>Snap Pea benchmarks</title>
 <!--
-  Benchmark history for p-rs. Data comes from the `benchmarks` branch, written by
+  Benchmark history for snappea. Data comes from the `benchmarks` branch, written by
   .github/workflows/bench.yml (main.jsonl, every main commit) and
   bench-upstream.yml (upstream.jsonl, manual runs). For local testing:
   ?main=<url>&upstream=<url>.
@@ -95,11 +95,11 @@
 </head>
 <body>
 <main>
-  <h1>p-rs benchmarks</h1>
+  <h1>Snap Pea benchmarks</h1>
   <p class="sub">
-    <code>prs check</code> on the P tutorial projects, every commit on main. Fixed tests, schedule counts and
+    <code>snappea check</code> on the P tutorial projects, every commit on main. Fixed tests, schedule counts and
     seed, so only speed changes between commits. Wall-clock time, median of several runs on a shared
-    GitHub runner (expect ±10% noise). GitHub assigns runners with different CPUs whose speeds differ by up to 40%, so each CPU model is its own line and is compared only with itself. Source: <a href="https://github.com/crowecawcaw/p-rs/blob/main/scripts/bench.py">scripts/bench.py</a>.
+    GitHub runner (expect ±10% noise). GitHub assigns runners with different CPUs whose speeds differ by up to 40%, so each CPU model is its own line and is compared only with itself. Source: <a href="https://github.com/crowecawcaw/snappea/blob/main/scripts/bench.py">scripts/bench.py</a>.
   </p>
   <p id="status">Loading…</p>
   <div class="legend" id="legend" role="list" aria-label="Runner CPU models" hidden></div>
@@ -131,8 +131,8 @@
 (() => {
   const params = new URLSearchParams(location.search);
   const host = location.hostname.endsWith(".github.io")
-    ? [location.hostname.split(".")[0], location.pathname.split("/")[1] || "p-rs"]
-    : ["crowecawcaw", "p-rs"];
+    ? [location.hostname.split(".")[0], location.pathname.split("/")[1] || "snappea"]
+    : ["crowecawcaw", "snappea"];
   const raw = (f) => `https://raw.githubusercontent.com/${host[0]}/${host[1]}/benchmarks/${f}`;
   const repoUrl = `https://github.com/${host[0]}/${host[1]}`;
   const mainUrl = params.get("main") || raw("main.jsonl");
@@ -324,12 +324,12 @@
       const u = upstream[upstream.length - 1];
       const ur = Object.fromEntries(u.upstream.results.map((r) => [r.name, r]));
       document.getElementById("upstream-sub").textContent =
-        `prs ${u.prs.version || u.prs.commit.slice(0, 7)} vs P ${u.upstream.version}, ${u.prs.date.slice(0, 10)}. ` +
-        "Same runner, tests, schedule counts and seed. Speedup = P time / prs time. prs type-checks inside check; P compiles first.";
-      const rows = u.prs.results.filter((r) => ur[r.name]).map((r) => [r, ur[r.name]]);
-      rows.push([{ name: "total", ...u.prs.total }, u.upstream.total]);
+        `snappea ${u.snappea.version || u.snappea.commit.slice(0, 7)} vs P ${u.upstream.version}, ${u.snappea.date.slice(0, 10)}. ` +
+        "Same runner, tests, schedule counts and seed. Speedup = P time / snappea time. snappea type-checks inside check; P compiles first.";
+      const rows = u.snappea.results.filter((r) => ur[r.name]).map((r) => [r, ur[r.name]]);
+      rows.push([{ name: "total", ...u.snappea.total }, u.upstream.total]);
       table(document.getElementById("upstream-table"),
-        ["workload", "schedules", "prs time", "P time", "speedup", "prs schedules/s", "P schedules/s", "P compile"],
+        ["workload", "schedules", "snappea time", "P time", "speedup", "snappea schedules/s", "P schedules/s", "P compile"],
         rows.map(([p, q]) => [
           p.name, String(p.schedules), fmtTime(p.check_s), fmtTime(q.check_s), `${(q.check_s / p.check_s).toFixed(1)}×`,
           fmtNum(p.schedules_per_s), fmtNum(q.schedules_per_s), fmtTime(q.compile_s),
