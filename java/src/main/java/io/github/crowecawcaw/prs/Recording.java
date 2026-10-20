@@ -252,7 +252,7 @@ public final class Recording implements AutoCloseable {
 
     // ---- running prs ---------------------------------------------------------------
 
-    private ObservationFailure run() {
+    private CheckFailure run() {
         boolean children;
         try (var files = Files.list(eventsDir)) {
             children = files.findAny().isPresent();
@@ -304,11 +304,11 @@ public final class Recording implements AutoCloseable {
             return new SetupError(SetupError.CONFIG, "Cannot write " + reportPath + ": " + error, directory, null, error);
         }
         report = new ObservationReport(full);
-        ObservationFailure failure = Outcomes.of(report, Set.copyOf(ignored), directory);
+        CheckFailure failure = Outcomes.of(report, Set.copyOf(ignored), directory);
         if (withCoverage) {
             try {
                 coverage.add(report);
-            } catch (ObservationFailure error) {
+            } catch (CheckFailure error) {
                 if (failure == null) return error;
                 failure.addSuppressed(error);
             }
@@ -454,7 +454,7 @@ public final class Recording implements AutoCloseable {
     static final class Outcomes {
         private Outcomes() {}
 
-        static ObservationFailure of(ObservationReport report, Set<String> ignored, Path directory) {
+        static CheckFailure of(ObservationReport report, Set<String> ignored, Path directory) {
             var input = new ArrayList<ObservationReport.Error>();
             var validation = new ArrayList<ObservationReport.Error>();
             var violations = new ArrayList<SpecViolation>();
