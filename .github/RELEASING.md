@@ -101,8 +101,12 @@ Claude and replaces them on the release. Tick *dry run* to only print them.
   - Workflow: `release.yml`
   - Environment: `release`
 
-  The `release` environment must allow the `main` branch. No crates.io token is
-  stored in GitHub; the auth action gets a short-lived token and revokes it after.
+  The `release` environment must allow the `main` branch. The auth action gets a
+  short-lived token and revokes it after. crates.io only allows trusted publishing
+  for a crate that exists, so the first release uses a `CRATES_IO_TOKEN` secret on
+  the `release` environment (scopes `publish-new`, `publish-update`, crate pattern
+  `snappea*`). After that release, add trusted publishing on crates.io and delete
+  the secret and the token.
 - PyPI trusted publishing for `pysnappea` (set up once on pypi.org, as a pending
   publisher before the first release) trusts:
   - Repository: `crowecawcaw/snappea`
