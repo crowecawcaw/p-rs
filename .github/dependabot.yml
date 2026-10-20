@@ -22,3 +22,33 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: /examples/rust
+    schedule:
+      interval: monthly
+    groups:
+      cargo-examples:
+        patterns: ["*"]
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      gomod:
+        patterns: ["*"]
+  - package-ecosystem: maven
+    directories: [/java, /examples/java]
+    schedule:
+      interval: monthly
+    ignore:
+      - dependency-name: io.github.crowecawcaw:p-rs # set by scripts/release.py
+    groups:
+      maven:
+        patterns: ["*"]
+  - package-ecosystem: pip
+    directory: /python
+    schedule:
+      interval: monthly
+    groups:
+      pip:
+        patterns: ["*"]
