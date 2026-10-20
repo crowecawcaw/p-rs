@@ -140,10 +140,17 @@ jobs:
       contents: write # attach the wheels to the GitHub release
       id-token: write # PyPI trusted publishing
     steps:
+      # Only this workflow's packages: a release run also holds the binary archives
+      # and SHA256SUMS, which PyPI rejects.
       - uses: actions/download-artifact@v8
         with:
+          pattern: wheel-*
           path: dist
           merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: sdist
+          path: dist
       - name: Attach to the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
