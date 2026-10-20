@@ -174,6 +174,8 @@ final class Sinks {
         private final BlockingQueue<String> queue = new ArrayBlockingQueue<>(QUEUE);
         private final AtomicLong pending = new AtomicLong();
         private final Thread thread;
+        /** Flushes at JVM exit; removed by {@link #close}, so replaced sinks don't pile up. */
+        private final Thread exitHook;
         private volatile boolean closed;
 
         AsyncSink(String what, Opener opener) {
@@ -182,11 +184,13 @@ final class Sinks {
             thread = new Thread(this::run, "p-rs sink " + what);
             thread.setDaemon(true);
             thread.start();
+            Thread hook = new Thread(() -> flush(Duration.ofSeconds(2)), "p-rs sink exit " + what);
             try {
-                Runtime.getRuntime().addShutdownHook(new Thread(() -> flush(Duration.ofSeconds(2))));
+                Runtime.getRuntime().addShutdownHook(hook);
             } catch (IllegalStateException | SecurityException ignored) {
-                // shutting down already, or not allowed: best effort
+                hook = null; // shutting down already, or not allowed: best effort
             }
+            exitHook = hook;
         }
 
         @Override public void offer(String line) {
@@ -258,6 +262,13 @@ final class Sinks {
             flush(Duration.ofSeconds(2));
             closed = true;
             queue.offer(STOP);
+            if (exitHook != null) {
+                try {
+                    Runtime.getRuntime().removeShutdownHook(exitHook);
+                } catch (IllegalStateException | SecurityException ignored) {
+                    // shutting down: the hook runs anyway and finds nothing queued
+                }
+            }
         }
     }
 }

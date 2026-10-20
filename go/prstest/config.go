@@ -18,11 +18,12 @@ const Version = prsbin.Version
 
 // Config selects the specs and options for one recording. Relative paths resolve
 // against WorkDir (default: the working directory, which `go test` sets to the
-// package folder). Environment variables override the fields they name; their
-// relative paths resolve against the process working directory.
+// package folder). Fields are explicit settings: a field that is set wins over the
+// environment variable it names, which applies only when the field is empty. Relative
+// paths in environment variables resolve against the process working directory.
 type Config struct {
 	// SpecFiles are P files, folders (every .p file in them) or glob patterns.
-	// PRS_SPEC_FILES (separated like PATH) overrides it.
+	// Default: PRS_SPEC_FILES (separated like PATH).
 	SpecFiles []string
 	// Specs to check. Empty means every spec in SpecFiles.
 	Specs []string
@@ -39,15 +40,15 @@ type Config struct {
 	// Timeout for the checker. Zero means 30 seconds.
 	Timeout time.Duration
 	// Artifacts is the folder that keeps the files of failed checks (events, prs
-	// output, report). Default: a temporary folder. PRS_ARTIFACTS overrides it.
-	// Passing checks leave nothing behind.
+	// output, report). Default: PRS_ARTIFACTS, else a temporary folder. Passing
+	// checks leave nothing behind.
 	Artifacts string
 	// Coverage is the suite coverage JSON path. Each check's observed monitor
 	// coverage is merged into it, once at the end with Main, otherwise as each check
-	// completes, under a file lock. PRS_COVERAGE overrides it.
+	// completes, under a file lock. Default: PRS_COVERAGE.
 	Coverage string
 	// Mode is "auto" or "marked" (the same in Go: tests opt in by calling Start) or
-	// "off" (recordings do nothing and pass). PRS_MODE overrides it.
+	// "off" (recordings do nothing and pass). Default: PRS_MODE, else "auto".
 	Mode string
 	// Binary is the prs executable. Default: PRS_BIN, then prs on PATH, then the
 	// release binary of this module's version, downloaded once into the user cache
@@ -58,17 +59,13 @@ type Config struct {
 	WorkDir string
 	// Suite collects the check's coverage for Suite.WriteCoverage.
 	Suite *Suite
-
-	// Deprecated: use Strict: Bool(false).
-	AllowUnobserved bool
-	// Deprecated: use Artifacts.
-	ArtifactRoot string
 }
 
 // Bool returns a pointer to v, for Config.Strict.
 func Bool(v bool) *bool { return &v }
 
-// settings is a Config with defaults, environment overrides and absolute paths.
+// settings is a Config with environment variables and defaults applied, and absolute
+// paths.
 type settings struct {
 	specFiles     []string
 	specs         []string
@@ -83,7 +80,6 @@ type settings struct {
 	binary        string
 	workDir       string
 	suite         *Suite
-	deprecated    []string
 }
 
 func resolve(cfg Config) (settings, error) {
@@ -104,7 +100,7 @@ func resolve(cfg Config) (settings, error) {
 	}
 
 	files, base := cfg.SpecFiles, s.workDir
-	if env := os.Getenv("PRS_SPEC_FILES"); env != "" {
+	if env := os.Getenv("PRS_SPEC_FILES"); len(files) == 0 && env != "" {
 		files, base = filepath.SplitList(env), cwd
 	}
 	for _, f := range files {
@@ -152,10 +148,6 @@ func resolve(cfg Config) (settings, error) {
 	s.exclude = append([]string(nil), cfg.Exclude...)
 
 	s.strict = len(s.specs) > 0
-	if cfg.AllowUnobserved {
-		s.strict = false
-		s.deprecated = append(s.deprecated, "Config.AllowUnobserved is deprecated: use Strict: prstest.Bool(false)")
-	}
 	if cfg.Strict != nil {
 		s.strict = *cfg.Strict
 	}
@@ -177,25 +169,19 @@ func resolve(cfg Config) (settings, error) {
 		s.timeout = 30 * time.Second
 	}
 
-	if cfg.ArtifactRoot != "" {
-		s.deprecated = append(s.deprecated, "Config.ArtifactRoot is deprecated: use Artifacts")
+	// explicit field, else environment variable (relative to the working directory)
+	setting := func(field, env string) string {
+		if field != "" {
+			return abs(s.workDir, field)
+		}
+		return abs(cwd, os.Getenv(env))
 	}
-	if env := os.Getenv("PRS_ARTIFACTS"); env != "" {
-		s.artifacts = abs(cwd, env)
-	} else if cfg.Artifacts != "" {
-		s.artifacts = abs(s.workDir, cfg.Artifacts)
-	} else {
-		s.artifacts = abs(s.workDir, cfg.ArtifactRoot)
-	}
-	if env := os.Getenv("PRS_COVERAGE"); env != "" {
-		s.coverage = abs(cwd, env)
-	} else {
-		s.coverage = abs(s.workDir, cfg.Coverage)
-	}
+	s.artifacts = setting(cfg.Artifacts, "PRS_ARTIFACTS")
+	s.coverage = setting(cfg.Coverage, "PRS_COVERAGE")
 
 	mode := cfg.Mode
-	if env := os.Getenv("PRS_MODE"); env != "" {
-		mode = env
+	if mode == "" {
+		mode = os.Getenv("PRS_MODE")
 	}
 	switch mode {
 	case "", "auto", "marked":

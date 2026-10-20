@@ -14,11 +14,11 @@ from typing import Any, Optional, Sequence
 
 from ._binary import find_prs
 from ._emit import Event, Sink, emit, set_sink
-from ._errors import SetupError, StrictDefaultWarning
-from ._recorder import Recorder, SpecViolation, _deprecated, check_hot_arg, events_from_dicts
+from ._errors import SetupError
+from ._recorder import Recorder, SpecViolation, events_from_dicts
 
 # show `prs.SpecViolation` in tracebacks, not the private module
-for _cls in (Recorder, Event, SpecViolation, SetupError, StrictDefaultWarning, Sink):
+for _cls in (Recorder, Event, SpecViolation, SetupError, Sink):
     _cls.__module__ = "prs"
 
 __all__ = [
@@ -32,16 +32,8 @@ __all__ = [
     "Event",
     "SpecViolation",
     "SetupError",
-    "StrictDefaultWarning",
     "find_prs",
 ]
-
-
-def __getattr__(name: str) -> Any:
-    if name == "PrsError":
-        _deprecated("prs.PrsError", "prs.SetupError")
-        return SetupError
-    raise AttributeError(f"module 'prs' has no attribute {name!r}")
 
 
 class check_spec:
@@ -68,12 +60,11 @@ class check_spec:
         unknown_events: Optional[str] = None,
         timeout: Optional[float] = None,
         artifacts: Optional[str] = None,
-        liveness: Optional[bool] = None,
     ):
         self.recorder = Recorder(
             specs,
             spec_files=spec_files,
-            check_hot=check_hot_arg(check_hot, liveness),
+            check_hot=check_hot,
             strict=strict,
             unknown_events=unknown_events,
             timeout=timeout,
@@ -116,14 +107,13 @@ class expect_violation:
         unknown_events: Optional[str] = None,
         timeout: Optional[float] = None,
         artifacts: Optional[str] = None,
-        liveness: Optional[bool] = None,
     ):
         self.spec = spec
         self.match = match
         self.recorder = Recorder(
             [spec],
             spec_files=spec_files,
-            check_hot=check_hot_arg(check_hot, liveness),
+            check_hot=check_hot,
             strict=False,  # the spec must break; whether it saw events is beside the point
             unknown_events=unknown_events,
             timeout=timeout,
@@ -172,7 +162,6 @@ def check_events(
     unknown_events: Optional[str] = None,
     timeout: Optional[float] = None,
     artifacts: Optional[str] = None,
-    liveness: Optional[bool] = None,
 ) -> None:
     """Checks a hand-written list of events: unit tests for a spec itself::
 
@@ -190,7 +179,7 @@ def check_events(
     rec = Recorder(
         specs,
         spec_files=spec_files,
-        check_hot=check_hot_arg(check_hot, liveness),
+        check_hot=check_hot,
         strict=strict,
         unknown_events=unknown_events,
         timeout=timeout,

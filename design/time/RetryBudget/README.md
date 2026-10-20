@@ -1,6 +1,7 @@
 # RetryBudget: the time extension without new syntax
 
-Sample 5 of `../examples/` rewritten with no new syntax. The extension is:
+A retry-with-backoff client under a latency budget, written with no new syntax. The
+extension is:
 
 | Piece | Where |
 |---|---|

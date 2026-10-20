@@ -20,8 +20,7 @@ jar of the same artifact, `natives-<os>-<arch>`: `natives-linux-x86_64`,
 ## Install
 
 Depend on `p-rs`, plus the natives jar for the platform the tests run on (test scope),
-with the `prs.version` property set to a [release](https://github.com/crowecawcaw/p-rs/releases)
-such as `0.1.1`:
+with the `prs.version` property set to a [release](https://github.com/crowecawcaw/p-rs/releases):
 
 ```xml
 <dependency>
@@ -230,9 +229,6 @@ Fields: `spec()`, `key()`, `message()`, `location()`, `events()` (each with `eve
 `out_of_order` or `timeout`. Assert on fields, not message text. Both keep their
 artifacts folder (`artifacts()`) and the core report (`report()`).
 
-`ObservationFailure` is the deprecated common superclass of both; catch it only in
-code written for 0.1.
-
 ## Negative controls
 
 ```java
@@ -273,16 +269,3 @@ union of all checks once, when the run ends, and prints the summary. Outside JUn
 pass it to `observer.recording(label, collector)` and close it at the end. Collectors
 merge into an existing file under a file lock, so forks and test classes can share
 one path; delete the file before a run.
-
-## Upgrading from 0.1
-
-- `prs-emit`, `prs-test-core` and `prs-junit5` are one artifact, `p-rs`; packages and
-  class names are unchanged. Add the natives jar to drop `PRS_BIN`.
-- `specs` is optional (default: every spec), so `strict` defaults to false without
-  named specs; it stays true with them.
-- Undeclared event names now fail the check (`unknownEvents`, default `ERROR`).
-- Catch `SpecViolation` / `SetupError` instead of `ObservationFailure`.
-- Builders throw `SetupError` (kind `config`) for bad settings.
-- Artifacts default to `<tmp>/prs`; set `artifacts` to keep them under `target/`.
-- Timestamps are ISO-8601 with nanoseconds, and lines carry `src`, `seq` and `pid`.
-- Coverage merges into an existing file instead of replacing it.

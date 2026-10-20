@@ -9,9 +9,25 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
+
+// EventsDirEnv names the folder a test recording gives the processes it starts.
+const EventsDirEnv = "PRS_EVENTS_DIR"
+
+// FileSafe replaces characters other than letters, digits, '-', '_' and '.' in name
+// with '_', and shortens it to 80 bytes, for use in a file name.
+func FileSafe(name string) string {
+	name = strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.' {
+			return r
+		}
+		return '_'
+	}, name)
+	return name[:min(len(name), 80)]
+}
 
 var (
 	mu   sync.Mutex

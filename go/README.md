@@ -67,7 +67,7 @@ func TestReservation(t *testing.T) {
 
 - `*prstest.SpecViolation`: `Spec`, `Key`, `Message`, `Location` (the P assert),
   `Events` (the key's last events with `Event`, `Payload`, `Src`), `Liveness`,
-  `Others`, `ArtifactsDir`.
+  `Others`, `Artifacts` (the folder kept for the failed check; `SetupError` has it too).
 - `*prstest.SetupError`: `Kind` is `binary_missing`, `config`, `parser`, `validation`
   (strict found no event for a spec), `unknown_event`, `out_of_order` or `timeout`.
 
@@ -112,12 +112,12 @@ checks of `r` ignore that spec.
 | `Mode`: `auto`/`marked` (same in Go) or `off` | `PRS_MODE` | `auto` |
 | `Binary` | `PRS_BIN`, then `prs` on `PATH` | the release binary, downloaded (`PRS_DOWNLOAD=0`: off) |
 
-Environment variables override fields, except `PRS_BIN`, which `Binary` overrides.
+A field that is set wins over its environment variable, which applies only when the
+field is empty (fields are explicit settings, like arguments in other languages).
 `Config` paths are relative to `WorkDir` (default: the package folder `go test` runs
 in); environment paths to the working directory. `PRS_MODE=off` makes recordings
-inert. A missing binary is a `binary_missing` error saying how to install one.
-`AllowUnobserved` and `ArtifactRoot` are deprecated aliases for
-`Strict: prstest.Bool(false)` and `Artifacts`.
+inert unless `Mode` is set. A missing binary is a `binary_missing` error saying how to
+install one.
 
 ## Events from other processes
 

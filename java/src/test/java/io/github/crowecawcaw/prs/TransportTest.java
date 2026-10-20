@@ -7,12 +7,12 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SuppressWarnings("deprecation")
+/** Fake prs binaries are shell scripts, so these run on POSIX systems only. */
 class TransportTest {
     @TempDir Path temporary;
 
@@ -28,7 +28,7 @@ class TransportTest {
                 .specs("Spec").artifacts(temporary.resolve("artifacts")).build().recording("fake transport");
     }
 
-    @Test @EnabledOnOs(OS.LINUX)
+    @Test @DisabledOnOs(OS.WINDOWS)
     void missingAndMalformedSuccessReportsFailClosed() throws Exception {
         for (String json : List.of("", "{}", "{\"exit_code\":0}", "{\"exit_code\":0,\"specs\":[]}",
                 "{\"exit_code\":0,\"specs\":[{\"spec\":\"Spec\"}]}",
@@ -40,14 +40,14 @@ class TransportTest {
                     + "printf '%s' '" + json + "' > \"$report\"\nexit 0\n");
             var events = recording(binary);
             events.emit("event", "key");
-            var failure = assertThrows(ObservationFailure.class, events::close, json);
+            var failure = assertThrows(CheckFailure.class, events::close, json);
             assertTrue(Files.exists(failure.artifacts().resolve("events.jsonl")));
         }
         var events = recording(executable("exit 0\n"));
-        assertThrows(ObservationFailure.class, events::close);
+        assertThrows(CheckFailure.class, events::close);
     }
 
-    @Test @EnabledOnOs(OS.LINUX)
+    @Test @DisabledOnOs(OS.WINDOWS)
     void invalidMetricStatusAndErrorTypesCannotMasqueradeAsSuccess() throws Exception {
         var valid = "{\"exit_code\":0,\"specs\":[{\"spec\":\"Spec\","
                 + "\"events_read\":1,\"partition_keys\":1,\"verified_keys\":1,\"errors\":[]}]}";
@@ -87,12 +87,12 @@ class TransportTest {
             var events = PrsObserver.builder().config(PrsConfig.NONE).binary(binary.toString()).specFiles(ObserverTest.spec())
                     .specs(specs).artifacts(temporary.resolve("artifacts")).build().recording("malformed metrics");
             events.emit("event", "key");
-            var failure = assertThrows(ObservationFailure.class, events::close, mutation);
+            var failure = assertThrows(CheckFailure.class, events::close, mutation);
             assertTrue(failure.report().isEmpty(), "Invalid report must not be collected as coverage: " + mutation);
         }
     }
 
-    @Test @EnabledOnOs(OS.LINUX)
+    @Test @DisabledOnOs(OS.WINDOWS)
     void strictFalseAllowsAnExplicitlyEmptySuccessReport() throws Exception {
         String json = "{\"exit_code\":0,\"specs\":[{\"spec\":\"Spec\",\"events_read\":0,"
                 + "\"partition_keys\":0,\"verified_keys\":0,\"errors\":[]}]}";
@@ -106,7 +106,7 @@ class TransportTest {
         assertEquals(0, events.report().orElseThrow().exitCode());
     }
 
-    @Test @EnabledOnOs(OS.LINUX)
+    @Test @DisabledOnOs(OS.WINDOWS)
     void timeoutTerminatesWrapperAndItsChildWithinBound() throws Exception {
         var pid = temporary.resolve("child.pid");
         var binary = executable("sleep 60 &\nchild=$!\nprintf '%s' \"$child\" > '" + pid + "'\nwait\n");
@@ -123,7 +123,7 @@ class TransportTest {
                 || (Files.exists(stat) && Files.readString(stat).split(" ")[2].equals("Z")));
     }
 
-    @Test @EnabledOnOs(OS.LINUX)
+    @Test @DisabledOnOs(OS.WINDOWS)
     void interruptionTerminatesProcessAndRestoresInterruptFlag() throws Exception {
         var binary = executable("sleep 60\n");
         var flag = new java.util.concurrent.atomic.AtomicBoolean();

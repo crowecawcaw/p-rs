@@ -26,9 +26,9 @@ import (
 // Result holds the raw outcome of a check, including on failure. Report is nil when
 // prs wrote no report.
 type Result struct {
-	Report       json.RawMessage
-	Output       string
-	ArtifactsDir string
+	Report    json.RawMessage
+	Output    string
+	Artifacts string
 }
 
 // Recorder collects one test's events and checks them once.
@@ -65,9 +65,6 @@ func New(t testing.TB, cfg Config) *Recorder {
 	if err != nil {
 		t.Fatalf("%v", &SetupError{Kind: "config", Message: err.Error()})
 	}
-	for _, msg := range s.deprecated {
-		t.Logf("prstest: %s", msg)
-	}
 	root := s.artifacts
 	if root == "" {
 		root = os.TempDir()
@@ -75,7 +72,7 @@ func New(t testing.TB, cfg Config) *Recorder {
 	if err = os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("prstest artifacts: %v", err)
 	}
-	dir, err := os.MkdirTemp(root, "prstest-"+fileSafe(t.Name())+"-")
+	dir, err := os.MkdirTemp(root, "prstest-"+eventline.FileSafe(t.Name())+"-")
 	if err != nil {
 		t.Fatalf("prstest artifacts: %v", err)
 	}
@@ -139,16 +136,6 @@ func Start(t testing.TB, cfg Config) *Recorder {
 	return r
 }
 
-func fileSafe(name string) string {
-	name = strings.Map(func(r rune) rune {
-		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' {
-			return r
-		}
-		return '_'
-	}, name)
-	return name[:min(len(name), 80)]
-}
-
 // Emit records an event now. payload is a struct or map whose JSON field names match
 // the P event's named-tuple fields, a single value, a slice for a tuple, or nil. It is
 // encoded immediately, so later changes to it are not recorded. The call site is
@@ -187,7 +174,7 @@ func (r *Recorder) record(at time.Time, src, event, key string, payload any) {
 
 func (r *Recorder) stick(kind, msg string) {
 	if r.sticky == nil {
-		r.sticky = &SetupError{Kind: kind, Message: msg, ArtifactsDir: r.dir}
+		r.sticky = &SetupError{Kind: kind, Message: msg, Artifacts: r.dir}
 	}
 }
 
@@ -199,11 +186,11 @@ func (r *Recorder) EventsDir() string { return r.events }
 func (r *Recorder) Env() []string {
 	env := []string{}
 	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, "PRS_EVENTS_DIR=") {
+		if !strings.HasPrefix(kv, eventline.EventsDirEnv+"=") {
 			env = append(env, kv)
 		}
 	}
-	return append(env, "PRS_EVENTS_DIR="+r.events)
+	return append(env, eventline.EventsDirEnv+"="+r.events)
 }
 
 // AddEventsDir also checks the events folder at path (a container volume, a service
@@ -248,7 +235,7 @@ func (r *Recorder) Verify(ctx context.Context) (Result, error) {
 	r.mu.Unlock()
 	if !r.done {
 		r.done = true
-		r.result = Result{ArtifactsDir: r.dir}
+		r.result = Result{Artifacts: r.dir}
 		r.found, r.setupErr = r.run(ctx, trace, count, dirs, logs)
 	}
 	result := r.result
@@ -352,7 +339,7 @@ func (r *Recorder) ExpectViolation(t testing.TB, spec, match string) *SpecViolat
 func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []string, logs []logInput) ([]*SpecViolation, *SetupError) {
 	s := r.s
 	setup := func(kind, msg string, err error) *SetupError {
-		return &SetupError{Kind: kind, Message: msg, ArtifactsDir: r.dir, Err: err}
+		return &SetupError{Kind: kind, Message: msg, Artifacts: r.dir, Err: err}
 	}
 	own := filepath.Join(r.dir, "events.jsonl")
 	if err := os.WriteFile(own, trace, 0o600); err != nil {
@@ -371,7 +358,7 @@ func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []stri
 			inputs = append(inputs, l.path)
 			continue
 		}
-		path := filepath.Join(r.dir, fmt.Sprintf("log-%d-%s.jsonl", n, fileSafe(filepath.Base(l.path))))
+		path := filepath.Join(r.dir, fmt.Sprintf("log-%d-%s.jsonl", n, eventline.FileSafe(filepath.Base(l.path))))
 		if err := convertLog(l, path); err != nil {
 			return nil, setup("config", err.Error(), err)
 		}
@@ -382,7 +369,7 @@ func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []stri
 	}
 	binary, missing := findBinary(ctx, s.binary)
 	if missing != nil {
-		missing.ArtifactsDir = r.dir
+		missing.Artifacts = r.dir
 		return nil, missing
 	}
 

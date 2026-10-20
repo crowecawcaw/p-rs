@@ -110,7 +110,7 @@ class ExtensionTest {
         assertEquals("previous destination", Files.readString(destination));
     }
 
-    @Test void abortedTestCannotHideObservationFailure() {
+    @Test void abortedTestCannotHideCheckFailure() {
         var summary = run(false, AbortedFixture.class);
         assertEquals(1, summary.getTestsFailedCount());
         assertEquals(0, summary.getTestsAbortedCount());
