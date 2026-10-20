@@ -21,7 +21,8 @@ default = ["cli", "test"]
 # checker; depends only on serde and serde_json. Production code uses only this.
 emit = ["dep:serde", "dep:serde_json"]
 # `prs::test`: check recorded events against P specs, in process. Also enables the
-# library (`prs::syntax`, `prs::sema`, `prs::checker`, `prs::compat`).
+# library (`prs::syntax`, `prs::sema`, `prs::checker`, `prs::driver`, `prs::host`,
+# `prs::compat`).
 test = ["emit", "dep:regex", "dep:roxmltree", "dep:rustc-hash", "dep:sha2"]
 # The `prs` and `prs-compat` binaries, and the library they run on.
 cli = ["dep:roxmltree", "dep:rustc-hash", "dep:serde_json", "dep:sha2"]
