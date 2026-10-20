@@ -37,24 +37,24 @@ type SpecViolation struct {
 	Earlier  int  // events of Key before Events, not shown
 	Liveness bool // the key ended in a hot state (CheckHot)
 	Others   []*SpecViolation
-	// ArtifactsDir holds the events, prs output and report. It is kept after the test.
-	ArtifactsDir string
+	// Artifacts holds the events, prs output and report. It is kept after the test.
+	Artifacts string
 }
 
 // SetupError is a check that could not run or whose input is unusable. Kind is one of
 // binary_missing, config, parser, validation, unknown_event, out_of_order, timeout,
 // or another error kind the core reports.
 type SetupError struct {
-	Kind         string
-	Message      string
-	ArtifactsDir string
-	Err          error // underlying cause, if any
+	Kind      string
+	Message   string
+	Artifacts string
+	Err       error // underlying cause, if any
 }
 
 func (e *SetupError) Error() string {
 	s := fmt.Sprintf("prstest %s error: %s", e.Kind, e.Message)
-	if e.ArtifactsDir != "" {
-		s += "\n\n  prs output: " + e.ArtifactsDir
+	if e.Artifacts != "" {
+		s += "\n\n  prs output: " + e.Artifacts
 	}
 	return s
 }
@@ -106,8 +106,8 @@ func (v *SpecViolation) Error() string {
 	if v.Location != "" {
 		fmt.Fprintf(&b, "  Spec: %s\n", v.Location)
 	}
-	if v.ArtifactsDir != "" {
-		fmt.Fprintf(&b, "  prs output: %s\n", v.ArtifactsDir)
+	if v.Artifacts != "" {
+		fmt.Fprintf(&b, "  prs output: %s\n", v.Artifacts)
 	}
 	if len(v.Others) > 0 {
 		fmt.Fprintf(&b, "\n  %d more violation(s):\n", len(v.Others))
@@ -188,7 +188,7 @@ func classify(data []byte, workDir, dir string) ([]*SpecViolation, *SetupError) 
 		} `json:"specs"`
 	}
 	if err := json.Unmarshal(data, &report); err != nil {
-		return nil, &SetupError{Kind: "config", Message: "cannot read the prs report: " + err.Error(), ArtifactsDir: dir}
+		return nil, &SetupError{Kind: "config", Message: "cannot read the prs report: " + err.Error(), Artifacts: dir}
 	}
 	byKind := map[string][]reportError{}
 	var violations []*SpecViolation
@@ -203,11 +203,11 @@ func classify(data []byte, workDir, dir string) ([]*SpecViolation, *SetupError) 
 	}
 	for _, kind := range []string{"unknown_event", "parser", "out_of_order", "unknown"} {
 		if errs := byKind[kind]; len(errs) > 0 {
-			return violations, &SetupError{Kind: kind, Message: inputMessage(kind, errs), ArtifactsDir: dir}
+			return violations, &SetupError{Kind: kind, Message: inputMessage(kind, errs), Artifacts: dir}
 		}
 	}
 	if errs := byKind["validation"]; len(errs) > 0 && len(violations) == 0 {
-		return nil, &SetupError{Kind: "validation", Message: inputMessage("validation", errs), ArtifactsDir: dir}
+		return nil, &SetupError{Kind: "validation", Message: inputMessage("validation", errs), Artifacts: dir}
 	}
 	return violations, nil
 }
@@ -251,7 +251,7 @@ func inputMessage(kind string, errs []reportError) string {
 }
 
 func violation(spec string, e reportError, workDir, dir string) *SpecViolation {
-	v := &SpecViolation{Spec: spec, Key: e.Key, Message: e.Message, ArtifactsDir: dir}
+	v := &SpecViolation{Spec: spec, Key: e.Key, Message: e.Message, Artifacts: dir}
 	if m := assertRe.FindStringSubmatch(e.Message); m != nil {
 		v.Location, v.Message = relLocation(m[1], workDir), m[2]
 	} else if m := livenessRe.FindStringSubmatch(e.Message); m != nil {
