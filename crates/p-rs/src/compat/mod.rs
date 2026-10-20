@@ -1,56 +1,21 @@
-//! Drop-in compatibility with the upstream P command line tools.
+//! Drop-in compatibility with the upstream P command line tools (`prs-compat`).
 //!
-//! [`run`] reproduces `p check` and `p merge-scenario-coverage` from `PCommandLine`, and
-//! [`observe`] the PObserve command line: the same options, help text, project-file
-//! handling, console messages, output files and exit codes, on top of the pure-Rust type
-//! checker ([`crate::sema`]) and checker ([`crate::checker`]). There is no `p compile`: the
-//! commands read the P sources directly. Everything goes through a [`Host`], so
-//! the commands also run in-memory (tests, browsers).
+//! [`run`] is upstream's `p` tool: `p check` and `p merge-scenario-coverage` from
+//! `PCommandLine`, and `p observe` from PObserve, with the same options, help text, console
+//! messages, output files and exit codes. There is no `p compile`: the commands read the P
+//! sources directly.
 //!
-//! [`check`], [`project`] and [`scenario`] also expose the steps of `p check` (resolving
-//! sources, type-checking, checking one test case, replaying a schedule) for front ends
-//! with their own command line, such as `prs`.
-//!
-//! Known differences from upstream are listed in the repository README.
+//! This module only parses upstream's command lines; the commands themselves are
+//! [`crate::driver`], shared with `prs`. Nothing else in the crate depends on it. Known
+//! differences from upstream are listed in the repository README.
 
 mod argparse;
-pub mod check;
-pub mod host;
-pub mod observe;
-mod pproj;
-pub mod project;
-pub mod scenario;
-mod sci;
+mod check;
 
 use std::path::Path;
 
-use host::{Color, Host, HostExt, Stream};
-
-/// Process exit requested (`Environment.Exit(code)`); the problem has been reported.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Exit(pub i32);
-
-/// `Error.ReportAndExit`: `Error: {msg}` on stderr, exit code 1.
-fn report_and_exit(host: &mut dyn Host, msg: &str) -> Exit {
-    report(host, msg);
-    Exit(1)
-}
-
-/// `Error.Report`: `Error: {msg}` on stderr.
-fn report(host: &mut dyn Host, msg: &str) {
-    host.write(Stream::Err, "Error: ", Some(Color::Red));
-    host.write(Stream::Err, msg, Some(Color::Yellow));
-    host.write(Stream::Err, "\n", None);
-}
-
-/// Writes an output file the command has announced (`..... Writing {path}`), `path` being
-/// relative to the current directory or absolute. A failure ends the command with
-/// `Error: ...` naming the file and exit code 1, as an uncaught I/O exception ends upstream's.
-fn write_output(host: &mut dyn Host, path: &str, contents: &str) -> Result<(), Exit> {
-    let full = host::full_path(&host.cwd(), Path::new(path));
-    host.write_file(&full, contents)
-        .map_err(|e| report_and_exit(host, &format!("Could not write file '{}': {}", path, e)))
-}
+use crate::driver::{observe, scenario};
+use crate::host::{full_path, Color, Host, HostExt};
 
 /// The version reported by `p --version`.
 pub const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (prs)");
@@ -65,9 +30,9 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
         }
         Some((cmd, rest)) => match cmd.to_lowercase().as_str() {
             // PObserve is its own tool upstream: its output has no P tool banner
-            "observe" => return observe::run(rest, host),
+            "observe" => return observe::run(rest, host, Vec::new(), "p observe"),
             "check" => check::run(rest, host),
-            "merge-scenario-coverage" => scenario::run_merge(rest, host),
+            "merge-scenario-coverage" => merge_scenario_coverage(rest, host),
             "version" | "-v" | "-version" | "--version" => {
                 host.out_line(&format!("P version {}", VERSION));
                 0
@@ -112,13 +77,24 @@ fn print_command_help(host: &mut dyn Host) {
     }
 }
 
-/// `{value:0.##}`.
-fn format_0_00(v: f64) -> String {
-    let s = format!("{:.2}", v);
-    let s = s.trim_end_matches('0').trim_end_matches('.');
-    if s.is_empty() || s == "-0" {
-        "0".into()
-    } else {
-        s.to_string()
+/// `p merge-scenario-coverage [directory]`.
+fn merge_scenario_coverage(args: &[String], host: &mut dyn Host) -> i32 {
+    // upstream has no help and looks for a directory named `--help`
+    if matches!(args.first().map(String::as_str), Some("-h" | "--help")) {
+        host.out_line("usage: p merge-scenario-coverage [directory]");
+        host.out_line("");
+        host.out_line(&format!(
+            "Merges the scenario coverage reports (*{}) under the directory, recursively, into one report. The directory defaults to the current one.",
+            scenario::FILE_SUFFIX
+        ));
+        return 0;
     }
+    let dir = args.first().cloned().unwrap_or_else(|| host.cwd().to_string_lossy().to_string());
+    let full = full_path(&host.cwd(), Path::new(&dir));
+    if !host.is_dir(&full) {
+        host.out_colored_line(&format!("Directory not found: {}", dir), Color::Red);
+        return 0;
+    }
+    scenario::merge_dir(host, &full);
+    0
 }

@@ -1,6 +1,6 @@
 //! `p check` explores schedules on one worker, as upstream does, even on a host with threads.
 
-use prs::compat::host::{Job, MemHost, Threads};
+use prs::host::{Job, MemHost, Threads};
 
 fn run_threads<'a>(jobs: Vec<Job<'a>>, main: &mut (dyn FnMut() + 'a)) {
     std::thread::scope(|s| {

@@ -12,7 +12,10 @@ Everything published is one crate, `crates/p-rs` (library `prs`, on crates.io as
 | `prs::syntax` | Lexer, parser and AST. |
 | `prs::sema` | Name resolution and type checking; produces a typed program. |
 | `prs::checker` | Interpreter, schedulers, PEx search, monitors, traces, foreign functions and log checking. |
-| `prs::compat` | The upstream-compatible command line (`prs-compat`): options, `.pproj` files, console output, output folders and exit codes; also the steps of a check (sources, type checking, one test case, replay) for other front ends. Runs against a pluggable host (native or in-memory). |
+| `prs::host` | The environment commands run in: console, file system, clock, threads. `MemHost` is in-memory (tests, wasm); `prs::cli` has the native one. |
+| `prs::project` | Finding and reading P sources: `.pproj` files, `--pfiles`, the current folder; type-error reporting. |
+| `prs::driver` | The commands on a host: `check` (checking test cases, replay, output folders, traces, coverage), `observe` (checking logs, with PObserve's command line) and `scenario` (scenario coverage reports). |
+| `prs::compat` | Upstream's command line for `prs-compat` (`p check` options and help, `p merge-scenario-coverage`), on `prs::driver`. Nothing else depends on it. |
 | `prs::cli` | The `prs` command line and the native host (hidden from the docs; used by the binaries and `prs-wasm`). |
 | `prs::test` | In-process checks for Rust tests. |
 | `prs::emit` | The event emitter for application code. |
@@ -25,7 +28,7 @@ Tests are in `crates/p-rs/tests`, named after the module they cover.
 `crates/prs-wasm` (not published) is the WebAssembly module and JavaScript wrapper.
 
 The checker modules use no file system, process or threading APIs, so they build for
-`wasm32-unknown-unknown` unchanged. `prs::compat` reaches all of these through its `Host`;
+`wasm32-unknown-unknown` unchanged. `prs::driver` reaches all of these through a `Host`;
 the threads for `prs check --workers` come from `Host::threads`, which only the native
 host provides, so the WebAssembly module (which runs the `prs` command line) uses one
 worker.

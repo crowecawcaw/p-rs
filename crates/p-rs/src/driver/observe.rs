@@ -1,15 +1,15 @@
-//! `p observe`: upstream's PObserve command line (`pobserve.PObserve`).
+//! The observe command: checks recorded logs of a running system against spec monitors.
 //!
-//! Checks recorded logs of a running system against a spec monitor. Options, console
-//! output, report files and exit codes follow PObserve, with one change in how the spec is
-//! found: PObserve loads specs and parsers from jars produced by `p compile --mode pobserve`,
-//! while `p observe` type-checks the P sources directly. The spec comes from the `.pproj` in
-//! the current folder, or from `--pproj` / `--pfiles` (the options `p check` takes), and
-//! there is no `--jars` option.
+//! Its command line is PObserve's (`pobserve.PObserve`), for `prs observe` and
+//! `prs-compat observe` alike: options, console output, report files and exit codes follow
+//! PObserve, with one change in how the spec is found. PObserve loads specs and parsers from
+//! jars produced by `p compile --mode pobserve`, while this command type-checks the P
+//! sources directly. The spec comes from the `.pproj` in the current folder, or from
+//! `--pproj` / `--pfiles`, and there is no `--jars` option.
 //!
 //! Parsers are Rust values implementing [`Parser`]. Two are built in ([`JsonLinesParser`]
 //! for text logs, [`PTraceParser`] for P's JSON traces); programs embedding the crate pass
-//! their own to [`run_with`]. The checking itself is [`crate::checker::observe`].
+//! their own to [`run`]. The checking itself is [`crate::checker::observe`].
 
 use std::path::{Path, PathBuf};
 
@@ -23,8 +23,8 @@ use crate::checker::observe_json::{civil_from_days, event_from_json, json_int, p
 use crate::sema::{MachineKind, Program};
 use serde_json::Value as Json;
 
-use crate::compat::host::{full_path, relative_path, Buffered, Color, Host, HostExt, LiveInput, Stream};
-use crate::compat::{pproj, project, write_output, Exit};
+use crate::host::{full_path, relative_path, write_output, Buffered, Color, Exit, Host, HostExt, LiveInput, Stream};
+use crate::project::{self, pproj};
 
 /// `PObserveExitStatus`.
 pub const EXIT_SUCCESS: i32 = 0;
@@ -33,19 +33,11 @@ pub const EXIT_ASSERTION: i32 = 2;
 pub const EXIT_INTERNAL_ERROR: i32 = 3;
 pub const EXIT_PARSE_LOG_ERROR: i32 = 4;
 
-/// Runs `p observe` with the built-in parsers.
-pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
-    run_with(args, host, Vec::new())
-}
-
-/// Runs `p observe` with additional parsers (selected by `--parser <name>`). When `--parser`
-/// is not given and exactly one extra parser is passed, that one is used.
-pub fn run_with(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parser>>) -> i32 {
-    run_named(args, host, parsers, "p observe")
-}
-
-/// [`run_with`], naming the command `command` in its usage text.
-pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parser>>, command: &str) -> i32 {
+/// Runs the observe command with `args` (without the command name) and returns the exit
+/// status. `parsers` are added to the built-in ones and selected by `--parser <name>`; when
+/// `--parser` is not given and exactly one is passed, that one is used. `command` names the
+/// command in the usage text (`prs observe`, `p observe`).
+pub fn run(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parser>>, command: &str) -> i32 {
     let mut parsers = parsers;
     let usage = USAGE.replacen("p observe", command, 1);
     let cmdline_error = |host: &mut dyn Host, m: &str| cmdline_error(host, m, &usage);

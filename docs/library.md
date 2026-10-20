@@ -1,8 +1,8 @@
 # Using p-rs from Rust
 
 The checker is part of the [`p-rs` crate](../crates/p-rs/README.md) (library name `prs`;
-`p-rs = "0.1"` with default features): `prs::syntax`, `prs::sema`, `prs::checker` and
-`prs::compat`. To check application events from Rust tests, use `prs::test` instead; see
+`p-rs = "0.1"` with default features): `prs::syntax`, `prs::sema`, `prs::checker`,
+`prs::project` and `prs::driver`. To check application events from Rust tests, use `prs::test` instead; see
 the [Rust examples](../examples/rust/README.md).
 
 ```rust
@@ -19,7 +19,7 @@ println!("{} bug(s)", result.report.num_bugs);
 `check` runs on the calling thread. To use several threads, create a
 `prs::checker::engine::WorkerPool`, run `Checker::explore` for each worker on its own
 thread (each with its own `Checker` of the shared program) and merge the results with
-`Checker::finish`; `run_workers` in `crates/p-rs/src/compat/check.rs` does this.
+`Checker::finish`; `run_workers` in `crates/p-rs/src/driver/check.rs` does this.
 
 Logs are checked with `prs::checker::observe::Spec::new(&program, "MySpec")?.observe(...)`,
 which takes the log entries, a `Parser` and `ObserveOptions` and returns a `Report`.

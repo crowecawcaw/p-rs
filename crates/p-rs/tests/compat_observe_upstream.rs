@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use prs::compat::host::{Host, MemHost};
+use prs::host::{Host, MemHost};
 
 /// Runs whose unknown-error messages differ: upstream's Java `NullPointerException` message
 /// names a variable of the generated Java code (`"TMP_tmp2_12" is null`).
@@ -230,7 +230,7 @@ fn matches_upstream_pobserve_goldens() {
         if sorted {
             args.push("--assumeInputsAreSorted".into());
         }
-        let code = prs::compat::observe::run_with(&args, &mut h, support::pobserve_parsers::all());
+        let code = prs::driver::observe::run(&args, &mut h, support::pobserve_parsers::all(), "p observe");
 
         let mut problems = Vec::new();
         let want_code: i32 = fs::read_to_string(exp.join("exit_code")).unwrap().trim().parse().unwrap();

@@ -20,7 +20,9 @@
 //! ```
 //!
 //! The checker library is [`syntax`] (parser), [`sema`] (type checker), [`checker`]
-//! (systematic testing and log checking) and [`compat`] (upstream P's command line).
+//! (systematic testing and log checking), [`project`] (`.pproj` files and P sources),
+//! [`driver`] (the check and observe commands, over a [`host`]) and [`compat`] (upstream
+//! P's command line on top of [`driver`]).
 //! See `docs/library.md` in the repository.
 
 #[cfg(feature = "emit")]
@@ -39,6 +41,15 @@ pub mod sema;
 pub mod checker;
 
 #[cfg(any(feature = "test", feature = "cli"))]
+pub mod host;
+
+#[cfg(any(feature = "test", feature = "cli"))]
+pub mod project;
+
+#[cfg(any(feature = "test", feature = "cli"))]
+pub mod driver;
+
+#[cfg(feature = "cli")]
 pub mod compat;
 
 #[cfg(feature = "cli")]
