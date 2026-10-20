@@ -111,8 +111,7 @@ a unit test that stops mid-protocol ends in a hot state:
 @pytest.mark.prs(check_hot=True)         # also fail on a spec left in a hot state
 ```
 
-In `mode = "marked"`, only tests with a `prs` mark are checked. `liveness=True` still
-works for one release, with a deprecation warning.
+In `mode = "marked"`, only tests with a `prs` mark are checked.
 
 The `prs_events` fixture is the test's recorder, for ordinary assertions:
 
@@ -164,10 +163,15 @@ def test_spec_catches_double_holder():              # tests the spec, not the ap
 
 Checks nest: every event goes to every active recorder. The set of active recorders is
 process-wide, not per thread or task, so events from threads a test starts are kept.
+Join those threads before the check: a thread started during a recording that emits
+after its check, with no recording active, gets a `SetupError` of kind `config` from
+`emit`, and under the plugin the test fails in teardown.
 
 For Hypothesis, give each generated case its own recording: `with check_spec(...)`
 inside the `@given` body, or a `Recorder` per `RuleBasedStateMachine`
-([example](../examples/python/hypothesis/test_inventory.py)).
+([example](../examples/python/hypothesis/test_inventory.py)). The machine's `teardown`
+also runs after a failed step; check only when `sys.exc_info()[1] is None`, so the
+step's failure is the one reported.
 
 ## Failure reports
 
@@ -192,7 +196,8 @@ kept only for failed checks.
 
 The exception carries the details: `.spec`, `.message`, `.key`, `.events` (each with
 `.event`, `.payload`, `.src`), `.location`, `.liveness` (a hot state at the end, found
-with `check_hot`) and `.others` (further violations found by the same check).
+with `check_hot`), `.others` (further violations found by the same check) and
+`.artifacts` (the `prs output` folder; `SetupError` has it too once the checker ran).
 
 Anything else is a `prs.SetupError` with a `.kind`, for assertions without matching text:
 
@@ -205,9 +210,6 @@ Anything else is a `prs.SetupError` with a `.kind`, for assertions without match
 | `unknown_event` | An event name no P file declares, under `unknown_events = "error"` |
 | `out_of_order` | Live input out of order |
 | `timeout` | The check took longer than `timeout` |
-
-`prs.PrsError` still works as an alias of `SetupError` for one release, with a
-deprecation warning.
 
 ## Events from other processes
 
@@ -268,7 +270,7 @@ Unknown keys are an error.
 
 | Environment variable | Effect |
 | --- | --- |
-| `PRS_BIN` | The `prs` binary, instead of the installed one (`PRS_BINARY` works for one release, with a deprecation warning) |
+| `PRS_BIN` | The `prs` binary, instead of the installed one |
 | `PRS_SPEC_FILES`, `PRS_ARTIFACTS`, `PRS_MODE` | Override the settings above |
 | `PRS_COVERAGE` | Suite coverage JSON path, as `--prs-coverage` ([below](#monitor-coverage)) |
 | `PRS_EVENTS_DIR` | Set by recordings: where child processes write events |
@@ -309,10 +311,8 @@ Strict means every selected spec checked at least one relevant event, which catc
 instrumentation that was removed or never ran. It does not imply `check_hot`.
 
 * With named specs (`check_spec("Name")`, `Recorder(["Name"])`, `[tool.prs] specs`),
-  `strict` defaults to true. **For this release** such a check only emits a
-  `prs.StrictDefaultWarning` (a `DeprecationWarning`) where it would fail; the next
-  release fails it with a `SetupError` of kind `validation`. Pass `strict=False` to keep
-  the old behaviour, or `strict=True` to fail now.
+  `strict` defaults to true: a named spec that checked no event fails the check with a
+  `SetupError` of kind `validation`. Pass `strict=False` to allow that.
 * With every spec selected (the plugin's default), `strict` defaults to false, since
   most tests exercise only some specs. Turn it on with `strict = true` under
   `[tool.prs]` or `pytest --prs-strict`; this includes tests that emit no events, so mark

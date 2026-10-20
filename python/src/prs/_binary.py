@@ -9,31 +9,19 @@ import sys
 import sysconfig
 from functools import lru_cache
 
-from ._errors import SetupError, warn
+from ._errors import SetupError
 
 BINARY_ENV = "PRS_BIN"
-#: Deprecated spelling of `PRS_BIN`.
-OLD_BINARY_ENV = "PRS_BINARY"
-
-
-class PrsNotFound(SetupError, RuntimeError):
-    """No `prs` binary: a :class:`SetupError` of kind ``binary_missing``."""
-
-    def __init__(self, message: str):
-        super().__init__(message, "binary_missing")
 
 
 @lru_cache(maxsize=None)
 def find_prs() -> str:
     """Path of the `prs` binary: `PRS_BIN`, the copy installed with this package, or
     `prs` on PATH."""
-    name, override = BINARY_ENV, os.environ.get(BINARY_ENV)
-    if not override and os.environ.get(OLD_BINARY_ENV):
-        name, override = OLD_BINARY_ENV, os.environ[OLD_BINARY_ENV]
-        warn(f"{OLD_BINARY_ENV} is deprecated; set {BINARY_ENV} instead", DeprecationWarning)
+    override = os.environ.get(BINARY_ENV)
     if override:
         if not os.path.isfile(override):
-            raise PrsNotFound(f"{name}={override} is not a file")
+            raise SetupError(f"{BINARY_ENV}={override} is not a file", "binary_missing")
         return os.path.abspath(override)
     exe = "prs" + (sysconfig.get_config_var("EXE") or "")
     # wheels install the binary next to the interpreter's scripts
@@ -54,7 +42,8 @@ def find_prs() -> str:
     found = shutil.which("prs")
     if found:
         return found
-    raise PrsNotFound(
+    raise SetupError(
         "Could not find the prs binary. Install the p-rs wheel for your platform "
-        f"(pip install p-rs), put prs on PATH (cargo install p-rs), or set {BINARY_ENV}."
+        f"(pip install p-rs), put prs on PATH (cargo install p-rs), or set {BINARY_ENV}.",
+        "binary_missing",
     )

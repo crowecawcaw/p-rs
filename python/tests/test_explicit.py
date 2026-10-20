@@ -12,7 +12,7 @@ import pytest
 from app.locks import LockServer
 from conftest import SPEC
 
-from prs import Event, Recorder, SetupError, StrictDefaultWarning, SpecViolation, check_events, check_spec, emit, expect_violation
+from prs import Event, Recorder, SetupError, SpecViolation, check_events, check_spec, emit, expect_violation
 
 FILES = [SPEC]
 
@@ -56,7 +56,7 @@ def test_lease_bug_is_reported_on_the_with_line():
     text = str(v)
     assert text.startswith("P spec MutualExclusion was broken: c2 entered while c1 is inside")
     assert "<- broke the spec here" in text
-    assert os.path.isdir(v.output_dir)
+    assert os.path.isdir(v.artifacts)
 
 
 def test_all_specs_by_default_and_check_hot_is_opt_in():
@@ -196,6 +196,31 @@ def test_events_from_threads_are_kept():
         emit("eEnter", client="main")
 
 
+def test_emitting_after_the_check_fails():
+    go, errors = threading.Event(), []
+
+    def worker():
+        emit("eEnter", client="w")
+        go.wait()
+        try:
+            emit("eExit", client="w")
+        except SetupError as e:
+            errors.append(e)
+
+    with check_spec(spec_files=FILES) as rec:
+        t = threading.Thread(target=worker)
+        t.start()
+    go.set()
+    t.join()
+    (error,) = errors
+    assert error.kind == "config"
+    assert re.search(r"eExit emitted at \S*test_explicit.py:\d+ after the recording was checked", error.message)
+    assert rec.late == [error]
+    with check_spec(spec_files=FILES):  # a new recording takes that thread's events
+        pass
+    emit("eEnter", client="main")  # the test's own thread is never late
+
+
 def test_events_from_child_processes(monkeypatch):
     code = "from prs import emit; emit('eEnter', key='L9', client='child')"
     monkeypatch.setenv("PYTHONPATH", os.pathsep.join(sys.path))
@@ -249,24 +274,20 @@ def test_events_from_forked_processes():
         emit("eEnter", key="F", client="parent")
 
 
-def test_strict_defaults_to_true_for_named_specs_but_only_warns_for_now():
-    with pytest.warns(StrictDefaultWarning, match="strict=False") as caught:
+def test_strict_defaults_to_true_for_named_specs():
+    with pytest.raises(SetupError, match="checked no relevant events") as info:
         with check_spec("MutualExclusion", spec_files=FILES):
             pass
-    assert caught[0].message.error.kind == "validation"
-    assert caught[0].filename == __file__  # points at the test, not at prs
-    with pytest.warns(StrictDefaultWarning) as caught:
+    assert info.value.kind == "validation"
+    with pytest.raises(SetupError, match="RequestsGranted"):
         with check_spec("MutualExclusion", "RequestsGranted", spec_files=FILES):
             emit("eEnter", client="a")
-    assert "RequestsGranted" in caught[0].message.error.message
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        with check_spec("MutualExclusion", spec_files=FILES, strict=False):
-            pass
-        with check_spec("MutualExclusion", spec_files=FILES):
-            emit("eEnter", client="a")
-        with check_spec(spec_files=FILES):  # every spec: not strict
-            emit("eEnter", client="a")
+    with check_spec("MutualExclusion", spec_files=FILES, strict=False):
+        pass
+    with check_spec("MutualExclusion", spec_files=FILES):
+        emit("eEnter", client="a")
+    with check_spec(spec_files=FILES):  # every spec: not strict
+        emit("eEnter", client="a")
 
 
 def test_strict_true_fails_without_relevant_events():
@@ -310,36 +331,15 @@ def test_unknown_events_warn_and_ignore():
         check_spec(spec_files=FILES, unknown_events="loud")
 
 
-def test_liveness_is_a_deprecated_alias_of_check_hot():
-    with pytest.warns(DeprecationWarning, match="liveness= is deprecated; use check_hot="):
-        spec = check_spec(spec_files=FILES, liveness=True)
-    assert spec.recorder.check_hot is True
-    with pytest.raises(SpecViolation) as info, pytest.warns(DeprecationWarning):
-        check_events([{"event": "eRequest", "client": "c1"}], spec_files=FILES, liveness=True)
-    assert info.value.liveness
-    with pytest.raises(TypeError):
-        Recorder(check_hot=True, liveness=True)
-
-
-def test_setup_error_kinds_and_old_names(monkeypatch, tmp_path):
+def test_missing_binary_is_a_setup_error(monkeypatch, tmp_path):
     from prs import _binary
 
-    with pytest.warns(DeprecationWarning, match="prs.PrsError is deprecated"):
-        from prs import PrsError
-    assert PrsError is SetupError
-    assert issubclass(_binary.PrsNotFound, SetupError)
-    binary = _binary.find_prs()
     try:
         monkeypatch.setenv("PRS_BIN", str(tmp_path / "missing"))
         _binary.find_prs.cache_clear()
         with pytest.raises(SetupError, match="PRS_BIN=.*missing is not a file") as info:
             check_events([{"event": "eEnter", "client": "c1"}], spec_files=FILES)
         assert info.value.kind == "binary_missing"
-        monkeypatch.delenv("PRS_BIN")
-        monkeypatch.setenv("PRS_BINARY", binary)
-        _binary.find_prs.cache_clear()
-        with pytest.warns(DeprecationWarning, match="PRS_BINARY is deprecated; set PRS_BIN"):
-            assert _binary.find_prs() == binary
     finally:
         _binary.find_prs.cache_clear()
 
@@ -357,7 +357,7 @@ def test_artifacts_are_kept_only_for_failed_checks(tmp_path, monkeypatch):
         with check_spec(spec_files=FILES, artifacts=str(tmp_path)) as rec:
             subprocess.run([sys.executable, "-c", CHILD.format(client="child")], env=rec.env(), check=True)
             emit("eEnter", key="L9", client="parent")
-    out = info.value.output_dir
+    out = info.value.artifacts
     assert os.path.dirname(out) == str(tmp_path)
     assert {"events.jsonl", "report.json", "prs-output.txt"} <= set(os.listdir(out))
     # the child's events folder is copied, since the recording deletes it
@@ -366,7 +366,7 @@ def test_artifacts_are_kept_only_for_failed_checks(tmp_path, monkeypatch):
     monkeypatch.setenv("PRS_ARTIFACTS", str(tmp_path / "env"))
     with pytest.raises(SpecViolation) as info:
         check_events([{"event": "eEnter", "client": "a"}, {"event": "eEnter", "client": "b"}], spec_files=FILES)
-    assert os.path.dirname(info.value.output_dir) == str(tmp_path / "env")
+    assert os.path.dirname(info.value.artifacts) == str(tmp_path / "env")
 
 
 CHILD = "from prs import emit; emit('eEnter', key='L9', client='{client}')"
