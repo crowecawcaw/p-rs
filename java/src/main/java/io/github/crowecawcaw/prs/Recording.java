@@ -139,7 +139,7 @@ public final class Recording implements AutoCloseable {
      */
     public Map<String, String> environment() {
         var env = new HashMap<>(System.getenv());
-        env.put("PRS_EVENTS_DIR", eventsDir.toString());
+        env.put(EmitHook.EVENTS_DIR_ENV, eventsDir.toString());
         return Collections.unmodifiableMap(env);
     }
 
