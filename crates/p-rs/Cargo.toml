@@ -42,7 +42,7 @@ roxmltree = { workspace = true, optional = true }
 rustc-hash = { workspace = true, optional = true }
 serde = { version = "1", optional = true }
 serde_json = { workspace = true, optional = true }
-sha2 = { version = "0.10", optional = true }
+sha2 = { version = "0.11", optional = true }
 
 [dev-dependencies]
 serde = { workspace = true }
