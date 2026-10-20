@@ -1,4 +1,4 @@
-# snappea
+# Snap Pea
 
 A Rust implementation of the [P](https://github.com/p-org/P) language toolchain:
 parser, type checker and model checker, with no .NET, Java or code generation. It
