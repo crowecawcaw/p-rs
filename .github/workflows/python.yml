@@ -1,5 +1,5 @@
 # The Python package (python/): tests on PRs and main; wheels with the snappea binary for
-# five platforms; publishing to PyPI when release.yml calls this workflow.
+# five platforms when release.yml calls this workflow (release.yml uploads them to PyPI).
 
 name: Python
 
@@ -14,11 +14,6 @@ on:
         description: "Release tag to build wheels for (vX.Y.Z)"
         required: true
         type: string
-      publish:
-        description: "Publish the wheels to PyPI"
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -129,33 +124,3 @@ jobs:
         with:
           name: sdist
           path: python/dist
-
-  publish:
-    name: Publish to PyPI
-    if: ${{ inputs.tag && inputs.publish }}
-    needs: [wheels, sdist]
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      contents: write # attach the wheels to the GitHub release
-      id-token: write # PyPI trusted publishing
-    steps:
-      # Only this workflow's packages: a release run also holds the binary archives
-      # and SHA256SUMS, which PyPI rejects.
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: wheel-*
-          path: dist
-          merge-multiple: true
-      - uses: actions/download-artifact@v8
-        with:
-          name: sdist
-          path: dist
-      - name: Attach to the GitHub release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag }}
-        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true

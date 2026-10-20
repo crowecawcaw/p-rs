@@ -17,7 +17,8 @@
 #   crates          publishes snappea to crates.io (trusted publishing, no stored token).
 #   github-release  creates the GitHub release with the archives and SHA256SUMS (Go
 #                   downloads them), then Claude's notes; GitHub's notes are the fallback.
-#   python          the Python wheels (python.yml): attached to the release, to PyPI.
+#   python          the Python wheels (python.yml).
+#   pypi            attaches the wheels to the release and uploads them to PyPI.
 #   maven           io.github.crowecawcaw:snappea with natives jars built from the
 #                   archives, to Maven Central. Skipped, with a notice, until the
 #                   Maven secrets exist.
@@ -396,15 +397,44 @@ jobs:
           fi
 
   python:
-    name: Python wheels to PyPI
-    needs: [prepare, github-release]
+    name: Python wheels
+    needs: prepare
     uses: ./.github/workflows/python.yml
     permissions:
-      contents: write
-      id-token: write
+      contents: read
     with:
       tag: ${{ needs.prepare.outputs.tag }}
-      publish: true
+
+  # In this file, not python.yml: PyPI checks the upload's attestation against the
+  # top-level workflow, so trusted publishing must not run in a reusable workflow.
+  pypi:
+    name: Publish to PyPI
+    needs: [prepare, github-release, python]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: write # attach the wheels to the GitHub release
+      id-token: write # PyPI trusted publishing
+    steps:
+      # Only the Python packages: this run also holds the binary archives and
+      # SHA256SUMS, which PyPI rejects.
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: sdist
+          path: dist
+      - name: Attach to the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
 
   maven:
     name: Publish to Maven Central

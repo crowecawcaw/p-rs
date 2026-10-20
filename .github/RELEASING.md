@@ -107,8 +107,8 @@ Claude and replaces them on the release. Tick *dry run* to only print them.
 - PyPI trusted publishing for `pysnappea` (set up once on pypi.org, as a pending
   publisher before the first release) trusts:
   - Repository: `crowecawcaw/snappea`
-  - Workflow: `python.yml` (the reusable workflow that uploads; PyPI matches the
-    job's own workflow, not the `release.yml` caller)
+  - Workflow: `release.yml` (the upload runs there, not in the reusable
+    `python.yml`: PyPI checks attestations against the top-level workflow)
   - Environment: `pypi`
 
   Create the `pypi` environment in the repository settings.
