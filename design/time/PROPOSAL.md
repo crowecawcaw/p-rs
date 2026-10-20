@@ -7,8 +7,7 @@ Status: Phase 1 is implemented in `prs::checker` (`crates/p-rs/src/checker/time.
 [RetryBudget](RetryBudget/README.md).
 
 **No language change.** Models use plain P (foreign functions and ordinary machines).
-`examples/` sketches a possible later native syntax over the same semantics; those files
-do not parse with `prs`.
+A native syntax over the same semantics may come later.
 
 ## Motivation and scope
 
@@ -296,7 +295,7 @@ line, and diverge.
 * **done:** time in `prs observe` (issues #1 and #2): checking budgets against
   production trace timestamps as exact epoch microseconds, with per-key stopwatches.
 
-**Later, only if Phase 2 pays off:** native syntax (`examples/`).
+**Later, only if Phase 2 pays off:** native syntax.
 
 ## Open questions
 
