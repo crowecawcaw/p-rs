@@ -91,19 +91,25 @@ $ p check -tc tcMyTest -s 1000          # no p compile first
 $ p check -r PCheckerOutput/BugFinding/MyProject_0_0.schedule
 `}</Code>
         <p>
-          <code>prs</code> is the same checker with shorter options. It finds the project the way <code>p</code> does:
+          <code>prs</code> is the same checker with shorter options, concise output and one folder per test case. It
+          finds the project the way <code>p</code> does:
         </p>
         <Code lang="shell">{`
 $ prs check tcMyTest -n 1000            # one test case
 $ prs check 'tcMy*' --time 5m           # a glob, five minutes each
-$ prs replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
-$ prs observe --spec BankBalanceCorrect -l logs/
+$ prs replay PCheckerOutput/tcMyTest/bug.schedule
+$ prs observe --spec BankBalanceCorrect logs/
 `}</Code>
       </section>
 
       <section>
         <h2>What stays the same</h2>
-        <p>These match upstream exactly:</p>
+        <p>
+          These match upstream exactly in <code>prs-compat</code>. <code>prs</code> has its own options, console output
+          and output folder (<code>PCheckerOutput/&lt;test&gt;/bug.txt</code>, <code>bug.schedule</code>,{" "}
+          <code>bug.trace.json</code>, replaced by each run), resolves <code>&lt;IncludeProject&gt;</code> paths against
+          the including project file first, and its <code>observe</code> writes no report folder.
+        </p>
         <ul>
           <li>
             <code>check</code>, <code>merge-scenario-coverage</code> and <code>observe</code> options, help, console
@@ -185,7 +191,8 @@ $ prs observe --spec BankBalanceCorrect -l logs/
             <dt>More from observe</dt>
             <dd>
               Several specs per run, <code>--all-specs</code>, <code>--check-hot</code>, <code>--json-report</code>,{" "}
-              <code>--coverage</code>, <code>--strict</code> and live input (<code>--live</code>). Runs that use none of them behave as upstream. See{" "}
+              <code>--coverage</code>, <code>--strict</code> and live input (<code>--live</code>). In{" "}
+              <code>prs-compat observe</code>, runs that use none of them behave as upstream. See{" "}
               <a href={`${BLOB}/docs/observe.md`}>prs observe</a>.
             </dd>
           </div>
@@ -208,7 +215,7 @@ $ prs observe --spec BankBalanceCorrect -l logs/
           <li>The tutorials give the same results as upstream's tutorial CI.</li>
           <li>Readable and JSON traces match upstream's golden files.</li>
           <li>
-            <code>prs observe</code> and PObserve give the same exit code on all 192 runs of upstream's log suite, with
+            <code>prs-compat observe</code> and PObserve give the same exit code on all 192 runs of upstream's log suite, with
             identical output on 186. The other 6 differ only in the null-dereference message.
           </li>
         </ul>

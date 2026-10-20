@@ -139,7 +139,7 @@ public final class Recording implements AutoCloseable {
      */
     public Map<String, String> environment() {
         var env = new HashMap<>(System.getenv());
-        env.put(EmitHook.EVENTS_DIR_ENV, eventsDir.toString());
+        env.put("PRS_EVENTS_DIR", eventsDir.toString());
         return Collections.unmodifiableMap(env);
     }
 
@@ -252,7 +252,7 @@ public final class Recording implements AutoCloseable {
 
     // ---- running prs ---------------------------------------------------------------
 
-    private CheckFailure run() {
+    private ObservationFailure run() {
         boolean children;
         try (var files = Files.list(eventsDir)) {
             children = files.findAny().isPresent();
@@ -271,7 +271,7 @@ public final class Recording implements AutoCloseable {
             return new SetupError(error.kind(), error.getMessage() + "\n\n  prs output: " + directory, directory, null, error);
         }
         boolean withCoverage = coverage != null && coverage.enabled();
-        var command = observer.command(executable, inputs, directory.resolve("observe"), reportPath, withCoverage);
+        var command = observer.command(executable, inputs, reportPath, withCoverage);
         int exit;
         try {
             Files.writeString(directory.resolve("command.txt"), String.join(" ", command) + "\n");
@@ -304,11 +304,11 @@ public final class Recording implements AutoCloseable {
             return new SetupError(SetupError.CONFIG, "Cannot write " + reportPath + ": " + error, directory, null, error);
         }
         report = new ObservationReport(full);
-        CheckFailure failure = Outcomes.of(report, Set.copyOf(ignored), directory);
+        ObservationFailure failure = Outcomes.of(report, Set.copyOf(ignored), directory);
         if (withCoverage) {
             try {
                 coverage.add(report);
-            } catch (CheckFailure error) {
+            } catch (ObservationFailure error) {
                 if (failure == null) return error;
                 failure.addSuppressed(error);
             }
@@ -361,22 +361,28 @@ public final class Recording implements AutoCloseable {
     private SetupError commandError(String executable, Path console) {
         String output = Processes.tail(console).strip();
         var lines = output.lines().toList();
-        String text = output;
-        if (!lines.isEmpty() && lines.get(0).startsWith("Failed parsing")) {
-            var message = new ArrayList<String>();
-            for (var line : lines.subList(1, lines.size())) {
-                if (line.startsWith("Usage:")) break;
-                message.add(line);
-            }
-            text = String.join("\n", message).strip();
-            if (text.contains("SPECIFICATION_SUPPLIER not found"))
-                text = "A spec in " + observer.specs() + " is not declared in the spec files " + observer.files()
+        String text;
+        if (lines.stream().anyMatch(line -> line.startsWith("Failed parsing"))) {
+            // A prs from before `prs observe` had its own command line: PObserve-style options and errors.
+            text = "This prs (" + Processes.version(executable) + ") has the old PObserve-style `prs observe`"
+                    + " options, but p-rs " + BundledBinary.version() + " needs a newer prs. " + PrsObserver.INSTALL
+                    + "\n" + output;
+        } else {
+            // Errors are "error: <message>" lines (on stderr, merged into the console), command line
+            // errors followed by a "Run `prs observe --help` for usage." hint. Keep the rest, such as
+            // compiler diagnostics before "error: The P specification does not type-check."
+            text = lines.stream().filter(line -> !line.startsWith("Run `prs observe --help`"))
+                    .collect(java.util.stream.Collectors.joining("\n")).strip();
+            if (text.contains("no spec named")) {
+                var named = observer.specs().isEmpty() ? observer.exclude() : observer.specs();
+                text = "A spec in " + named + " is not declared in the spec files " + observer.files()
                         + " (prs: " + text + ")";
-            var option = Pattern.compile("'(--[a-z-]+)'").matcher(text);
+            }
+            var option = Pattern.compile("^error: unknown option '(-[^'=\\s]*)", Pattern.MULTILINE).matcher(text);
             if (option.find()) {
                 text = "This prs (" + Processes.version(executable) + ") does not support " + option.group(1)
-                        + ", which p-rs " + BundledBinary.version() + " needs. Use a newer prs. " + PrsObserver.INSTALL
-                        + "\n" + text;
+                        + ", which p-rs " + BundledBinary.version() + " passes: the prs binary does not match this"
+                        + " helper. Use prs " + BundledBinary.version() + ". " + PrsObserver.INSTALL + "\n" + text;
             }
         }
         return new SetupError(SetupError.CONFIG, "prs could not check the events of " + label + ":\n" + text
@@ -454,7 +460,7 @@ public final class Recording implements AutoCloseable {
     static final class Outcomes {
         private Outcomes() {}
 
-        static CheckFailure of(ObservationReport report, Set<String> ignored, Path directory) {
+        static ObservationFailure of(ObservationReport report, Set<String> ignored, Path directory) {
             var input = new ArrayList<ObservationReport.Error>();
             var validation = new ArrayList<ObservationReport.Error>();
             var violations = new ArrayList<SpecViolation>();

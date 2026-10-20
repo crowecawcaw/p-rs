@@ -138,10 +138,11 @@ test tcTwoClients [main=Main]: { Main, Counter, Client };
         <p>Check it:</p>
         <Code lang="shell">{`
 $ prs check LostUpdate.p tcTwoClients
-..... Schedule #1
-Checker found a bug.
-... Emitting traces:
-..... Writing PCheckerOutput/tcTwoClients/BugFinding/generatedOutput_0_0.txt
+Checking generatedOutput: 1 test case
+FAIL  tcTwoClients (bug found after 9 schedules, 8 workers, 0.00s)
+      Assertion Failed: LostUpdate.p:68:7 expected 2 increments, counter is 1
+      Replay: prs replay PCheckerOutput/tcTwoClients/bug.schedule LostUpdate.p
+1 of 1 test case failed in 0.01s, peak memory 9 MB. Output: PCheckerOutput/
 `}</Code>
         <p>The trace shows exactly how the update was lost:</p>
         <Trace />

@@ -189,11 +189,13 @@ export function App() {
         : result
           ? result.bug
             ? "Bug found"
-            : `No bugs in ${schedules} schedules`
+            : result.exitCode !== 0
+              ? "Error (see console)"
+              : `No bugs in ${schedules} schedules`
           : compileOk
             ? "Ready"
             : "Loading…";
-  const statusClass = running ? "" : compileOk === false || result?.bug || (result && !result.ok) ? "bad" : result?.ok ? "good" : "";
+  const statusClass = running ? "" : compileOk === false || result?.bug || (result && (!result.ok || result.exitCode !== 0)) ? "bad" : result?.ok ? "good" : "";
 
   const blurb = (
     <div className={blurbOpen ? "blurb open" : "blurb"}>
@@ -436,7 +438,7 @@ export function App() {
           <div className="output">
             {tab === "console" && (
               <Console
-                summary={!runError && result?.ok ? (result.bug ? `✕ ${bugLine(result)}` : `✓ No bugs found in ${result.testCase}`) : undefined}
+                summary={!runError && result?.ok && (result.bug || result.exitCode === 0) ? (result.bug ? `✕ ${bugLine(result)}` : `✓ No bugs found in ${result.testCase}`) : undefined}
                 bad={result?.bug}
                 text={runError ?? (result ? result.console : compileOk === false ? compileConsole : "")}
                 onOpenLocation={openLocation}
@@ -475,9 +477,9 @@ function Console({ text, empty, summary, bad, onOpenLocation }: {
       {summary && <div className={bad ? "summary bad" : "summary good"}>{summary}</div>}
       {text.split("\n").map((line, i) => {
         const cls =
-          /Error|Assertion Failed|\bbug\b(?! found: 0)|Found [1-9]/i.test(line) && !/Found 0 bug/.test(line)
+          /^FAIL\s|\bfailed in\b|Error|Assertion Failed|\bbug found\b|found a bug|Found [1-9]/i.test(line)
             ? "line bad"
-            : /succeeded|Found 0 bug/.test(line)
+            : /^ok\s|\bpassed in\b|Found 0 bug/.test(line)
               ? "line good"
               : line.startsWith("$ ")
                 ? "line cmd"

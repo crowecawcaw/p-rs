@@ -8,19 +8,32 @@ import re
 import shutil
 import subprocess
 import tempfile
-import threading
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from . import _config, _emit
 from ._binary import find_prs
 from ._emit import Event
-from ._errors import SetupError, warn
+from ._errors import SetupError, StrictDefaultWarning, warn
 
 #: Events shown in a failure report, counting back from the one that broke the spec.
 REPORT_EVENTS = 20
 
 LogParser = Callable[[str], Optional[dict]]
+
+
+def _deprecated(old: str, new: str) -> None:
+    warn(f"{old} is deprecated; use {new}", DeprecationWarning)
+
+
+def check_hot_arg(check_hot: Optional[bool], liveness: Optional[bool]) -> Optional[bool]:
+    """`check_hot`, or the deprecated `liveness=` spelling of it."""
+    if liveness is None:
+        return check_hot
+    if check_hot is not None:
+        raise TypeError("pass check_hot=, not both check_hot= and liveness=")
+    _deprecated("liveness=", "check_hot=")
+    return liveness
 
 
 class SpecViolation(AssertionError):
@@ -36,7 +49,7 @@ class SpecViolation(AssertionError):
         location: Optional[str] = None,
         liveness: bool = False,
         earlier: int = 0,
-        artifacts: Optional[str] = None,
+        output_dir: Optional[str] = None,
         others: Sequence["SpecViolation"] = (),
     ):
         #: Name of the broken spec.
@@ -53,8 +66,8 @@ class SpecViolation(AssertionError):
         self.liveness = liveness
         #: Events of this key before `events` that are not shown.
         self.earlier = earlier
-        #: Folder with the check's events and prs's full output.
-        self.artifacts = artifacts
+        #: Folder with the events and prs's full output (the check's artifacts).
+        self.output_dir = output_dir
         #: Further violations found by the same check.
         self.others = list(others)
         super().__init__(self.report())
@@ -85,8 +98,8 @@ class SpecViolation(AssertionError):
         lines.append("")
         if self.location:
             lines.append(f"  Spec: {self.location}")
-        if self.artifacts:
-            lines.append(f"  prs output: {self.artifacts}")
+        if self.output_dir:
+            lines.append(f"  prs output: {self.output_dir}")
         if self.others:
             lines.append("")
             lines.append(f"  {len(self.others)} more violation(s):")
@@ -106,6 +119,8 @@ class _Settings:
     specs: List[str]
     exclude: List[str]
     strict: bool
+    #: `strict` comes from the named-specs default, which only warns for now.
+    strict_warns: bool
     check_hot: bool
     unknown_events: str
     timeout: float
@@ -146,18 +161,23 @@ class Recorder:
         timeout: Optional[float] = None,
         artifacts: Optional[str] = None,
         coverage: bool = False,
+        liveness: Optional[bool] = None,
+        output_root: Optional[str] = None,
     ):
         if isinstance(specs, str):
             specs = [specs]
         self.specs: List[str] = list(specs)
         self.spec_files = [os.fspath(f) for f in spec_files] if spec_files is not None else None
         self.exclude: Optional[List[str]] = list(exclude) if exclude is not None else None
-        self.check_hot = check_hot
+        self.check_hot = check_hot_arg(check_hot, liveness)
         self.strict = strict
         if unknown_events is not None:
             _config.check_unknown_events(unknown_events, "unknown_events")
         self.unknown_events = unknown_events
         self.timeout = timeout
+        if output_root is not None:
+            _deprecated("output_root=", "artifacts=")
+            artifacts = artifacts or output_root
         self.artifacts = os.fspath(artifacts) if artifacts is not None else None
         self.coverage = coverage
         self.coverage_report: Optional[dict] = None
@@ -171,13 +191,15 @@ class Recorder:
         self._active = False
         self._prev_env: Optional[str] = None
         self._child_dir: Optional[str] = None
-        # threads running when recording started; those started since may emit late
-        self._threads: Optional[set] = None
-        #: Errors from events emitted after the check (see `_emit._late`).
-        self.late: List[SetupError] = []
         # set by the pytest plugin: its configuration, and pytest's temp folder
         self._cfg: Optional[_config.Config] = None
         self._default_artifacts: Optional[str] = None
+
+    @property
+    def liveness(self) -> Optional[bool]:
+        """Deprecated: use :attr:`check_hot`."""
+        _deprecated("Recorder.liveness", "Recorder.check_hot")
+        return self.check_hot
 
     # ---- collecting ----------------------------------------------------------------
 
@@ -187,8 +209,6 @@ class Recorder:
         if self._active:
             return self
         events_dir = self.events_dir()
-        _emit._late.clear()  # a new recording: earlier threads' events now go here
-        self._threads = set(threading.enumerate())
         self._prev_env = os.environ.get(_emit.EVENTS_DIR_ENV)
         os.environ[_emit.EVENTS_DIR_ENV] = events_dir
         _emit._recorders.append(self)
@@ -222,24 +242,6 @@ class Recorder:
 
     def _add(self, ev: Event) -> None:
         self._events.append(ev)
-
-    def _seal(self) -> None:
-        """Threads started while recording that are still running may emit after the
-        check; mark them so those events fail instead of vanishing."""
-        if self._threads is not None and not self._active:
-            for t in threading.enumerate():
-                if t not in self._threads:
-                    _emit._late[t] = self
-            self._threads = None
-
-    def _emitted_late(self, event: str, src: Optional[str]) -> None:
-        error = SetupError(
-            f"{event} emitted at {src} after the recording was checked: "
-            "join threads that emit before the check",
-            "config",
-        )
-        self.late.append(error)
-        raise error
 
     def events_dir(self) -> str:
         """This recording's events folder: the `PRS_EVENTS_DIR` of processes it starts.
@@ -326,11 +328,17 @@ class Recorder:
     def violations(self) -> List[SpecViolation]:
         """Runs prs over the events and returns the violations found (empty if none)."""
         __tracebackhide__ = True
-        self._seal()
         try:
             settings = self._settings()
             if not self._events and not self._logs and not any(os.path.getsize(p) for p in self._dir_files()):
                 # nothing happened: every spec still holds, unless strict wants events
+                if settings.strict_warns:
+                    _warn_strict(SetupError(
+                        f"Strict observation: no events were recorded, so {', '.join(settings.specs)} "
+                        "checked no relevant events.",
+                        "validation",
+                    ))
+                    return []
                 if not settings.strict:
                     return []
             return self._run(settings)
@@ -348,11 +356,12 @@ class Recorder:
         cfg = self._cfg if self._cfg is not None else _config.load(os.getcwd())
         specs = self.specs or list(cfg.specs)
         if self.strict is not None:
-            strict = self.strict
+            strict, warns = self.strict, False
         elif cfg.strict is not None:
-            strict = cfg.strict
+            strict, warns = cfg.strict, False
         else:
-            strict = bool(specs)  # named specs must each see an event
+            # named specs default to strict; for one release that only warns
+            strict, warns = bool(specs), bool(specs)
         unknown = self.unknown_events or cfg.unknown_events or "error"
         timeout = self.timeout if self.timeout is not None else cfg.timeout or _config.DEFAULT_TIMEOUT
         if self.artifacts is not None:
@@ -363,6 +372,7 @@ class Recorder:
             specs=specs,
             exclude=self.exclude if self.exclude is not None else list(cfg.exclude),
             strict=strict,
+            strict_warns=warns,
             check_hot=bool(self.check_hot if self.check_hot is not None else cfg.check_hot),
             unknown_events=unknown,
             timeout=timeout,
@@ -401,16 +411,18 @@ class Recorder:
             with open(path, encoding="utf-8", errors="replace") as src, open(parsed, "w", encoding="utf-8") as dst:
                 dst.writelines(ev.to_json() + "\n" for ev in _parse_log(src, path, parse))
             inputs.append(parsed)
-        out_dir = os.path.join(workdir, "out")
         report_path = os.path.join(workdir, "report.json")
-        cmd = [find_prs(), "observe", "-pf", *files]
+        cmd = [find_prs(), "observe", *files]
+        # logs as -l options, so a log name never reads as a P source
+        for path in inputs:
+            cmd += ["-l", path]
         if s.specs:
-            cmd += ["--spec", *s.specs]
+            cmd += ["--spec", ",".join(s.specs)]
         else:
             cmd += ["--all-specs"]
             if s.exclude:
-                cmd += ["--exclude-specs", *s.exclude]
-        cmd += ["-l", *inputs, "-o", out_dir, "--json-report", report_path, "--unknown-events", s.unknown_events]
+                cmd += ["--exclude-specs", ",".join(s.exclude)]
+        cmd += ["--json-report", report_path, "--unknown-events", s.unknown_events]
         if s.check_hot:
             cmd.append("--check-hot")
         if self.coverage:
@@ -425,7 +437,7 @@ class Recorder:
                 f"prs observe did not finish within {s.timeout:g} s; raise timeout= (or "
                 f"[tool.prs] timeout) if the events are many.\n\nprs output: {workdir}",
                 "timeout",
-                artifacts=workdir,
+                output_dir=workdir,
             ) from None
         output = proc.stdout.decode("utf-8", errors="replace")
         with open(os.path.join(workdir, "prs-output.txt"), "w", encoding="utf-8") as f:
@@ -446,7 +458,7 @@ class Recorder:
         self._keep_children(workdir)
         if report is None:
             raise _command_error(output, workdir)
-        return self._violations_of(report, workdir)
+        return self._violations_of(report, workdir, s)
 
     def _keep_children(self, workdir: str) -> None:
         """Copies the events folders this process created into the artifacts, since
@@ -455,7 +467,7 @@ class Recorder:
             if os.path.basename(d).startswith("prs-events-") and os.path.isdir(d):
                 shutil.copytree(d, os.path.join(workdir, f"events-dir-{i}"), dirs_exist_ok=True)
 
-    def _violations_of(self, report: dict, workdir: str) -> List[SpecViolation]:
+    def _violations_of(self, report: dict, workdir: str, s: _Settings) -> List[SpecViolation]:
         __tracebackhide__ = True
         violations: List[SpecViolation] = []
         bad_lines: Dict[str, str] = {}
@@ -484,17 +496,24 @@ class Recorder:
         if violations:
             return violations
         if bad_lines:
-            raise SetupError(_payload_error(bad_lines, workdir), "parser", artifacts=workdir)
+            raise SetupError(_payload_error(bad_lines, workdir), "parser", output_dir=workdir)
         if unknown:
-            raise SetupError(_unknown_error(unknown, workdir), "unknown_event", artifacts=workdir)
+            raise SetupError(_unknown_error(unknown, workdir), "unknown_event", output_dir=workdir)
         if other:
             kind = other[0][0]
             text = "\n".join(_unique(m for _, m in other))
-            raise SetupError(f"prs could not check the events ({kind}):\n{text}\n\nprs output: {workdir}", kind, artifacts=workdir)
+            raise SetupError(f"prs could not check the events ({kind}):\n{text}\n\nprs output: {workdir}", kind, output_dir=workdir)
         if validation:
-            raise SetupError("\n".join(_unique(validation)) + f"\n\nprs output: {workdir}", "validation", artifacts=workdir)
+            error = SetupError("\n".join(_unique(validation)) + f"\n\nprs output: {workdir}", "validation", output_dir=workdir)
+            if not s.strict_warns:
+                raise error
+            _warn_strict(error)
         shutil.rmtree(workdir, ignore_errors=True)
         return []
+
+
+def _warn_strict(error: SetupError) -> None:
+    warn(StrictDefaultWarning(error))
 
 
 def _unique(items: Iterable[str]) -> List[str]:
@@ -540,7 +559,7 @@ def _violation(spec: str, err: dict, workdir: str) -> SpecViolation:
         location=location,
         liveness=liveness,
         earlier=earlier,
-        artifacts=workdir,
+        output_dir=workdir,
     )
 
 
@@ -648,26 +667,25 @@ def _rel(path_loc: str, base: str) -> str:
 
 
 def _command_error(output: str, workdir: str) -> SetupError:
-    lines = output.splitlines()
-    if lines and lines[0].startswith("Failed parsing"):
-        msg = []
-        for line in lines[1:]:
-            if line.startswith("Usage:"):
-                break
-            msg.append(line)
-        text = "\n".join(msg).strip()
+    text = output.strip()
+    outdated = None
+    if text.startswith("Failed parsing"):
+        # a prs from before `prs observe` had its own options (PObserve style)
+        outdated = "uses the old PObserve-style `prs observe` options"
     else:
-        text = output.strip()
-    m = re.search(r"main parameter '(--[\w-]+)'", text)
-    if m:
+        m = re.search(r"^error: unknown option '(--[\w-]+)'", text, re.M)
+        if m:
+            outdated = f"does not support {m.group(1)}"
+    if outdated:
         return SetupError(
-            f"{find_prs()} ({_binary_version()}) does not support {m.group(1)}, which this p-rs "
-            f"package ({_package_version()}) needs. Install a matching prs or unset PRS_BIN.\n\n"
+            f"{find_prs()} ({_binary_version()}) {outdated}, so it is too old for this p-rs "
+            f"package ({_package_version()}). Install a matching prs or unset PRS_BIN.\n\n"
             f"prs output: {workdir}",
             "config",
-            artifacts=workdir,
+            output_dir=workdir,
         )
-    return SetupError(f"prs could not check the events:\n{text}\n\nprs output: {workdir}", "config", artifacts=workdir)
+    text = "\n".join(line for line in text.splitlines() if not line.startswith("Run `prs observe --help`"))
+    return SetupError(f"prs could not check the events:\n{text}\n\nprs output: {workdir}", "config", output_dir=workdir)
 
 
 def _binary_version() -> str:

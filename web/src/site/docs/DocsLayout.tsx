@@ -19,7 +19,6 @@ const GUIDES = [
   { title: "Checking logs (prs observe)", href: `${BLOB}/docs/observe.md` },
   { title: "Testing and production", href: `${BLOB}/docs/production.md` },
   { title: "Rust library", href: `${BLOB}/docs/library.md` },
-  { title: "Writing a language helper", href: `${BLOB}/docs/language-support.md` },
 ];
 
 export function DocsLayout({ root, page, children }: { root: string; page: string; children: ReactNode }) {

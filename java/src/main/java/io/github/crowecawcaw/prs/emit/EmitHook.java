@@ -12,9 +12,6 @@ import java.util.function.Consumer;
  * Not application API: application code calls {@link PrsEmit}.
  */
 public final class EmitHook {
-    /** The variable naming the folder a recording gives the processes it starts. */
-    public static final String EVENTS_DIR_ENV = "PRS_EVENTS_DIR";
-
     /** Routes events emitted in this JVM to the recordings of a running test. */
     public interface Router {
         /** Where an event emitted on the current thread goes, or null when no recording takes it. */

@@ -26,7 +26,8 @@ import java.util.Objects;
  * are sent by name; collections and arrays as lists.
  */
 public final class PrsEmit {
-    private static final Sinks.Out ENV_SINK = Sinks.fromEnvironment(System.getenv(EmitHook.EVENTS_DIR_ENV));
+    static final String EVENTS_DIR_ENV = "PRS_EVENTS_DIR";
+    private static final Sinks.Out ENV_SINK = Sinks.fromEnvironment(System.getenv(EVENTS_DIR_ENV));
     static volatile EmitHook.Router router;
     private static volatile Sinks.Out sink = ENV_SINK;
     private static Sinks.Out configured;

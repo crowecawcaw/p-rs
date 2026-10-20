@@ -7,6 +7,7 @@
 mod command;
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
+mod observe;
 
 pub use command::run;
 #[cfg(not(target_arch = "wasm32"))]

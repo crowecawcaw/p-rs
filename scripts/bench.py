@@ -86,6 +86,12 @@ def cpu_model():
 
 
 def parse_check(out):
+    """(schedules explored, bugs found) from a check's console output."""
+    # prs: `ok    TEST (N schedules, ...)` or `FAIL  TEST (bug found after N schedules, ...)`
+    m = re.search(r"^(ok|FAIL)\s+\S+ \((?:bug found after )?(?:all )?(\d+) schedules?\b", out, re.M)
+    if m:
+        return int(m.group(2)), int(m.group(1) == "FAIL")
+    # prs-compat and upstream P: `..... Explored N schedules` and `Found N bugs.`
     m = re.search(r"Explored (\d+) schedules?", out)
     b = re.search(r"Found (\d+) bugs?", out)
     return (int(m.group(1)) if m else None, int(b.group(1)) if b else None)

@@ -9,7 +9,10 @@ use crate::checker::jsonlog::Json;
 use crate::host::{Host, HostExt, Stream};
 use crate::project::pproj::list_files;
 
+/// Suffix of upstream's report files (`<project>_<test>_scenario_coverage.json`).
 pub const FILE_SUFFIX: &str = "_scenario_coverage.json";
+/// Name of the report file in a `prs check` test case folder.
+pub const PRS_FILE_NAME: &str = "scenario_coverage.json";
 pub const SCHEMA_VERSION: i64 = 1;
 
 /// One scenario's entry (`ScenarioCoverageEntry`).
@@ -194,14 +197,18 @@ fn in_history_dir(p: &Path) -> bool {
 
 /// Merges the scenario coverage reports under `dir` (absolute), recursively, and prints the
 /// merged report. For each test case the report in the current run's folder wins over those
-/// in rotated history folders; unreadable reports are skipped with a message.
-pub fn merge_dir(host: &mut dyn Host, dir: &Path) {
+/// in rotated history folders; unreadable reports are skipped with a message. Upstream
+/// reads `*_scenario_coverage.json` files; `prs_files` adds `prs check`'s
+/// `scenario_coverage.json`.
+pub fn merge_dir(host: &mut dyn Host, dir: &Path, prs_files: bool) {
     let mut files: Vec<PathBuf> = Vec::new();
     list_files(host, dir, None, &mut files);
     // latest artifact per test case: the current run's directory wins over history ones
     let mut latest: Vec<(String, Artifact, bool)> = Vec::new();
     for f in files {
-        if !f.to_string_lossy().ends_with(FILE_SUFFIX) {
+        let name = f.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let ours = name.ends_with(FILE_SUFFIX) || (prs_files && name == PRS_FILE_NAME);
+        if !ours {
             continue;
         }
         let parsed = host.read_to_string(&f).map_err(|e| e.to_string()).and_then(|t| Artifact::parse(&t));

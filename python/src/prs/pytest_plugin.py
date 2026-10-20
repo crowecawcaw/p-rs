@@ -35,7 +35,7 @@ _COVERAGE = pytest.StashKey[list]()
 _COVERAGE_PATH = pytest.StashKey[Optional[Path]]()
 _COVERAGE_SUMMARY = pytest.StashKey[tuple]()
 
-MARK_KEYS = {"skip", "check_hot"}
+MARK_KEYS = {"skip", "check_hot", "liveness"}
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -97,7 +97,7 @@ def pytest_report_header(config: pytest.Config) -> Optional[str]:
     return f"prs: checking P specs from {', '.join(cfg.spec_files)} ({cfg.mode})"
 
 
-def _artifacts_root(config: pytest.Config) -> Optional[str]:
+def _output_root(config: pytest.Config) -> Optional[str]:
     """pytest's temporary folder for this run (kept for the last few runs), so prs's
     output for a failed test is easy to find; None falls back to the system's."""
     factory = getattr(config, "_tmp_path_factory", None)
@@ -130,6 +130,9 @@ def _settings(item: pytest.Item) -> Optional[dict]:
             return None
         if s:
             skip.extend([s] if isinstance(s, str) else s)
+        if "liveness" in m.kwargs:
+            item.warn(pytest.PytestDeprecationWarning("@pytest.mark.prs(liveness=...) is deprecated; use check_hot="))
+            check_hot = bool(m.kwargs["liveness"])
         if "check_hot" in m.kwargs:
             check_hot = bool(m.kwargs["check_hot"])
     specs = [s for s in cfg.specs if s not in skip]
@@ -158,7 +161,7 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         strict=True if item.config.getoption("prs_strict") else None,
     )
     rec._cfg = settings["config"] if settings else None
-    rec._default_artifacts = _artifacts_root(item.config)
+    rec._default_artifacts = _output_root(item.config)
     rec._plugin_checks = settings is not None  # type: ignore[attr-defined]
     item.stash[_RECORDER] = rec.start()
 
@@ -190,17 +193,11 @@ def pytest_runtest_call(item: pytest.Item) -> Generator[None, Any, Any]:
     return result
 
 
-@pytest.hookimpl(wrapper=True)
-def pytest_runtest_teardown(item: pytest.Item) -> Generator[None, Any, Any]:
+def pytest_runtest_teardown(item: pytest.Item) -> None:
     rec = item.stash.get(_RECORDER, None)
     if rec is not None:  # setup failed before the test ran
         rec.stop()
         rec._cleanup_owned()
-    result = yield
-    if rec is not None and rec.late:
-        # a thread started by the test emitted after the check (in teardown, say)
-        raise rec.late[0]
-    return result
 
 
 @pytest.fixture

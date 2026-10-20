@@ -8,7 +8,8 @@ import java.util.Map;
  * A P spec was broken by the recorded events. An {@code AssertionFailedError}, so test
  * frameworks and property-test shrinkers treat it as an ordinary assertion failure.
  */
-public final class SpecViolation extends CheckFailure {
+@SuppressWarnings("deprecation")
+public final class SpecViolation extends ObservationFailure {
     private static final long serialVersionUID = 1L;
     /** Events shown in the failure message, counting back from the one that broke the spec. */
     static final int SHOWN = 20;

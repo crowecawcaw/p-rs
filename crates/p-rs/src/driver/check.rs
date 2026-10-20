@@ -2,9 +2,10 @@
 //! the checker (on several threads when the host has them), replaying a schedule, and the
 //! output files and console report of a run.
 //!
-//! The steps follow upstream's `TestingProcess` and `TestingEngine`, so the console output
-//! and the files in the output folder are the ones upstream's `p check` writes. Both
-//! command lines, `prs check` and `prs-compat check`, are built on these steps.
+//! The steps follow upstream's `TestingProcess` and `TestingEngine`: they print upstream's
+//! progress and statistics and, with [`Style::Upstream`], write the output folder upstream's
+//! `p check` writes. Both command lines, `prs check` and `prs-compat check`, are built on
+//! these steps; `prs` shows the progress only with `--verbose`.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,9 +34,38 @@ impl Mode {
     }
 }
 
+/// Which tool's output a run produces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Style {
+    /// Upstream's `p check`: `<out>/[<test>/]<Mode>/` with `<project>_0_<n>.schedule`,
+    /// `.txt`, `.trace.json`, `<project>.coverage.txt`, `.sci` and
+    /// `<project>_pchecker_summary.txt`, the ten previous runs kept as `<Mode>0`..`<Mode>9`,
+    /// and elapsed times printed unrounded.
+    #[default]
+    Upstream,
+    /// `prs check`: `<out>/<test>/` with fixed names (`bug.schedule`, `bug.txt`,
+    /// `bug.trace.json`, `coverage.txt`, `summary.txt`, `scenario_coverage.json`), replaced
+    /// by each run, and no `.sci` file.
+    Prs,
+}
+
+/// The files a [`Style::Prs`] run may write, removed before each run.
+const PRS_FILES: &[&str] = &[
+    "bug.txt",
+    "bug.trace.json",
+    "bug.trace.xml",
+    "bug.schedule",
+    "verbose.trace.json",
+    "coverage.txt",
+    "summary.txt",
+    crate::driver::scenario::PRS_FILE_NAME,
+];
+
 /// How to check a project (upstream: `CheckerConfiguration`).
 #[derive(Debug, Clone)]
 pub struct CheckConfig {
+    /// Output folder layout and console details.
+    pub style: Style,
     /// Where the P sources come from.
     pub input: project::Input,
     /// The project, resolved from `input`.
@@ -81,6 +111,7 @@ pub struct CheckConfig {
 impl Default for CheckConfig {
     fn default() -> CheckConfig {
         CheckConfig {
+            style: Style::Upstream,
             input: Default::default(),
             project_name: project::DEFAULT_NAME.into(),
             p_files: Vec::new(),
@@ -158,9 +189,33 @@ fn sanitize_segment(name: &str) -> String {
     name.chars().map(|c| if c.is_alphanumeric() || matches!(c, '.' | '-' | '_') { c } else { '_' }).collect()
 }
 
-/// `CheckerConfiguration.SetOutputDirectory`: picks `<outdir>/[<testcase>/]<Mode>/` and
-/// rotates up to ten previous runs to `<Mode>0` .. `<Mode>9`.
+/// Picks and prepares the output folder for `cfg.test_case_name`. Upstream
+/// (`CheckerConfiguration.SetOutputDirectory`): `<outdir>/[<testcase>/]<Mode>/`, rotating up
+/// to ten previous runs to `<Mode>0` .. `<Mode>9`. prs: `<outdir>/<testcase>/`, removing the
+/// files of the previous run.
 pub fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) -> Result<(), Exit> {
+    let fail = |host: &mut dyn Host, path: &str, e: std::io::Error| {
+        report_and_exit(host, &format!("Cannot prepare output directory '{}': {}", path, e))
+    };
+    if cfg.style == Style::Prs {
+        let out = if cfg.output_path.is_empty() { "." } else { cfg.output_path.trim_end_matches('/') };
+        cfg.output_directory = if cfg.test_case_name.is_empty() {
+            format!("{}/", out)
+        } else {
+            format!("{}/{}/", out, sanitize_segment(&cfg.test_case_name))
+        };
+        let dir = full_path(&host.cwd(), Path::new(&cfg.output_directory));
+        host.create_dir_all(&dir).map_err(|e| fail(host, &cfg.output_directory, e))?;
+        if cfg.strategy != StrategyKind::Replay {
+            for f in PRS_FILES {
+                let p = dir.join(f);
+                if host.is_file(&p) {
+                    host.remove_file(&p).map_err(|e| fail(host, &cfg.output_directory, e))?;
+                }
+            }
+        }
+        return Ok(());
+    }
     let suffix = if cfg.test_case_name.is_empty() {
         cfg.mode.name().to_string()
     } else {
@@ -177,9 +232,6 @@ pub fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) -> Resul
     let stem = &cfg.output_directory[..cfg.output_directory.len() - 1];
     let history = |h: usize| format!("{}{}", stem, h);
     const MAX_HISTORY: usize = 10;
-    let fail = |host: &mut dyn Host, path: &str, e: std::io::Error| {
-        report_and_exit(host, &format!("Cannot prepare output directory '{}': {}", path, e))
-    };
     let mut older = history(MAX_HISTORY - 1);
     if host.is_dir(&abs(&older)) {
         host.remove_dir_all(&abs(&older)).map_err(|e| fail(host, &older, e))?;
@@ -214,7 +266,7 @@ pub fn load(host: &mut dyn Host, cfg: &CheckConfig) -> Result<Loaded, Exit> {
     };
     let sm = sources.source_map();
     let r = crate::sema::compile(&sm, &crate::sema::Options::default());
-    if !project::report_result(host, &sources, &sm, &r) {
+    if !project::report_result(host, &sources, &sm, &r, cfg.style == Style::Upstream) {
         return Err(Exit(1));
     }
     for f in &cfg.foreign_files {
@@ -239,36 +291,50 @@ pub fn read_schedule(host: &mut dyn Host, schedule_file: &str) -> Result<Schedul
     ScheduleTrace::parse(&text).map_err(|e| report_and_exit(host, &e))
 }
 
-/// Replays `trace` on `tc`; returns the number of bugs reproduced.
+/// What replaying a schedule found.
+#[derive(Debug, Clone)]
+pub struct Replayed {
+    /// Bugs reproduced (0 or 1).
+    pub bugs: usize,
+    /// The bug's report, e.g. `Assertion Failed: model.p:8:1 six heads`.
+    pub bug_report: Option<String>,
+    /// Seconds the replay took.
+    pub elapsed: f64,
+}
+
+/// Replays `trace` on `tc`.
 pub fn replay(
     host: &mut dyn Host,
     loaded: &Loaded,
     tc: &crate::sema::TestCase,
     cfg: &mut CheckConfig,
     trace: ScheduleTrace,
-) -> Result<usize, Exit> {
+) -> Result<Replayed, Exit> {
     if let Some(t) = trace.liveness_temperature_threshold {
         cfg.liveness_threshold = t;
     }
     let mut opts = engine_options(cfg, 0);
     opts.replay = Some(trace);
+    opts.replay_bound_at_end = cfg.style == Style::Prs && cfg.fail_on_max_steps;
     let start = host.now();
-    let res = run_engine(host, loaded, tc, &opts, None, Some(1))?;
+    let (res, _) = run_engine(host, loaded, tc, &opts, None, Some(1))?;
     // `ReplayStrategy` reports a schedule it cannot follow with `Error.ReportAndExit`
     if let Some(e) = &res.replay_error {
         return Err(report_and_exit(host, e));
     }
     let elapsed = host.now() - start;
     let n = res.report.num_bugs;
-    let text = format!(
-        "... Reproduced {} bug{}.\n... Elapsed {} sec and used {} GB.",
-        n,
-        if n == 1 { "" } else { "s" },
-        format_0_00(elapsed),
-        format_0_00(host.max_memory_gb())
-    );
-    host.write(Stream::Out, &text, Some(Color::Yellow));
-    Ok(n)
+    if cfg.style == Style::Upstream {
+        let text = format!(
+            "... Reproduced {} bug{}.\n... Elapsed {} sec and used {} GB.",
+            n,
+            if n == 1 { "" } else { "s" },
+            format_0_00(elapsed),
+            format_0_00(host.max_memory_gb())
+        );
+        host.write(Stream::Out, &text, Some(Color::Yellow));
+    }
+    Ok(Replayed { bugs: n, bug_report: res.report.bug_reports.first().cloned(), elapsed })
 }
 
 /// `TestMethodInfo.GetTestMethod`: exact name, else the unique test case containing it.
@@ -357,7 +423,7 @@ fn run_engine(
     opts: &CheckerOptions,
     deadline: Option<f64>,
     workers: Option<usize>,
-) -> Result<CheckResult, Exit> {
+) -> Result<(CheckResult, usize), Exit> {
     let prog = &loaded.analysis.program;
     let checker = Checker::new(prog);
     let opts = &CheckerOptions { assembly_name: loaded.sources.project_name.clone(), ..opts.clone() };
@@ -370,7 +436,7 @@ fn run_engine(
         Some(threads) if workers > 1 => run_workers(&checker, tc, opts, &WorkerPool::new(workers), threads, &mut out),
         _ => checker.check(tc, opts, &mut out),
     };
-    result.map_err(|e| report_and_exit(host, &e))
+    result.map(|r| (r, workers)).map_err(|e| report_and_exit(host, &e))
 }
 
 /// A worker's output, sent to the thread that writes the console.
@@ -443,8 +509,36 @@ fn run_workers(
     Ok(checker.finish(tc, opts, parts))
 }
 
-/// `TestingProcess.Run` for one test case; returns the exit code it sets.
-pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> Result<i32, Exit> {
+/// What checking one test case found.
+#[derive(Debug, Clone)]
+pub struct CaseOutcome {
+    pub test_case: String,
+    pub bugs: usize,
+    /// The first bug's report, e.g. `Assertion Failed: model.p:8:1 six heads`.
+    pub bug_report: Option<String>,
+    /// Schedules explored.
+    pub schedules: usize,
+    /// Workers that explored them.
+    pub workers: usize,
+    /// The time limit stopped the exploration.
+    pub timed_out: bool,
+    /// For an exhaustive search: whether every alternative was explored.
+    pub exhaustive_finished: Option<bool>,
+    /// Seconds the test case took.
+    pub elapsed: f64,
+    /// The `.schedule` file written for the bug (as `cfg.output_directory` names it).
+    pub schedule_file: Option<String>,
+}
+
+impl CaseOutcome {
+    /// Upstream's exit code for the test case: 1 when a bug was found.
+    pub fn exit_code(&self) -> i32 {
+        i32::from(self.bugs > 0)
+    }
+}
+
+/// `TestingProcess.Run` for one test case.
+pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> Result<CaseOutcome, Exit> {
     let process_start = host.now();
     let seed = match cfg.seed {
         Some(s) => s, // + 673 * TestingProcessId: see `WorkerPool::worker_options`
@@ -454,22 +548,28 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
     let opts = engine_options(cfg, seed);
     let engine_start = host.now();
     let deadline = cfg.timeout.map(|t| engine_start + f64::from(t));
-    let res = run_engine(host, loaded, &tc, &opts, deadline, cfg.workers)?;
+    let (res, workers) = run_engine(host, loaded, &tc, &opts, deadline, cfg.workers)?;
     let engine_elapsed = host.now() - engine_start;
     if res.cancelled {
         host.out_line("... Checker timed out.");
     }
     let file = cfg.project_name.clone();
+    let prs = cfg.style == Style::Prs;
+    // an output file's path: upstream's name, or prs's
+    let path = |upstream: String, prs_name: &str| {
+        format!("{}{}", cfg.output_directory, if prs { prs_name.to_string() } else { upstream })
+    };
     if let Some(j) = &res.verbose_json_trace {
         host.out_line("... Emitting verbose logs:");
-        let path = format!("{}{}_0_verbose.trace.json", cfg.output_directory, file);
+        let path = path(format!("{}_0_verbose.trace.json", file), "verbose.trace.json");
         host.out_line(&format!("..... Writing {}", path));
         write_output(host, &path, j)?;
     }
+    let mut schedule_file = None;
     if !cfg.full_exploration && res.report.num_bugs > 0 {
         host.out_line("Checker found a bug.");
         host.out_line("... Emitting traces:");
-        emit_traces(host, cfg, &res, &format!("{}_0", file), engine_elapsed)?;
+        schedule_file = emit_traces(host, cfg, &res, &format!("{}_0", file), engine_elapsed)?;
     }
     if cfg.verbose {
         host.out_line("... ### Process 0 is terminating");
@@ -477,16 +577,17 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
     if let Some(cov) = &res.coverage {
         // ReportActivityCoverage (on by default upstream)
         host.out_line("... Emitting coverage report:");
-        let base = format!("{}{}", cfg.output_directory, file);
         let checker = Checker::new(&loaded.analysis.program);
         let text = checker.coverage_report(cov);
-        let txt = format!("{}.coverage.txt", base);
+        let txt = path(format!("{}.coverage.txt", file), "coverage.txt");
         host.out_line(&format!("..... Writing {}", txt));
         write_output(host, &txt, &text)?;
-        let sci = format!("{}.sci", base);
-        host.out_line(&format!("..... Writing {}", sci));
-        let xml = crate::driver::sci::coverage_xml(&loaded.analysis.program, &checker.coverage_tables(), cov);
-        write_output(host, &sci, &xml)?;
+        if !prs {
+            let sci = path(format!("{}.sci", file), "");
+            host.out_line(&format!("..... Writing {}", sci));
+            let xml = crate::driver::sci::coverage_xml(&loaded.analysis.program, &checker.coverage_tables(), cov);
+            write_output(host, &sci, &xml)?;
+        }
     }
     let process_elapsed = host.now() - process_start;
     host.out_line(&res.report.text(&opts, "..."));
@@ -494,7 +595,7 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
         let schedules = res.report.explored_fair_schedules + res.report.explored_unfair_schedules;
         host.out_line(&x.text(schedules, opts.max_unfair_steps, "....."));
     }
-    let summary_path = format!("{}{}_pchecker_summary.txt", cfg.output_directory, file);
+    let summary_path = path(format!("{}_pchecker_summary.txt", file), "summary.txt");
     host.out_line(&format!("..... Writing {}", summary_path));
     let summary = format!(
         "bugs:{}\nschedules:{}\nmax_depth:{}\ntime_seconds:{}\nmemory_max_mb:{}",
@@ -507,13 +608,30 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
     write_output(host, &summary_path, &summary)?;
     if !res.report.scenarios.is_empty() {
         let suffix = if cfg.test_case_name.is_empty() { String::new() } else { format!("_{}", cfg.test_case_name) };
-        let path = format!("{}{}{}{}", cfg.output_directory, file, suffix, crate::driver::scenario::FILE_SUFFIX);
+        let path = path(
+            format!("{}{}{}", file, suffix, crate::driver::scenario::FILE_SUFFIX),
+            crate::driver::scenario::PRS_FILE_NAME,
+        );
         host.out_line(&format!("..... Writing {}", path));
         let art = crate::driver::scenario::from_report(&res.report, &cfg.test_case_name);
         write_output(host, &path, &art.to_json())?;
     }
-    host.out_line(&format!("... Elapsed {} sec.", process_elapsed));
-    Ok(if res.report.num_bugs > 0 { 1 } else { 0 })
+    if prs {
+        host.out_line(&format!("... Elapsed {} sec.", format_0_00(process_elapsed)));
+    } else {
+        host.out_line(&format!("... Elapsed {} sec.", process_elapsed));
+    }
+    Ok(CaseOutcome {
+        test_case: tc.name.clone(),
+        bugs: res.report.num_bugs,
+        bug_report: res.report.bug_reports.first().cloned(),
+        schedules: res.report.explored_fair_schedules + res.report.explored_unfair_schedules,
+        workers,
+        timed_out: res.cancelled,
+        exhaustive_finished: res.exhaustive.as_ref().map(|x| x.finished),
+        elapsed: process_elapsed,
+        schedule_file,
+    })
 }
 
 /// The trace file index: one more than the largest `<name>_<n>_<index>` already present.
@@ -555,17 +673,22 @@ fn trailing_index(name: &str) -> Option<usize> {
     None
 }
 
-/// `TestingEngine.TryEmitTraces`.
+/// `TestingEngine.TryEmitTraces`; returns the `.schedule` file written.
 fn emit_traces(
     host: &mut dyn Host,
     cfg: &CheckConfig,
     res: &CheckResult,
     file: &str,
     engine_elapsed: f64,
-) -> Result<(), Exit> {
-    let dir = full_path(&host.cwd(), Path::new(&cfg.output_directory));
-    let index = next_trace_index(host, &dir, file);
-    let base = format!("{}{}_{}", cfg.output_directory, file, index);
+) -> Result<Option<String>, Exit> {
+    let base = if cfg.style == Style::Prs {
+        format!("{}bug", cfg.output_directory)
+    } else {
+        let dir = full_path(&host.cwd(), Path::new(&cfg.output_directory));
+        let index = next_trace_index(host, &dir, file);
+        format!("{}{}_{}", cfg.output_directory, file, index)
+    };
+    let mut schedule_file = None;
     if !cfg.full_exploration {
         if let Some(t) = res.readable_trace.as_ref().filter(|t| !t.is_empty()) {
             let path = format!("{}.txt", base);
@@ -588,6 +711,7 @@ fn emit_traces(
             let path = format!("{}.schedule", base);
             host.out_line(&format!("..... Writing {}", path));
             write_output(host, &path, t)?;
+            schedule_file = Some(path);
         }
     }
     host.out_line(&format!(
@@ -595,5 +719,5 @@ fn emit_traces(
         format_0_00(engine_elapsed),
         format_0_00(host.max_memory_gb())
     ));
-    Ok(())
+    Ok(schedule_file)
 }

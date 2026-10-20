@@ -296,7 +296,7 @@ fn custom_parsers_plug_in() {
     h.add_file("run.csv", "1,k,eDeposit,1,5\n2,k,eWithdraw,1,6");
     let args: Vec<String> =
         ["--spec", "NeverOverdrawn", "-l", "run.csv", "-o", "out"].iter().map(|s| s.to_string()).collect();
-    let code = prs::driver::observe::run(&args, &mut h, vec![Box::new(Csv)], "p observe");
+    let code = prs::compat::observe::run_with(&args, &mut h, vec![Box::new(Csv)]);
     assert_eq!(code, 2, "{}", h.stdout);
     assert!(h.stdout.contains("account 1 overdrawn: balance -1"), "{}", h.stdout);
 }

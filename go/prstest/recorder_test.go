@@ -41,12 +41,16 @@ func init() {
 	case "emit":
 		prsemit.Emit("eCount", "child", 5)
 		os.Exit(0)
-	case "old":
+	case "old", "old-pobserve":
 		if len(os.Args) > 1 && os.Args[1] == "--version" {
 			fmt.Println("prs 0.0.1")
 			os.Exit(0)
 		}
-		fmt.Println("Failed parsing ::\nWas passed main parameter '--unknown-events' but no main parameter was defined in your arg class\nUsage: prs observe [options]\n  --spec")
+		if mode == "old-pobserve" { // prs before it had its own observe command line
+			fmt.Println("Failed parsing ::\nWas passed main parameter '" + os.Args[2] + "' but no main parameter was defined in your arg class\nUsage: prs observe [options]\n  --spec")
+		} else {
+			fmt.Fprint(os.Stderr, "error: unknown option '--unknown-events'\nRun `prs observe --help` for usage.\n")
+		}
 		os.Exit(2)
 	}
 	for n, arg := range os.Args {
@@ -224,13 +228,17 @@ func TestMalformedAndMismatchedToolReports(t *testing.T) {
 }
 
 func TestOldBinaryNamesVersions(t *testing.T) {
-	t.Setenv("PRSTEST_CHILD", "old")
-	r := New(t, fixtureConfig(t))
-	r.Emit("e", "k", nil)
-	_, err := r.Verify(context.Background())
-	se := setupKind(t, err, "config")
-	if !strings.Contains(se.Message, "prs 0.0.1") || !strings.Contains(se.Message, "prstest "+Version) || strings.Contains(se.Message, "Usage") {
-		t.Fatalf("message: %s", se.Message)
+	for mode, want := range map[string]string{"old": "unknown option '--unknown-events'", "old-pobserve": "main parameter '"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Setenv("PRSTEST_CHILD", mode)
+			r := New(t, fixtureConfig(t))
+			r.Emit("e", "k", nil)
+			_, err := r.Verify(context.Background())
+			se := setupKind(t, err, "config")
+			if !strings.Contains(se.Message, "prs 0.0.1") || !strings.Contains(se.Message, "prstest "+Version) || !strings.Contains(se.Message, want) || strings.Contains(se.Message, "--help") || strings.Contains(se.Message, "Usage") {
+				t.Fatalf("message: %s", se.Message)
+			}
+		})
 	}
 }
 
@@ -401,20 +409,19 @@ func TestConfiguration(t *testing.T) {
 	if s.strict {
 		t.Fatal("Strict: Bool(false) ignored")
 	}
+	s, _ = resolve(Config{SpecFiles: []string{"a.p"}, Specs: []string{"S"}, AllowUnobserved: true, ArtifactRoot: "art"})
+	if s.strict || len(s.deprecated) != 2 || !strings.HasSuffix(s.artifacts, "art") {
+		t.Fatalf("deprecated fields: %+v", s)
+	}
 
 	t.Setenv("PRS_SPEC_FILES", "x.p"+string(os.PathListSeparator)+"y.p")
 	t.Setenv("PRS_ARTIFACTS", "artifacts")
 	t.Setenv("PRS_COVERAGE", "cov.json")
 	t.Setenv("PRS_MODE", "off")
-	s, err = resolve(Config{WorkDir: dir})
+	s, err = resolve(Config{SpecFiles: []string{"ignored.p"}, Artifacts: "other", Coverage: "other.json", WorkDir: dir})
 	cwd, _ := os.Getwd()
 	if err != nil || len(s.specFiles) != 2 || s.specFiles[0] != filepath.Join(cwd, "x.p") || s.artifacts != filepath.Join(cwd, "artifacts") || s.coverage != filepath.Join(cwd, "cov.json") || !s.off {
-		t.Fatalf("environment for unset fields: %+v %v", s, err)
-	}
-	// explicit fields win over the environment
-	s, err = resolve(Config{SpecFiles: []string{"set.p"}, Artifacts: "other", Coverage: "other.json", Mode: "auto", WorkDir: dir})
-	if err != nil || len(s.specFiles) != 1 || s.specFiles[0] != filepath.Join(dir, "set.p") || s.artifacts != filepath.Join(dir, "other") || s.coverage != filepath.Join(dir, "other.json") || s.off {
-		t.Fatalf("explicit fields: %+v %v", s, err)
+		t.Fatalf("environment overrides: %+v %v", s, err)
 	}
 }
 

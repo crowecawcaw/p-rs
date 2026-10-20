@@ -3,7 +3,6 @@
 #   Actions -> Release -> Run workflow (on main) -> pick a level
 #
 #   preflight       fmt, clippy, tests and a package dry run on main.
-#   helpers         the Go, Python and Java helper tests against this commit's prs.
 #   version         the release version (scripts/release.py next) and whether its tag
 #                   already exists (a re-run of a release that got as far as tagging).
 #   build           the prs binary for five targets, from this run's commit with the
@@ -76,45 +75,6 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked
       - run: cargo test --workspace --locked
       - run: cargo publish -p p-rs --locked --dry-run
-
-  helpers:
-    name: Preflight helper tests
-    if: github.repository == 'crowecawcaw/p-rs' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    env:
-      PRS_BIN: ${{ github.workspace }}/target/debug/prs
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: test
-          save-if: false
-      - run: cargo build -p p-rs --bin prs --locked
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-          cache: false
-      - name: Go
-        run: |
-          go vet ./...
-          go test -count=1 ./...
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-      - name: Python
-        run: |
-          pip install ./python pytest
-          cd python && python -m pytest -p no:cacheprovider
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: '3.9.9'
-      - name: Java
-        run: mvn --batch-mode --no-transfer-progress -f java/pom.xml test
 
   version:
     name: Release version
@@ -236,7 +196,7 @@ jobs:
 
   prepare:
     name: Commit and tag
-    needs: [preflight, helpers, version, build]
+    needs: [preflight, version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write

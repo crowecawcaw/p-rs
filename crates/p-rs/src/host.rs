@@ -45,6 +45,10 @@ pub trait Host {
     fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>>;
     fn create_dir_all(&mut self, path: &Path) -> io::Result<()>;
     fn remove_dir_all(&mut self, path: &Path) -> io::Result<()>;
+    /// Removes a file. The default reports it unsupported.
+    fn remove_file(&mut self, path: &Path) -> io::Result<()> {
+        Err(io::Error::new(io::ErrorKind::Unsupported, format!("cannot remove '{}' on this host", path.display())))
+    }
     fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()>;
     /// Seconds since an arbitrary fixed point (for elapsed-time reporting).
     fn now(&self) -> f64;
@@ -165,11 +169,13 @@ pub trait HostExt: Host {
 impl<T: Host + ?Sized> HostExt for T {}
 
 /// A host that holds back console output, to show it (or its errors) only if needed.
+#[cfg(feature = "cli")]
 pub(crate) struct Buffered<'a> {
     pub inner: &'a mut dyn Host,
     pub out: Vec<(Stream, String, Option<Color>)>,
 }
 
+#[cfg(feature = "cli")]
 impl<'a> Buffered<'a> {
     pub fn new(inner: &'a mut dyn Host) -> Self {
         Buffered { inner, out: Vec::new() }
@@ -181,6 +187,7 @@ impl<'a> Buffered<'a> {
     }
 }
 
+#[cfg(feature = "cli")]
 impl Host for Buffered<'_> {
     fn write(&mut self, stream: Stream, text: &str, color: Option<Color>) {
         self.out.push((stream, text.to_string(), color));
@@ -209,6 +216,9 @@ impl Host for Buffered<'_> {
     fn remove_dir_all(&mut self, path: &Path) -> io::Result<()> {
         self.inner.remove_dir_all(path)
     }
+    fn remove_file(&mut self, path: &Path) -> io::Result<()> {
+        self.inner.remove_file(path)
+    }
     fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()> {
         self.inner.rename(from, to)
     }
@@ -226,6 +236,110 @@ impl Host for Buffered<'_> {
     }
     fn threads(&self) -> Option<Threads> {
         self.inner.threads()
+    }
+}
+
+/// A host that shows only warnings and errors: stderr, and the stdout text the commands
+/// color (upstream's console colors every warning and error, never progress). Plain stdout
+/// text is dropped, unless `quiet` is off.
+#[cfg(feature = "cli")]
+pub(crate) struct Quiet<'a> {
+    pub inner: &'a mut dyn Host,
+    pub quiet: bool,
+    /// The last stdout text was shown, so the newline ending it is too.
+    shown: bool,
+}
+
+#[cfg(feature = "cli")]
+impl<'a> Quiet<'a> {
+    pub fn new(inner: &'a mut dyn Host, quiet: bool) -> Self {
+        Quiet { inner, quiet, shown: false }
+    }
+}
+
+#[cfg(feature = "cli")]
+impl Host for Quiet<'_> {
+    fn write(&mut self, stream: Stream, text: &str, color: Option<Color>) {
+        if stream == Stream::Err || !self.quiet {
+            return self.inner.write(stream, text, color);
+        }
+        if color.is_some() || (self.shown && text == "\n") {
+            self.shown = true;
+            self.inner.write(stream, text, color);
+        } else {
+            self.shown = false;
+        }
+    }
+    fn read_stdin_line(&self) -> io::Result<Option<String>> {
+        self.inner.read_stdin_line()
+    }
+    fn cwd(&self) -> PathBuf {
+        self.inner.cwd()
+    }
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        self.inner.read_to_string(path)
+    }
+    fn write_file(&mut self, path: &Path, contents: &str) -> io::Result<()> {
+        self.inner.write_file(path, contents)
+    }
+    fn is_file(&self, path: &Path) -> bool {
+        self.inner.is_file(path)
+    }
+    fn is_dir(&self, path: &Path) -> bool {
+        self.inner.is_dir(path)
+    }
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
+        self.inner.read_dir(path)
+    }
+    fn create_dir_all(&mut self, path: &Path) -> io::Result<()> {
+        self.inner.create_dir_all(path)
+    }
+    fn remove_dir_all(&mut self, path: &Path) -> io::Result<()> {
+        self.inner.remove_dir_all(path)
+    }
+    fn remove_file(&mut self, path: &Path) -> io::Result<()> {
+        self.inner.remove_file(path)
+    }
+    fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()> {
+        self.inner.rename(from, to)
+    }
+    fn now(&self) -> f64 {
+        self.inner.now()
+    }
+    fn max_memory_gb(&self) -> f64 {
+        self.inner.max_memory_gb()
+    }
+    fn random_seed(&mut self) -> u32 {
+        self.inner.random_seed()
+    }
+    fn unix_time(&self) -> f64 {
+        self.inner.unix_time()
+    }
+    fn threads(&self) -> Option<Threads> {
+        self.inner.threads()
+    }
+    fn open_live(&self, inputs: &[LiveInput]) -> Box<dyn LiveSource + '_> {
+        self.inner.open_live(inputs)
+    }
+}
+
+/// A host's file system, for expanding log paths and globs.
+#[cfg(feature = "cli")]
+pub(crate) struct HostFiles<'a>(pub &'a dyn Host);
+
+#[cfg(feature = "cli")]
+impl crate::checker::observe_inputs::LogFiles for HostFiles<'_> {
+    fn is_file(&self, path: &Path) -> bool {
+        self.0.is_file(path)
+    }
+    fn is_dir(&self, path: &Path) -> bool {
+        self.0.is_dir(path)
+    }
+    fn read_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
+        self.0.read_dir(path)
+    }
+    fn read_to_string(&self, path: &Path) -> io::Result<String> {
+        self.0.read_to_string(path)
     }
 }
 
@@ -428,6 +542,18 @@ impl Host for MemHost {
                 Ok(())
             }
             Some(Node::File(_)) => Err(not_a_directory(path)),
+            None => Err(not_found(path)),
+        }
+    }
+
+    fn remove_file(&mut self, path: &Path) -> io::Result<()> {
+        let p = self.abs(path);
+        match self.nodes.get(&p) {
+            Some(Node::File(_)) => {
+                self.nodes.remove(&p);
+                Ok(())
+            }
+            Some(Node::Dir) => Err(is_a_directory(path)),
             None => Err(not_found(path)),
         }
     }

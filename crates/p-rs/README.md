@@ -9,7 +9,7 @@ events your application emits against P specs.
 ```sh
 cargo install p-rs        # installs prs and prs-compat
 prs check                 # check every test case of the .pproj in this folder
-prs observe --spec BankBalanceCorrect -l logs/   # check production logs
+prs observe --spec BankBalanceCorrect logs/      # check production logs
 ```
 
 `prs-compat` is a drop-in replacement for upstream's `p` command.

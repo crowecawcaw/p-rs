@@ -250,29 +250,20 @@ def test_prs_mode_environment_variable(project, monkeypatch):
     run(project, "--prs", "marked").assert_outcomes(passed=8, failed=2)
 
 
-def test_emitting_after_the_check_fails_the_test(project):
+def test_liveness_mark_is_a_deprecated_alias(project):
     project.makepyfile(
-        test_late="""
-        import threading
+        test_old="""
         import pytest
         from prs import emit
 
-        @pytest.fixture
-        def worker():
-            stop = threading.Event()
-            t = threading.Thread(target=lambda: (stop.wait(), emit("eExit", client="w")))
-            t.start()
-            yield
-            stop.set()  # emits during teardown, after the check
-            t.join()
-
-        def test_late(worker):
-            emit("eEnter", client="w")
+        @pytest.mark.prs(liveness=True)
+        def test_waiting():
+            emit("eRequest", key="L3", client="c3")
         """
     )
-    r = run(project, "test_late.py")
-    r.assert_outcomes(passed=1, errors=1)
-    r.stdout.fnmatch_lines(["*eExit emitted at *test_late.py:* after the recording was checked*"])
+    r = run(project, "test_old.py")
+    r.assert_outcomes(failed=1)
+    r.stdout.fnmatch_lines(["*liveness=...) is deprecated; use check_hot=*"])
 
 
 def test_misspelled_event_fails_the_test(project):
@@ -295,10 +286,9 @@ def test_misspelled_event_fails_the_test(project):
 def test_named_specs_in_settings_default_to_strict(project):
     project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nspecs = ["MutualExclusion"]\n')
     r = run(project, "-k", "test_no_events or test_correct or test_waiting_forever_fails")
-    # test_no_events emits nothing, and test_waiting_forever_fails only eRequest, which
-    # MutualExclusion ignores
-    r.assert_outcomes(passed=1, failed=2, deselected=7)
-    r.stdout.fnmatch_lines(["*MutualExclusion*checked no relevant events*"])
+    # test_waiting_forever_fails emits only eRequest, which MutualExclusion ignores
+    r.assert_outcomes(passed=3, deselected=7, warnings=2)
+    r.stdout.fnmatch_lines(["*StrictDefaultWarning*"])
 
 
 def test_artifacts_setting_keeps_failed_checks(project, monkeypatch):

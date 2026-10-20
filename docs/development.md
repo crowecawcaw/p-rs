@@ -14,8 +14,8 @@ Everything published is one crate, `crates/p-rs` (library `prs`, on crates.io as
 | `prs::checker` | Interpreter, schedulers, PEx search, monitors, traces, foreign functions and log checking. |
 | `prs::host` | The environment commands run in: console, file system, clock, threads. `MemHost` is in-memory (tests, wasm); `prs::cli` has the native one. |
 | `prs::project` | Finding and reading P sources: `.pproj` files, `--pfiles`, the current folder; type-error reporting. |
-| `prs::driver` | The commands on a host: `check` (checking test cases, replay, output folders, traces, coverage), `observe` (checking logs, with PObserve's command line) and `scenario` (scenario coverage reports). |
-| `prs::compat` | Upstream's command line for `prs-compat` (`p check` options and help, `p merge-scenario-coverage`), on `prs::driver`. Nothing else depends on it. |
+| `prs::driver` | The commands on a host, shared by `prs` and `prs-compat`: `check` (checking test cases, replay, output folders, traces, coverage), `observe` (checking logs: `compile`, `prepare`, `Observer::run`, `json_report`) and `scenario` (scenario coverage reports). `check::Style` picks the output: `Upstream` (upstream's folder layout, history and file names) or `Prs` (`<out>/<test>/bug.*`, replaced by each run). |
+| `prs::compat` | Upstream's command line for `prs-compat` (`p check` options and help, `p merge-scenario-coverage`, PObserve's options and report folder), on `prs::driver`. Nothing else depends on it. |
 | `prs::cli` | The `prs` command line and the native host (hidden from the docs; used by the binaries and `prs-wasm`). |
 | `prs::test` | In-process checks for Rust tests. |
 | `prs::emit` | The event emitter for application code. |
@@ -60,8 +60,8 @@ Upstream's test suites are vendored in `tests/upstream`.
   `cargo run --release -p p-rs --example tutorials -- tests/upstream/Tutorial`
 * Traces: readable and JSON traces match upstream's golden files
   (`tests/upstream/CorrectLogs`), checked in `crates/p-rs/tests/compat_cli.rs`.
-* `prs observe`: `scripts/compare-pobserve.py` runs upstream PObserve and `prs observe`
-  on all 96 logs of upstream's regression suite, with and without
+* `prs-compat observe`: `scripts/compare-pobserve.py` runs upstream PObserve and
+  `prs-compat observe` on all 96 logs of upstream's regression suite, with and without
   `--assumeInputsAreSorted`. All 192 runs give the same exit code; 186 give identical
   output, and the other 6 differ only in the null-dereference message. The small logs
   and upstream's outputs are vendored in `tests/upstream/PObserve` and checked in

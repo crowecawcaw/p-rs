@@ -86,6 +86,10 @@ impl Host for NativeHost {
         std::fs::remove_dir_all(path)
     }
 
+    fn remove_file(&mut self, path: &Path) -> io::Result<()> {
+        std::fs::remove_file(path)
+    }
+
     fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()> {
         std::fs::rename(from, to)
     }
@@ -95,7 +99,12 @@ impl Host for NativeHost {
     }
 
     fn max_memory_gb(&self) -> f64 {
-        // peak resident set size (Linux); 0 elsewhere
+        // peak resident set size (Linux, macOS); 0 elsewhere
+        #[cfg(target_os = "macos")]
+        {
+            peak_rss_bytes_macos() / (1024.0 * 1024.0 * 1024.0)
+        }
+        #[cfg(not(target_os = "macos"))]
         std::fs::read_to_string("/proc/self/status")
             .ok()
             .and_then(|s| {
@@ -122,6 +131,31 @@ impl Host for NativeHost {
 
     fn threads(&self) -> Option<Threads> {
         Some(Threads { available: std::thread::available_parallelism().map_or(1, |n| n.get()), run: run_threads })
+    }
+}
+
+/// Peak resident set size of the process from `getrusage`, in bytes (0 on failure).
+#[cfg(target_os = "macos")]
+fn peak_rss_bytes_macos() -> f64 {
+    // `struct rusage`: two `struct timeval`s (16 bytes each on 64-bit macOS), then
+    // `ru_maxrss` (bytes on macOS) and 13 more `long` counters
+    #[repr(C)]
+    struct Rusage {
+        times: [i64; 4],
+        maxrss: i64,
+        rest: [i64; 13],
+    }
+    extern "C" {
+        fn getrusage(who: i32, usage: *mut Rusage) -> i32;
+    }
+    const RUSAGE_SELF: i32 = 0;
+    let mut usage = Rusage { times: [0; 4], maxrss: 0, rest: [0; 13] };
+    // SAFETY: `usage` is a writable buffer with the size and layout of `struct rusage`
+    let ok = unsafe { getrusage(RUSAGE_SELF, &mut usage) } == 0;
+    if ok {
+        usage.maxrss as f64
+    } else {
+        0.0
     }
 }
 

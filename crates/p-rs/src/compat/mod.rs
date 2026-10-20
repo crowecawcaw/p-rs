@@ -11,10 +11,11 @@
 
 mod argparse;
 mod check;
+pub mod observe;
 
 use std::path::Path;
 
-use crate::driver::{observe, scenario};
+use crate::driver::scenario;
 use crate::host::{full_path, Color, Host, HostExt};
 
 /// The version reported by `p --version`.
@@ -30,7 +31,7 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
         }
         Some((cmd, rest)) => match cmd.to_lowercase().as_str() {
             // PObserve is its own tool upstream: its output has no P tool banner
-            "observe" => return observe::run(rest, host, Vec::new(), "p observe"),
+            "observe" => return observe::run_with(rest, host, Vec::new()),
             "check" => check::run(rest, host),
             "merge-scenario-coverage" => merge_scenario_coverage(rest, host),
             "version" | "-v" | "-version" | "--version" => {
@@ -95,6 +96,6 @@ fn merge_scenario_coverage(args: &[String], host: &mut dyn Host) -> i32 {
         host.out_colored_line(&format!("Directory not found: {}", dir), Color::Red);
         return 0;
     }
-    scenario::merge_dir(host, &full);
+    scenario::merge_dir(host, &full, false);
     0
 }

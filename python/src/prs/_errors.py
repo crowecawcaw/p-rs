@@ -26,14 +26,33 @@ class SetupError(Exception):
     * ``timeout``: the checker ran longer than ``timeout``
     """
 
-    def __init__(self, message: str, kind: str = "config", *, artifacts: Optional[str] = None):
+    def __init__(self, message: str, kind: str = "config", *, output_dir: Optional[str] = None):
         super().__init__(message)
         #: One of :data:`KINDS` (or a newer kind the core reports).
         self.kind = kind
         #: The error text.
         self.message = message
-        #: Folder with the check's events and prs's output, if the check got that far.
-        self.artifacts = artifacts
+        #: Folder with the events and prs's output, if the check got that far.
+        self.output_dir = output_dir
+
+
+class StrictDefaultWarning(DeprecationWarning):
+    """A check with named specs would fail under the new ``strict`` default.
+
+    ``strict`` now defaults to true when specs are named. For one release such a check
+    warns instead of failing; pass ``strict=False`` to keep the old behaviour, or
+    ``strict=True`` (or turn this warning into an error) to get the new one now.
+    ``error`` is the :class:`SetupError` the check will raise.
+    """
+
+    def __init__(self, error: SetupError):
+        super().__init__(
+            f"{error.message}\n"
+            "strict now defaults to true when specs are named; this check will fail in the next "
+            "release. Pass strict=False to keep checking without requiring events, or emit the "
+            "missing events."
+        )
+        self.error = error
 
 
 def warn(message: Any, category: Any = None) -> None:

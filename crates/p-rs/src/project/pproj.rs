@@ -113,9 +113,20 @@ pub fn list_files(host: &dyn Host, dir: &Path, max_depth: Option<usize>, out: &m
 
 struct ParseErr(String);
 
+/// Where `<IncludeProject>` paths are resolved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Includes {
+    /// Against the current folder, as upstream does.
+    #[default]
+    FromCurrentFolder,
+    /// Against the folder of the project file that includes them, falling back to the
+    /// current folder.
+    FromProject,
+}
+
 /// `ParseProjectFileForCompiler`.
-pub fn parse(host: &mut dyn Host, project_file: &str) -> Result<Project, Exit> {
-    match parse_inner(host, project_file) {
+pub fn parse(host: &mut dyn Host, project_file: &str, includes: Includes) -> Result<Project, Exit> {
+    match parse_inner(host, project_file, includes) {
         Ok(p) => Ok(p),
         Err(Err2::Parse(m)) => Err(report_and_exit(host, &format!("<Error parsing project file>:\n {}", m))),
         Err(Err2::Exit(e)) => Err(e),
@@ -133,7 +144,7 @@ impl From<ParseErr> for Err2 {
     }
 }
 
-fn parse_inner(host: &mut dyn Host, project_file: &str) -> Result<Project, Err2> {
+fn parse_inner(host: &mut dyn Host, project_file: &str, includes: Includes) -> Result<Project, Err2> {
     let (ok, full) = legal_pproj(host, project_file);
     if !ok {
         return Err(Err2::Parse(format!(
@@ -146,7 +157,7 @@ fn parse_inner(host: &mut dyn Host, project_file: &str) -> Result<Project, Err2>
     host.out_line(&format!("==== Loading project file: {}", project_file));
     let doc = Doc::load(host, &full).map_err(ParseErr)?;
     let mut inputs = Vec::new();
-    all_dependencies(host, &doc, &mut inputs, &mut Vec::new())?;
+    all_dependencies(host, &doc, includes, &mut inputs, &mut Vec::new())?;
     if inputs.is_empty() {
         return Err(Err2::Exit(report_and_exit(
             host,
@@ -179,6 +190,7 @@ fn push_unique(v: &mut Vec<PathBuf>, p: PathBuf) {
 fn all_dependencies(
     host: &mut dyn Host,
     doc: &Doc,
+    includes: Includes,
     inputs: &mut Vec<PathBuf>,
     deps: &mut Vec<PathBuf>,
 ) -> Result<(), Err2> {
@@ -187,7 +199,14 @@ fn all_dependencies(
     }
     for dep in &doc.include_projects {
         // upstream resolves included projects against the current directory
-        let (ok, full) = legal_pproj(host, dep);
+        let (mut ok, mut full) = legal_pproj(host, dep);
+        if includes == Includes::FromProject {
+            let base = doc.path.parent().map(Path::to_path_buf).unwrap_or_default();
+            let beside = base.join(dep).to_string_lossy().to_string();
+            if let (true, f) = legal_pproj(host, &beside) {
+                (ok, full) = (true, f);
+            }
+        }
         if !ok {
             return Err(Err2::Parse(format!(
                 "Illegal P project file name {} or file {} not found",
@@ -202,7 +221,7 @@ fn all_dependencies(
         }
         deps.push(dir);
         let dep_doc = Doc::load(host, &full).map_err(ParseErr)?;
-        all_dependencies(host, &dep_doc, inputs, deps)?;
+        all_dependencies(host, &dep_doc, includes, inputs, deps)?;
     }
     Ok(())
 }

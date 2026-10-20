@@ -1,7 +1,5 @@
 """Generate inventory histories, checking each history with its own P monitor."""
 
-import sys
-
 import pytest
 from hypothesis import settings, strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, precondition, rule
@@ -69,11 +67,9 @@ class InventoryHistories(RuleBasedStateMachine):
 
     def teardown(self):
         # Check before the next history. SpecViolation is an AssertionError,
-        # so Hypothesis shrinks it like any other failure. Teardown also runs
-        # after a failed step: skip the check then, so that failure is reported.
+        # so Hypothesis shrinks it like any other failure.
         self.events.stop()
-        if sys.exc_info()[1] is None:
-            self.events.check()
+        self.events.check()
 
 
 TestInventoryHistories = InventoryHistories.TestCase

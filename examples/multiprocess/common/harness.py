@@ -57,10 +57,10 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
             for read_end, _ in pipes.values():
                 live += ["--live", "/dev/fd/%d" % read_end]
             observer = subprocess.Popen([
-                str(prs_bin), "observe", "--pfiles", str(SPEC), "--spec", "InventoryCorrect",
-                *live, "--sequence", "seq", "--fail-fast", "--strict", "--coverage",
+                str(prs_bin), "observe", str(SPEC), "--spec", "InventoryCorrect",
+                *live, "--sequence", "seq", "--strict", "--coverage",
                 "--record", str(artifacts / "events.jsonl"),
-                "--json-report", str(artifacts / "report.json"), "--outputDir", str(artifacts / "observe"),
+                "--json-report", str(artifacts / "report.json"),
             ], stdout=output, stderr=errors, pass_fds=[r for r, _ in pipes.values()])
 
             def watch_observer():
