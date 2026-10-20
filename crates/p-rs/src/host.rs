@@ -129,6 +129,27 @@ pub struct Threads {
     pub run: for<'a> fn(jobs: Vec<Job<'a>>, main: &mut (dyn FnMut() + 'a)),
 }
 
+/// A command stopped after reporting the problem on the console; holds the exit code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Exit(pub i32);
+
+/// Prints `Error: {msg}` on stderr; returns exit code 1.
+pub(crate) fn report_and_exit(host: &mut dyn Host, msg: &str) -> Exit {
+    host.write(Stream::Err, "Error: ", Some(Color::Red));
+    host.write(Stream::Err, msg, Some(Color::Yellow));
+    host.write(Stream::Err, "\n", None);
+    Exit(1)
+}
+
+/// Writes an output file the command has announced (`..... Writing {path}`), `path` being
+/// relative to the current directory or absolute. A failure is reported as
+/// `Error: Could not write file ...` with exit code 1.
+pub(crate) fn write_output(host: &mut dyn Host, path: &str, contents: &str) -> Result<(), Exit> {
+    let full = full_path(&host.cwd(), Path::new(path));
+    host.write_file(&full, contents)
+        .map_err(|e| report_and_exit(host, &format!("Could not write file '{}': {}", path, e)))
+}
+
 /// Convenience console helpers.
 pub trait HostExt: Host {
     fn out_line(&mut self, s: &str) {

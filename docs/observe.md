@@ -115,7 +115,8 @@ only the file list.
 ## Custom parsers
 
 Other log formats need a parser written in Rust: implement
-`prs::checker::observe::Parser` and run `prs::compat::observe::run_with(args, host, parsers)`.
+`prs::checker::observe::Parser` and run
+`prs::driver::observe::run(args, host, parsers, "prs observe")`.
 `crates/p-rs/examples/observe_regression.rs` is a worked example; it ports
 upstream's regression parsers.
 

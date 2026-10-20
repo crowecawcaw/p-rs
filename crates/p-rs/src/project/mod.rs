@@ -6,8 +6,9 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::compat::host::{full_path, is_hidden, relative_path, Color, Host, HostExt};
-use crate::compat::pproj;
+use crate::host::{full_path, is_hidden, relative_path, report_and_exit, Color, Exit, Host, HostExt};
+
+pub mod pproj;
 
 /// Project name used when no `.pproj` or `--projname` gives one (upstream's default).
 pub const DEFAULT_NAME: &str = "generatedOutput";
@@ -64,7 +65,7 @@ pub struct Resolved {
 /// Resolves `input` to files: the `.pproj` file, `--pfiles`, or else the `.pproj` in the
 /// current folder, or else the `*.p` files in it and its immediate subfolders.
 /// Problems are reported through `host`.
-pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, crate::compat::Exit> {
+pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, Exit> {
     let mut r = Resolved { project_name: DEFAULT_NAME.into(), p_files: Vec::new(), foreign_files: Vec::new() };
     let pproj = match (&input.pproj, input.pfiles.is_empty()) {
         (Some(p), _) => Some(p.clone()),
@@ -87,7 +88,7 @@ pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, crate::co
     }
     for f in &input.pfiles {
         let Some(full) = pproj::legal_p_file(host, f) else {
-            return Err(crate::compat::report_and_exit(host, &format!("P file {} not found.", f)));
+            return Err(report_and_exit(host, &format!("P file {} not found.", f)));
         };
         add(&mut r, full);
     }
@@ -104,13 +105,13 @@ pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, crate::co
         }
     }
     if r.p_files.is_empty() {
-        return Err(crate::compat::report_and_exit(host, "Could not find any *.p file."));
+        return Err(report_and_exit(host, "Could not find any *.p file."));
     }
     if let Some(n) = &input.project_name {
         r.project_name = n.clone();
     }
     if !pproj::is_legal_project_name(&r.project_name) {
-        return Err(crate::compat::report_and_exit(host, &format!("{} is not a legal project name", r.project_name)));
+        return Err(report_and_exit(host, &format!("{} is not a legal project name", r.project_name)));
     }
     Ok(r)
 }

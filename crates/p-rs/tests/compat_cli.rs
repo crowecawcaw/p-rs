@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use prs::compat::host::{Host, MemHost};
+use prs::host::{Host, MemHost};
 
 fn upstream(rel: &str) -> String {
     let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/upstream").join(rel);

@@ -1,13 +1,13 @@
 //! Scenario coverage artifacts (`ScenarioCoverageMerger`): the per-test-case
-//! `*_scenario_coverage.json` written by `p check` and `p merge-scenario-coverage`.
+//! `*_scenario_coverage.json` written by a check, and merging them.
 
 use std::path::{Path, PathBuf};
 
 use crate::checker::engine::{culture_order, TestReport};
 use crate::checker::jsonlog::Json;
 
-use crate::compat::host::{full_path, Color, Host, HostExt, Stream};
-use crate::compat::pproj::list_files;
+use crate::host::{Host, HostExt, Stream};
+use crate::project::pproj::list_files;
 
 pub const FILE_SUFFIX: &str = "_scenario_coverage.json";
 pub const SCHEMA_VERSION: i64 = 1;
@@ -192,26 +192,12 @@ fn in_history_dir(p: &Path) -> bool {
     })
 }
 
-/// `p merge-scenario-coverage [directory]`.
-pub fn run_merge(args: &[String], host: &mut dyn Host) -> i32 {
-    // upstream has no help and looks for a directory named `--help`
-    if matches!(args.first().map(String::as_str), Some("-h" | "--help")) {
-        host.out_line("usage: p merge-scenario-coverage [directory]");
-        host.out_line("");
-        host.out_line(&format!(
-            "Merges the scenario coverage reports (*{}) under the directory, recursively, into one report. The directory defaults to the current one.",
-            FILE_SUFFIX
-        ));
-        return 0;
-    }
-    let dir = args.first().cloned().unwrap_or_else(|| host.cwd().to_string_lossy().to_string());
-    let full = full_path(&host.cwd(), Path::new(&dir));
-    if !host.is_dir(&full) {
-        host.out_colored_line(&format!("Directory not found: {}", dir), Color::Red);
-        return 0;
-    }
+/// Merges the scenario coverage reports under `dir` (absolute), recursively, and prints the
+/// merged report. For each test case the report in the current run's folder wins over those
+/// in rotated history folders; unreadable reports are skipped with a message.
+pub fn merge_dir(host: &mut dyn Host, dir: &Path) {
     let mut files: Vec<PathBuf> = Vec::new();
-    list_files(host, &full, None, &mut files);
+    list_files(host, dir, None, &mut files);
     // latest artifact per test case: the current run's directory wins over history ones
     let mut latest: Vec<(String, Artifact, bool)> = Vec::new();
     for f in files {
@@ -247,5 +233,4 @@ pub fn run_merge(args: &[String], host: &mut dyn Host) -> i32 {
     }
     let arts: Vec<Artifact> = latest.into_iter().map(|(_, a, _)| a).collect();
     host.write(Stream::Out, &merge(&arts), None);
-    0
 }

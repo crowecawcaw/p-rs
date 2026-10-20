@@ -43,7 +43,7 @@ model.check(|_recording| app.reserve("coffee", "o1", 2));
 | `cli` (default) | The `prs` and `prs-compat` binaries. |
 
 `test` and `cli` also expose the checker as a library: `prs::syntax`, `prs::sema`,
-`prs::checker` and `prs::compat`.
+`prs::checker`, `prs::project` and `prs::driver`.
 
 ## Documentation
 

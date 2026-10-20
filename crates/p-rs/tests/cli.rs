@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use prs::compat::host::{Host, Job, MemHost, Threads};
+use prs::host::{Host, Job, MemHost, Threads};
 
 fn run_threads<'a>(jobs: Vec<Job<'a>>, main: &mut (dyn FnMut() + 'a)) {
     std::thread::scope(|s| {

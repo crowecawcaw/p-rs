@@ -4,7 +4,7 @@ mod support;
 
 use std::path::Path;
 
-use prs::compat::host::{Host, MemHost};
+use prs::host::{Host, MemHost};
 
 const SPEC: &str = r#"
 type tTxn = (account: int, amount: int);
@@ -296,7 +296,7 @@ fn custom_parsers_plug_in() {
     h.add_file("run.csv", "1,k,eDeposit,1,5\n2,k,eWithdraw,1,6");
     let args: Vec<String> =
         ["--spec", "NeverOverdrawn", "-l", "run.csv", "-o", "out"].iter().map(|s| s.to_string()).collect();
-    let code = prs::compat::observe::run_with(&args, &mut h, vec![Box::new(Csv)]);
+    let code = prs::driver::observe::run(&args, &mut h, vec![Box::new(Csv)], "p observe");
     assert_eq!(code, 2, "{}", h.stdout);
     assert!(h.stdout.contains("account 1 overdrawn: balance -1"), "{}", h.stdout);
 }
@@ -645,7 +645,7 @@ fn strict_validation_does_not_mask_a_sibling_safety_failure() {
     h.add_file("logs/run.log", &line("a", 1, "eWithdraw", 1, 10));
     assert_eq!(
         run(&mut h, &["--all-specs", "-l", "logs", "--strict", "--json-report", "report.json"]),
-        prs::compat::observe::EXIT_ASSERTION
+        prs::driver::observe::EXIT_ASSERTION
     );
     let report = read(&h, "report.json");
     assert!(report.contains("spec_violation"));
@@ -681,7 +681,7 @@ fn unknown_events_are_ignored_warned_or_errors_but_declared_ones_always_pass() {
     );
     assert!(read(&h, "report.json").contains("\"warnings\""));
 
-    assert_eq!(run(&mut h, &with("error")), prs::compat::observe::EXIT_INTERNAL_ERROR);
+    assert_eq!(run(&mut h, &with("error")), prs::driver::observe::EXIT_INTERNAL_ERROR);
     assert!(h.stdout.contains("Total Unknown Event Errors: 1"), "{}", h.stdout);
     let report = read(&h, "report.json");
     assert!(report.contains("\"kind\": \"unknown_event\""));
@@ -689,9 +689,9 @@ fn unknown_events_are_ignored_warned_or_errors_but_declared_ones_always_pass() {
 
     // an unknown name with a violation: the input is untrustworthy, so it decides the status
     h.add_file("logs/run.log", &[log.clone(), line("a", 4, "eWithdraw", 1, 99)].join("\n"));
-    assert_eq!(run(&mut h, &with("error")), prs::compat::observe::EXIT_INTERNAL_ERROR);
+    assert_eq!(run(&mut h, &with("error")), prs::driver::observe::EXIT_INTERNAL_ERROR);
     assert!(read(&h, "report.json").contains("spec_violation"));
-    assert_eq!(run(&mut h, &with("warn")), prs::compat::observe::EXIT_ASSERTION);
+    assert_eq!(run(&mut h, &with("warn")), prs::driver::observe::EXIT_ASSERTION);
 }
 
 #[test]
