@@ -32,7 +32,8 @@ Or from a terminal: `gh workflow run release.yml --ref main -f level=patch`.
 
 The workflow:
 
-1. **Preflight**: fmt, clippy, tests and `cargo publish --dry-run` on `main`.
+1. **Preflight**: fmt, clippy, tests and `cargo publish --dry-run` on `main`, and the
+   Go, Python and Java helper tests.
 2. **Version**: the next version, and whether its tag already exists.
 3. **Build**: `prs` for `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`
    (both glibc 2.17+, via cargo-zigbuild), `x86_64-apple-darwin`,
