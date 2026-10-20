@@ -52,7 +52,7 @@ jobs:
       - name: Build snappea
         run: cargo build --release --locked -p snappea --bins
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ inputs.dotnet_version }}
       - name: Install upstream P
@@ -79,7 +79,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: ./.github/scripts/push-bench-data.sh append compare.json upstream.jsonl "Upstream benchmark ${GITHUB_SHA::7}"
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: bench-upstream
           path: |
