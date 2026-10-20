@@ -2,8 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::compat::host::{full_path, is_hidden, Host, HostExt};
-use crate::compat::{report_and_exit, Exit};
+use crate::driver::{report_and_exit, Exit};
+use crate::host::{full_path, is_hidden, Host, HostExt};
 
 /// What a project file contributes: its name and sources. `OutputDir` and `Target` only
 /// matter to upstream's compiler and are ignored.

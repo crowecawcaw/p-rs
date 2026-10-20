@@ -1,7 +1,7 @@
 //! Deeply nested models: up to `MAX_NESTING` levels they are parsed, checked and
 //! run; deeper ones are a parse error, never a stack overflow.
 
-use prs::compat::host::MemHost;
+use prs::host::MemHost;
 use prs::syntax::MAX_NESTING;
 
 /// Runs `p check` on `model` on a stack of the size the WebAssembly build has

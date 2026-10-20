@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use prs::compat::host::{Host, MemHost};
+use prs::host::{Host, MemHost};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]

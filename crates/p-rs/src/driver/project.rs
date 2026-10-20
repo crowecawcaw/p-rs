@@ -1,13 +1,14 @@
 //! The P sources a command works on, and how type errors are reported.
 //!
 //! Upstream compiles a project to a .NET assembly with `p compile` and checks that. prs
-//! interprets P directly, so `p check` reads the sources itself (from a `.pproj` file or
-//! `--pfiles`) and type-checks them in memory; there is no compile step or compiled file.
+//! interprets P directly, so the commands read the sources themselves (from a `.pproj`
+//! file or a list of `.p` files) and type-check them in memory; there is no compile step
+//! or compiled file.
 
 use std::path::{Path, PathBuf};
 
-use crate::compat::host::{full_path, is_hidden, relative_path, Color, Host, HostExt};
-use crate::compat::pproj;
+use crate::driver::pproj;
+use crate::host::{full_path, is_hidden, relative_path, Color, Host, HostExt};
 
 /// Project name used when no `.pproj` or `--projname` gives one (upstream's default).
 pub const DEFAULT_NAME: &str = "generatedOutput";
@@ -64,7 +65,7 @@ pub struct Resolved {
 /// Resolves `input` to files: the `.pproj` file, `--pfiles`, or else the `.pproj` in the
 /// current folder, or else the `*.p` files in it and its immediate subfolders.
 /// Problems are reported through `host`.
-pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, crate::compat::Exit> {
+pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, crate::driver::Exit> {
     let mut r = Resolved { project_name: DEFAULT_NAME.into(), p_files: Vec::new(), foreign_files: Vec::new() };
     let pproj = match (&input.pproj, input.pfiles.is_empty()) {
         (Some(p), _) => Some(p.clone()),
@@ -87,7 +88,7 @@ pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, crate::co
     }
     for f in &input.pfiles {
         let Some(full) = pproj::legal_p_file(host, f) else {
-            return Err(crate::compat::report_and_exit(host, &format!("P file {} not found.", f)));
+            return Err(crate::driver::report_and_exit(host, &format!("P file {} not found.", f)));
         };
         add(&mut r, full);
     }
@@ -104,13 +105,13 @@ pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, crate::co
         }
     }
     if r.p_files.is_empty() {
-        return Err(crate::compat::report_and_exit(host, "Could not find any *.p file."));
+        return Err(crate::driver::report_and_exit(host, "Could not find any *.p file."));
     }
     if let Some(n) = &input.project_name {
         r.project_name = n.clone();
     }
     if !pproj::is_legal_project_name(&r.project_name) {
-        return Err(crate::compat::report_and_exit(host, &format!("{} is not a legal project name", r.project_name)));
+        return Err(crate::driver::report_and_exit(host, &format!("{} is not a legal project name", r.project_name)));
     }
     Ok(r)
 }

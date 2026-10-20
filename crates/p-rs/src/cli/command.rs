@@ -1,6 +1,6 @@
 //! The `prs` command line.
 //!
-//! `prs` runs the same checker and writes the same output files as `prs-compat`, with its
+//! `prs` runs the commands of [`crate::driver`], as `prs-compat` does, with its
 //! own options: test cases and sources as arguments, one `--strategy` option, durations
 //! with units, parallel workers and time tracking. Exit status: 0 when no bug is found,
 //! 1 when one is, 2 on any other error.
@@ -9,9 +9,9 @@ use std::path::Path;
 
 use crate::checker::strategy::StrategyKind;
 use crate::checker::timeline::TimelineRepr;
-use crate::compat::check::{self, CheckConfig, Mode};
-use crate::compat::host::{full_path, Buffered, Color, Host, HostExt, Stream};
-use crate::compat::Exit;
+use crate::driver::check::{self, CheckConfig, Mode};
+use crate::driver::Exit;
+use crate::host::{full_path, Buffered, Color, Host, HostExt, Stream};
 
 const OK: i32 = 0;
 const BUG: i32 = 1;
@@ -606,9 +606,10 @@ fn tests(args: &[String], host: &mut dyn Host) -> i32 {
 
 fn observe(args: &[String], host: &mut dyn Host) -> i32 {
     // PObserve's exit codes: 2 a spec violation, 1, 3 and 4 errors
-    match crate::compat::observe::run_named(args, host, Vec::new(), "prs observe") {
-        crate::compat::observe::EXIT_SUCCESS => OK,
-        crate::compat::observe::EXIT_ASSERTION => BUG,
+    use crate::driver::observe;
+    match observe::run_named(args, host, Vec::new(), "prs observe") {
+        observe::EXIT_SUCCESS => OK,
+        observe::EXIT_ASSERTION => BUG,
         _ => ERROR,
     }
 }
@@ -634,11 +635,13 @@ fn coverage(args: &[String], host: &mut dyn Host) -> i32 {
         [] => return usage_error(host, "missing subcommand: merge", Some("coverage")),
         [other, ..] => return usage_error(host, &format!("unknown subcommand '{}'", other), Some("coverage")),
     };
-    if !host.is_dir(&full_path(&host.cwd(), Path::new(&dir))) {
+    let full = full_path(&host.cwd(), Path::new(&dir));
+    if !host.is_dir(&full) {
         error(host, &format!("directory not found: {}", dir));
         return ERROR;
     }
-    crate::compat::scenario::run_merge(&[dir], host);
+    let report = crate::driver::scenario::merge_dir(host, &full);
+    host.write(Stream::Out, &report, None);
     OK
 }
 

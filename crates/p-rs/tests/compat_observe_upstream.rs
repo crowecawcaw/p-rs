@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use prs::compat::host::{Host, MemHost};
+use prs::host::{Host, MemHost};
 
 /// Runs whose unknown-error messages differ: upstream's Java `NullPointerException` message
 /// names a variable of the generated Java code (`"TMP_tmp2_12" is null`).

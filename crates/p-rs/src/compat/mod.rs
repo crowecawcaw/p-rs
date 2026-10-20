@@ -2,55 +2,22 @@
 //!
 //! [`run`] reproduces `p check` and `p merge-scenario-coverage` from `PCommandLine`, and
 //! [`observe`] the PObserve command line: the same options, help text, project-file
-//! handling, console messages, output files and exit codes, on top of the pure-Rust type
-//! checker ([`crate::sema`]) and checker ([`crate::checker`]). There is no `p compile`: the
-//! commands read the P sources directly. Everything goes through a [`Host`], so
-//! the commands also run in-memory (tests, browsers).
+//! handling, console messages, output files and exit codes. This module is only the
+//! adapter: it parses upstream's options and runs the commands of [`crate::driver`], on
+//! top of the pure-Rust type checker ([`crate::sema`]) and checker ([`crate::checker`]).
+//! There is no `p compile`: the commands read the P sources directly. Everything goes
+//! through a [`Host`], so the commands also run in-memory (tests, browsers).
 //!
-//! [`check`], [`project`] and [`scenario`] also expose the steps of `p check` (resolving
-//! sources, type-checking, checking one test case, replaying a schedule) for front ends
-//! with their own command line, such as `prs`.
+//! Nothing outside this module depends on it (`tests/layering.rs` checks this).
 //!
 //! Known differences from upstream are listed in the repository README.
 
 mod argparse;
 pub mod check;
-pub mod host;
 pub mod observe;
-mod pproj;
-pub mod project;
 pub mod scenario;
-mod sci;
 
-use std::path::Path;
-
-use host::{Color, Host, HostExt, Stream};
-
-/// Process exit requested (`Environment.Exit(code)`); the problem has been reported.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Exit(pub i32);
-
-/// `Error.ReportAndExit`: `Error: {msg}` on stderr, exit code 1.
-fn report_and_exit(host: &mut dyn Host, msg: &str) -> Exit {
-    report(host, msg);
-    Exit(1)
-}
-
-/// `Error.Report`: `Error: {msg}` on stderr.
-fn report(host: &mut dyn Host, msg: &str) {
-    host.write(Stream::Err, "Error: ", Some(Color::Red));
-    host.write(Stream::Err, msg, Some(Color::Yellow));
-    host.write(Stream::Err, "\n", None);
-}
-
-/// Writes an output file the command has announced (`..... Writing {path}`), `path` being
-/// relative to the current directory or absolute. A failure ends the command with
-/// `Error: ...` naming the file and exit code 1, as an uncaught I/O exception ends upstream's.
-fn write_output(host: &mut dyn Host, path: &str, contents: &str) -> Result<(), Exit> {
-    let full = host::full_path(&host.cwd(), Path::new(path));
-    host.write_file(&full, contents)
-        .map_err(|e| report_and_exit(host, &format!("Could not write file '{}': {}", path, e)))
-}
+use crate::host::{Color, Host, HostExt};
 
 /// The version reported by `p --version`.
 pub const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (prs)");
@@ -109,16 +76,5 @@ fn print_command_help(host: &mut dyn Host) {
         "================================================================================",
     ] {
         host.out_line(l);
-    }
-}
-
-/// `{value:0.##}`.
-fn format_0_00(v: f64) -> String {
-    let s = format!("{:.2}", v);
-    let s = s.trim_end_matches('0').trim_end_matches('.');
-    if s.is_empty() || s == "-0" {
-        "0".into()
-    } else {
-        s.to_string()
     }
 }

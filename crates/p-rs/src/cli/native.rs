@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Instant;
 
-use crate::compat::host::{Color, Host, Job, LiveInput, LiveRead, LiveSource, Stream, Threads};
+use crate::host::{Color, Host, Job, LiveInput, LiveRead, LiveSource, Stream, Threads};
 
 pub struct NativeHost {
     start: Instant,

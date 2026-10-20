@@ -4,7 +4,7 @@ mod support;
 
 use std::path::Path;
 
-use prs::compat::host::{Host, MemHost};
+use prs::host::{Host, MemHost};
 
 const SPEC: &str = r#"
 type tTxn = (account: int, amount: int);

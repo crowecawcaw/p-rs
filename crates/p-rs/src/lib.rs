@@ -39,6 +39,12 @@ pub mod sema;
 pub mod checker;
 
 #[cfg(any(feature = "test", feature = "cli"))]
+pub mod host;
+
+#[cfg(any(feature = "test", feature = "cli"))]
+pub mod driver;
+
+#[cfg(any(feature = "test", feature = "cli"))]
 pub mod compat;
 
 #[cfg(feature = "cli")]
