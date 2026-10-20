@@ -6,7 +6,6 @@ const BLOB = `${REPO}/blob/main`;
 const P_DOCS = "https://p-org.github.io/P/";
 const l = links("./");
 
-
 const FEATURES = [
   {
     title: "One file, runs anywhere",
@@ -25,7 +24,7 @@ const FEATURES = [
   },
   {
     title: "Compatible with P",
-    text: "prs-compat is a drop-in replacement for the p command. prs passes upstream's 424 compiler tests, 249 checker suites and its tutorials.",
+    text: "prs-compat is a drop-in replacement for the p command. prs passes upstream's 424 compiler tests, 249 checker tests and its tutorials.",
     link: { label: "Coming from P", href: l.comingFromP },
   },
 ];
@@ -119,7 +118,7 @@ export function Home() {
           <pre className="terminal">
             <code>
               <span className="prompt">$ </span>pip install p-rs{"                       "}<span className="cmt"># Python</span>{"\n"}
-              <span className="prompt">$ </span>cargo add p-rs{"                         "}<span className="cmt"># Rust</span>{"\n"}
+              <span className="prompt">$ </span>cargo add --dev p-rs{"                   "}<span className="cmt"># Rust</span>{"\n"}
               <span className="prompt">$ </span>go get github.com/crowecawcaw/p-rs{"     "}<span className="cmt"># Go</span>
             </code>
           </pre>

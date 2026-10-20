@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Usage: push-bench-data.sh <append|write> <src-file> <dest-path> <commit message>
+# Usage: push-bench-data.sh append <src-file> <dest-path> <commit message>
 #
-# Adds benchmark data to the `benchmarks` branch (created on first use):
-#   append  adds <src-file>'s JSON, compacted to one line, to <dest-path> (JSON lines)
-#   write   copies <src-file> to <dest-path>
-# Retries on push races with other runs.
+# Appends <src-file>'s JSON, compacted to one line, to <dest-path> (JSON lines) on the
+# `benchmarks` branch (created on first use). Retries on push races with other runs.
 set -euo pipefail
 
-mode="$1"
+[ "$1" = append ] || { echo "unknown mode: $1" >&2; exit 2; }
 src="$(realpath "$2")"
 dest="$3"
 msg="$4"
@@ -34,11 +32,7 @@ for attempt in 1 2 3 4 5; do
   fi
 
   mkdir -p "$(dirname "$dest")"
-  case "$mode" in
-    append) python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1])), separators=(",", ":")))' "$src" >> "$dest" ;;
-    write) cp "$src" "$dest" ;;
-    *) echo "unknown mode: $mode" >&2; exit 2 ;;
-  esac
+  python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1])), separators=(",", ":")))' "$src" >> "$dest"
 
   git add -A
   git commit -qm "$msg"

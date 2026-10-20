@@ -40,7 +40,6 @@ pub enum Op {
     PushBool(bool),
     PushInt(i64),
     PushFloat(f64),
-    PushStr(Rc<str>),
     PushEvent(EventId),
     PushThis,
     LoadLocal(u32),

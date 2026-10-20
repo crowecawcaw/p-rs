@@ -53,7 +53,8 @@ type Config struct {
 	// release binary of this module's version, downloaded once into the user cache
 	// (os.UserCacheDir()/p-rs/<version>) and verified against the module's checksums.
 	// PRS_DOWNLOAD=0 turns the download off.
-	Binary  string
+	Binary string
+	// WorkDir is the folder relative Config paths resolve against.
 	WorkDir string
 	// Suite collects the check's coverage for Suite.WriteCoverage.
 	Suite *Suite
@@ -223,7 +224,7 @@ func resolveBinary(binary, dir string) string {
 }
 
 const installHelp = `install prs with
-  cargo install --git https://github.com/crowecawcaw/p-rs p-rs
+  cargo install p-rs
 or download a release binary from https://github.com/crowecawcaw/p-rs/releases,
 then put it on PATH or set PRS_BIN to its absolute path`
 

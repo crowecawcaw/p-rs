@@ -9,8 +9,7 @@ Every example checks one inventory service against one P spec,
 2. **The implementation.** The language examples check events from real application
    code during ordinary tests, against the same spec.
 
-The language examples need only the spec, not the model: you can check an
-implementation against a spec without writing a model first. Each one's
+The language examples need only the spec, not the model. Each one's
 `specs/inventory.p` is a symbolic link to the shared spec. On Windows, clone with
 `git clone -c core.symlinks=true` and Developer Mode on, or use WSL.
 
@@ -21,7 +20,7 @@ and [Go](go/README.md) show the same three setups:
 | Setup | Python | Rust | Java | Go |
 | --- | --- | --- | --- | --- |
 | Explicit check in selected tests | `check_spec` | `model().recording()` | `PrsObserver` | `prstest.New` |
-| Every test, via a fixture or plugin | pytest plugin | `with_inventory` | `PrsExtension` | `t.Cleanup` fixture |
+| Every test, via a fixture or plugin | pytest plugin | `with_inventory` | `PrsExtension` | `prstest.Start` fixture |
 | Generated operation sequences | Hypothesis | proptest | jqwik | native fuzzing |
 
 Each fixture stocks coffee=3 and tea=2.
@@ -55,16 +54,12 @@ Each fixture stocks coffee=3 and tea=2.
 
 ## Coverage
 
-Each language's automatic/checked fixture example reports monitor coverage as
-human-readable stdout and a JSON artifact uploaded by CI. These measure monitor
-states and event handlers, not application source lines. Coverage is the union of
-observed monitor identities across isolated tests and product keys; percentages are
-never summed. Observed transitions are listed without a denominator because P
-can choose goto targets dynamically. Declared but unreachable states/handlers may
-remain uncovered, so this is evidence of execution rather than a proof of safety.
-
-Suite reports are merged by core `prs coverage merge-observe`, which keeps
-coverage from failing checks and writes the same format in every language.
+Each language's every-test fixture reports monitor coverage (states and event handlers
+of the spec, not application lines) on stdout and as a JSON file that CI uploads. The
+suite report is the union across tests and keys, merged by
+`prs coverage merge-observe`, and includes coverage from failing checks. Unreached
+declarations may stay uncovered: coverage shows what ran, not that the code is safe.
+See [observed monitor coverage](../docs/observe.md#observed-monitor-coverage).
 
 ## Across processes
 

@@ -2,7 +2,7 @@
 
 Shared cases every language helper replays through its own L1/L2 API (see
 [docs/language-support.md](../../docs/language-support.md#conformance-corpus)). A helper
-conforms when every case it supports passes.
+conforms when every case passes with no skips.
 
 `crates/p-rs/tests/cli_conformance.rs` replays the same cases through `prs observe`
 directly (part of `cargo test --workspace`), so the corpus always agrees with the core.

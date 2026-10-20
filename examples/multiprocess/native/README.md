@@ -71,6 +71,8 @@ prs observe --pfiles specs/inventory.p --spec InventoryCorrect \
   --fail-fast --strict --coverage --record events.jsonl --json-report report.json
 ```
 
+`--strict` fails a completed stream in which no event was relevant to the spec.
+
 To integrate your own service, replace the launch command in `SubprocessBackend`
 and the commands/readiness adapter in the supervisor. Give each process its own
 event stream (a pipe, a named pipe from `mkfifo`, or stdin for a single one).
@@ -120,6 +122,3 @@ than exhaustive P model paths. See [the coverage format](../../../docs/observe.m
 The [native workflow](../../../.github/workflows/native-multiprocess.yml) builds
 this checkout's checker, executes both scenarios, and uploads reports even on a
 test failure. `MULTIPROCESS_ARTIFACTS` can set the test suite's artifact parent.
-
-The observer also uses `--strict`, so a completed stream containing no checked
-relevant events fails instead of silently passing.

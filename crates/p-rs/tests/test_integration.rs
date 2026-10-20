@@ -210,6 +210,21 @@ fn emitter_records_in_process() {
 }
 
 #[test]
+fn unrecordable_events_keep_the_folder_like_other_failures() {
+    let recording = model().recording();
+    let dir = recording.events_dir();
+    let mut bad = std::collections::HashMap::new();
+    bad.insert((1, 2), 3);
+    recording.emitter().emit("Stock", "coffee", bad);
+    let e = setup_error(recording.check());
+    assert_eq!(e.kind, ErrorKind::Parser);
+    let artifacts = e.artifacts.expect("a failed check keeps its folder");
+    assert_eq!(artifacts.join("events"), dir);
+    assert!(artifacts.join("recording.jsonl").is_file());
+    std::fs::remove_dir_all(artifacts).unwrap();
+}
+
+#[test]
 fn explicit_times_order_events() {
     let recording = model().specs(["Inventory"]).recording();
     recording.emit_at(20, "Pair", "coffee", json!(["o", 1])).unwrap();

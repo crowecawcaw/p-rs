@@ -22,7 +22,7 @@ use crate::checker::strategy::{
 #[derive(Debug, Clone)]
 pub struct CheckerOptions {
     pub strategy: StrategyKind,
-    /// Seed of the random value generator (`--seed`). Must be given: the core crate has no
+    /// Seed of the random value generator (`--seed`). Must be given: the checker has no
     /// source of entropy.
     pub seed: u32,
     /// Number of schedules to explore (`--schedules`); 0 = unbounded.

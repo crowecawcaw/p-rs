@@ -1,18 +1,14 @@
-# Time, timeouts and latency budgets in p-rs (design proposal, v5)
+# Time, timeouts and latency budgets in p-rs (design)
 
-Status: Phase 1 implemented in `prs::checker` (`crates/p-rs/src/checker/time.rs`, runtime hooks)
-and `prs check` (`--latency <file>[:<profile>]`, `--timed`); tests in
-`crates/p-rs/tests/checker_time.rs`.
+Status: Phase 1 is implemented in `prs::checker` (`crates/p-rs/src/checker/time.rs`) and
+`prs check` (`--latency <file>[:<profile>]`, `--timed`), tested in
+`crates/p-rs/tests/checker_time.rs`. Time in `prs observe` is documented in
+[docs/observe.md](../../docs/observe.md#time-and-latency-budgets). The worked example is
+[RetryBudget](RetryBudget/README.md).
 
-**No language change.** Models use plain P (foreign functions and ordinary
-machines). Everything new is in `prs::checker` and the CLI. The native syntax explored in
-v1/v2 (`examples/`) is kept as a possible later surface over the same semantics.
-
-v5 changes (review of v4): under `--timed`, overlapping candidates (and a
-default handler against an overlapping event) are a recorded nondeterministic
-choice instead of a fixed pick; passes are sound only under `--timed`; a replay
-without time lines ignores the time options; profile names are validated.
-Observing production traces is implemented by `prs observe` (see `docs/observe.md`).
+**No language change.** Models use plain P (foreign functions and ordinary machines).
+`examples/` sketches a possible later native syntax over the same semantics; those files
+do not parse with `prs`.
 
 ## Motivation and scope
 

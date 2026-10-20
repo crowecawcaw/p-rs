@@ -1,4 +1,4 @@
-//! Routes events from the global `crate::emit::emit` into in-process recordings.
+//! Routes events from the global [`prs::emit::emit`](crate::emit::emit) into in-process recordings.
 //!
 //! A recording binds the thread that creates it (the test's thread); [`EventSink::bind`]
 //! binds others. An emit on a bound thread goes to that thread's newest open recording.
@@ -71,7 +71,7 @@ impl Drop for BindGuard {
 }
 
 impl EventSink {
-    /// Sends the global `crate::emit::emit` calls made on this thread to this recording
+    /// Sends the global [`prs::emit::emit`](crate::emit::emit) calls made on this thread to this recording
     /// until the guard drops. The test's own thread is bound already; bind threads it
     /// spawns: `let sink = recording.sink(); spawn(move || { let _g = sink.bind(); ... })`.
     pub fn bind(&self) -> BindGuard {
@@ -103,7 +103,7 @@ fn route(event: Result<Event, String>) -> Option<Event> {
                         Err(message) => message.clone(),
                     };
                     let message = format!(
-                        "crate::emit::emit of {what} ran on a thread not bound to a recording while {} recordings \
+                        "prs::emit::emit of {what} ran on a thread not bound to a recording while {} recordings \
                          were open, so it could not be attributed. Bind the thread \
                          (`let _guard = recording.sink().bind();`) or pass `recording.sink()` / \
                          `recording.emitter()` to the code that emits.",

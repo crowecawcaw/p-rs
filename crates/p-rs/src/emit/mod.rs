@@ -6,8 +6,7 @@ use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender, TrySendError};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -292,17 +291,13 @@ impl Emitter {
     /// matches the P payload type (`json!({...})`, a struct, a scalar, or `()`).
     #[track_caller]
     pub fn emit(&self, event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
-        if let Some(inner) = &self.inner {
-            inner.emit(None, event, key, payload);
-        }
+        self.emit_inner(None, event, key, payload)
     }
 
     /// [`emit`](Self::emit) at a given time instead of the wall clock.
     #[track_caller]
     pub fn emit_at(&self, at: impl Into<Time>, event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
-        if let Some(inner) = &self.inner {
-            inner.emit(Some(at.into()), event, key, payload);
-        }
+        self.emit_inner(Some(at.into()), event, key, payload)
     }
 
     #[track_caller]
@@ -343,7 +338,6 @@ impl Emitter {
 impl Inner {
     #[track_caller]
     fn emit(&self, at: Option<Time>, event: &str, key: impl fmt::Display, payload: impl serde::Serialize) {
-        let caller = std::panic::Location::caller();
         let Ok(payload) = serde_json::to_value(payload) else {
             self.dropped.fetch_add(1, Ordering::Relaxed);
             return;
@@ -351,17 +345,7 @@ impl Inner {
         let key = key.to_string();
         let mut sink = self.sink.lock().unwrap_or_else(|e| e.into_inner());
         // Stamp under the sink's lock, so lines are written in time order.
-        let (time, seq) = stamp(at);
-        let event = Event {
-            event: event.to_string(),
-            key,
-            payload,
-            time,
-            at: at.is_some(),
-            src: Some(format!("{}:{}", caller.file(), caller.line())),
-            seq,
-            pid: std::process::id(),
-        };
+        let event = Event::new(at, event, key, payload);
         Inner::deliver(&mut sink, &self.dropped, event);
     }
 
@@ -441,7 +425,7 @@ struct Global {
 }
 
 static GLOBAL: OnceLock<Global> = OnceLock::new();
-/// Whether the global emitter is on, so that `emit` costs one atomic load when it is off.
+/// Whether the global emitter is on, so that `emit` takes no lock when it is off.
 static ON: AtomicBool = AtomicBool::new(false);
 
 fn global() -> &'static Global {
@@ -532,7 +516,6 @@ pub fn emit_at(at: impl Into<Time>, event: &str, key: impl fmt::Display, payload
 /// application code emits through the global [`emit`]. Not for application code.
 pub mod test_hook {
     use super::*;
-    use std::sync::atomic::AtomicBool;
 
     /// Receives each global event (`Err` names an event whose payload could not be
     /// serialized). Returns the event back when no recording takes it; it then goes where

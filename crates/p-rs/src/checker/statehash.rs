@@ -238,7 +238,6 @@ fn transition(t: &Transition, h: &mut StableHasher) {
             h.write_u8(2);
             s.hash(h);
         }
-        Transition::Halt => h.write_u8(3),
     }
 }
 

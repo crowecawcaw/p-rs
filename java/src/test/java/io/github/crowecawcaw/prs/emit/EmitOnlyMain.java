@@ -5,8 +5,7 @@ import java.util.Map;
 /** Production use for {@link EmitOnlyTest}: run with only the p-rs classes and the JDK on the classpath. */
 public final class EmitOnlyMain {
     public static void main(String[] args) throws Exception {
-        for (var absent : new String[] {"org.junit.jupiter.api.Test", "org.opentest4j.AssertionFailedError",
-                "com.fasterxml.jackson.databind.ObjectMapper"}) {
+        for (var absent : new String[] {"org.junit.jupiter.api.Test", "org.opentest4j.AssertionFailedError"}) {
             try {
                 Class.forName(absent);
                 throw new IllegalStateException(absent + " is on the classpath");

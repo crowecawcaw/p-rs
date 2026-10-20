@@ -172,6 +172,15 @@ def test_unknown_spec_is_a_clear_error():
     assert info.value.kind == "config"
 
 
+def test_spec_files_take_globs_and_folders():
+    folder = os.path.relpath(os.path.dirname(SPEC))
+    for spec_files in ([folder], [os.path.join(folder, "*.p")]):
+        check_events([{"event": "eEnter", "client": "c1"}], "MutualExclusion", spec_files=spec_files)
+    with pytest.raises(SetupError, match="matches no files") as info:
+        check_events([{"event": "eEnter", "client": "c1"}], spec_files=["nope/*.p"])
+    assert info.value.kind == "config"
+
+
 def test_no_events_skips_the_check():
     with check_spec(spec_files=["nope.p"]):
         pass

@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Compares `p check` of the upstream P tool and prs on the same project, test case,
+# Compares `p check` of the upstream P tool and prs-compat on the same project, test case,
 # schedule count and seed: console output (minus paths and timings) and the trace files.
-# prs runs one worker (`--workers 1`), the only way it explores the schedules upstream does.
 #
 #   UPSTREAM_P="dotnet /path/to/P/Bld/Drops/Release/Binaries/net8.0/p.dll" \
-#   PRS_BIN=target/release/prs \
+#   PRS_COMPAT=target/release/prs-compat \
 #   scripts/compare-upstream.sh path/to/project tcName 1000 42 [extra p check options]
 #
 # The project's parent directory is copied twice (projects may include siblings such as
@@ -12,15 +11,15 @@
 set -euo pipefail
 proj=$1; tc=$2; n=$3; seed=$4; shift 4
 UPSTREAM_P=${UPSTREAM_P:?set UPSTREAM_P to the upstream p command}
-PRS_BIN=$(realpath "${PRS_BIN:-target/release/prs}")
+PRS_COMPAT=$(realpath "${PRS_COMPAT:-target/release/prs-compat}")
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 proj=$(realpath "$proj"); name=$(basename "$proj")
 mkdir -p "$work/up" "$work/prs"
 cp -r "$(dirname "$proj")/." "$work/up/"; cp -r "$(dirname "$proj")/." "$work/prs/"
 
-# Source discovery is logged differently: upstream finds the compiled .dll, prs loads the
-# .pproj itself. Those lines are dropped before comparing.
+# Source discovery is logged differently: upstream finds the compiled .dll, prs-compat
+# loads the .pproj itself. Those lines are dropped before comparing.
 normalize() {
   sed -E -e '/^\.\. (Searching for a P compiled file|Found a P compiled file|Checking )/d' \
          -e '/^==== Loading project file|^\.+ includes (p|foreign) file|^-{40}$/d' \
@@ -30,7 +29,7 @@ normalize() {
 }
 
 (cd "$work/up/$name"; $UPSTREAM_P compile >compile.txt 2>&1; $UPSTREAM_P check -tc "$tc" -s "$n" --seed "$seed" "$@" >out.txt 2>&1 || true)
-(cd "$work/prs/$name"; "$PRS_BIN" check -tc "$tc" -s "$n" --seed "$seed" --workers 1 "$@" >out.txt 2>&1 || true)
+(cd "$work/prs/$name"; "$PRS_COMPAT" check -tc "$tc" -s "$n" --seed "$seed" "$@" >out.txt 2>&1 || true)
 work_up="$work/up/$name"; work_prs="$work/prs/$name"
 
 status=0

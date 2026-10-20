@@ -113,3 +113,5 @@ jobs:
         run: |
           npm ci
           npm run build
+      - name: Smoke-test the wasm module in Node
+        run: node crates/prs-wasm/js/smoke.mjs target/wasm32-unknown-unknown/wasm/prs_wasm.wasm

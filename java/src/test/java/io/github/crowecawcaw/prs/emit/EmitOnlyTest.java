@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** The emitter needs nothing but the JDK: JUnit, opentest4j and Jackson are test-helper dependencies only. */
+/** The emitter needs nothing but the JDK: JUnit and opentest4j are test-helper dependencies only. */
 class EmitOnlyTest {
     private static String location(Class<?> type) throws Exception {
         return Path.of(type.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();

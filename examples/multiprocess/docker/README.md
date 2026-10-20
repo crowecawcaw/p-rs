@@ -95,6 +95,8 @@ prs observe --pfiles examples/multiprocess/specs/inventory.p \
   --json-report report.json --outputDir observe
 ```
 
+`--strict` fails a completed stream in which no event was relevant to the spec.
+
 The native `prs` process exits 1 for a spec violation. The JSON report preserves
 PObserve's `exit_code: 2` for that same violation; it additionally reports
 `input_complete: false` and `stop_reason: "error"`. A healthy EOF reports 0,
@@ -153,6 +155,3 @@ coverage declarations and visited elements under `specs[0].coverage`, allowing C
 to inspect what ran and what did not. This measures the P monitor exercised by
 the actual history; it does not measure application code coverage or all possible
 P paths, schedules, or distributed failures.
-
-The observer also uses `--strict`, so a completed stream containing no checked
-relevant events fails instead of silently passing.

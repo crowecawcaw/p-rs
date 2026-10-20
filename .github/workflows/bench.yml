@@ -35,7 +35,7 @@ jobs:
     if: github.repository == 'crowecawcaw/p-rs'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # Full history for a backfill, so a short sha resolves.
           fetch-depth: ${{ inputs.sha && '0' || '1' }}
@@ -93,7 +93,7 @@ jobs:
           COMMIT: ${{ steps.src.outputs.commit }}
         run: ./.github/scripts/push-bench-data.sh append bench.json main.jsonl "Benchmark ${COMMIT::7}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: bench
           path: bench.json

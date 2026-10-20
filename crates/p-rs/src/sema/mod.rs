@@ -3,7 +3,7 @@
 //!
 //! The pass structure and every diagnostic message mirror the upstream P compiler
 //! (`Plang.Compiler.TypeChecker`) so that the same models produce the same errors.
-//! The crate performs no I/O; callers load sources into a [`SourceMap`].
+//! No I/O: callers load sources into a [`SourceMap`].
 
 pub(crate) mod analyzer;
 pub(crate) mod check;

@@ -43,4 +43,3 @@ exclude = ["**/__pycache__/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pytester_example_dir = "tests/examples"

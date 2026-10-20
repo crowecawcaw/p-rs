@@ -5,12 +5,12 @@
 //! with units, parallel workers and time tracking. Exit status: 0 when no bug is found,
 //! 1 when one is, 2 on any other error.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::checker::strategy::StrategyKind;
 use crate::checker::timeline::TimelineRepr;
 use crate::compat::check::{self, CheckConfig, Mode};
-use crate::compat::host::{full_path, Color, Host, HostExt, Stream, Threads};
+use crate::compat::host::{full_path, Buffered, Color, Host, HostExt, Stream};
 use crate::compat::Exit;
 
 const OK: i32 = 0;
@@ -585,7 +585,7 @@ fn tests(args: &[String], host: &mut dyn Host) -> i32 {
         Err(m) => return usage_error(host, &m, Some("tests")),
     }
     // progress messages are shown only if loading fails
-    let mut quiet = Buffered { inner: host, out: Vec::new() };
+    let mut quiet = Buffered::new(host);
     let loaded = check::resolve_sources(&mut quiet, &mut cfg).and_then(|_| check::load(&mut quiet, &cfg));
     let Buffered { out, .. } = quiet;
     match loaded {
@@ -688,60 +688,6 @@ fn merge_observe(args: &[String], host: &mut dyn Host) -> i32 {
             error(host, &e);
             ERROR
         }
-    }
-}
-
-/// A host that holds back console output (to show it only if needed).
-struct Buffered<'a> {
-    inner: &'a mut dyn Host,
-    out: Vec<(Stream, String, Option<Color>)>,
-}
-
-impl Host for Buffered<'_> {
-    fn write(&mut self, stream: Stream, text: &str, color: Option<Color>) {
-        self.out.push((stream, text.to_string(), color));
-    }
-    fn cwd(&self) -> PathBuf {
-        self.inner.cwd()
-    }
-    fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
-        self.inner.read_to_string(path)
-    }
-    fn write_file(&mut self, path: &Path, contents: &str) -> std::io::Result<()> {
-        self.inner.write_file(path, contents)
-    }
-    fn is_file(&self, path: &Path) -> bool {
-        self.inner.is_file(path)
-    }
-    fn is_dir(&self, path: &Path) -> bool {
-        self.inner.is_dir(path)
-    }
-    fn read_dir(&self, path: &Path) -> std::io::Result<Vec<PathBuf>> {
-        self.inner.read_dir(path)
-    }
-    fn create_dir_all(&mut self, path: &Path) -> std::io::Result<()> {
-        self.inner.create_dir_all(path)
-    }
-    fn remove_dir_all(&mut self, path: &Path) -> std::io::Result<()> {
-        self.inner.remove_dir_all(path)
-    }
-    fn rename(&mut self, from: &Path, to: &Path) -> std::io::Result<()> {
-        self.inner.rename(from, to)
-    }
-    fn now(&self) -> f64 {
-        self.inner.now()
-    }
-    fn max_memory_gb(&self) -> f64 {
-        self.inner.max_memory_gb()
-    }
-    fn random_seed(&mut self) -> u32 {
-        self.inner.random_seed()
-    }
-    fn unix_time(&self) -> f64 {
-        self.inner.unix_time()
-    }
-    fn threads(&self) -> Option<Threads> {
-        self.inner.threads()
     }
 }
 

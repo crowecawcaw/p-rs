@@ -5,8 +5,8 @@
 //! the upstream P checker (`PChecker`) closely enough that the same bugs are
 //! found and the same trace lines are produced.
 //!
-//! The crate is `no_std`-friendly in spirit: it uses no threads, no files and
-//! no process APIs, so it can be compiled to `wasm32`.
+//! No threads or process APIs, and no file access outside
+//! [`observe_inputs::StdFiles`], so it compiles to `wasm32`.
 
 pub mod bytecode;
 pub mod compile;
@@ -21,6 +21,7 @@ pub mod jsonlog;
 pub mod observe;
 pub mod observe_coverage;
 pub mod observe_inputs;
+pub mod observe_json;
 pub mod observe_report;
 pub mod random;
 pub mod rl;

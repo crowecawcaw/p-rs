@@ -15,7 +15,7 @@ or `-pf/--pfiles <files>`.
 
 ```sh
 prs observe --spec BankBalanceCorrect -l logs/                 # JSON lines
-prs observe --spec BankBalanceCorrect -l trace.json -i JSON    # a P JSON trace
+prs observe --spec BankBalanceCorrect -l trace.json -ik JSON   # a P JSON trace
 prs observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log --keys 7 9
 prs observe --spec BankBalanceCorrect -l a.log b.log -l "archive/**/*.log"
 ```
@@ -65,7 +65,8 @@ These options are not in PObserve; runs that do not use them behave as upstream.
 }
 ```
 
-`kind` is `spec_violation`, `out_of_order`, `parser` or `unknown`. `events` are the
+`kind` is `spec_violation`, `out_of_order`, `parser`, `validation` (`--strict`),
+`unknown_event` (`--unknown-events error`) or `unknown`. `events` are the
 key's last events (`--replaySize`), the failing one last; parser errors have none,
 their `message` is the log entry and `cause` says why it could not be read.
 
@@ -75,12 +76,12 @@ their `message` is the log entry and `cause` says why it could not be read.
 
 Parsers turn log entries into events. Two are built in:
 
-* `JsonLines` (default for `-i TEXT`): one JSON object per line,
+* `JsonLines` (default for `-ik TEXT`): one JSON object per line,
   `{"key": "7", "timestamp": 1700000000000, "event": "eWithDraw", "payload": {...}}`.
   The timestamp is epoch milliseconds or ISO-8601. Payloads are matched against the
   event's payload type. `-pc '{"key": "ctx.account", "event": "type"}'` remaps the
   fields (dotted paths).
-* `PTrace` (default for `-i JSON`): the `.trace.json` written by `prs check`, checking
+* `PTrace` (default for `-ik JSON`): the `.trace.json` written by `prs check`, checking
   its sends and announcements.
 
 ## Several logs and glob patterns
@@ -162,24 +163,23 @@ prs observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log \
   --coverage --json-report report.json
 ```
 
-This measures monitor executions over the selected log entries. It does **not**
-measure full P model paths, branches, schedules, or correctness of event emission.
-The denominator contains every state and every explicit do, goto, or ignore
-handler in the selected monitor, including unreachable and unvisited declarations.
-Deferred events are excluded because the Java monitor semantics do not generate
-handlers for them. The initial state counts only when a partition actually starts
-its monitor; an empty log has no state hits. A failing event's attempted handler
-and all states entered before failure are included.
+This measures monitor executions over the selected log entries, not P model paths,
+branches, schedules or whether the application emits the right events.
 
-The JSON object's `scope` is `observed_monitor`. Both `states` and `handlers`
-contain `total`, `covered`, `declared`, and `visited`. State identities are
-`Spec.State`; handler identities are objects with `state` and `event` strings.
-`transitions` is a list of actual `{source, target}` transitions, including jumps
-from action bodies. It has no denominator because such jumps can be dynamic.
-These arrays are sorted and deduplicated. Union the hit sets across test cases;
-do not sum their covered counts. Only combine reports from the same specification
-version. Coverage collection is opt-in; existing output and JSON are unchanged
-without `--coverage`.
+- The denominator is every state and every explicit do, goto or ignore handler in the
+  selected monitor, reachable or not. Deferred events are excluded (the Java monitor
+  semantics generate no handlers for them).
+- The initial state counts only when a partition starts its monitor, so an empty log
+  has no hits. A failing event's handler and the states entered before the failure
+  count.
+- The JSON object has `scope: "observed_monitor"`. `states` and `handlers` each hold
+  `total`, `covered`, `declared` and `visited`; states are `Spec.State`, handlers are
+  `{state, event}`. `transitions` lists the `{source, target}` transitions taken,
+  including jumps from action bodies, with no denominator. Arrays are sorted and
+  deduplicated.
+- Combine runs by taking the union of hit sets, never by summing counts, and only for
+  the same spec version ([merging](#combining-coverage-across-tests-and-processes)).
+  Without `--coverage`, output is unchanged.
 
 Rust callers can set `ObserveOptions.coverage = true` and read `Report.coverage`.
 `prs::checker::observe_coverage::ObserveCoverage` exposes the declaration and hit
@@ -241,7 +241,7 @@ encountered key until the run ends.
 At EOF, `--check-hot` checks monitors for unfinished hot states. Hot states do not
 fail a live, incomplete stream. An early failure reports only the consumed prefix;
 JSON includes `input_complete: false` and `stop_reason: "error"`. At EOF these are
-`true` and `"eof"`, including when an EOF liveness check fails. Coverage, when enabled,
+`true` and `"eof"`, including when the EOF `--check-hot` check fails. Coverage, when enabled,
 describes the checked prefix.
 
 Live mode requires `--fail-fast`, TEXT input, and a newline-delimited parser; it
@@ -263,54 +263,40 @@ spec its own session and feed all sessions before reading another line.
 lines by sequence number, and `observe_live` feeds a `LiveSource` of several streams
 to the sessions.
 
-### Combining coverage across tests and processes
+## Combining coverage across tests and processes
 
-Coverage collection and suite union belong to the core library. A report keeps declared
-and visited states, state/event handlers, and observed transitions. Merge takes their
-set union: repeated inputs do not inflate counts. Counts are derived from the sets.
-It does not run a P model or recheck events.
-
-Save each complete observation with `--coverage --json-report`, then combine reports:
+Save each observation with `--coverage --json-report`, then merge them (set union of
+declared and visited states, handlers and transitions; nothing is re-executed):
 
 ```sh
 prs coverage merge-observe reports/*.json --json-report suite-coverage.json
 ```
 
-The command prints a human-readable summary, including uncovered declarations. Use
-`--json` for structured stdout instead. `--json-report` writes structured data without
-mixing JSON into the human-readable stdout. The existing `prs coverage merge` command
-continues to merge scenario coverage and is separate from observed monitor coverage.
+It prints a human-readable summary with uncovered declarations; `--json` prints JSON
+instead, and `--json-report` writes JSON to a file. `prs coverage merge` is the
+separate command for scenario coverage from `prs check`.
 
-Test adapters can avoid an extra subprocess per test by collecting full observation
-reports in memory and passing their JSON array once at suite completion:
+Test helpers can skip the per-test subprocess by passing a JSON array of observation
+reports once at suite end:
 
 ```sh
 prs coverage merge-observe --stdin --json-report suite-coverage.json < observations.json
 ```
 
-An empty array produces an empty coverage aggregation. Each input must contain coverage;
-missing, malformed, unsupported-version, or internally inconsistent coverage is rejected.
-Merged reports can themselves be merged again. The core Rust API is
-`prs::checker::observe_report::ObserveCoverageReport`: use `from_observation` for an
-in-process `Report`, `from_json` / `from_json_str` for stored reports, `merge` for an
-atomic validated union, and `render_text` / `to_json` to report the result.
-
-The versioned suite format has `scope: "observed_monitor_suite"`, `schema_version: 1`,
-a `specs` array containing each specification's union, and an `observations` array
-retaining distinct source report metadata (exit status, errors, and input completion
-when supplied). A successful merge means only that aggregation succeeded. Failed and
-partial observations still contribute useful coverage; their failure and completion
-metadata remains visible. File observations from older tools may have unknown completion.
-Identical metadata entries are deduplicated, so the observation count is not a test count.
-
-Each specification's coverage carries a SHA-256 fingerprint of all compilation source
-contents, sorted with explicit file-count and length delimiters. Source paths do not
-participate: reports from different checkout directories can merge. Changes to formatting
-or unrelated compilation sources deliberately change the conservative fingerprint.
-Reports for the same specification must have the same fingerprint and identical
-declarations; otherwise the merge fails before changing the result. Regenerate legacy
-reports with `observe --coverage` to obtain current version and fingerprint fields.
-
+- An empty array gives empty coverage. Inputs without valid coverage (missing,
+  malformed, unsupported version or inconsistent) are rejected. Merged reports can be
+  merged again.
+- Output has `scope: "observed_monitor_suite"`, `schema_version: 1`, a `specs` array
+  (each spec's union) and an `observations` array of distinct source metadata (exit
+  status, errors, input completion when known). Failed and partial observations still
+  contribute coverage. Identical metadata is deduplicated, so this is not a test count.
+- Each spec's coverage carries a SHA-256 fingerprint of its compilation sources'
+  contents (not paths, so different checkouts merge). Reports for one spec must have
+  the same fingerprint and declarations, or the merge fails without changing the
+  output. Regenerate older reports with `observe --coverage`.
+- Rust: `prs::checker::observe_report::ObserveCoverageReport` with `from_observation`
+  (an in-process `Report`), `from_json` / `from_json_str`, `merge` (validated, atomic),
+  `render_text` and `to_json`.
 
 ## Strict observation
 

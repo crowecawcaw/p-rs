@@ -29,7 +29,7 @@ Where `emit` sends events:
 | A test with a `prs::test` recording | that recording (`prs::emit::test_hook`) |
 | Started by a test (`PRS_EVENTS_DIR` set) | its own `<name>-<pid>-<random>.jsonl` in that folder |
 | After `prs::emit::set_sink(...)` | the sink: JSON lines `prs observe` reads |
-| Otherwise | nowhere: one atomic load |
+| Otherwise | nowhere: a few atomic loads, no lock |
 
 ```rust,no_run
 use prs::emit::Emitter;
@@ -58,7 +58,7 @@ sinks write from a background thread.
 
 Emitting never panics, returns an error, or blocks on I/O. Production writers queue up
 to 16,384 lines and drop events when the queue is full or a write fails;
-`prs::emit::dropped()` (or `Emitter::dropped()`) counts them. When off, `emit` costs one atomic load, but the
+`prs::emit::dropped()` (or `Emitter::dropped()`) counts them. When off, `emit` costs a few atomic loads, but the
 payload is still built: guard costly payloads with `is_on()`. The events folder writer
 appends each line synchronously, so a child's events are on disk when it exits.
 

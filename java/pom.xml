@@ -10,7 +10,7 @@
   <name>p-rs</name>
   <description>Check the events your Java code emits against P specs: a JDK-only emitter for application
     code, and test helpers (any framework, plus JUnit 5) that run the prs checker. The checker binary
-    comes in the classifier jars natives-{linux,macos,windows}-{x86_64,aarch64}.</description>
+    comes in the classifier jars natives-{linux,macos}-{x86_64,aarch64} and natives-windows-x86_64.</description>
   <url>https://github.com/crowecawcaw/p-rs</url>
   <licenses>
     <license>
@@ -117,13 +117,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.4.2</version>
-        <configuration>
-          <archive>
-            <manifest>
-              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-            </manifest>
-          </archive>
-        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

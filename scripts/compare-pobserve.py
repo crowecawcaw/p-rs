@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compares `p observe` with upstream PObserve on upstream's PObserve regression logs.
+"""Compares `prs-compat observe` with upstream PObserve on upstream's PObserve regression logs.
 
     UPSTREAM_POBSERVE="java -cp PObserveCommons-1.0.0.jar:PObserve-1.0.0.jar pobserve.PObserve" \
     UPSTREAM_JARS=regression.jar \
@@ -7,7 +7,7 @@
     scripts/compare-pobserve.py <P checkout>/Src/PObserve/PObserveRegressionTesting/src [filter]
 
 UPSTREAM_JARS is a jar built from the regression project (its generated spec classes plus
-the TestCase parsers). PRS_OBSERVE_BIN is `p observe` with the Rust ports of those parsers
+the TestCase parsers). PRS_OBSERVE_BIN is `prs-compat observe` with the Rust ports of those parsers
 (`cargo build --release -p p-rs --example observe_regression`).
 
 Every log file and log directory of the happy and error suites runs through both tools,

@@ -1,11 +1,9 @@
 # Using p-rs from Rust
 
-The checker is part of the [`p-rs` crate](../crates/p-rs/README.md) (library name `prs`),
-enabled by its default features: `prs::syntax`, `prs::sema`, `prs::checker` and
-`prs::compat`. Until a release has it, depend on it by git.
-
-For runnable application integration, see the [Rust inventory examples](../examples/rust/README.md):
-explicit checks, a shared test fixture, and generated operation sequences with proptest.
+The checker is part of the [`p-rs` crate](../crates/p-rs/README.md) (library name `prs`;
+`p-rs = "0.1"` with default features): `prs::syntax`, `prs::sema`, `prs::checker` and
+`prs::compat`. To check application events from Rust tests, use `prs::test` instead; see
+the [Rust examples](../examples/rust/README.md).
 
 ```rust
 let mut sm = prs::syntax::SourceMap::new();

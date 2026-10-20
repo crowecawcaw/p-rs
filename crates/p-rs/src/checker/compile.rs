@@ -113,7 +113,6 @@ fn unread_params(code: &CodeBlock) -> Vec<bool> {
             | Op::PushBool(_)
             | Op::PushInt(_)
             | Op::PushFloat(_)
-            | Op::PushStr(_)
             | Op::PushEvent(_)
             | Op::PushThis
             | Op::LoadField(_)

@@ -55,7 +55,7 @@ class Event:
             "key": self.key,
             "timestamp": iso_timestamp(self.time_ns),
             "event": self.event,
-            "payload": self.payload,
+            "payload": _plain(self.payload),
             "src": self.src,
             "seq": self.seq,
             "pid": self.pid,
@@ -354,15 +354,23 @@ def _key_str(key: Any) -> str:
     return key if isinstance(key, str) else str(key)
 
 
+def _plain(v: Any) -> Any:
+    """`v` with enums as their names and sets and tuples as lists. Done before encoding
+    because `json` writes `str` and `int` enums by value without asking `default`."""
+    if isinstance(v, enum.Enum):
+        return v.name
+    if isinstance(v, dict):
+        return {(k.name if isinstance(k, enum.Enum) else k): _plain(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple, set, frozenset)):
+        return [_plain(x) for x in v]
+    return v
+
+
 def _json_default(o: Any) -> Any:
-    if isinstance(o, enum.Enum):
-        return o.name
-    if isinstance(o, (set, frozenset, tuple)):
-        return list(o)
     if isinstance(o, (datetime, date)):
         return o.isoformat()
     if hasattr(o, "__dataclass_fields__"):
-        return {k: getattr(o, k) for k in o.__dataclass_fields__}
+        return _plain({k: getattr(o, k) for k in o.__dataclass_fields__})
     return str(o)
 
 

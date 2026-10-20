@@ -179,14 +179,14 @@ state Ready {
         <p>Your code emits the events after each change succeeds, and your ordinary tests check them:</p>
         <Code lang="python" title="Python">{`
 def reserve(self, sku, order, units):
-  ...
-  emit("eReserved", key=sku, order=order, units=units)
+    ...
+    emit("eReserved", key=sku, order=order, units=units)
 
 def test_release_makes_stock_available_again(inventory_factory):
-  with check_spec("InventoryCorrect"):
-      inventory = inventory_factory()
-      inventory.reserve("coffee", "order-1", 3)
-      inventory.release("coffee", "order-1")
+    with check_spec("InventoryCorrect"):
+        inventory = inventory_factory()
+        inventory.reserve("coffee", "order-1", 3)
+        inventory.release("coffee", "order-1")
 `}</Code>
         <p>
           There are helpers for <a href={`${BLOB}/examples/python/README.md`}>Python</a>,{" "}

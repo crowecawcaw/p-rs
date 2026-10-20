@@ -1,10 +1,8 @@
 package io.github.crowecawcaw.prs.emit;
 
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /**
  * Records that a P event happened, for P specs to check. Call it at the commit boundary of
