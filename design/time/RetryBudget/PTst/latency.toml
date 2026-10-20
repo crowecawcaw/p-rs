@@ -1,4 +1,4 @@
-# Delivery latencies (`prs check --latency PTst/latency.toml`).
+# Delivery latencies (`snappea check --latency PTst/latency.toml`).
 # Ranges are "lo..hi" in us/ms/s.
 
 [profile.same-az]

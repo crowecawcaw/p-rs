@@ -8,7 +8,7 @@
   scripts/release.py dev                    between releases: Go "dev" with no
                                             checksums, Java <next patch>-SNAPSHOT
   scripts/release.py package TARGET VERSION BINARY OUT
-                                            archive BINARY as OUT/prs-vVERSION-TARGET
+                                            archive BINARY as OUT/snappea-vVERSION-TARGET
                                             (.tar.gz, or .zip for Windows)
   scripts/release.py sums DIR VERSION       write DIR/SHA256SUMS for the five archives
   scripts/release.py verify DIR [SUMS]      check DIR's archives against SUMS
@@ -35,10 +35,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 CARGO = ROOT / "Cargo.toml"
 POM = ROOT / "java" / "pom.xml"
 EXAMPLE_POM = ROOT / "examples" / "java" / "pom.xml"
-GO_VERSION = ROOT / "go" / "internal" / "prsbin" / "version.go"
-GO_SUMS = ROOT / "go" / "internal" / "prsbin" / "SHA256SUMS"
+GO_VERSION = ROOT / "go" / "internal" / "snappeabin" / "version.go"
+GO_SUMS = ROOT / "go" / "internal" / "snappeabin" / "SHA256SUMS"
 
-# Release target -> Java natives classifier. Go's prsbin.targets lists the same five.
+# Release target -> Java natives classifier. Go's snappeabin.targets lists the same five.
 TARGETS = {
     "x86_64-unknown-linux-gnu": "natives-linux-x86_64",
     "aarch64-unknown-linux-gnu": "natives-linux-aarch64",
@@ -49,8 +49,8 @@ TARGETS = {
 
 VERSION = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 CARGO_VERSION = re.compile(r'^version = "([^"]*)"$', re.M)  # first one: [workspace.package]
-POM_VERSION = re.compile(r"(<artifactId>p-rs</artifactId>\s*<version>)([^<]*)(</version>)")
-EXAMPLE_VERSION = re.compile(r"(<prs\.version>)([^<]*)(</prs\.version>)")
+POM_VERSION = re.compile(r"(<artifactId>snappea</artifactId>\s*<version>)([^<]*)(</version>)")
+EXAMPLE_VERSION = re.compile(r"(<snappea\.version>)([^<]*)(</snappea\.version>)")
 GO_CONST = re.compile(r'^(const Version = ")([^"]*)(")$', re.M)
 
 
@@ -84,11 +84,11 @@ def replace(path, pattern, value):
 
 def asset(target, version):
     ext = ".zip" if "windows" in target else ".tar.gz"
-    return f"prs-v{version}-{target}{ext}"
+    return f"snappea-v{version}-{target}{ext}"
 
 
 def exe(target):
-    return "prs.exe" if "windows" in target else "prs"
+    return "snappea.exe" if "windows" in target else "snappea"
 
 
 def cmd_next(level):
@@ -135,7 +135,7 @@ def cmd_package(target, version, binary, out):
     out = pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
     name = asset(target, version)
-    folder = f"prs-v{version}-{target}"
+    folder = f"snappea-v{version}-{target}"
     files = [(exe(target), data, 0o755)]
     for extra in ("LICENSE-MIT", "LICENSE-APACHE"):
         files.append((extra, (ROOT / extra).read_bytes(), 0o644))

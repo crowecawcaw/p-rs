@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
-// Runs the WebAssembly build of the `prs` tool. Each request starts from the user's
+// Runs the WebAssembly build of the `snappea` tool. Each request starts from the user's
 // files in a fresh in-memory file system rooted at /work.
-import { loadP, type PTool, type PResult } from "../../crates/prs-wasm/js/prs.mjs";
-import wasmUrl from "./generated/prs.wasm?url";
+import { loadP, type PTool, type PResult } from "../../crates/snappea-wasm/js/snappea.mjs";
+import wasmUrl from "./generated/snappea.wasm?url";
 import type { CheckResult, CompileResult, Diagnostic, Files, Request, WorkerReply } from "./protocol";
 
 const ROOT = "/work";
@@ -82,7 +82,7 @@ async function handle(req: Request): Promise<CompileResult | CheckResult> {
   const r = (await p()).run(args, toFs(req.files), { seed: req.seed });
   const dir = `${ROOT}/PCheckerOutput/${req.testCase}/`;
   const file = (name: string): string | undefined => r.files[dir + name];
-  const console = `$ prs ${shown.join(" ")}\n` + (r.stdout + r.stderr).trimEnd();
+  const console = `$ snappea ${shown.join(" ")}\n` + (r.stdout + r.stderr).trimEnd();
   return {
     kind: "check",
     ok: true,

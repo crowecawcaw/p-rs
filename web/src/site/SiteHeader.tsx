@@ -1,5 +1,5 @@
 // Header shared by the landing page and the docs. The playground has its own.
-export const REPO = "https://github.com/crowecawcaw/p-rs";
+export const REPO = "https://github.com/crowecawcaw/snappea";
 
 export type Section = "home" | "docs" | "playground";
 
@@ -15,8 +15,8 @@ export function SiteHeader({ root, current }: { root: string; current: Section }
   const l = links(root);
   return (
     <header className="top site-top">
-      <a className="brand" href={l.home} aria-label="p-rs home">
-        <span className="logo">p-rs</span>
+      <a className="brand" href={l.home} aria-label="Snap Pea home">
+        <span className="logo">Snap Pea</span>
       </a>
       <nav className="site-nav">
         <a href={l.overview} aria-current={current === "docs" ? "page" : undefined}>Docs</a>

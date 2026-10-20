@@ -1,4 +1,4 @@
-# The Python package (python/): tests on PRs and main; wheels with the prs binary for
+# The Python package (python/): tests on PRs and main; wheels with the snappea binary for
 # five platforms; publishing to PyPI when release.yml calls this workflow.
 
 name: Python
@@ -99,7 +99,7 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
         run: |
-          # wheels take their version from crates/p-rs, i.e. the workspace version
+          # wheels take their version from crates/snappea, i.e. the workspace version
           grep -qx "version = \"${TAG#v}\"" Cargo.toml || { echo "::error::Cargo.toml's version is not ${TAG#v}" >&2; exit 1; }
       - uses: PyO3/maturin-action@v1
         with:

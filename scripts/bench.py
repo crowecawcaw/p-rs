@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Benchmarks `p check` on the tutorial projects.
 
-  scripts/bench.py run --cmd target/release/prs-compat --out result.json [--instructions]
+  scripts/bench.py run --cmd target/release/snappea-compat --out result.json [--instructions]
   scripts/bench.py run --cmd "p" --tool upstream --out upstream.json
   scripts/bench.py report --current result.json [--history main.jsonl]
-  scripts/bench.py compare prs.json upstream.json
+  scripts/bench.py compare snappea.json upstream.json
 
 `run` copies each project to a temp folder and runs `check` with a fixed test,
-schedule count and seed. `prs-compat` runs one worker and explores the schedules
-upstream does; `--cmd target/release/prs --workers N` measures N workers. prs has
+schedule count and seed. `snappea-compat` runs one worker and explores the schedules
+upstream does; `--cmd target/release/snappea --workers N` measures N workers. snappea has
 no compile step (`check` type-checks the sources itself); upstream P compiles
 each project once first, and that compile time is recorded separately. The seed fixes which
 schedules are explored, so between commits only the speed changes. For each
@@ -22,7 +22,7 @@ kept to tell a real change from runner noise; wall-clock time is what reports
 show.
 
 `report` prints a markdown table comparing a result with the previous entry in a
-history file (one JSON result per line). `compare` prints prs vs upstream, led by
+history file (one JSON result per line). `compare` prints snappea vs upstream, led by
 a one-line summary for Raft (HEADLINE), the slowest model per schedule, as quoted
 in the README.
 """
@@ -87,11 +87,11 @@ def cpu_model():
 
 def parse_check(out):
     """(schedules explored, bugs found) from a check's console output."""
-    # prs: `ok    TEST (N schedules, ...)` or `FAIL  TEST (bug found after N schedules, ...)`
+    # snappea: `ok    TEST (N schedules, ...)` or `FAIL  TEST (bug found after N schedules, ...)`
     m = re.search(r"^(ok|FAIL)\s+\S+ \((?:bug found after )?(?:all )?(\d+) schedules?\b", out, re.M)
     if m:
         return int(m.group(2)), int(m.group(1) == "FAIL")
-    # prs-compat and upstream P: `..... Explored N schedules` and `Found N bugs.`
+    # snappea-compat and upstream P: `..... Explored N schedules` and `Found N bugs.`
     m = re.search(r"Explored (\d+) schedules?", out)
     b = re.search(r"Found (\d+) bugs?", out)
     return (int(m.group(1)) if m else None, int(b.group(1)) if b else None)
@@ -107,16 +107,20 @@ def instructions(cmd, args, cwd):
     return int(m.group(1).replace(",", ""))
 
 
+# Old commits named the compat binary prs-compat; the benchmark builds them too.
+COMPAT_NAMES = ("snappea-compat", "prs-compat")
+
+
 def check_args(opts, cmd, test, n):
     """The `check` arguments for the command benchmarked."""
     upstream_style = ["check", "-tc", test, "-s", str(n), "--seed", str(SEED)]
-    if opts.tool == "upstream" or Path(cmd[0]).name == "prs-compat":
+    if opts.tool == "upstream" or Path(cmd[0]).name in COMPAT_NAMES:
         if opts.workers != 1:
-            sys.exit("--workers needs the prs binary; prs-compat and upstream P run one worker")
+            sys.exit("--workers needs the snappea binary; snappea-compat and upstream P run one worker")
         return upstream_style
-    if (Path(cmd[0]).parent / "prs-compat").exists():
+    if any((Path(cmd[0]).parent / name).exists() for name in COMPAT_NAMES):
         return ["check", test, "-n", str(n), "--seed", str(SEED), "-j", str(opts.workers)]
-    # a prs binary from before prs-compat existed: upstream's options and --workers
+    # a snappea binary from before snappea-compat existed: upstream's options and --workers
     return upstream_style + ["--workers", str(opts.workers)]
 
 
@@ -268,26 +272,26 @@ def report(opts):
 
 
 def compare(opts):
-    prs = json.loads(Path(opts.prs).read_text())
+    snappea = json.loads(Path(opts.snappea).read_text())
     up = json.loads(Path(opts.upstream).read_text())
     upr = {r["name"]: r for r in up["results"]}
-    out = [f"### prs {prs['version'] or prs['commit'][:7]} vs upstream P {up['version']}", ""]
-    hp = next((r for r in prs["results"] if r["project"] == HEADLINE), None)
+    out = [f"### snappea {snappea['version'] or snappea['commit'][:7]} vs upstream P {up['version']}", ""]
+    hp = next((r for r in snappea["results"] if r["project"] == HEADLINE), None)
     hu = upr.get(hp["name"]) if hp else None
     if hp and hu and "warm_schedules_per_s" in hp and "warm_schedules_per_s" in hu:
         up_total = hu["compile_s"] + hu["check_s"]
-        out += [f"Checking the Raft tutorial ({hp['schedules']} schedules) takes {hp['check_s']:.1f} s with prs "
+        out += [f"Checking the Raft tutorial ({hp['schedules']} schedules) takes {hp['check_s']:.1f} s with snappea "
                 f"and {up_total:.0f} s with P {up['version']} ({up_total / hp['check_s']:.0f}× longer, "
-                f"including {hu['compile_s']:.0f} s to compile); once warmed up, prs checks "
+                f"including {hu['compile_s']:.0f} s to compile); once warmed up, snappea checks "
                 f"{hp['warm_schedules_per_s']:,.0f} schedules per second and P {hu['warm_schedules_per_s']:,.1f}.", ""]
-    out += [f"Same runner, same tests, schedule counts and seed. Wall clock, median of {prs['runs']} runs. "
-            "Speedup = upstream time / prs time. prs type-checks inside `check`; "
+    out += [f"Same runner, same tests, schedule counts and seed. Wall clock, median of {snappea['runs']} runs. "
+            "Speedup = upstream time / snappea time. snappea type-checks inside `check`; "
             "P compiles first (P compile). Warm = schedules per second after a one-schedule check's time.", "",
-            "| workload | schedules | prs time | P time | speedup | prs sched/s | P sched/s | prs warm | P warm | P compile |",
+            "| workload | schedules | snappea time | P time | speedup | snappea sched/s | P sched/s | snappea warm | P warm | P compile |",
             "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
-    rows = [(r, upr.get(r["name"])) for r in prs["results"]]
-    rows.append(({"name": "**total**", **prs["total"]}, up["total"]))
-    same = [r["name"] for r in prs["results"]] == [r["name"] for r in up["results"]]
+    rows = [(r, upr.get(r["name"])) for r in snappea["results"]]
+    rows.append(({"name": "**total**", **snappea["total"]}, up["total"]))
+    same = [r["name"] for r in snappea["results"]] == [r["name"] for r in up["results"]]
     for p, u in rows:
         if not u or (p["name"] == "**total**" and not same):
             continue
@@ -295,7 +299,7 @@ def compare(opts):
         out.append("| {} | {} | {:.3f} s | {:.3f} s | {:.1f}× | {:,.0f} | {:,.0f} | {} | {} | {:.2f} s |".format(
             p["name"], p["schedules"], p["check_s"], u["check_s"], u["check_s"] / p["check_s"],
             p["schedules_per_s"], u["schedules_per_s"], warm(p), warm(u), u["compile_s"]))
-    out += ["", f"Runner: {prs['runner']['cpu']}."]
+    out += ["", f"Runner: {snappea['runner']['cpu']}."]
     print("\n".join(out))
 
 
@@ -303,14 +307,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd_name", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--cmd", default="target/release/prs-compat", help="the p command to benchmark")
-    r.add_argument("--tool", default="prs", help="label stored in the result: prs or upstream")
+    r.add_argument("--cmd", default="target/release/snappea-compat", help="the p command to benchmark")
+    r.add_argument("--tool", default="snappea", help="label stored in the result: snappea or upstream")
     r.add_argument("--version", default="", help="version label stored in the result")
     r.add_argument("--commit", default="HEAD", help="commit the binary was built from (default HEAD)")
     r.add_argument("--out", required=True)
     r.add_argument("--runs", type=int, default=5)
     r.add_argument("--workers", type=int, default=1,
-                   help="workers, with the prs binary (default 1: the schedules upstream explores, comparable with history)")
+                   help="workers, with the snappea binary (default 1: the schedules upstream explores, comparable with history)")
     r.add_argument("--instructions", action="store_true", help="also count instructions with cachegrind")
     r.add_argument("--only", nargs="*", help="run only workloads whose project name contains one of these")
     r.set_defaults(fn=run)
@@ -319,7 +323,7 @@ def main():
     p.add_argument("--history")
     p.set_defaults(fn=report)
     c = sub.add_parser("compare")
-    c.add_argument("prs")
+    c.add_argument("snappea")
     c.add_argument("upstream")
     c.set_defaults(fn=compare)
     opts = ap.parse_args()

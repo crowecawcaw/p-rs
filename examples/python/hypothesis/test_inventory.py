@@ -5,7 +5,7 @@ from hypothesis import settings, strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, precondition, rule
 
 from inventory_app import Inventory
-from prs import Recorder
+from snappea import Recorder
 
 
 class InventoryHistories(RuleBasedStateMachine):

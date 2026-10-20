@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent
 
 class InventoryContainers(unittest.TestCase):
     def test_healthy_and_overselling_workers(self):
-        root = Path(os.environ.get("EXAMPLE_ARTIFACTS") or tempfile.mkdtemp(prefix="prs-docker-"))
+        root = Path(os.environ.get("EXAMPLE_ARTIFACTS") or tempfile.mkdtemp(prefix="snappea-docker-"))
         for scenario, expected_exit in (("healthy", 0), ("oversell", 1)):
             with self.subTest(scenario=scenario):
                 artifacts = root / scenario

@@ -4,7 +4,7 @@
  * Shows: the coordinator's latency is the time of the 2nd reply it *handles*.
  * In the base (untimed) mode the scheduler may hand it the slow replica's
  * reply first, so the bound is pessimistic: worst = the two slowest replicas.
- * Under `prs check --timed`, a reply whose interval is entirely after another
+ * Under `snappea check --timed`, a reply whose interval is entirely after another
  * pending reply's cannot be dequeued first, so the bound tightens to the 2nd
  * fastest replica when the intervals separate.
  *
@@ -99,5 +99,5 @@ machine Main {
 }
 
 test tcQuorumRead [main=Main]: assert ReadSLA in { Main, Client, Coordinator, Replica };
-// prs check tcQuorumRead          -> bug (pessimistic: may wait on replica 2)
-// prs check tcQuorumRead --timed  -> no bug
+// snappea check tcQuorumRead          -> bug (pessimistic: may wait on replica 2)
+// snappea check tcQuorumRead --timed  -> no bug

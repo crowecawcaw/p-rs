@@ -1,8 +1,8 @@
 # Rust: inventory reservations
 
 Three Cargo integration-test targets check one [inventory service](src/lib.rs)
-against the [P spec](specs/inventory.p) with [`prs::test`](../../crates/p-rs/src/test/README.md),
-which checks in process: no `prs` binary is needed. See the
+against the [P spec](specs/inventory.p) with [`snappea::test`](../../crates/snappea/src/test/README.md),
+which checks in process: no `snappea` binary is needed. See the
 [shared overview](../README.md#how-the-checks-work) for what the checks do and why.
 
 ## Run
@@ -23,7 +23,7 @@ three targets.
 `Inventory` takes a typed `FnMut(Event)` sink, so the application has no P
 dependency. [tests/support/mod.rs](tests/support/mod.rs) maps those events to JSON
 with the SKU as key, loads the spec once with `Model::load()` (from
-`[package.metadata.prs]` in [Cargo.toml](Cargo.toml)), and provides the fixture.
+`[package.metadata.snappea]` in [Cargo.toml](Cargo.toml)), and provides the fixture.
 
 ## 1. Explicit checks for selected tests
 
@@ -32,7 +32,7 @@ inventory on its sink, seeds stock, runs operations, and unwraps `recorder.check
 It also asserts that rejected requests emit nothing, and has the negative control:
 `recorder.expect_violation("InventoryCorrect", "exceeds available stock")` returns the
 structured violation (`key`, `events`, ...) for further assertions. The last test
-shows that code emitting through the global `prs::emit::emit` is checked too: the
+shows that code emitting through the global `snappea::emit::emit` is checked too: the
 recording binds the test's thread.
 
 **Gotcha:** join worker threads and finish cleanup before `check`, which consumes
@@ -48,11 +48,11 @@ seeds fresh stock, runs the body, then checks and panics with the failure output
 fixture; put it in your project's existing fixture factory. Don't use a global
 recorder: Cargo runs tests in parallel. A panicking body stays failed without a
 second check during unwinding, so do monitor-relevant cleanup inside the closure.
-`PRS_MODE=off` runs the bodies without checking.
+`SNAPPEA_MODE=off` runs the bodies without checking.
 
 The fixture's model has `.coverage("target/coverage/monitor.json")`, so each check
 merges its [coverage](../README.md#coverage) into that file under a lock and prints
-the summary when it changes (`cargo test -- --nocapture` shows it). `PRS_COVERAGE` does the same
+the summary when it changes (`cargo test -- --nocapture` shows it). `SNAPPEA_COVERAGE` does the same
 without code.
 
 ## 3. Generated sequences with proptest
@@ -71,10 +71,10 @@ when fixing a bug so later runs replay it.
 
 ## Adapt to your project
 
-Depend on the `p-rs` crate: `p-rs = "0.1"` under `[dev-dependencies]`. Add
-`[package.metadata.prs]` to your `Cargo.toml`, and map your existing domain events or outbox in a `record` function like the one in
+Depend on the `snappea` crate: `snappea = "0.1"` under `[dev-dependencies]`. Add
+`[package.metadata.snappea]` to your `Cargo.toml`, and map your existing domain events or outbox in a `record` function like the one in
 [tests/support/mod.rs](tests/support/mod.rs). Or instrument with
-[`prs::emit`](../../crates/p-rs/src/emit/README.md), which feeds test recordings
-(`recording.emitter()`), child processes (`PRS_EVENTS_DIR`) and production logs for
-`prs observe` from the same calls. `emit_at` takes explicit times for deterministic
+[`snappea::emit`](../../crates/snappea/src/emit/README.md), which feeds test recordings
+(`recording.emitter()`), child processes (`SNAPPEA_EVENTS_DIR`) and production logs for
+`snappea observe` from the same calls. `emit_at` takes explicit times for deterministic
 tests.

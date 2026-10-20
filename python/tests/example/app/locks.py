@@ -2,7 +2,7 @@
 
 from collections import deque
 
-from prs import emit
+from snappea import emit
 
 
 class LockServer:

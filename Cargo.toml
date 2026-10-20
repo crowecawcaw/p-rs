@@ -1,19 +1,19 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/p-rs",
-    "crates/prs-wasm",
+    "crates/snappea",
+    "crates/snappea-wasm",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/crowecawcaw/p-rs"
+repository = "https://github.com/crowecawcaw/snappea"
 rust-version = "1.87"
 
 [workspace.dependencies]
-p-rs = { path = "crates/p-rs", default-features = false }
+snappea = { path = "crates/snappea", default-features = false }
 indexmap = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -24,7 +24,7 @@ rustc-hash = "2"
 debug = 1
 
 # Size-optimized build for the WebAssembly module:
-#   cargo build --profile wasm --target wasm32-unknown-unknown -p prs-wasm
+#   cargo build --profile wasm --target wasm32-unknown-unknown -p snappea-wasm
 [profile.wasm]
 inherits = "release"
 debug = false

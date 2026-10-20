@@ -1,16 +1,16 @@
 package example;
 
-import io.github.crowecawcaw.prs.PrsObserver;
-import io.github.crowecawcaw.prs.Recording;
-import io.github.crowecawcaw.prs.emit.PrsEmit;
+import io.github.crowecawcaw.snappea.SnappeaObserver;
+import io.github.crowecawcaw.snappea.Recording;
+import io.github.crowecawcaw.snappea.emit.SnappeaEmit;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExplicitInventoryTest {
-    // Spec files and names come from prs.properties.
-    private static final PrsObserver OBSERVER = PrsObserver.builder().build();
+    // Spec files and names come from snappea.properties.
+    private static final SnappeaObserver OBSERVER = SnappeaObserver.builder().build();
 
     @Test void reserveAndRelease() {
         try (var recording = OBSERVER.recording("reserve and release")) {
@@ -29,13 +29,13 @@ class ExplicitInventoryTest {
         var violation = Recording.expectViolation("InventoryCorrect", "exceeds available stock", () -> {
             try (var recording = OBSERVER.recording("expected oversell violation")) {
                 new Inventory().addProduct("coffee", 1);
-                PrsEmit.emit("eReserved", "coffee", Map.of("order", "order-1", "units", 2));
+                SnappeaEmit.emit("eReserved", "coffee", Map.of("order", "order-1", "units", 2));
             }
         });
         assertEquals("coffee", violation.key());
     }
 
-    // Events from another process: the worker inherits PRS_EVENTS_DIR and writes there.
+    // Events from another process: the worker inherits SNAPPEA_EVENTS_DIR and writes there.
     @Test void workerProcess() throws Exception {
         try (var recording = OBSERVER.recording("worker process")) {
             var java = ProcessHandle.current().info().command().orElse("java");

@@ -150,4 +150,4 @@ machine Main {
 }
 
 test tcFailover [main=Main]: { Main, Client, Directory, Node };
-// prs check tcFailover --timed
+// snappea check tcFailover --timed

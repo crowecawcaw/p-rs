@@ -27,7 +27,7 @@ const COMMIT_BODY_MAX_CHARS = 16_000;
 const INNER_COMMITS_MAX = 50;
 
 // Release bumps and dependency updates: keep the subject, skip the PR lookup.
-const NO_ENRICHMENT_SUBJECT = /^(?:Release p-rs v|Bump |build\(deps[^)]*\)|chore(?:\([^)]*\))?:)/i;
+const NO_ENRICHMENT_SUBJECT = /^(?:Release Snap Pea v|Bump |build\(deps[^)]*\)|chore(?:\([^)]*\))?:)/i;
 
 const CATEGORIES = ["breaking", "deprecations", "features", "bug fixes"];
 const SECTION_TITLES = {
@@ -212,7 +212,7 @@ function main() {
   const args = parseArgs(argv.slice(2));
   const newTag = args.tag.startsWith("v") ? args.tag : `v${args.tag}`;
   const prevTag = args.since || getPreviousTag(newTag);
-  const repoName = args.repo ? args.repo.split("/").pop() : "p-rs";
+  const repoName = args.repo ? args.repo.split("/").pop() : "snappea";
 
   if (args.command === "render") {
     const entries = parseEntries(readFileSync(args.entries, "utf8"), args.entries);

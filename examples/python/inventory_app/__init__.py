@@ -1,6 +1,6 @@
 """A small in-memory service; all three examples test this same application."""
 
-from prs import emit
+from snappea import emit
 
 
 class Inventory:

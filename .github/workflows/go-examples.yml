@@ -31,10 +31,10 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: false
       - name: Build this checkout's checker
-        run: cargo build -p p-rs --bin prs --locked
+        run: cargo build -p snappea --bin snappea --locked
       - name: Supported Go helper tests (module at the repository root)
         env:
-          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+          SNAPPEA_BIN: ${{ github.workspace }}/target/debug/snappea
         run: |
           go test -v -race -count=1 ./...
           go vet ./...
@@ -42,17 +42,17 @@ jobs:
       - name: Go tests and fuzz seed corpus
         working-directory: examples/go
         env:
-          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+          SNAPPEA_BIN: ${{ github.workspace }}/target/debug/snappea
         run: go test -v -race -count=1 ./...
-      - name: Production logs checked with prs observe
+      - name: Production logs checked with snappea observe
         working-directory: examples/go
         env:
-          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+          SNAPPEA_BIN: ${{ github.workspace }}/target/debug/snappea
         run: sh production.sh
       - name: Bounded native fuzz campaign
         working-directory: examples/go
         env:
-          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+          SNAPPEA_BIN: ${{ github.workspace }}/target/debug/snappea
         run: go test ./fuzz -run='^$' -fuzz=FuzzInventory -fuzztime=5s -parallel=2
 
       - uses: actions/upload-artifact@v5

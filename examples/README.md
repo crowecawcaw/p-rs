@@ -3,7 +3,7 @@
 Every example checks one inventory service against one P spec,
 [`model/PSpec/inventory.p`](model/PSpec/inventory.p), in two places:
 
-1. **The design.** [`model/`](model/README.md) is a P model of the service. `prs check`
+1. **The design.** [`model/`](model/README.md) is a P model of the service. `snappea check`
    explores every interleaving of concurrent orders and shows that the spec catches an
    overselling design that reads stock before reserving it.
 2. **The implementation.** The language examples check events from real application
@@ -19,8 +19,8 @@ and [Go](go/README.md) show the same three setups:
 
 | Setup | Python | Rust | Java | Go |
 | --- | --- | --- | --- | --- |
-| Explicit check in selected tests | `check_spec` | `model().recording()` | `PrsObserver` | `prstest.New` |
-| Every test, via a fixture or plugin | pytest plugin | `with_inventory` | `PrsExtension` | `prstest.Start` fixture |
+| Explicit check in selected tests | `check_spec` | `model().recording()` | `SnappeaObserver` | `snappeatest.New` |
+| Every test, via a fixture or plugin | pytest plugin | `with_inventory` | `SnappeaExtension` | `snappeatest.Start` fixture |
 | Generated operation sequences | Hypothesis | proptest | jqwik | native fuzzing |
 
 Each fixture stocks coffee=3 and tea=2.
@@ -40,7 +40,7 @@ Each fixture stocks coffee=3 and tea=2.
   fresh application state and a fresh recorder. A recorder shared across them would
   merge unrelated histories.
 - **The same calls feed production.** With a production sink set, the same emits
-  write a log that `prs observe` checks; the [Go example](go/README.md#5-production-logs-with-prs-observe)
+  write a log that `snappea observe` checks; the [Go example](go/README.md#5-production-logs-with-snappea-observe)
   does it in CI. See [Testing and production](../docs/production.md).
 - **Ordinary assertions still matter.** P sees only emitted events, so the tests also
   assert on the application's own state.
@@ -57,7 +57,7 @@ Each fixture stocks coffee=3 and tea=2.
 Each language's every-test fixture reports monitor coverage (states and event handlers
 of the spec, not application lines) on stdout and as a JSON file that CI uploads. The
 suite report is the union across tests and keys, merged by
-`prs coverage merge-observe`, and includes coverage from failing checks. Unreached
+`snappea coverage merge-observe`, and includes coverage from failing checks. Unreached
 declarations may stay uncovered: coverage shows what ran, not that the code is safe.
 See [observed monitor coverage](../docs/observe.md#observed-monitor-coverage).
 

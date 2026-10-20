@@ -1,12 +1,12 @@
 // The README's headline benchmark as a time-lapse race: checking the Raft tutorial
-// (120 schedules) takes 0.4 s with prs and 38 s with P 3.1.0, 4 s of it compiling.
+// (120 schedules) takes 0.4 s with snappea and 38 s with P 3.1.0, 4 s of it compiling.
 import { useEffect, useState } from "react";
 import { useClock, useInView, useReducedMotion } from "../motion";
 
 const TOTAL = 38;
 const SPEEDUP = 12; // the race plays at 12x real time
 const RUNS = [
-  { name: "prs", seconds: 0.4, compile: 0 },
+  { name: "snappea", seconds: 0.4, compile: 0 },
   { name: "P 3.1.0", seconds: 38, compile: 4 },
 ];
 

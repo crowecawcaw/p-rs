@@ -117,7 +117,7 @@ export const DEMOS: Demo[] = [
     id: "retry-budget",
     title: "Time: retry budget",
     blurb:
-      "Uses the prs time extension: a client retries with timeouts and backoff, and a spec asserts every request resolves within a 1 s budget. Set timeoutAfter = ms(250) in PSrc/RetryClient.p to fix it.",
+      "Uses the snappea time extension: a client retries with timeouts and backoff, and a spec asserts every request resolves within a 1 s budget. Set timeoutAfter = ms(250) in PSrc/RetryClient.p to fix it.",
     roots: [{ from: "../../design/time/RetryBudget/" }],
     open: "PSrc/RetryClient.p",
     testCase: "tcRetry",

@@ -1,8 +1,8 @@
 [tool.pytest.ini_options]
 testpaths = ["."]
-addopts = "--strict-markers --prs-coverage=coverage/monitor.json"
+addopts = "--strict-markers --snappea-coverage=coverage/monitor.json"
 
-[tool.prs]
+[tool.snappea]
 strict = true
 spec_files = ["../specs/inventory.p"]
 mode = "auto"  # Every test checks all specs, including events from fixture setup.

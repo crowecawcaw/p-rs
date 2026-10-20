@@ -1,73 +1,73 @@
 # Java helpers
 
 Check the events your Java code emits against P specs, in tests and in production.
-Java 17+. The helpers run the `prs observe` CLI; the rules every language helper
+Java 17+. The helpers run the `snappea observe` CLI; the rules every language helper
 follows are in [docs/language-support.md](../docs/language-support.md).
 
-One artifact, `io.github.crowecawcaw:p-rs`, holds both halves:
+One artifact, `io.github.crowecawcaw:snappea`, holds both halves:
 
 | Package | Use it for | Needs |
 | --- | --- | --- |
-| `io.github.crowecawcaw.prs.emit` | `PrsEmit.emit(...)` in application code; production sinks | the JDK only |
-| `io.github.crowecawcaw.prs` | Recordings and checks from any test framework; the JUnit 5 extension | opentest4j and the JUnit Jupiter API, from your test framework |
+| `io.github.crowecawcaw.snappea.emit` | `SnappeaEmit.emit(...)` in application code; production sinks | the JDK only |
+| `io.github.crowecawcaw.snappea` | Recordings and checks from any test framework; the JUnit 5 extension | opentest4j and the JUnit Jupiter API, from your test framework |
 
-`p-rs` has no runtime dependencies: JUnit and opentest4j are optional, so production
-code depending on `p-rs` pulls nothing else and loads no test classes. The `prs` checker comes in a classifier
+`snappea` has no runtime dependencies: JUnit and opentest4j are optional, so production
+code depending on `snappea` pulls nothing else and loads no test classes. The `snappea` checker comes in a classifier
 jar of the same artifact, `natives-<os>-<arch>`: `natives-linux-x86_64`,
 `natives-linux-aarch64`, `natives-macos-x86_64`, `natives-macos-aarch64`,
 `natives-windows-x86_64`.
 
 ## Install
 
-Depend on `p-rs`, plus the natives jar for the platform the tests run on (test scope),
-with the `prs.version` property set to a [release](https://github.com/crowecawcaw/p-rs/releases)
+Depend on `snappea`, plus the natives jar for the platform the tests run on (test scope),
+with the `snappea.version` property set to a [release](https://github.com/crowecawcaw/snappea/releases)
 such as `0.1.1`:
 
 ```xml
 <dependency>
   <groupId>io.github.crowecawcaw</groupId>
-  <artifactId>p-rs</artifactId>
-  <version>${prs.version}</version>
+  <artifactId>snappea</artifactId>
+  <version>${snappea.version}</version>
 </dependency>
 <dependency>
   <groupId>io.github.crowecawcaw</groupId>
-  <artifactId>p-rs</artifactId>
-  <version>${prs.version}</version>
-  <classifier>${prs.natives}</classifier>
+  <artifactId>snappea</artifactId>
+  <version>${snappea.version}</version>
+  <classifier>${snappea.natives}</classifier>
   <scope>test</scope>
 </dependency>
 ```
 
-If everyone builds on one platform, write its classifier in place of `${prs.natives}`.
+If everyone builds on one platform, write its classifier in place of `${snappea.natives}`.
 Otherwise set it per platform with these profiles (the
 [os-maven-plugin](https://github.com/trustin/os-maven-plugin)'s names differ from ours):
 
 ```xml
 <profiles>
-  <profile><id>prs-linux-x86_64</id><activation><os><name>linux</name><arch>amd64</arch></os></activation><properties><prs.natives>natives-linux-x86_64</prs.natives></properties></profile>
-  <profile><id>prs-linux-aarch64</id><activation><os><name>linux</name><arch>aarch64</arch></os></activation><properties><prs.natives>natives-linux-aarch64</prs.natives></properties></profile>
-  <profile><id>prs-macos-x86_64</id><activation><os><family>mac</family><arch>x86_64</arch></os></activation><properties><prs.natives>natives-macos-x86_64</prs.natives></properties></profile>
-  <profile><id>prs-macos-aarch64</id><activation><os><family>mac</family><arch>aarch64</arch></os></activation><properties><prs.natives>natives-macos-aarch64</prs.natives></properties></profile>
-  <profile><id>prs-windows-x86_64</id><activation><os><family>windows</family><arch>amd64</arch></os></activation><properties><prs.natives>natives-windows-x86_64</prs.natives></properties></profile>
+  <profile><id>snappea-linux-x86_64</id><activation><os><name>linux</name><arch>amd64</arch></os></activation><properties><snappea.natives>natives-linux-x86_64</snappea.natives></properties></profile>
+  <profile><id>snappea-linux-aarch64</id><activation><os><name>linux</name><arch>aarch64</arch></os></activation><properties><snappea.natives>natives-linux-aarch64</snappea.natives></properties></profile>
+  <profile><id>snappea-macos-x86_64</id><activation><os><family>mac</family><arch>x86_64</arch></os></activation><properties><snappea.natives>natives-macos-x86_64</snappea.natives></properties></profile>
+  <profile><id>snappea-macos-aarch64</id><activation><os><family>mac</family><arch>aarch64</arch></os></activation><properties><snappea.natives>natives-macos-aarch64</snappea.natives></properties></profile>
+  <profile><id>snappea-windows-x86_64</id><activation><os><family>windows</family><arch>amd64</arch></os></activation><properties><snappea.natives>natives-windows-x86_64</snappea.natives></properties></profile>
 </profiles>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin
-val prsOs = System.getProperty("os.name").lowercase().let {
+val snappeaOs = System.getProperty("os.name").lowercase().let {
     if (it.startsWith("mac")) "macos" else if (it.startsWith("windows")) "windows" else "linux" }
-val prsArch = if (System.getProperty("os.arch") in setOf("aarch64", "arm64")) "aarch64" else "x86_64"
+val snappeaArch = if (System.getProperty("os.arch") in setOf("aarch64", "arm64")) "aarch64" else "x86_64"
 dependencies {
-    implementation("io.github.crowecawcaw:p-rs:$prsVersion")
-    testRuntimeOnly("io.github.crowecawcaw:p-rs:$prsVersion:natives-$prsOs-$prsArch")
+    implementation("io.github.crowecawcaw:snappea:$snappeaVersion")
+    testRuntimeOnly("io.github.crowecawcaw:snappea:$snappeaVersion:natives-$snappeaOs-$snappeaArch")
 }
 ```
 
-The checker binary is found from `.binary(...)`, then `PRS_BIN`, then the natives jar
-on the classpath, then `prs` on `PATH`. The natives jar's binary is copied on first
-use to `$XDG_CACHE_HOME/p-rs/<version>/` (else `~/Library/Caches/p-rs` on macOS,
-`%LOCALAPPDATA%\p-rs` on Windows, `~/.cache/p-rs` elsewhere), checked against the
+The checker binary is found from `.binary(...)`, then `SNAPPEA_BIN`, then the natives jar
+on the classpath, then `snappea` on `PATH`. The natives jar's binary is copied on first
+use to `$XDG_CACHE_HOME/snappea/<version>/` (else `~/Library/Caches/snappea` on macOS,
+`%LOCALAPPDATA%\snappea` on Windows, `~/.cache/snappea` elsewhere), checked against the
 SHA-256 in the jar, and reused by later runs. Without any binary, checks fail with a
 `SetupError` of kind `binary_missing` naming the natives dependency to add.
 
@@ -75,28 +75,28 @@ SHA-256 in the jar, and reused by later runs. Without any binary, checks fail wi
 
 To use a checkout instead of a release (version `X.Y.Z-SNAPSHOT` in
 [pom.xml](pom.xml)): from the repository root, with JDK 17+, Maven 3.9 and Rust, build
-the checker and install `p-rs` with a natives jar for your platform (here macOS on
+the checker and install `snappea` with a natives jar for your platform (here macOS on
 Apple silicon):
 
 ```sh
-cargo build --locked -p p-rs
+cargo build --locked -p snappea
 mkdir -p java/natives/natives-macos-aarch64
-cp target/debug/prs java/natives/natives-macos-aarch64/
-PRS_BIN="$PWD/target/debug/prs" mvn -f java/pom.xml -Pnatives install
+cp target/debug/snappea java/natives/natives-macos-aarch64/
+SNAPPEA_BIN="$PWD/target/debug/snappea" mvn -f java/pom.xml -Pnatives install
 ```
 
-The `natives` profile packages every `java/natives/<classifier>/prs` (or `prs.exe`) it
-finds, or the folders under `-Dprs.natives=DIR`, as classifier jars. Or skip the
-natives jar and set `PRS_BIN`, or put `prs` on `PATH` with `cargo install --path crates/p-rs`.
+The `natives` profile packages every `java/natives/<classifier>/snappea` (or `snappea.exe`) it
+finds, or the folders under `-Dsnappea.natives=DIR`, as classifier jars. Or skip the
+natives jar and set `SNAPPEA_BIN`, or put `snappea` on `PATH` with `cargo install --path crates/snappea`.
 
 ## Emit events
 
 ```java
-import io.github.crowecawcaw.prs.emit.PrsEmit;
+import io.github.crowecawcaw.snappea.emit.SnappeaEmit;
 
-PrsEmit.emit("eReserved", sku, Map.of("order", order, "units", units)); // event, key, payload
-PrsEmit.emit("eClosed", sku);                                            // no payload
-PrsEmit.emitAt(Instant.ofEpochSecond(0, tick), "eTick", "clock");        // caller-chosen time
+SnappeaEmit.emit("eReserved", sku, Map.of("order", order, "units", units)); // event, key, payload
+SnappeaEmit.emit("eClosed", sku);                                            // no payload
+SnappeaEmit.emitAt(Instant.ofEpochSecond(0, tick), "eTick", "clock");        // caller-chosen time
 ```
 
 Emit after the change commits, at the same place production code would publish it.
@@ -110,22 +110,22 @@ Where an event goes:
 
 1. A recording in this JVM: the one the current thread (or the thread that started it)
    opened. Nested recordings all get it.
-2. `PRS_EVENTS_DIR`, when a test started this process: one file per process,
-   `<name>-<pid>-<random>.jsonl` (`<name>` is `-Dprs.name`, else the main class).
-3. The production sink, if set: `PrsEmit.setSink(Sink.file(path))`, `Sink.stdout()`,
+2. `SNAPPEA_EVENTS_DIR`, when a test started this process: one file per process,
+   `<name>-<pid>-<random>.jsonl` (`<name>` is `-Dsnappea.name`, else the main class).
+3. The production sink, if set: `SnappeaEmit.setSink(Sink.file(path))`, `Sink.stdout()`,
    `Sink.writer(out)` or `Sink.callback(line -> ...)`. Lines are the JSON
-   `prs observe -l` reads, written on a background thread; `emit` never throws or
+   `snappea observe -l` reads, written on a background thread; `emit` never throws or
    waits, and drops (full queue, I/O error, bad payload) are counted in
-   `PrsEmit.dropped()`. `PrsEmit.flush(timeout)` waits for the queue;
-   `PrsEmit.close()` (or `setSink(null)`) writes it and turns the sink off. See
+   `SnappeaEmit.dropped()`. `SnappeaEmit.flush(timeout)` waits for the queue;
+   `SnappeaEmit.close()` (or `setSink(null)`) writes it and turns the sink off. See
    [Testing and production](../docs/production.md).
-4. Nowhere: the default costs two volatile reads. Use `PrsEmit.enabled()` to skip
+4. Nowhere: the default costs two volatile reads. Use `SnappeaEmit.enabled()` to skip
    building an expensive payload.
 
 ## Configure
 
-Put settings in `prs.properties` (searched from the working directory upwards, then
-the classpath), or as `prs.*` keys in `junit-platform.properties`. Relative paths
+Put settings in `snappea.properties` (searched from the working directory upwards, then
+the classpath), or as `snappea.*` keys in `junit-platform.properties`. Relative paths
 resolve against the file's folder. Unknown keys are a `SetupError` of kind `config`.
 
 ```properties
@@ -136,14 +136,14 @@ strict = true                   # default: true when specs is set, else false
 check_hot = false
 unknown_events = error          # ignore | warn | error
 timeout = 30s
-artifacts = target/prs          # default: <tmp>/prs; kept only for failed checks
+artifacts = target/snappea          # default: <tmp>/snappea; kept only for failed checks
 coverage = target/coverage/monitor.json
 mode = auto                     # auto | marked | off (JUnit extension)
 ```
 
-Precedence: builder method, then environment variable (`PRS_SPEC_FILES` separated
-like `PATH`, `PRS_BIN`, `PRS_ARTIFACTS`, `PRS_COVERAGE`, `PRS_MODE`), then the file,
-then the default. The builders (`PrsObserver.builder()`, `PrsExtension.builder()`)
+Precedence: builder method, then environment variable (`SNAPPEA_SPEC_FILES` separated
+like `PATH`, `SNAPPEA_BIN`, `SNAPPEA_ARTIFACTS`, `SNAPPEA_COVERAGE`, `SNAPPEA_MODE`), then the file,
+then the default. The builders (`SnappeaObserver.builder()`, `SnappeaExtension.builder()`)
 have a method per key: `.specFiles(...)`, `.specs(...)`, `.exclude(...)`,
 `.strict(...)`, `.checkHot(...)`, `.unknownEvents(UnknownEvents.WARN)`,
 `.timeout(...)`, `.artifacts(...)`, `.coverage(...)`, `.mode(...)`, `.binary(...)`.
@@ -151,10 +151,10 @@ have a method per key: `.specFiles(...)`, `.specs(...)`, `.exclude(...)`,
 ## Explicit checks
 
 ```java
-var observer = PrsObserver.builder().build(); // settings from prs.properties
+var observer = SnappeaObserver.builder().build(); // settings from snappea.properties
 
 try (var recording = observer.recording("reserve then release")) {
-    var inventory = new Inventory();          // emits through PrsEmit
+    var inventory = new Inventory();          // emits through SnappeaEmit
     inventory.addProduct("coffee", 3);
     inventory.reserve("coffee", "order-1", 2);
 }                                             // checked here
@@ -175,11 +175,11 @@ A recording with no events and `strict` off passes without running the checker.
 Pick one registration:
 
 ```java
-@ExtendWith(PrsExtension.class)                 // settings from prs.properties
+@ExtendWith(SnappeaExtension.class)                 // settings from snappea.properties
 class InventoryTest { ... }
 
 @RegisterExtension                              // settings in code
-static final PrsExtension PRS = PrsExtension.builder().specs("InventoryCorrect").build();
+static final SnappeaExtension SNAPPEA = SnappeaExtension.builder().specs("InventoryCorrect").build();
 ```
 
 or every test class, with `junit.jupiter.extensions.autodetection.enabled=true` in
@@ -191,17 +191,17 @@ fixtures are checked too. Inject it as a `Recording` parameter when code needs i
 explicitly. A test that already failed keeps its failure; the check is attached as
 suppressed.
 
-Modes (`mode`, `PRS_MODE`): `auto` checks every test, `marked` only tests or classes
-annotated `@Prs`, `off` nothing. Per-test options:
+Modes (`mode`, `SNAPPEA_MODE`): `auto` checks every test, `marked` only tests or classes
+annotated `@Snappea`, `off` nothing. Per-test options:
 
 ```java
-@Test @Prs(skip = Prs.ALL) void notChecked() { ... }
-@Test @Prs(skip = "SmallOrders") void notThisSpec() { ... }
-@Test @Prs(checkHot = true) void everyReservationShips() { ... }
+@Test @Snappea(skip = Snappea.ALL) void notChecked() { ... }
+@Test @Snappea(skip = "SmallOrders") void notThisSpec() { ... }
+@Test @Snappea(checkHot = true) void everyReservationShips() { ... }
 ```
 
 Several extensions on one class need `.name("billing")` and
-`@PrsRecording("billing") Recording` parameters.
+`@SnappeaRecording("billing") Recording` parameters.
 
 Jupiter callbacks do not wrap jqwik tries: open `observer.recording(...)` inside each
 `@Property` method, with a `CoverageCollector` closed in `@AfterContainer`
@@ -220,7 +220,7 @@ P spec InventoryCorrect was broken: reservation exceeds available stock
       2  eReserved  order=o1 units=2  example/Inventory.java:30  <- broke the spec here
 
   Spec: specs/inventory.p:27
-  prs output: target/prs/recording-1508053395480219822
+  snappea output: target/snappea/recording-1508053395480219822
 ```
 
 Fields: `spec()`, `key()`, `message()`, `location()`, `events()` (each with `event()`,
@@ -248,7 +248,7 @@ Fails if the check passes or another spec is violated. Recordings enclosing the 
 
 ```java
 var worker = new ProcessBuilder("java", "-cp", classpath, "example.Worker");
-worker.environment().putAll(recording.environment()); // adds PRS_EVENTS_DIR
+worker.environment().putAll(recording.environment()); // adds SNAPPEA_EVENTS_DIR
 worker.start().waitFor();                             // join before the check
 ```
 
@@ -258,7 +258,7 @@ inputs:
 
 ```java
 recording.addEventsDir(Path.of("volumes/events"));     // a folder this recording did not create
-recording.addLog(Path.of("app-events.jsonl"));        // JSON lines prs observe reads
+recording.addLog(Path.of("app-events.jsonl"));        // JSON lines snappea observe reads
 recording.addLog(Path.of("server.log"), line -> ...); // returns a LogEvent, or null to skip
 ```
 
@@ -267,7 +267,7 @@ first, then the events folder, added folders and logs.
 
 ## Suite coverage
 
-Set `coverage` (or `PRS_COVERAGE`, or `.coverage(path)`): the extension writes the
+Set `coverage` (or `SNAPPEA_COVERAGE`, or `.coverage(path)`): the extension writes the
 union of all checks once, when the run ends, and prints the summary. Outside JUnit,
 `observer.coverage()` gives a collector for that path (inert when none is set);
 pass it to `observer.recording(label, collector)` and close it at the end. Collectors
@@ -276,13 +276,13 @@ one path; delete the file before a run.
 
 ## Upgrading from 0.1
 
-- `prs-emit`, `prs-test-core` and `prs-junit5` are one artifact, `p-rs`; packages and
-  class names are unchanged. Add the natives jar to drop `PRS_BIN`.
+- `snappea-emit`, `snappea-test-core` and `snappea-junit5` are one artifact, `snappea`; packages and
+  class names are unchanged. Add the natives jar to drop `SNAPPEA_BIN`.
 - `specs` is optional (default: every spec), so `strict` defaults to false without
   named specs; it stays true with them.
 - Undeclared event names now fail the check (`unknownEvents`, default `ERROR`).
 - Catch `SpecViolation` / `SetupError` instead of `ObservationFailure`.
 - Builders throw `SetupError` (kind `config`) for bad settings.
-- Artifacts default to `<tmp>/prs`; set `artifacts` to keep them under `target/`.
+- Artifacts default to `<tmp>/snappea`; set `artifacts` to keep them under `target/`.
 - Timestamps are ISO-8601 with nanoseconds, and lines carry `src`, `seq` and `pid`.
 - Coverage merges into an existing file instead of replacing it.

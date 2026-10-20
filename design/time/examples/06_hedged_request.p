@@ -70,5 +70,5 @@ machine Main {
 }
 
 test tcHedge [main=Main]: { Main, Client, Replica };
-// prs check tcHedge          -> bug (pessimistic)
-// prs check tcHedge --timed  -> no bug
+// snappea check tcHedge          -> bug (pessimistic)
+// snappea check tcHedge --timed  -> no bug

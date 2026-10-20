@@ -10,7 +10,7 @@ APP = f"{HERE}/example/app/locks.py"
 TESTS = '''
 import pytest
 from locks import LockServer
-from prs import emit, expect_violation
+from snappea import emit, expect_violation
 
 
 class Clock:
@@ -39,13 +39,13 @@ def test_no_events():
     assert 1 + 1 == 2
 
 
-@pytest.mark.prs(skip=True)
+@pytest.mark.snappea(skip=True)
 def test_skipped_on_purpose():
     emit("eEnter", client="a")
     emit("eEnter", client="b")
 
 
-@pytest.mark.prs(skip=["MutualExclusion"])
+@pytest.mark.snappea(skip=["MutualExclusion"])
 def test_skip_one_spec():
     emit("eEnter", client="a")
     emit("eEnter", client="b")
@@ -57,16 +57,16 @@ def test_waiting_forever_passes_without_check_hot():
     emit("eRequest", key="L3", client="c3")
 
 
-@pytest.mark.prs(check_hot=True)
+@pytest.mark.snappea(check_hot=True)
 def test_waiting_forever_fails_with_check_hot():
     emit("eRequest", key="L3", client="c3")
 
 
-def test_fixture(prs_events):
+def test_fixture(snappea_events):
     server = LockServer()
     server.acquire("c1")
     server.release("c1")
-    assert prs_events.count("eEnter") == 1
+    assert snappea_events.count("eEnter") == 1
 
 
 def test_expected_violation_is_not_reported_twice():
@@ -84,7 +84,7 @@ def test_failing_test_is_not_also_checked():
 
 @pytest.fixture
 def project(pytester):
-    pytester.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\n')
+    pytester.makepyprojecttoml('[tool.snappea]\nspec_files = ["specs/*.p"]\n')
     (pytester.path / "specs").mkdir()
     shutil.copy(SPEC, pytester.path / "specs" / "lock.p")
     shutil.copy(APP, pytester.path / "locks.py")
@@ -101,7 +101,7 @@ def test_every_test_is_checked(project):
     r.assert_outcomes(passed=7, failed=3)
     r.stdout.fnmatch_lines(
         [
-            "prs: checking P specs from specs/*.p (auto)",
+            "snappea: checking P specs from specs/*.p (auto)",
             "*test_buggy_expiry FAILED*",
             "*test_waiting_forever_passes_without_check_hot PASSED*",
             "*test_waiting_forever_fails_with_check_hot FAILED*",
@@ -119,19 +119,19 @@ def test_every_test_is_checked(project):
 
 
 def test_marked_mode(project):
-    r = run(project, "--prs", "marked")
+    r = run(project, "--snappea", "marked")
     # only the marked tests are checked; test_buggy_expiry passes unchecked
     r.assert_outcomes(passed=8, failed=2)
 
 
 def test_off(project):
-    r = run(project, "--prs", "off")
+    r = run(project, "--snappea", "off")
     r.assert_outcomes(passed=9, failed=1)
-    assert "prs:" not in r.stdout.str()
+    assert "snappea:" not in r.stdout.str()
 
 
 def test_exclude_setting(project):
-    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nexclude = ["MutualExclusion"]\n')
+    project.makepyprojecttoml('[tool.snappea]\nspec_files = ["specs/*.p"]\nexclude = ["MutualExclusion"]\n')
     r = run(project)
     r.assert_outcomes(passed=8, failed=2)
 
@@ -139,7 +139,7 @@ def test_exclude_setting(project):
 def test_without_settings_the_plugin_is_inert(pytester):
     pytester.makepyfile(
         """
-        from prs import emit
+        from snappea import emit
         def test_a():
             emit("eEnter", client="a")
         """
@@ -149,7 +149,7 @@ def test_without_settings_the_plugin_is_inert(pytester):
 
 
 def test_bad_settings_are_reported(pytester):
-    pytester.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nmode = "sometimes"\n')
+    pytester.makepyprojecttoml('[tool.snappea]\nspec_files = ["specs/*.p"]\nmode = "sometimes"\n')
     pytester.makepyfile("def test_a(): pass")
     r = run(pytester)
     assert "mode must be one of auto, marked, off" in r.stdout.str() + r.stderr.str()
@@ -160,7 +160,7 @@ def test_events_in_fixture_setup_count(project):
     project.makepyfile(
         test_fixture_events="""
         import pytest
-        from prs import emit
+        from snappea import emit
 
         @pytest.fixture
         def held_lock():
@@ -177,7 +177,7 @@ def test_events_in_fixture_setup_count(project):
 
 def test_opt_in_coverage_summary_and_json(project):
     import json
-    result = run(project, "-k", "test_correct or test_fixture", "--prs-coverage=coverage/monitor.json")
+    result = run(project, "-k", "test_correct or test_fixture", "--snappea-coverage=coverage/monitor.json")
     result.assert_outcomes(passed=2, deselected=8)
     result.stdout.fnmatch_lines(["*Monitor coverage (union of completed test checks)*", "*MutualExclusion*", "*States:*", "*JSON:*monitor.json*"])
     report = json.loads((project.path / "coverage" / "monitor.json").read_text())
@@ -189,7 +189,7 @@ def test_opt_in_coverage_summary_and_json(project):
 def test_coverage_union_via_core_cli(project):
     import json
     project.makepyfile(test_overlap="""
-        from prs import emit
+        from snappea import emit
         def test_first():
             emit("eEnter", client="a")
             emit("eExit", client="a")
@@ -197,7 +197,7 @@ def test_coverage_union_via_core_cli(project):
             emit("eEnter", client="a")
             emit("eExit", client="a")
     """)
-    result = run(project, "test_overlap.py", "--prs-coverage=monitor.json")
+    result = run(project, "test_overlap.py", "--snappea-coverage=monitor.json")
     result.assert_outcomes(passed=2)
     report = json.loads((project.path / "monitor.json").read_text())
     mutual = next(s for s in report["specs"] if s["spec"] == "MutualExclusion")
@@ -208,7 +208,7 @@ def test_coverage_union_via_core_cli(project):
 
 def test_failing_observation_keeps_coverage(project):
     import json
-    result = run(project, "-k", "test_buggy_expiry", "--prs-coverage=monitor.json")
+    result = run(project, "-k", "test_buggy_expiry", "--snappea-coverage=monitor.json")
     result.assert_outcomes(failed=1, deselected=9)
     report = json.loads((project.path / "monitor.json").read_text())
     mutual = next(s for s in report["specs"] if s["spec"] == "MutualExclusion")
@@ -219,7 +219,7 @@ def test_failing_observation_keeps_coverage(project):
 def test_coverage_reporting_error_fails_process(project):
     # Passing tests must not hide a failed final report write.
     (project.path / "directory.json").mkdir()
-    result = run(project, "-k", "test_correct", "--prs-coverage=directory.json")
+    result = run(project, "-k", "test_correct", "--snappea-coverage=directory.json")
     result.assert_outcomes(passed=1, deselected=9)
     assert result.ret != 0
     assert "Monitor coverage reporting failed" in result.stdout.str()
@@ -227,36 +227,36 @@ def test_coverage_reporting_error_fails_process(project):
 
 def test_coverage_empty_suite(project):
     import json
-    result = run(project, "-k", "test_skipped_on_purpose", "--prs-coverage=empty.json")
+    result = run(project, "-k", "test_skipped_on_purpose", "--snappea-coverage=empty.json")
     result.assert_outcomes(passed=1, deselected=9)
     report = json.loads((project.path / "empty.json").read_text())
     assert report["specs"] == []
 
 
 def test_strict_opt_in_checks_no_event_tests(project):
-    result = run(project, "-k", "test_no_events", "--prs-strict")
+    result = run(project, "-k", "test_no_events", "--snappea-strict")
     result.assert_outcomes(failed=1, deselected=9)
     result.stdout.fnmatch_lines(["*checked no relevant events*"])
-    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nstrict = true\n')
+    project.makepyprojecttoml('[tool.snappea]\nspec_files = ["specs/*.p"]\nstrict = true\n')
     result = run(project, "-k", "test_no_events")
     result.assert_outcomes(failed=1, deselected=9)
     result.stdout.fnmatch_lines(["*checked no relevant events*"])
 
 
-def test_prs_mode_environment_variable(project, monkeypatch):
-    monkeypatch.setenv("PRS_MODE", "off")
+def test_snappea_mode_environment_variable(project, monkeypatch):
+    monkeypatch.setenv("SNAPPEA_MODE", "off")
     run(project).assert_outcomes(passed=9, failed=1)
-    # --prs is explicit, so it wins over the environment
-    run(project, "--prs", "marked").assert_outcomes(passed=8, failed=2)
+    # --snappea is explicit, so it wins over the environment
+    run(project, "--snappea", "marked").assert_outcomes(passed=8, failed=2)
 
 
 def test_liveness_mark_is_a_deprecated_alias(project):
     project.makepyfile(
         test_old="""
         import pytest
-        from prs import emit
+        from snappea import emit
 
-        @pytest.mark.prs(liveness=True)
+        @pytest.mark.snappea(liveness=True)
         def test_waiting():
             emit("eRequest", key="L3", client="c3")
         """
@@ -269,7 +269,7 @@ def test_liveness_mark_is_a_deprecated_alias(project):
 def test_misspelled_event_fails_the_test(project):
     project.makepyfile(
         test_typo="""
-        from prs import emit
+        from snappea import emit
 
         def test_typo():
             emit("eEnterr", client="a")
@@ -278,13 +278,13 @@ def test_misspelled_event_fails_the_test(project):
     r = run(project, "test_typo.py")
     r.assert_outcomes(failed=1)
     r.stdout.fnmatch_lines(["*eEnterr: 1 time(s), first at test_typo.py:4; did you mean eEnter?*"])
-    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nunknown_events = "warn"\n')
+    project.makepyprojecttoml('[tool.snappea]\nspec_files = ["specs/*.p"]\nunknown_events = "warn"\n')
     r = run(project, "test_typo.py")
     r.assert_outcomes(passed=1, warnings=1)
 
 
 def test_named_specs_in_settings_default_to_strict(project):
-    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nspecs = ["MutualExclusion"]\n')
+    project.makepyprojecttoml('[tool.snappea]\nspec_files = ["specs/*.p"]\nspecs = ["MutualExclusion"]\n')
     r = run(project, "-k", "test_no_events or test_correct or test_waiting_forever_fails")
     # test_waiting_forever_fails emits only eRequest, which MutualExclusion ignores
     r.assert_outcomes(passed=3, deselected=7, warnings=2)
@@ -292,10 +292,10 @@ def test_named_specs_in_settings_default_to_strict(project):
 
 
 def test_artifacts_setting_keeps_failed_checks(project, monkeypatch):
-    project.makepyprojecttoml('[tool.prs]\nspec_files = ["specs/*.p"]\nartifacts = "prs-artifacts"\n')
+    project.makepyprojecttoml('[tool.snappea]\nspec_files = ["specs/*.p"]\nartifacts = "snappea-artifacts"\n')
     run(project, "-k", "test_buggy_expiry or test_correct").assert_outcomes(passed=1, failed=1, deselected=8)
-    assert len(list((project.path / "prs-artifacts").iterdir())) == 1
-    monkeypatch.setenv("PRS_ARTIFACTS", str(project.path / "from-env"))
+    assert len(list((project.path / "snappea-artifacts").iterdir())) == 1
+    monkeypatch.setenv("SNAPPEA_ARTIFACTS", str(project.path / "from-env"))
     run(project, "-k", "test_buggy_expiry").assert_outcomes(failed=1, deselected=9)
     assert len(list((project.path / "from-env").iterdir())) == 1
 
@@ -304,14 +304,14 @@ def test_coverage_merges_into_an_existing_file(project, monkeypatch):
     import json
 
     project.makepyfile(test_split="""
-        from prs import emit
+        from snappea import emit
         def test_enter():
             emit("eEnter", client="a")
         def test_exit():
             emit("eEnter", client="a")
             emit("eExit", client="a")
     """)
-    monkeypatch.setenv("PRS_COVERAGE", "cov.json")
+    monkeypatch.setenv("SNAPPEA_COVERAGE", "cov.json")
     run(project, "test_split.py", "-k", "test_enter").assert_outcomes(passed=1, deselected=1)
     first = json.loads((project.path / "cov.json").read_text())
     run(project, "test_split.py", "-k", "test_exit").assert_outcomes(passed=1, deselected=1)
@@ -325,7 +325,7 @@ def test_coverage_with_xdist(project):
     import json
 
     pytest.importorskip("xdist")
-    result = run(project, "-n", "2", "-k", "test_correct or test_fixture or test_skip_one", "--prs-coverage=cov.json")
+    result = run(project, "-n", "2", "-k", "test_correct or test_fixture or test_skip_one", "--snappea-coverage=cov.json")
     result.assert_outcomes(passed=3)
     report = json.loads((project.path / "cov.json").read_text())
     assert len(report["observations"]) == 3

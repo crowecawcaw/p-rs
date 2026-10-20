@@ -137,18 +137,18 @@ test tcTwoClients [main=Main]: { Main, Counter, Client };
 `}</Code>
         <p>Check it:</p>
         <Code lang="shell">{`
-$ prs check LostUpdate.p tcTwoClients
+$ snappea check LostUpdate.p tcTwoClients
 Checking generatedOutput: 1 test case
 FAIL  tcTwoClients (bug found after 9 schedules, 8 workers, 0.00s)
       Assertion Failed: LostUpdate.p:68:7 expected 2 increments, counter is 1
-      Replay: prs replay PCheckerOutput/tcTwoClients/bug.schedule LostUpdate.p
+      Replay: snappea replay PCheckerOutput/tcTwoClients/bug.schedule LostUpdate.p
 1 of 1 test case failed in 0.01s, peak memory 9 MB. Output: PCheckerOutput/
 `}</Code>
         <p>The trace shows exactly how the update was lost:</p>
         <Trace />
         <p>
           <b>The fix is a design change:</b> replace the read and write with one <code>eIncrement</code> event that
-          the Counter applies itself. With that change, <code>prs check --exhaustive</code> covers every possible
+          the Counter applies itself. With that change, <code>snappea check --exhaustive</code> covers every possible
           ordering (191 schedules) and finds no bug.
         </p>
         <Code lang="p">{`
@@ -194,8 +194,8 @@ def test_release_makes_stock_available_again(inventory_factory):
           <a href={`${BLOB}/examples/rust/README.md`}>Rust</a>, <a href={`${BLOB}/examples/java/README.md`}>Java</a>{" "}
           and <a href={`${BLOB}/examples/go/README.md`}>Go</a>. To check events from running services, see{" "}
           <a href={`${BLOB}/examples/multiprocess/docker/README.md`}>live observation across processes</a> and{" "}
-          <a href={`${BLOB}/docs/observe.md`}>prs observe</a>. The same emit calls can write production logs
-          for <code>prs observe</code>: see <a href={`${BLOB}/docs/production.md`}>testing and production</a>.
+          <a href={`${BLOB}/docs/observe.md`}>snappea observe</a>. The same emit calls can write production logs
+          for <code>snappea observe</code>: see <a href={`${BLOB}/docs/production.md`}>testing and production</a>.
         </p>
       </section>
 

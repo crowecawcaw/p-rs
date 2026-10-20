@@ -1,4 +1,4 @@
-// Tests for code that emits with prsemit, as cmd/inventory does: in the test process,
+// Tests for code that emits with snappeaemit, as cmd/inventory does: in the test process,
 // in processes the test starts (r.Env), and in production (a log file).
 package process_test
 
@@ -13,7 +13,7 @@ import (
 
 	"example.com/inventory/internal/fixture"
 	"example.com/inventory/inventory"
-	"github.com/crowecawcaw/p-rs/go/prsemit"
+	"github.com/crowecawcaw/snappea/go/snappeaemit"
 )
 
 var binary string
@@ -38,12 +38,12 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// prsemit.Emit in the test process reaches the test's recording. It cannot tell
+// snappeaemit.Emit in the test process reaches the test's recording. It cannot tell
 // parallel tests apart, so this test is not parallel (or pass contexts from
-// r.Context to prsemit.EmitCtx).
+// r.Context to snappeaemit.EmitCtx).
 func TestInProcess(t *testing.T) {
 	fixture.Start(t)
-	app := inventory.New(prsemit.Emit)
+	app := inventory.New(snappeaemit.Emit)
 	if err := app.Stock("coffee", 3); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestWorkerProcesses(t *testing.T) {
 	var stderr []*strings.Builder
 	for _, ops := range workers {
 		cmd := exec.Command(binary)
-		cmd.Env = r.Env() // PRS_EVENTS_DIR: the worker writes into this recording
+		cmd.Env = r.Env() // SNAPPEA_EVENTS_DIR: the worker writes into this recording
 		cmd.Stdin = strings.NewReader(ops)
 		out := &strings.Builder{}
 		cmd.Stderr = out
@@ -84,7 +84,7 @@ func TestWorkerProcesses(t *testing.T) {
 	}
 }
 
-// In production the same instrumentation writes a log for `prs observe`. AddLog checks
+// In production the same instrumentation writes a log for `snappea observe`. AddLog checks
 // such a log from a test.
 func TestProductionLog(t *testing.T) {
 	t.Parallel()

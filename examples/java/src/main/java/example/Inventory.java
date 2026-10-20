@@ -1,6 +1,6 @@
 package example;
 
-import io.github.crowecawcaw.prs.emit.PrsEmit;
+import io.github.crowecawcaw.snappea.emit.SnappeaEmit;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,7 +13,7 @@ public final class Inventory {
     public void addProduct(String sku, int units) {
         if (stock.containsKey(sku) || units < 0) throw new IllegalArgumentException("invalid product");
         stock.put(sku, units);
-        PrsEmit.emit("eStocked", sku, Map.of("units", units));
+        SnappeaEmit.emit("eStocked", sku, Map.of("units", units));
     }
 
     public int available(String sku) {
@@ -27,7 +27,7 @@ public final class Inventory {
             throw new IllegalArgumentException("invalid reservation");
         stock.put(sku, available(sku) - units);
         reservations.put(key, units);
-        PrsEmit.emit("eReserved", sku, Map.of("order", order, "units", units));
+        SnappeaEmit.emit("eReserved", sku, Map.of("order", order, "units", units));
     }
 
     public void release(String sku, String order) {
@@ -35,6 +35,6 @@ public final class Inventory {
         var units = reservations.remove(key);
         if (units == null) throw new IllegalArgumentException("unknown reservation");
         stock.put(sku, available(sku) + units);
-        PrsEmit.emit("eReleased", sku, Map.of("order", order, "units", units));
+        SnappeaEmit.emit("eReleased", sku, Map.of("order", order, "units", units));
     }
 }
