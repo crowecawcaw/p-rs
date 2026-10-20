@@ -4,6 +4,7 @@ import { PEditor } from "./editor/PEditor";
 import type { CheckResult, Diagnostic, Files } from "./protocol";
 import { Runner } from "./runner";
 import { TraceView } from "./trace/TraceView";
+import { Logo } from "./site/Logo";
 
 /** Output tabs. "files" is the editor, which is a tab only on phones. */
 type Tab = "files" | "console" | "trace" | "log";
@@ -223,7 +224,7 @@ export function App() {
     <div className="app">
       <header className="top">
         <a className="brand" href="./" aria-label="Snap Pea home">
-          <span className="logo">Snap Pea</span>
+          <Logo />
           <span className="brand-name">Playground</span>
         </a>
         <select className="demo-select" value={demo.id} onChange={(e) => pickDemo(e.target.value)} aria-label="Demo">

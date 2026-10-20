@@ -96,7 +96,7 @@ fn check_finds_a_bug_that_replays() {
     assert_eq!(snappea(&mut h, &["check", "coins.p", "tcCoins", "-n", "10"]), 0, "{}", h.stdout);
     assert_eq!(names(&h, OUT), ["coverage.txt", "summary.txt"]);
     assert!(h.stdout.contains("\nok    tcCoins (10 schedules, "), "{}", h.stdout);
-    assert!(h.stdout.ends_with("\nThe test case passed in 0.00s. Output: PCheckerOutput/\n"), "{}", h.stdout);
+    assert!(h.stdout.ends_with("\n🫛 The test case passed in 0.00s. Output: PCheckerOutput/\n"), "{}", h.stdout);
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn command_line_errors_exit_with_2() {
     assert_eq!(snappea(&mut h, &["check", "--help"]), 0);
     assert!(h.stdout.starts_with("Usage: snappea check"), "{}", h.stdout);
     assert_eq!(snappea(&mut h, &[]), 0);
-    assert!(h.stdout.starts_with("snappea checks P models."), "{}", h.stdout);
+    assert!(h.stdout.starts_with("🫛 snappea checks P models."), "{}", h.stdout);
 }
 
 #[test]
