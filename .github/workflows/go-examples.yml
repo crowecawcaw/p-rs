@@ -26,7 +26,7 @@ jobs:
         with:
           key: go-examples
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
           cache: false
@@ -55,7 +55,7 @@ jobs:
           SNAPPEA_BIN: ${{ github.workspace }}/target/debug/snappea
         run: go test ./fuzz -run='^$' -fuzz=FuzzInventory -fuzztime=5s -parallel=2
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: go-model-${{ matrix.go }}

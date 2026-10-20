@@ -24,7 +24,7 @@ jobs:
         with:
           key: docker-example
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Build this checkout's checker
@@ -38,7 +38,7 @@ jobs:
         run: python -m unittest discover -s examples/multiprocess/docker -p test_example.py -v
       - name: Save events, observer reports and worker logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: docker-inventory-reports
           path: ${{ runner.temp }}/docker-inventory
