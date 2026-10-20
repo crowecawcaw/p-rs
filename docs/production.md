@@ -1,9 +1,9 @@
 # Testing and production
 
 Instrument once: the same `emit` calls that tests check also write a production log
-that `prs observe` checks against the same P spec. This guide uses the inventory
+that `snappea observe` checks against the same P spec. This guide uses the inventory
 examples ([spec](../examples/model/PSpec/inventory.p)); the
-[Go example](../examples/go/README.md#5-production-logs-with-prs-observe) runs every
+[Go example](../examples/go/README.md#5-production-logs-with-snappea-observe) runs every
 step below in CI.
 
 ## 1. Emit once
@@ -11,7 +11,7 @@ step below in CI.
 Emit after a change commits, keyed by the entity the spec tracks (here the SKU):
 
 ```go
-prsemit.Emit("eReserved", sku, map[string]any{"order": order, "units": units})
+snappeaemit.Emit("eReserved", sku, map[string]any{"order": order, "units": units})
 ```
 
 Where the event goes depends on the process, not the call:
@@ -19,7 +19,7 @@ Where the event goes depends on the process, not the call:
 | Process | Events go to |
 | --- | --- |
 | A test with a recording | that recording, checked when the test ends |
-| Started by a test (`PRS_EVENTS_DIR` set) | the test's events folder |
+| Started by a test (`SNAPPEA_EVENTS_DIR` set) | the test's events folder |
 | Production, after `set_sink` | a JSON-lines log (or stdout, or your callback) |
 | Anything else | nowhere, at the cost of one atomic load |
 
@@ -37,10 +37,10 @@ Set a sink once at start-up and close it at shutdown:
 
 | Language | Start-up | Shutdown |
 | --- | --- | --- |
-| Python | `prs.set_sink(path)` | automatic at exit (`sink.close()` to do it earlier) |
-| Go | `s, err := prsemit.File(path); prsemit.SetSink(s)` | `defer prsemit.Close()` |
-| Java | `PrsEmit.setSink(Sink.file(Path.of(path)))` | a shutdown hook flushes; `PrsEmit.close()` |
-| Rust | `prs::emit::set_sink(Emitter::file(path)?)` | `prs::emit::close()` |
+| Python | `snappea.set_sink(path)` | automatic at exit (`sink.close()` to do it earlier) |
+| Go | `s, err := snappeaemit.File(path); snappeaemit.SetSink(s)` | `defer snappeaemit.Close()` |
+| Java | `SnappeaEmit.setSink(Sink.file(Path.of(path)))` | a shutdown hook flushes; `SnappeaEmit.close()` |
+| Rust | `snappea::emit::set_sink(Emitter::file(path)?)` | `snappea::emit::close()` |
 
 `stdout` (for container log collectors), `writer` and `callback` sinks are also
 available. Rules that matter in production:
@@ -60,11 +60,11 @@ available. Rules that matter in production:
 Batch, over closed (rotated) files or a copy of them:
 
 ```sh
-prs observe specs/inventory.p '/var/log/app/events/*.jsonl' \
+snappea observe specs/inventory.p '/var/log/app/events/*.jsonl' \
   --spec InventoryCorrect --json-report report.json
 ```
 
-Quote the glob: `prs` expands it, including `**`. Exit status 0 is clean, 1 a spec
+Quote the glob: `snappea` expands it, including `**`. Exit status 0 is clean, 1 a spec
 violation, 2 a tool or input error; read details from `--json-report`
 ([format](observe.md#options)). A file still being written may end in a
 partial line, which is a `parser` error (exit 2), so check rotated files, or check
@@ -72,7 +72,7 @@ live:
 
 ```sh
 tail -n +1 -F /var/log/app/events/inventory.jsonl |
-  prs observe specs/inventory.p --spec InventoryCorrect --stdin
+  snappea observe specs/inventory.p --spec InventoryCorrect --stdin
 ```
 
 Live mode checks events as they arrive and stops at the first violation. It does
@@ -109,7 +109,7 @@ the wrong order. Pick one:
 
 ## 7. Unknown event names
 
-Tests default to `unknown_events = error`. `prs observe` defaults to `ignore`,
+Tests default to `unknown_events = error`. `snappea observe` defaults to `ignore`,
 since production logs often carry events the spec doesn't model. Run
 `--unknown-events warn` after a deploy that changes instrumentation: a typo shows
 up as a warning with the likely intended name.
@@ -147,7 +147,7 @@ A service that already logs JSON can be checked without new emitters.
 ```
 
 ```sh
-prs observe specs/inventory.p app.log --spec InventoryCorrect \
+snappea observe specs/inventory.p app.log --spec InventoryCorrect \
   --parser-config '{"event": "msg", "key": "sku", "timestamp": "time", "payload": ""}'
 ```
 

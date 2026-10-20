@@ -25,15 +25,15 @@ jobs:
       - uses: stCarolas/setup-maven@v5
         with:
           maven-version: '3.9.9'
-      - run: cargo build --locked -p p-rs
-      - name: Test and install p-rs, with a natives jar holding this build's prs
+      - run: cargo build --locked -p snappea
+      - name: Test and install snappea, with a natives jar holding this build's snappea
         env:
-          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+          SNAPPEA_BIN: ${{ github.workspace }}/target/debug/snappea
         run: |
           mkdir -p java/natives/natives-linux-x86_64
-          cp target/debug/prs java/natives/natives-linux-x86_64/prs
+          cp target/debug/snappea java/natives/natives-linux-x86_64/snappea
           mvn --batch-mode --no-transfer-progress -f java/pom.xml -Pnatives,release install
-      # No PRS_BIN and no prs on PATH: the examples get the checker from the natives jar.
+      # No SNAPPEA_BIN and no snappea on PATH: the examples get the checker from the natives jar.
       - name: Run Jupiter and jqwik examples
         working-directory: examples/java
         run: mvn --batch-mode --no-transfer-progress test
@@ -44,6 +44,6 @@ jobs:
           path: |
             java/target/surefire-reports/
             examples/java/target/coverage/
-            examples/java/target/prs/
+            examples/java/target/snappea/
             examples/java/target/surefire-reports/
             examples/java/.jqwik-database

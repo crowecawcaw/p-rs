@@ -1,0 +1,17 @@
+[package]
+name = "snappea-wasm"
+version.workspace = true
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "WebAssembly build of the snappea tool: run `snappea check` in a browser or Node.js"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+snappea = { workspace = true, features = ["cli"] }
+serde = { workspace = true }
+serde_json = { workspace = true }

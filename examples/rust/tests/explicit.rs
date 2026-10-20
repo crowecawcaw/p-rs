@@ -41,12 +41,12 @@ fn negative_control_detects_overselling() {
     assert_eq!(violation.events.last().unwrap().payload["order"], "order-2");
 }
 
-// Code instrumented with the global `prs::emit::emit` needs no sink: the recording
+// Code instrumented with the global `snappea::emit::emit` needs no sink: the recording
 // binds the test's thread. Bind threads you spawn with `recorder.sink().bind()`.
 #[test]
 fn global_emit_is_recorded() {
     let recorder = model().recording();
-    prs::emit::emit("eStocked", "coffee", prs::emit::json!({"units": 3}));
-    prs::emit::emit("eReserved", "coffee", prs::emit::json!({"order": "o1", "units": 2}));
+    snappea::emit::emit("eStocked", "coffee", snappea::emit::json!({"units": 3}));
+    snappea::emit::emit("eReserved", "coffee", snappea::emit::json!({"order": "o1", "units": 2}));
     assert_eq!(recorder.check().unwrap().verified_events(), 2);
 }

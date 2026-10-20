@@ -77,7 +77,7 @@ export function Schedules() {
     <div className="diagram schedules">
       <div className="sched-controls">
         <button onClick={() => start("unit")} disabled={playing}>Run the unit test</button>
-        <button className="primary" onClick={() => start("checker")} disabled={playing}>Run prs check</button>
+        <button className="primary" onClick={() => start("checker")} disabled={playing}>Run snappea check</button>
       </div>
 
       <div className="sched-body">

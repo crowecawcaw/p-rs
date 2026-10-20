@@ -23,7 +23,7 @@ SPEC = Path(__file__).resolve().parents[1] / "specs" / "inventory.p"
 WORKERS = ("worker-a", "worker-b")
 
 
-def run_scenario(backend, prs_bin, artifacts, scenario):
+def run_scenario(backend, snappea_bin, artifacts, scenario):
     """Run `healthy` or assert detection/cancellation of the `oversell` fault.
 
     Returns a summary suitable for JSON serialization. An expected violation is
@@ -57,7 +57,7 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
             for read_end, _ in pipes.values():
                 live += ["--live", "/dev/fd/%d" % read_end]
             observer = subprocess.Popen([
-                str(prs_bin), "observe", str(SPEC), "--spec", "InventoryCorrect",
+                str(snappea_bin), "observe", str(SPEC), "--spec", "InventoryCorrect",
                 *live, "--sequence", "seq", "--strict", "--coverage",
                 "--record", str(artifacts / "events.jsonl"),
                 "--json-report", str(artifacts / "report.json"),
@@ -169,7 +169,7 @@ def run_scenario(backend, prs_bin, artifacts, scenario):
             else:
                 violations = spec["errors"]
                 if observer_code != 1 or report["exit_code"] != 2 or report["input_complete"] or report["stop_reason"] != "error":
-                    raise AssertionError("expected native prs failure before EOF: " + str(report))
+                    raise AssertionError("expected native snappea failure before EOF: " + str(report))
                 if len(violations) != 1 or violations[0]["kind"] != "spec_violation" or "reservation exceeds available stock" not in str(violations[0]) or violations[0]["key"] != "coffee":
                     raise AssertionError("unexpected violation: " + str(violations))
             with closing(sqlite3.connect(database)) as db:

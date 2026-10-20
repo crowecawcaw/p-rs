@@ -1,6 +1,6 @@
 import pytest
 
-from prs import check_events, check_spec, expect_violation
+from snappea import check_events, check_spec, expect_violation
 
 
 def test_release_makes_stock_available_again(inventory_factory):

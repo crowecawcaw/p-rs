@@ -17,7 +17,7 @@ const STRATEGIES: { label: string; args: string[] }[] = [
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 const splitArgs = (s: string) => s.split(/\s+/).filter(Boolean);
-const REPO = "https://github.com/crowecawcaw/p-rs";
+const REPO = "https://github.com/crowecawcaw/snappea";
 const NARROW = "(max-width: 900px)";
 const TAB_LABEL: Record<Tab, string> = { files: "Files", console: "Console", trace: "Trace", log: "Log" };
 
@@ -222,8 +222,8 @@ export function App() {
   return (
     <div className="app">
       <header className="top">
-        <a className="brand" href="./" aria-label="p-rs home">
-          <span className="logo">p-rs</span>
+        <a className="brand" href="./" aria-label="Snap Pea home">
+          <span className="logo">Snap Pea</span>
           <span className="brand-name">Playground</span>
         </a>
         <select className="demo-select" value={demo.id} onChange={(e) => pickDemo(e.target.value)} aria-label="Demo">

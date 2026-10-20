@@ -14,7 +14,7 @@ const SIDES: Record<Side, { label: string; dur: number; gap: number; redEvery: n
     bug: "✗ bug: counter is 1, expected 2",
     ok: "✓ schedule passed",
     caption:
-      "You, or an agent, write a model of the design. prs check runs it thousands of times, each with a different ordering of messages, and the spec flags any run that breaks a rule. None of your service code is involved.",
+      "You, or an agent, write a model of the design. snappea check runs it thousands of times, each with a different ordering of messages, and the spec flags any run that breaks a rule. None of your service code is involved.",
   },
   test: {
     label: "Test time",
@@ -24,7 +24,7 @@ const SIDES: Record<Side, { label: string; dur: number; gap: number; redEvery: n
     bug: "✗ test fails: stock went negative",
     ok: "✓ events match the spec",
     caption:
-      "Your code emits events at the points that matter, from its ordinary unit and integration tests. prs checks those events against specs written in P, so a rule you checked in the design is also checked in the code.",
+      "Your code emits events at the points that matter, from its ordinary unit and integration tests. snappea checks those events against specs written in P, so a rule you checked in the design is also checked in the code.",
   },
 };
 
@@ -127,7 +127,7 @@ export function Loops() {
           <circle key={d.key} cx={d.x} cy={d.y} r={d.red ? 6 : 4.5} className={d.red ? "pulse bug" : "pulse"} />
         ))}
 
-        <Box x={30} y={32} title="prs check" sub="the model checker" kind="tool" className={dim("design")} />
+        <Box x={30} y={32} title="snappea check" sub="the model checker" kind="tool" className={dim("design")} />
         <Box x={30} y={246} title="Model" sub="your design, in P" kind="p" className={dim("design")} />
         <Box x={510} y={32} title="Your tests" sub="pytest · JUnit · go test" kind="tool" className={dim("test")} />
         <Box x={510} y={246} title="Your code" sub="the real service" kind="code" className={dim("test")} />

@@ -23,10 +23,10 @@ The model has two designs for a reservation:
 From the repository root:
 
 ```sh
-cargo build -p p-rs --bin prs
+cargo build -p snappea --bin snappea
 cd examples/model
-../../target/debug/prs check tcAtomicReserve --exhaustive
-../../target/debug/prs check tcCheckThenReserve
+../../target/debug/snappea check tcAtomicReserve --exhaustive
+../../target/debug/snappea check tcCheckThenReserve
 ```
 
 The first explores every interleaving and data choice and finds no bug:
@@ -43,13 +43,13 @@ The second finds the oversell within a few schedules, and exits with 1:
 Checking Inventory: 1 test case
 FAIL  tcCheckThenReserve (bug found after 8 schedules, 8 workers, 0.01s)
       Assertion Failed: PSpec/inventory.p:27:7 reservation exceeds available stock
-      Replay: prs replay PCheckerOutput/tcCheckThenReserve/bug.schedule
+      Replay: snappea replay PCheckerOutput/tcCheckThenReserve/bug.schedule
 1 of 1 test case failed in 0.02s, peak memory 10 MB. Output: PCheckerOutput/
 ```
 
 The log in `PCheckerOutput/tcCheckThenReserve/bug.txt` shows both orders reading
-3 units before either commits, and the `prs replay` command runs the same schedule
-again. `prs check` with no test case checks both, so it exits with 1 too.
+3 units before either commits, and the `snappea replay` command runs the same schedule
+again. `snappea check` with no test case checks both, so it exits with 1 too.
 
 The spec is the same file the language examples check. A unit test of the Python
 service runs one ordering per test; the model explores every ordering of concurrent

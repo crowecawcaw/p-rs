@@ -2,7 +2,7 @@ package example;
 
 /**
  * A separate process: stocks a product and reserves it. Started by a test with
- * PRS_EVENTS_DIR set, its events go to a file of its own in that folder.
+ * SNAPPEA_EVENTS_DIR set, its events go to a file of its own in that folder.
  * Usage: Worker <sku> <stock> <order> <units>
  */
 public final class Worker {

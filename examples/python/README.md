@@ -7,8 +7,8 @@ the checks do and why.
 
 ## Install and run
 
-From the repository root, with Python 3.9+ and a Rust toolchain (the local `p-rs`
-package builds the `prs` binary):
+From the repository root, with Python 3.9+ and a Rust toolchain (the local `snappea`
+package builds the `snappea` binary):
 
 ```sh
 python -m venv examples/.venv
@@ -45,9 +45,9 @@ Read [pytest/pyproject.toml](pytest/pyproject.toml),
 [pytest/conftest.py](pytest/conftest.py), and
 [pytest/test_inventory.py](pytest/test_inventory.py).
 
-Installing `p-rs` registers a pytest plugin. `mode = "auto"` checks every test with a
+Installing `snappea` registers a pytest plugin. `mode = "auto"` checks every test with a
 fresh recorder that also records fixture setup, so a function-scoped fixture can
-seed stock. Tests make ordinary calls and assertions; `prs_events` is optional.
+seed stock. Tests make ordinary calls and assertions; `snappea_events` is optional.
 
 **Gotcha:** the check runs when the test body ends, before fixture teardown, so
 finish spec-relevant work in setup or the body. Don't use session-scoped application
@@ -56,7 +56,7 @@ state: it outlives each test's recorder.
 A broken guard that lets two reservations of 2 through against 3 units fails with:
 
 ```text
-prs.SpecViolation: P spec InventoryCorrect was broken: reservation exceeds available stock
+snappea.SpecViolation: P spec InventoryCorrect was broken: reservation exceeds available stock
 
   Events (key "coffee"):
       1  eStocked   units=3
@@ -65,7 +65,7 @@ prs.SpecViolation: P spec InventoryCorrect was broken: reservation exceeds avail
 ```
 
 The full report adds the emit location, the P assertion location, and a folder with
-the events and checker output. `--prs-coverage=coverage/monitor.json` in the pytest
+the events and checker output. `--snappea-coverage=coverage/monitor.json` in the pytest
 options prints [coverage](../README.md#coverage) and merges it into the JSON report;
 delete the file to start over.
 
@@ -91,7 +91,7 @@ with `python -m pytest --hypothesis-seed=12345`.
 ## Adapt to your project
 
 Application code imports only `emit` and calls it after each committed change, with
-the entity ID as `key`. Point `[tool.prs] spec_files` at your specs, then choose
+the entity ID as `key`. Point `[tool.snappea] spec_files` at your specs, then choose
 `check_spec` for selected tests, `mode = "auto"` for every test, or a state machine
 that owns its recorder for generated histories. See the
 [Python integration reference](../../docs/python.md) for marks, hot-state checks,

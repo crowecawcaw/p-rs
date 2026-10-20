@@ -2,7 +2,7 @@
 
 Three JUnit test classes check one [inventory service](src/main/java/example/Inventory.java)
 against the [P spec](specs/inventory.p) with the [Java helpers](../../java/README.md),
-which run the `prs observe` CLI. See the
+which run the `snappea observe` CLI. See the
 [shared overview](../README.md#how-the-checks-work) for what the checks do and why.
 
 ## Run
@@ -11,25 +11,25 @@ From the repository root, with JDK 17+, Maven 3.9.9 and Rust (on another platfor
 replace `natives-macos-aarch64` with yours, such as `natives-linux-x86_64`):
 
 ```sh
-cargo build --locked -p p-rs
+cargo build --locked -p snappea
 mkdir -p java/natives/natives-macos-aarch64
-cp target/debug/prs java/natives/natives-macos-aarch64/
-PRS_BIN="$PWD/target/debug/prs" mvn --batch-mode --no-transfer-progress -f java/pom.xml -Pnatives install
+cp target/debug/snappea java/natives/natives-macos-aarch64/
+SNAPPEA_BIN="$PWD/target/debug/snappea" mvn --batch-mode --no-transfer-progress -f java/pom.xml -Pnatives install
 mvn --batch-mode --no-transfer-progress -f examples/java/pom.xml test
 ```
 
-The example builds against this checkout's `p-rs` (a SNAPSHOT version), so the first
-Maven command installs it locally, with a natives jar holding the checker. The [pom](pom.xml) depends on `p-rs` and, in
+The example builds against this checkout's `snappea` (a SNAPSHOT version), so the first
+Maven command installs it locally, with a natives jar holding the checker. The [pom](pom.xml) depends on `snappea` and, in
 test scope, on the natives jar its profiles pick for the platform; the tests then need
-no `PRS_BIN`. From `examples/java`, run one class with
+no `SNAPPEA_BIN`. From `examples/java`, run one class with
 `mvn test -Dtest=GeneratedInventoryTest`. The
 [CI workflow](../../.github/workflows/examples-java.yml) runs them with Java 17.
 
-`Inventory` calls `PrsEmit.emit(...)` after each successful change. Outside a test
+`Inventory` calls `SnappeaEmit.emit(...)` after each successful change. Outside a test
 recording that does nothing; a production deployment calls
-`PrsEmit.setSink(Sink.file(...))` at startup and checks the file with `prs observe`
+`SnappeaEmit.setSink(Sink.file(...))` at startup and checks the file with `snappea observe`
 ([Testing and production](../../docs/production.md)).
-[`prs.properties`](prs.properties) holds the spec files, spec name, artifacts folder
+[`snappea.properties`](snappea.properties) holds the spec files, spec name, artifacts folder
 and coverage path for every test class.
 
 ## 1. Explicit checks in selected tests
@@ -43,7 +43,7 @@ its events land in the recording's events folder, and waits for it before the ch
 ## 2. Automatic checks with a JUnit extension
 
 [AutomaticInventoryTest](src/test/java/example/AutomaticInventoryTest.java) uses
-`@ExtendWith(PrsExtension.class)`. Each test's recording opens before `@BeforeEach`
+`@ExtendWith(SnappeaExtension.class)`. Each test's recording opens before `@BeforeEach`
 stocks products and is checked after `@AfterEach` releases the fixture's reservation,
 so both are recorded.
 
@@ -63,11 +63,11 @@ jqwik prints its seed and smallest failing list, and keeps replay state in
 ## Coverage
 
 The extension and the jqwik collector both merge into `target/coverage/monitor.json`
-(from `prs.properties`) and print a summary. Delete it before a fresh run.
+(from `snappea.properties`) and print a summary. Delete it before a fresh run.
 
 ## Adapt to your project
 
-Copy `prs.properties` and point `spec_files` and `specs` at your specs. Emit from the
+Copy `snappea.properties` and point `spec_files` and `specs` at your specs. Emit from the
 code that commits the change. Failed checks keep events, reports and replay logs
-under `target/prs`. See the [helper documentation](../../java/README.md) for modes,
+under `target/snappea`. See the [helper documentation](../../java/README.md) for modes,
 per-test options, other processes and production sinks.

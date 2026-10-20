@@ -1,13 +1,13 @@
-// Inventory-specific event mapping and fixtures; prs::test does the checking.
+// Inventory-specific event mapping and fixtures; snappea::test does the checking.
 #![allow(dead_code)]
 
 use inventory_integration_example::{Event, Inventory};
-use prs::test::{json, EventSink, Model, Recording};
+use snappea::test::{json, EventSink, Model, Recording};
 use std::sync::LazyLock;
 
 pub type TestInventory = Inventory<Box<dyn FnMut(Event)>>;
 
-/// Compiled once from `[package.metadata.prs]` in Cargo.toml.
+/// Compiled once from `[package.metadata.snappea]` in Cargo.toml.
 pub fn model() -> &'static Model {
     static MODEL: LazyLock<Model> = LazyLock::new(|| Model::load().expect("inventory specification must compile"));
     &MODEL

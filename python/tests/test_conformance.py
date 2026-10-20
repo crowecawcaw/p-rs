@@ -10,8 +10,8 @@ import warnings
 import pytest
 from conftest import ROOT
 
-from prs import Recorder, SetupError, SpecViolation, StrictDefaultWarning, emit
-from prs._recorder import _parse_time
+from snappea import Recorder, SetupError, SpecViolation, StrictDefaultWarning, emit
+from snappea._recorder import _parse_time
 
 CORPUS = os.path.join(ROOT, "tests", "conformance")
 FEATURES = {"events_dir", "unknown_events"}

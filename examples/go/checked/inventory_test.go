@@ -5,7 +5,7 @@ import (
 
 	"example.com/inventory/internal/fixture"
 	"example.com/inventory/inventory"
-	"github.com/crowecawcaw/p-rs/go/prstest"
+	"github.com/crowecawcaw/snappea/go/snappeatest"
 )
 
 // stocked starts recording, registers the cleanup check, then seeds stock.
@@ -53,4 +53,4 @@ func TestRejectedReservation(t *testing.T) {
 }
 
 // TestMain runs the tests, then writes coverage/monitor.json and prints its summary.
-func TestMain(m *testing.M) { prstest.Main(m) }
+func TestMain(m *testing.M) { snappeatest.Main(m) }

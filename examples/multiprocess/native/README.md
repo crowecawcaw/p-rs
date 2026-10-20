@@ -2,10 +2,10 @@
 
 This integration test starts two independent Python application processes with
 `subprocess.Popen`, sharing a SQLite inventory database, and a third process
-running `prs observe`. Both applications emit events from committed inventory
+running `snappea observe`. Both applications emit events from committed inventory
 transactions, each into a pipe of its own that the observer reads. The parent
 drives the workers with commands and owns every process's lifetime. Python's standard library is the only application
-dependency; no Docker daemon or Python `prs` package is required.
+dependency; no Docker daemon or Python `snappea` package is required.
 
 The application, worker protocol, P specification, and observer supervisor are
 shared with the [Docker example](../docker/README.md). The local adapter is
@@ -17,8 +17,8 @@ domain rules or expected failure.
 From the repository root:
 
 ```sh
-cargo build -p p-rs --bin prs --locked
-export PRS_BIN="$PWD/target/debug/prs"
+cargo build -p snappea --bin snappea --locked
+export SNAPPEA_BIN="$PWD/target/debug/snappea"
 python -m unittest discover -s examples/multiprocess/native -v
 ```
 
@@ -46,7 +46,7 @@ The healthy command exits **0**. The oversell command exits **1**, preserving
 the observer's failure for a test runner in another process. The unittest suite
 expects that specific failure, so the complete suite exits 0. Both commands
 print the observer's human-readable diagnostics and coverage, followed by a JSON
-summary and artifact location. Use `--prs /absolute/path/to/prs` to select the
+summary and artifact location. Use `--snappea /absolute/path/to/snappea` to select the
 binary explicitly or `--artifacts /path/to/new-directory` to choose output.
 Each default run uses a fresh directory under `native/artifacts`; existing
 output directories are never overwritten.
@@ -66,7 +66,7 @@ Each worker gets two channels. Its stdin and stdout carry commands and replies
 harness creates; the observer reads every pipe:
 
 ```sh
-prs observe specs/inventory.p --spec InventoryCorrect \
+snappea observe specs/inventory.p --spec InventoryCorrect \
   --live /dev/fd/5 --live /dev/fd/7 --sequence seq \
   --strict --coverage --record events.jsonl --json-report report.json
 ```

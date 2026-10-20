@@ -1,5 +1,5 @@
 # The Python package: `emit` for application code, `check_spec` for tests, a pytest
-# plugin, and the `prs` binary itself. See docs/python.md.
+# plugin, and the `snappea` binary itself. See docs/python.md.
 #
 #   pip install ./python          # builds the binary with cargo
 #   maturin build -m python/pyproject.toml --release   # a wheel
@@ -9,7 +9,7 @@ requires = ["maturin>=1.5,<2"]
 build-backend = "maturin"
 
 [project]
-name = "p-rs"
+name = "pysnappea"
 description = "Check P specs against events from your Python tests"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -25,19 +25,19 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/crowecawcaw/p-rs"
-Documentation = "https://github.com/crowecawcaw/p-rs/blob/main/docs/python.md"
+Repository = "https://github.com/crowecawcaw/snappea"
+Documentation = "https://github.com/crowecawcaw/snappea/blob/main/docs/python.md"
 
 [project.entry-points.pytest11]
-prs = "prs.pytest_plugin"
+snappea = "snappea.pytest_plugin"
 
 [tool.maturin]
 bindings = "bin"                                 # ships the executable, no bindings
-manifest-path = "../crates/p-rs/Cargo.toml"
-features = ["cli"]                               # the binaries only, not prs::test
+manifest-path = "../crates/snappea/Cargo.toml"
+features = ["cli"]                               # the binaries only, not snappea::test
 no-default-features = true
 python-source = "src"
-module-name = "prs"
+module-name = "snappea"
 strip = true
 exclude = ["**/__pycache__/**"]
 

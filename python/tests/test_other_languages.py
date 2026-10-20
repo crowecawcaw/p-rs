@@ -7,7 +7,7 @@ import subprocess
 import pytest
 from conftest import HERE, SPEC
 
-from prs import emit, expect_violation
+from snappea import emit, expect_violation
 
 ROOT = os.path.dirname(os.path.dirname(HERE))  # the Go module root
 
@@ -17,7 +17,7 @@ def go_service(tmp_path_factory):
     if shutil.which("go") is None:
         pytest.skip("go is not installed")
     exe = str(tmp_path_factory.mktemp("go") / "service")
-    subprocess.run(["go", "build", "-o", exe, "./go/prsemit/example"], cwd=ROOT, check=True)
+    subprocess.run(["go", "build", "-o", exe, "./go/snappeaemit/example"], cwd=ROOT, check=True)
     return exe
 
 

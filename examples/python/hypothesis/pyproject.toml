@@ -2,6 +2,6 @@
 testpaths = ["."]
 addopts = "--strict-markers"
 
-[tool.prs]
+[tool.snappea]
 spec_files = ["../specs/inventory.p"]
 mode = "off"  # One pytest test runs many histories; each machine records its own.

@@ -1,7 +1,7 @@
 package example;
 
-import io.github.crowecawcaw.prs.CoverageCollector;
-import io.github.crowecawcaw.prs.PrsObserver;
+import io.github.crowecawcaw.snappea.CoverageCollector;
+import io.github.crowecawcaw.snappea.SnappeaObserver;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,8 +10,8 @@ import net.jqwik.api.lifecycle.AfterContainer;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GeneratedInventoryTest {
-    private static final PrsObserver OBSERVER = PrsObserver.builder().build();
-    // The coverage file from prs.properties; merged into what the Jupiter tests wrote.
+    private static final SnappeaObserver OBSERVER = SnappeaObserver.builder().build();
+    // The coverage file from snappea.properties; merged into what the Jupiter tests wrote.
     private static final CoverageCollector COVERAGE = OBSERVER.coverage();
 
     @AfterContainer static void writeCoverage() { COVERAGE.close(); }

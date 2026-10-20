@@ -1,5 +1,5 @@
 // Package eventline encodes lines of the events folder format
-// (docs/observe.md#events-folder-format), shared by prsemit and prstest so both
+// (docs/observe.md#events-folder-format), shared by snappeaemit and snappeatest so both
 // number and time events from one process consistently.
 package eventline
 

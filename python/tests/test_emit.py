@@ -7,18 +7,18 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from prs import Recorder, SpecViolation, _emit, check_spec, emit, set_sink
-from prs._recorder import _parse_time
+from snappea import Recorder, SpecViolation, _emit, check_spec, emit, set_sink
+from snappea._recorder import _parse_time
 
 
 def test_emit_does_nothing_without_a_recorder(monkeypatch, tmp_path):
-    monkeypatch.delenv("PRS_EVENTS_DIR", raising=False)
+    monkeypatch.delenv("SNAPPEA_EVENTS_DIR", raising=False)
     emit("eAnything", x=1)
     assert list(tmp_path.iterdir()) == []
 
 
 def test_emit_writes_to_the_events_dir(monkeypatch, tmp_path):
-    monkeypatch.setenv("PRS_EVENTS_DIR", str(tmp_path))
+    monkeypatch.setenv("SNAPPEA_EVENTS_DIR", str(tmp_path))
     emit("eThing", key=7, x={1, 2}, at=5)
     (f,) = tmp_path.iterdir()
     assert re.fullmatch(rf"[\w.-]+-{os.getpid()}-[0-9a-f]{{6}}\.jsonl", f.name)
@@ -67,14 +67,14 @@ def test_clock_never_goes_back():
 
 @pytest.fixture
 def no_recording(monkeypatch):
-    """Production: no recorder and no PRS_EVENTS_DIR."""
-    monkeypatch.delenv("PRS_EVENTS_DIR", raising=False)
+    """Production: no recorder and no SNAPPEA_EVENTS_DIR."""
+    monkeypatch.delenv("SNAPPEA_EVENTS_DIR", raising=False)
     monkeypatch.setattr(_emit, "_recorders", [])
     yield
     set_sink(None)
 
 
-def test_sink_writes_json_lines_prs_observe_reads(no_recording, tmp_path):
+def test_sink_writes_json_lines_snappea_observe_reads(no_recording, tmp_path):
     from conftest import SPEC
 
     log = tmp_path / "logs" / "events.jsonl"

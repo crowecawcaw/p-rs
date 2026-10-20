@@ -32,7 +32,7 @@ env:
 
 jobs:
   bench:
-    if: github.repository == 'crowecawcaw/p-rs'
+    if: github.repository == 'crowecawcaw/snappea'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -64,18 +64,23 @@ jobs:
       - name: Build
         working-directory: ${{ steps.src.outputs.dir }}
         run: |
-          # commits before the crates were merged into p-rs build the prs-cli crate
-          if [ -d crates/prs-cli ]; then
-            cargo build --release --locked -p prs-cli
-          else
+          # The benchmark also builds old commits, which used earlier names: the prs-cli
+          # crate, then p-rs (binaries prs-compat and prs), then snappea.
+          if [ -d crates/snappea ]; then
+            cargo build --release --locked -p snappea --bins
+          elif [ -d crates/p-rs ]; then
             cargo build --release --locked -p p-rs --bins
+          else
+            cargo build --release --locked -p prs-cli
           fi
 
       - name: Run benchmarks
         run: |
           bin=${{ steps.src.outputs.dir }}/target/release
-          # commits before prs-compat have only prs, with upstream's options
-          cmd=$bin/prs-compat; [ -x "$cmd" ] || cmd=$bin/prs
+          # older commits named the binaries prs-compat and prs (the latter with upstream's options)
+          cmd=$bin/snappea-compat
+          [ -x "$cmd" ] || cmd=$bin/prs-compat
+          [ -x "$cmd" ] || cmd=$bin/prs
           python3 scripts/bench.py run --cmd "$cmd" --commit ${{ steps.src.outputs.commit }} --instructions --out bench.json
 
       - name: Report

@@ -1,15 +1,15 @@
 package example;
 
-import io.github.crowecawcaw.prs.PrsExtension;
+import io.github.crowecawcaw.snappea.SnappeaExtension;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.junit.jupiter.api.Assertions.*;
 
-// Settings come from prs.properties. Each test is recorded from before @BeforeEach until
+// Settings come from snappea.properties. Each test is recorded from before @BeforeEach until
 // after @AfterEach, then checked.
-@ExtendWith(PrsExtension.class)
+@ExtendWith(SnappeaExtension.class)
 class AutomaticInventoryTest {
     private Inventory inventory;
 
