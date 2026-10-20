@@ -230,7 +230,7 @@ fn matches_upstream_pobserve_goldens() {
         if sorted {
             args.push("--assumeInputsAreSorted".into());
         }
-        let code = prs::driver::observe::run(&args, &mut h, support::pobserve_parsers::all(), "p observe");
+        let code = prs::compat::observe::run_with(&args, &mut h, support::pobserve_parsers::all());
 
         let mut problems = Vec::new();
         let want_code: i32 = fs::read_to_string(exp.join("exit_code")).unwrap().trim().parse().unwrap();

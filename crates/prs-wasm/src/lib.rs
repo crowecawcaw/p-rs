@@ -147,8 +147,9 @@ mod tests {
         );
         let r = run(Request { args: vec!["check".into(), "m.p".into()], files, cwd: None, seed: Some(7) });
         assert_eq!(r.exit_code, 1, "{}", r.stdout);
-        assert!(r.stdout.contains("Checker found a bug."), "{}", r.stdout);
-        let trace = r.files.iter().find(|(k, _)| k.ends_with("_0_0.txt")).map(|(_, v)| v.clone()).unwrap();
+        assert!(r.stdout.contains("\nFAIL  "), "{}", r.stdout);
+        assert!(r.stdout.contains("Replay: prs replay PCheckerOutput/"), "{}", r.stdout);
+        let trace = r.files.iter().find(|(k, _)| k.ends_with("/bug.txt")).map(|(_, v)| v.clone()).unwrap();
         assert!(trace.contains("<ErrorLog> Assertion Failed: m.p:1:40 no"), "{}", trace);
         assert!(r.files.keys().any(|k| k.ends_with(".trace.json")));
     }

@@ -1,21 +1,24 @@
 //! The `prs` command line.
 //!
-//! `prs` runs the commands of [`crate::driver`], so it writes the same output files as
-//! `prs-compat`, with its own options: test cases and sources as arguments, one
-//! `--strategy` option, durations with units, parallel workers and time tracking. Exit status: 0 when no bug is found,
-//! 1 when one is, 2 on any other error.
+//! `prs` runs the commands of [`crate::driver`] with its own options (test cases and
+//! sources as arguments, one `--strategy` option, durations with units, parallel workers,
+//! time tracking) and its own output: a line per test case, the bug's report and replay
+//! command, and a folder per test case ([`Style::Prs`]). The upstream-style progress shows
+//! with `--verbose`. Exit status: 0 when no bug is found, 1 when one is, 2 on any other
+//! error.
 
 use std::path::Path;
 
 use crate::checker::strategy::StrategyKind;
 use crate::checker::timeline::TimelineRepr;
-use crate::driver::check::{self, CheckConfig, Mode};
-use crate::driver::{observe as observe_cmd, scenario};
-use crate::host::{full_path, Buffered, Color, Exit, Host, HostExt, Stream};
+use crate::driver::check::{self, CheckConfig, Mode, Style};
+use crate::driver::scenario;
+use crate::host::{full_path, Buffered, Color, Exit, Host, HostExt, Quiet, Stream};
+use crate::project::pproj::Includes;
 
-const OK: i32 = 0;
-const BUG: i32 = 1;
-const ERROR: i32 = 2;
+pub(super) const OK: i32 = 0;
+pub(super) const BUG: i32 = 1;
+pub(super) const ERROR: i32 = 2;
 
 const HELP: &str = "\
 prs checks P models.
@@ -76,7 +79,12 @@ Time:
 
 Output:
   -o, --out <DIR>           Output folder (default: PCheckerOutput)
-  -v, --verbose             Log every schedule
+  -v, --verbose             Show progress and statistics, and log every schedule
+
+Prints one line per test case, and for a bug its report and the `prs replay` command
+that reproduces it. Each test case's files go to <DIR>/<TEST>/, replacing the previous
+run's: bug.txt (the buggy schedule's log), bug.schedule, bug.trace.json, coverage.txt,
+summary.txt and, for scenario monitors, scenario_coverage.json.
 ";
 
 const REPLAY_HELP: &str = "\
@@ -86,6 +94,9 @@ Replays a schedule written by `prs check`. Exit status 1 means the bug was repro
 
 Options:
       --test <NAME>         Test case to replay, for schedules that name none
+      --max-steps <N>       The step options the schedule was found with; the
+      --fair-max-steps <N>  Replay line of `prs check` includes them
+      --fail-on-max-steps
   -v, --verbose             Log the schedule
 ";
 
@@ -117,7 +128,7 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
         "check" => check(rest, host),
         "replay" => replay(rest, host),
         "tests" => tests(rest, host),
-        "observe" => observe(rest, host),
+        "observe" => super::observe::observe(rest, host),
         "coverage" => coverage(rest, host),
         "version" | "--version" | "-V" => {
             host.out_line(&format!("prs {}", env!("CARGO_PKG_VERSION")));
@@ -138,14 +149,14 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
 }
 
 /// Reports a command line error; exit status 2.
-fn usage_error(host: &mut dyn Host, msg: &str, cmd: Option<&str>) -> i32 {
+pub(super) fn usage_error(host: &mut dyn Host, msg: &str, cmd: Option<&str>) -> i32 {
     error(host, msg);
     let help = cmd.map_or("prs --help".to_string(), |c| format!("prs {} --help", c));
     host.write(Stream::Err, &format!("Run `{}` for usage.\n", help), None);
     ERROR
 }
 
-fn error(host: &mut dyn Host, msg: &str) {
+pub(super) fn error(host: &mut dyn Host, msg: &str) {
     host.write(Stream::Err, "error: ", Some(Color::Red));
     host.write(Stream::Err, msg, None);
     host.write(Stream::Err, "\n", None);
@@ -154,39 +165,43 @@ fn error(host: &mut dyn Host, msg: &str) {
 // ---- options ----------------------------------------------------------------------------
 
 /// An option a command accepts.
-struct Opt {
+pub(super) struct Opt {
     long: &'static str,
     short: Option<char>,
     takes_value: bool,
 }
 
-const fn flag(long: &'static str, short: Option<char>) -> Opt {
+pub(super) const fn flag(long: &'static str, short: Option<char>) -> Opt {
     Opt { long, short, takes_value: false }
 }
 
-const fn value(long: &'static str, short: Option<char>) -> Opt {
+pub(super) const fn value(long: &'static str, short: Option<char>) -> Opt {
     Opt { long, short, takes_value: true }
 }
 
 /// Parsed arguments: positionals, and options (long name, value) in order.
 #[derive(Default)]
-struct Args {
-    positional: Vec<String>,
+pub(super) struct Args {
+    pub positional: Vec<String>,
     options: Vec<(&'static str, String)>,
-    help: bool,
+    pub help: bool,
 }
 
 impl Args {
-    fn has(&self, long: &str) -> bool {
+    pub fn has(&self, long: &str) -> bool {
         self.options.iter().any(|(l, _)| *l == long)
     }
     /// The last value given for `long`.
-    fn get(&self, long: &str) -> Option<&str> {
+    pub fn get(&self, long: &str) -> Option<&str> {
         self.options.iter().rev().find(|(l, _)| *l == long).map(|(_, v)| v.as_str())
+    }
+    /// Every value given for `long`, in order.
+    pub fn all(&self, long: &str) -> Vec<&str> {
+        self.options.iter().filter(|(l, _)| *l == long).map(|(_, v)| v.as_str()).collect()
     }
 }
 
-fn parse_args(args: &[String], spec: &[Opt]) -> Result<Args, String> {
+pub(super) fn parse_args(args: &[String], spec: &[Opt]) -> Result<Args, String> {
     let mut out = Args::default();
     let mut it = args.iter();
     let mut only_positional = false;
@@ -229,7 +244,7 @@ fn parse_args(args: &[String], spec: &[Opt]) -> Result<Args, String> {
     Ok(out)
 }
 
-fn uint(args: &Args, long: &str) -> Result<Option<usize>, String> {
+pub(super) fn uint(args: &Args, long: &str) -> Result<Option<usize>, String> {
     args.get(long)
         .map(|v| v.parse::<usize>().map_err(|_| format!("'--{}' needs a non-negative whole number, not '{}'", long, v)))
         .transpose()
@@ -406,7 +421,7 @@ fn check(args: &[String], host: &mut dyn Host) -> i32 {
         host.write(Stream::Out, CHECK_HELP, None);
         return OK;
     }
-    let mut cfg = CheckConfig::default();
+    let mut cfg = prs_config();
     let patterns = match check_config(&parsed, &mut cfg) {
         Ok(p) => p,
         Err(m) => return usage_error(host, &m, Some("check")),
@@ -444,18 +459,7 @@ fn check_config(a: &Args, cfg: &mut CheckConfig) -> Result<Vec<String>, String> 
     if a.has("exhaustive") {
         cfg.mode = Mode::PEx;
     }
-    if let Some(n) = uint(a, "max-steps")? {
-        cfg.max_unfair_steps = n;
-        cfg.max_fair_steps = n.saturating_mul(10);
-    }
-    if let Some(n) = uint(a, "fair-max-steps")? {
-        cfg.max_fair_steps = n;
-        cfg.user_set_max_fair_steps = true;
-    }
-    if cfg.max_fair_steps < cfg.max_unfair_steps {
-        return Err("'--fair-max-steps' must be at least '--max-steps'".into());
-    }
-    cfg.fail_on_max_steps = a.has("fail-on-max-steps");
+    step_options(a, cfg)?;
     if let Some(t) = a.get("timeline") {
         parse_timeline(t, &mut cfg.timeline)?;
     }
@@ -472,38 +476,187 @@ fn check_config(a: &Args, cfg: &mut CheckConfig) -> Result<Vec<String>, String> 
     Ok(patterns)
 }
 
+/// `--max-steps`, `--fair-max-steps` and `--fail-on-max-steps`, which `check` and `replay`
+/// share (a schedule replays only with the step bounds it was found with).
+fn step_options(a: &Args, cfg: &mut CheckConfig) -> Result<(), String> {
+    if let Some(n) = uint(a, "max-steps")? {
+        cfg.max_unfair_steps = n;
+        cfg.max_fair_steps = n.saturating_mul(10);
+    }
+    if let Some(n) = uint(a, "fair-max-steps")? {
+        cfg.max_fair_steps = n;
+        cfg.user_set_max_fair_steps = true;
+    }
+    if cfg.max_fair_steps < cfg.max_unfair_steps {
+        return Err("'--fair-max-steps' must be at least '--max-steps'".into());
+    }
+    cfg.fail_on_max_steps = a.has("fail-on-max-steps");
+    Ok(())
+}
+
+/// The step options of `cfg` that differ from the defaults, as arguments.
+fn step_args(cfg: &CheckConfig) -> Vec<String> {
+    let default = CheckConfig::default();
+    let mut out = Vec::new();
+    if cfg.max_unfair_steps != default.max_unfair_steps {
+        out.extend(["--max-steps".to_string(), cfg.max_unfair_steps.to_string()]);
+    }
+    if cfg.user_set_max_fair_steps {
+        out.extend(["--fair-max-steps".to_string(), cfg.max_fair_steps.to_string()]);
+    }
+    if cfg.fail_on_max_steps {
+        out.push("--fail-on-max-steps".into());
+    }
+    out
+}
+
+/// A [`CheckConfig`] for prs: its output folder layout, and `<IncludeProject>` paths
+/// resolved against the including project file.
+fn prs_config() -> CheckConfig {
+    let mut cfg = CheckConfig { style: Style::Prs, ..CheckConfig::default() };
+    cfg.input.includes = Includes::FromProject;
+    cfg
+}
+
 fn run_check(
     host: &mut dyn Host,
     mut cfg: CheckConfig,
     patterns: &[String],
     latency: Option<&str>,
 ) -> Result<i32, Exit> {
+    let start = host.now();
+    // the upstream-style progress shows only with --verbose
+    let mut con = Quiet::new(host, !cfg.verbose);
     if let Some(l) = latency {
-        cfg.latency = Some(check::load_latency(host, split_latency(l).0)?);
+        cfg.latency = Some(check::load_latency(&mut con, split_latency(l).0)?);
     }
-    check::resolve_sources(host, &mut cfg)?;
-    host.out_line(&format!(".. Checking {}", cfg.project_name));
-    let loaded = check::load(host, &cfg)?;
+    check::resolve_sources(&mut con, &mut cfg)?;
+    let loaded = check::load(&mut con, &cfg)?;
     let names: Vec<String> = loaded.analysis.program.test_cases().into_iter().map(|t| t.name).collect();
     let selected = select_tests(&names, patterns).map_err(|m| {
-        error(host, &m);
+        error(con.inner, &m);
         Exit(ERROR)
     })?;
     if selected.is_empty() {
-        error(host, "the sources declare no test case");
+        error(con.inner, "the sources declare no test case");
         return Err(Exit(ERROR));
     }
-    let mut code = OK;
+    let n = selected.len();
+    con.inner.out_line(&format!("Checking {}: {} test case{}", cfg.project_name, n, plural(n)));
+    let mut failed = 0;
     for name in selected {
         cfg.test_case_name = name;
-        check::set_output_directory(host, &mut cfg)?;
-        code = code.max(check::testing_process(host, &loaded, &cfg)?);
+        check::set_output_directory(&mut con, &mut cfg)?;
+        let case = check::testing_process(&mut con, &loaded, &cfg)?;
+        if case.bugs > 0 {
+            failed += 1;
+        }
+        print_case(con.inner, &case, &cfg);
     }
-    host.out_line(". Done");
-    Ok(code)
+    let elapsed = duration(con.inner.now() - start);
+    let memory = memory(con.inner);
+    let out = match cfg.output_path.trim_end_matches('/') {
+        "" if cfg.output_path.is_empty() => ".",
+        o => o,
+    };
+    con.inner.out_line(&if failed == 0 && n == 1 {
+        format!("The test case passed in {}{}. Output: {}/", elapsed, memory, out)
+    } else if failed == 0 {
+        format!("All {} test cases passed in {}{}. Output: {}/", n, elapsed, memory, out)
+    } else {
+        format!("{} of {} test case{} failed in {}{}. Output: {}/", failed, n, plural(n), elapsed, memory, out)
+    });
+    Ok(if failed > 0 { BUG } else { OK })
 }
 
-const REPLAY_OPTS: &[Opt] = &[value("test", None), flag("verbose", Some('v'))];
+/// One test case's result line, and for a bug its report and how to replay it.
+fn print_case(host: &mut dyn Host, case: &check::CaseOutcome, cfg: &CheckConfig) {
+    let s = case.schedules;
+    // a bug ends an exhaustive search early, so its extent only matters without one
+    let schedules = match case.exhaustive_finished.filter(|_| case.bugs == 0) {
+        Some(true) => format!("all {} schedule{}", s, plural(s)),
+        Some(false) => format!("{} schedule{}, search incomplete", s, plural(s)),
+        None => format!("{} schedule{}", s, plural(s)),
+    };
+    let workers = if case.workers > 1 { format!(", {} workers", case.workers) } else { String::new() };
+    let limit = format!("{}{}", workers, if case.timed_out { ", time limit reached" } else { "" });
+    let time = duration(case.elapsed);
+    if case.bugs == 0 {
+        host.out_line(&format!("ok    {} ({}{}, {})", case.test_case, schedules, limit, time));
+        return;
+    }
+    host.write(Stream::Out, "FAIL", Some(Color::Red));
+    host.out_line(&format!("  {} (bug found after {}{}, {})", case.test_case, schedules, limit, time));
+    if let Some(report) = &case.bug_report {
+        for l in report.lines() {
+            host.out_line(&format!("      {}", l));
+        }
+    }
+    if let Some(schedule) = &case.schedule_file {
+        host.out_line(&format!("      Replay: {}", replay_command(schedule, cfg)));
+    }
+}
+
+/// The `prs replay` command for `schedule`, with the sources and step options the check
+/// was given.
+fn replay_command(schedule: &str, cfg: &CheckConfig) -> String {
+    let mut words = vec!["prs".to_string(), "replay".into(), schedule.to_string()];
+    words.extend(cfg.input.pproj.iter().cloned());
+    words.extend(cfg.input.pfiles.iter().cloned());
+    words.extend(step_args(cfg));
+    words.iter().map(|w| shell_quote(w)).collect::<Vec<_>>().join(" ")
+}
+
+/// Quotes `w` for a POSIX shell when it needs it.
+fn shell_quote(w: &str) -> String {
+    if !w.is_empty() && w.chars().all(|c| c.is_ascii_alphanumeric() || "-_./:=@+,".contains(c)) {
+        w.to_string()
+    } else {
+        format!("'{}'", w.replace('\'', "'\\''"))
+    }
+}
+
+pub(super) fn plural(n: usize) -> &'static str {
+    if n == 1 {
+        ""
+    } else {
+        "s"
+    }
+}
+
+/// Seconds for people: `0.18s`, `12.3s`, `2m05s`, `1h02m`.
+fn duration(secs: f64) -> String {
+    let secs = secs.max(0.0);
+    if secs < 9.995 {
+        format!("{:.2}s", secs)
+    } else if secs < 59.95 {
+        format!("{:.1}s", secs)
+    } else if secs < 3599.5 {
+        let s = secs.round() as u64;
+        format!("{}m{:02}s", s / 60, s % 60)
+    } else {
+        let m = (secs / 60.0).round() as u64;
+        format!("{}h{:02}m", m / 60, m % 60)
+    }
+}
+
+/// `, peak memory 120 MB`, or nothing when the host does not know.
+fn memory(host: &dyn Host) -> String {
+    let mb = host.max_memory_gb() * 1024.0;
+    if mb > 0.0 {
+        format!(", peak memory {:.0} MB", mb.max(1.0))
+    } else {
+        String::new()
+    }
+}
+
+const REPLAY_OPTS: &[Opt] = &[
+    value("test", None),
+    value("max-steps", None),
+    value("fair-max-steps", None),
+    flag("fail-on-max-steps", None),
+    flag("verbose", Some('v')),
+];
 
 fn replay(args: &[String], host: &mut dyn Host) -> i32 {
     let a = match parse_args(args, REPLAY_OPTS) {
@@ -514,7 +667,7 @@ fn replay(args: &[String], host: &mut dyn Host) -> i32 {
         host.write(Stream::Out, REPLAY_HELP, None);
         return OK;
     }
-    let mut cfg = CheckConfig::default();
+    let mut cfg = prs_config();
     let rest = match sources(&mut cfg, &a.positional) {
         Ok(r) => r,
         Err(m) => return usage_error(host, &m, Some("replay")),
@@ -533,11 +686,14 @@ fn replay(args: &[String], host: &mut dyn Host) -> i32 {
     };
     cfg.verbose = a.has("verbose");
     cfg.strategy = StrategyKind::Replay;
+    if let Err(m) = step_options(&a, &mut cfg) {
+        return usage_error(host, &m, Some("replay"));
+    }
     let mut run = |host: &mut dyn Host| -> Result<i32, Exit> {
-        let trace = check::read_schedule(host, &file)?;
-        check::resolve_sources(host, &mut cfg)?;
-        host.out_line(&format!("... Replaying {}", file));
-        let loaded = check::load(host, &cfg)?;
+        let mut con = Quiet::new(host, !cfg.verbose);
+        let trace = check::read_schedule(&mut con, &file)?;
+        check::resolve_sources(&mut con, &mut cfg)?;
+        let loaded = check::load(&mut con, &cfg)?;
         let all: Vec<String> = loaded.analysis.program.test_cases().into_iter().map(|t| t.name).collect();
         let name = match (a.get("test"), &trace.test_name) {
             (Some(t), _) => t.to_string(),
@@ -545,20 +701,34 @@ fn replay(args: &[String], host: &mut dyn Host) -> i32 {
             (None, None) if all.len() == 1 => all[0].clone(),
             (None, None) => {
                 error(
-                    host,
+                    con.inner,
                     &format!("the schedule names no test case; pick one with --test. Test cases: {}", all.join(", ")),
                 );
                 return Err(Exit(ERROR));
             }
         };
         if !all.contains(&name) {
-            error(host, &format!("no test case '{}'. Test cases: {}", name, all.join(", ")));
+            error(con.inner, &format!("no test case '{}'. Test cases: {}", name, all.join(", ")));
             return Err(Exit(ERROR));
         }
-        let tc = check::select_test_case(host, &loaded, &name)?;
-        let bugs = check::replay(host, &loaded, &tc, &mut cfg, trace)?;
-        host.out_line("");
-        Ok(if bugs > 0 { BUG } else { OK })
+        con.inner.out_line(&format!("Replaying {} from {}", name, file));
+        let tc = check::select_test_case(&mut con, &loaded, &name)?;
+        let r = check::replay(&mut con, &loaded, &tc, &mut cfg, trace)?;
+        let host = con.inner;
+        match &r.bug_report {
+            Some(report) => {
+                host.write(Stream::Out, "Reproduced the bug", Some(Color::Red));
+                host.out_line(&format!(" ({}):", duration(r.elapsed)));
+                for l in report.lines() {
+                    host.out_line(&format!("      {}", l));
+                }
+                if !cfg.verbose {
+                    host.out_line("Run with --verbose to see the schedule's log.");
+                }
+            }
+            None => host.out_line(&format!("The schedule ran without finding a bug ({}).", duration(r.elapsed))),
+        }
+        Ok(if r.bugs > 0 { BUG } else { OK })
     };
     run(host).unwrap_or(ERROR)
 }
@@ -572,7 +742,7 @@ fn tests(args: &[String], host: &mut dyn Host) -> i32 {
         host.write(Stream::Out, TESTS_HELP, None);
         return OK;
     }
-    let mut cfg = CheckConfig::default();
+    let mut cfg = prs_config();
     match sources(&mut cfg, &a.positional) {
         Ok(rest) if rest.is_empty() => {}
         Ok(rest) => {
@@ -604,15 +774,6 @@ fn tests(args: &[String], host: &mut dyn Host) -> i32 {
     }
 }
 
-fn observe(args: &[String], host: &mut dyn Host) -> i32 {
-    // PObserve's exit codes: 2 a spec violation, 1, 3 and 4 errors
-    match observe_cmd::run(args, host, Vec::new(), "prs observe") {
-        observe_cmd::EXIT_SUCCESS => OK,
-        observe_cmd::EXIT_ASSERTION => BUG,
-        _ => ERROR,
-    }
-}
-
 fn coverage(args: &[String], host: &mut dyn Host) -> i32 {
     if args.first().is_some_and(|a| a == "merge-observe") {
         return merge_observe(&args[1..], host);
@@ -639,7 +800,7 @@ fn coverage(args: &[String], host: &mut dyn Host) -> i32 {
         error(host, &format!("directory not found: {}", dir));
         return ERROR;
     }
-    scenario::merge_dir(host, &full);
+    scenario::merge_dir(host, &full, true);
     OK
 }
 
@@ -705,6 +866,16 @@ mod tests {
         assert!(!glob_match("tc", "tcA"));
         assert!(glob_match("*a*b*", "xxaYYbzz"));
         assert!(!glob_match("*a*b", "xxaYYbzz"));
+    }
+
+    #[test]
+    fn people_durations() {
+        assert_eq!(duration(0.184), "0.18s");
+        assert_eq!(duration(9.999), "10.0s");
+        assert_eq!(duration(59.96), "1m00s");
+        assert_eq!(duration(125.0), "2m05s");
+        assert_eq!(duration(3599.6), "1h00m");
+        assert_eq!(duration(3720.0), "1h02m");
     }
 
     #[test]

@@ -60,17 +60,33 @@ prs check 'tcMy*' --time 5m                 # test cases matching a glob, for 5 
 prs check model.p tcMyTest                  # .p files instead of a .pproj
 prs check tcMyTest --strategy pct:10        # another search strategy
 prs check tcMyTest --exhaustive             # every scheduling and data choice
-prs replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
+prs replay PCheckerOutput/tcMyTest/bug.schedule
 ```
 
 `prs check` type-checks the sources itself and reports errors as `p compile` does.
-Bugs are written to `PCheckerOutput/` as upstream writes them. It exits with 0 when no
-bug is found, 1 when one is, and 2 on any other error. `prs <command> --help` lists the
-options.
+It prints one line per test case and, for a bug, its report and the `prs replay`
+command that reproduces it:
+
+```
+$ prs check -n 300
+Checking TwoPhaseCommit: 10 test cases
+ok    tcSingleClientNoFailure (300 schedules, 8 workers, 0.06s)
+FAIL  tcMultipleClientsWithFailure (bug found after 23 schedules, 8 workers, 0.02s)
+      Deadlock detected. Client(6) is waiting to receive an event, but no other controlled tasks are enabled.
+      Replay: prs replay PCheckerOutput/tcMultipleClientsWithFailure/bug.schedule
+...
+5 of 10 test cases failed in 0.98s, peak memory 18 MB. Output: PCheckerOutput/
+```
+
+Each test case's files go to `PCheckerOutput/<test>/`, replacing the previous run's:
+`bug.txt` (the buggy schedule's log), `bug.schedule`, `bug.trace.json`, `coverage.txt`,
+`summary.txt` and, for scenario monitors, `scenario_coverage.json`. `-v` adds
+upstream's progress and statistics. It exits with 0 when no bug is found, 1 when one
+is, and 2 on any other error. `prs <command> --help` lists the options.
 
 `prs check` explores schedules on one worker thread per CPU core (`-j N` sets the
 number). The schedule count is split between the workers, each with its own seed; the
-first bug stops them all, and its `.schedule` file replays it as usual. The `random`,
+first bug stops them all, and its `bug.schedule` file replays it as usual. The `random`,
 `pct`, `fairpct`, `prob` and `pos` strategies use workers; the feedback strategies and
 `rl` (which learn from earlier schedules), `--exhaustive` and `--verbose` run one
 worker. With more than one worker, a given `--seed` explores different schedules than
@@ -89,7 +105,7 @@ budgets; see [design/time](design/time/RetryBudget/README.md).
 it checks logs from a running system against a project's spec monitors, without jars.
 
 ```sh
-prs observe --spec BankBalanceCorrect -l logs/
+prs observe --spec BankBalanceCorrect logs/
 ```
 
 See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
@@ -98,7 +114,8 @@ See [docs/observe.md](docs/observe.md) for log formats and custom parsers, and
 both test checks and `prs observe` on production logs.
 
 To use prs in place of upstream P, in scripts written for `p`, run `prs-compat` (or
-alias it to `p`):
+alias it to `p`). It takes upstream's options and writes upstream's output
+([Compatibility](#compatibility)):
 
 ```sh
 prs-compat check -tc tcMyTest -s 1000
@@ -141,8 +158,21 @@ The tenets behind that goal are in [AGENTS.md](AGENTS.md#tenets).
 
 ## Compatibility
 
-This section is about `prs-compat`. `prs` checks the same way and writes the same
-files, with its own options.
+This section is about `prs-compat`. `prs` checks the same way, finds the same bugs
+and writes the same trace formats, but does not imitate upstream where it doesn't have
+to:
+
+* Options: its own, shorter ones (`prs <command> --help`).
+* Console: one line per test case, the bug's report and its `prs replay` command, and a
+  summary with time and peak memory. Upstream's progress only with `-v`.
+* Output folder: `PCheckerOutput/<test>/` with fixed names (`bug.txt`, `bug.schedule`,
+  `bug.trace.json`, `coverage.txt`, `summary.txt`, `scenario_coverage.json`), replaced by
+  each run. No `BugFinding/` folder, history folders or `.sci` file.
+* `<IncludeProject>` paths in a `.pproj` are resolved against the including project
+  file's folder first, then the current folder (upstream: only the current folder).
+* `observe`: sources and logs are positional arguments, live input stops at the first
+  error without `--fail-fast`, and there is no report folder (use `--json-report`). Exit
+  codes are 0, 1 and 2, as for `check`; see [docs/observe.md](docs/observe.md).
 
 **Exact** (drop-in):
 

@@ -117,7 +117,7 @@ func TestIntegrationViolationFields(t *testing.T) {
 	if !strings.Contains(v.Error(), at+"  <- broke the spec here") {
 		t.Fatalf("failure output:\n%v", v)
 	}
-	if _, err := os.Stat(v.Artifacts); err != nil {
+	if _, err := os.Stat(v.ArtifactsDir); err != nil {
 		t.Fatalf("artifacts: %v", err)
 	}
 }

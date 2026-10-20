@@ -42,7 +42,7 @@ jobs:
           status=0
           ../../target/debug/prs check tcCheckThenReserve -n 1000 || status=$?
           test "$status" -eq 1 || { echo "expected a bug (exit 1), got exit $status"; exit 1; }
-          grep -q "reservation exceeds available stock" PCheckerOutput/tcCheckThenReserve/BugFinding/*_0_0.txt
+          grep -q "reservation exceeds available stock" PCheckerOutput/tcCheckThenReserve/bug.txt
       - uses: actions/upload-artifact@v5
         if: always()
         with:

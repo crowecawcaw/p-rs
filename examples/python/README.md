@@ -78,9 +78,8 @@ real `Inventory`; an invariant checks returned stock against successful operatio
 **Gotcha: the recorder belongs to the machine, not to pytest.** One pytest test runs
 many histories, including shrink attempts, and Hypothesis builds a new machine for
 each. `__init__` starts a `Recorder`, `@initialize` seeds stock inside it, and
-`teardown` (which runs even if setup or a step fails) stops it and, unless a step
-already failed, checks it. Checking after a failure would replace that failure.
-`SpecViolation` is an `AssertionError`, so Hypothesis shrinks it. Automatic mode is off here: one recorder
+`teardown` (which runs even if setup fails) stops and checks it. `SpecViolation` is an
+`AssertionError`, so Hypothesis shrinks it. Automatic mode is off here: one recorder
 around the pytest test would merge histories. In a real project, reset your service
 and stop workers at the same boundary.
 

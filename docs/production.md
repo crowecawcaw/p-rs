@@ -60,19 +60,19 @@ available. Rules that matter in production:
 Batch, over closed (rotated) files or a copy of them:
 
 ```sh
-prs observe -pf specs/inventory.p --spec InventoryCorrect \
-  -l '/var/log/app/events/*.jsonl' --json-report report.json
+prs observe specs/inventory.p '/var/log/app/events/*.jsonl' \
+  --spec InventoryCorrect --json-report report.json
 ```
 
 Quote the glob: `prs` expands it, including `**`. Exit status 0 is clean, 1 a spec
 violation, 2 a tool or input error; read details from `--json-report`
-([format](observe.md#prs-extensions)). A file still being written may end in a
+([format](observe.md#options)). A file still being written may end in a
 partial line, which is a `parser` error (exit 2), so check rotated files, or check
 live:
 
 ```sh
 tail -n +1 -F /var/log/app/events/inventory.jsonl |
-  prs observe -pf specs/inventory.p --spec InventoryCorrect --stdin --fail-fast
+  prs observe specs/inventory.p --spec InventoryCorrect --stdin
 ```
 
 Live mode checks events as they arrive and stops at the first violation. It does
@@ -91,7 +91,7 @@ that key's events. So:
 - **The input must hold each key's whole history.** If retention dropped a
   product's `eStocked`, its first `eReserved` reads as "reservation before stock
   setup". Check windows that start where keys start, or keep the logs for the
-  keys' lifetime. `--keys A B` checks only some keys.
+  keys' lifetime. `--key A --key B` checks only some keys.
 - **Memory grows with keys**, since each key's monitor is kept until the run ends.
 
 ## 6. Clock skew
@@ -127,7 +127,7 @@ or roll back requests from the observer; it runs out of band.
    emit before the commit, or a misspelled name.
 3. If the events are right, it is a real bug, found with the evidence attached.
    Treat it as an incident in proportion to the spec (an oversell is a data
-   problem). Get the key's events with `--keys`, turn them into a regression test
+   problem). Get the key's events with `--key`, turn them into a regression test
    that replays them through the helper (`add_log`, or `emit_at` per line), fix the
    code, and keep the test.
 4. If the spec is wrong (the behaviour is allowed), fix the spec, and re-run the
@@ -139,16 +139,16 @@ separately; it usually means the instrumentation or the log pipeline broke.
 
 ## Existing structured logs
 
-A service that already logs JSON can be checked without new emitters. `-pc` maps
-fields by dotted path. For lines like
+A service that already logs JSON can be checked without new emitters.
+`--parser-config` maps fields by dotted path. For lines like
 
 ```json
 {"time": "2026-10-19T10:00:01Z", "msg": "eReserved", "sku": "coffee", "order": "o1", "units": 2, "user": "bob"}
 ```
 
 ```sh
-prs observe -pf specs/inventory.p --spec InventoryCorrect -l app.log \
-  -pc '{"event": "msg", "key": "sku", "timestamp": "time", "payload": ""}'
+prs observe specs/inventory.p app.log --spec InventoryCorrect \
+  --parser-config '{"event": "msg", "key": "sku", "timestamp": "time", "payload": ""}'
 ```
 
 `"payload": ""` uses the whole line as the payload; fields the P type does not
@@ -167,4 +167,4 @@ declare are ignored. Use a path such as `"attrs"` for a nested payload. Limits:
 
 Thin adapters for existing loggers (a `slog` handler, a logback appender, a
 `tracing` layer, a Python `logging` handler) that write this format are a possible
-follow-up; none ship yet. Until then, use the emitters or `-pc`.
+follow-up; none ship yet. Until then, use the emitters or `--parser-config`.

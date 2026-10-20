@@ -8,6 +8,8 @@ use crate::checker::value::{MachineRef, NamedTuple, SlotMap, SlotSet, Value};
 use crate::sema::{PType, Program};
 use serde_json::Value as Json;
 
+// used by `prs-compat observe` (PObserve's output folder name)
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 pub(crate) fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let z = z + 719468;
     let era = z.div_euclid(146097);

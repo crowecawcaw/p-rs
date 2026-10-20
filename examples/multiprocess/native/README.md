@@ -66,12 +66,12 @@ Each worker gets two channels. Its stdin and stdout carry commands and replies
 harness creates; the observer reads every pipe:
 
 ```sh
-prs observe --pfiles specs/inventory.p --spec InventoryCorrect \
+prs observe specs/inventory.p --spec InventoryCorrect \
   --live /dev/fd/5 --live /dev/fd/7 --sequence seq \
-  --fail-fast --strict --coverage --record events.jsonl --json-report report.json
+  --strict --coverage --record events.jsonl --json-report report.json
 ```
 
-`--strict` fails a completed stream in which no event was relevant to the spec.
+With `--live`, the observer stops at the first violation. `--strict` fails a completed stream in which no event was relevant to the spec.
 
 To integrate your own service, replace the launch command in `SubprocessBackend`
 and the commands/readiness adapter in the supervisor. Give each process its own
@@ -109,7 +109,7 @@ Each scenario preserves:
 | `result.json` | Validated scenario summary, final stock, both emitters, cleanup, and whether workers were alive at failure |
 | `events.jsonl` | The events in the order the observer checked them (`--record`); `src` names the worker |
 | `inventory.sqlite` | Committed service state and outbox |
-| `worker-*.stdout`, `worker-*.stderr`, `observe/` | Worker replies, diagnostics, and checker traces |
+| `worker-*.stdout`, `worker-*.stderr` | Worker replies and diagnostics |
 
 `report.json` includes each spec's `coverage` with `scope: "observed_monitor"`,
 declared and visited states and handlers, and observed transitions. Healthy runs

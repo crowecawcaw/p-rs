@@ -51,6 +51,8 @@ pub struct Input {
     pub pproj: Option<String>,
     pub pfiles: Vec<String>,
     pub project_name: Option<String>,
+    /// Where a project file's `<IncludeProject>` paths are resolved.
+    pub includes: pproj::Includes,
 }
 
 /// Resolved input files.
@@ -80,7 +82,7 @@ pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, Exit> {
         }
     };
     if let Some(pp) = pproj {
-        let proj = pproj::parse(host, &pp)?;
+        let proj = pproj::parse(host, &pp, input.includes)?;
         r.project_name = proj.name;
         for f in proj.input_files {
             add(&mut r, f);
@@ -132,17 +134,18 @@ fn write_error(host: &mut dyn Host, msg: &str) {
 }
 
 /// Prints front-end diagnostics the way upstream's `Compiler.Compile` does; returns true on
-/// success.
+/// success. `upstream` adds upstream's notice that a syntax error makes it retry parsing.
 pub fn report_result(
     host: &mut dyn Host,
     src: &Sources,
     sm: &crate::syntax::SourceMap,
     r: &Result<crate::sema::Analysis, crate::sema::CompileError>,
+    upstream: bool,
 ) -> bool {
     use crate::sema::CompileError;
     match r {
         Err(CompileError::Parse { file, message, lexer }) => {
-            if !*lexer {
+            if !*lexer && upstream {
                 // Upstream first parses with SLL prediction and a bail-out strategy;
                 // any syntax error makes it announce the LL(*) retry.
                 host.out_colored_line("Reverting to LL(*) parsing strategy.", Color::Yellow);

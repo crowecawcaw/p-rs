@@ -32,15 +32,14 @@ old name as a deprecated alias for one minor release, warning when it is used.
 | Variable | Meaning | Precedence |
 | --- | --- | --- |
 | `PRS_BIN` | Checker binary | after explicit config, before bundled copy and `PATH` |
-| `PRS_SPEC_FILES` | Spec files, separated like `PATH` (`os.pathsep`) | overrides the config file |
+| `PRS_SPEC_FILES` | Spec files, separated like `PATH` (`os.pathsep`) | overrides config |
 | `PRS_EVENTS_DIR` | Folder child processes write events to ([format](observe.md#events-folder-format)) | set by the recording |
-| `PRS_ARTIFACTS` | Folder to keep artifacts of failed checks in | overrides the config file |
-| `PRS_COVERAGE` | Suite coverage JSON path; setting it enables L4 | overrides the config file |
-| `PRS_MODE` | L3 mode: `auto`, `marked` or `off` | overrides the config file |
+| `PRS_ARTIFACTS` | Folder to keep artifacts of failed checks in | overrides config |
+| `PRS_COVERAGE` | Suite coverage JSON path; setting it enables L4 | overrides config |
+| `PRS_MODE` | L3 mode: `auto`, `marked` or `off` | overrides config |
 | `PRS_DOWNLOAD` | `0` turns off downloading the checker (Go only) | |
 
 Relative paths in environment variables resolve against the process working directory.
-An explicit API argument overrides every variable ([precedence](#configuration)).
 
 ### Concepts
 
@@ -69,7 +68,6 @@ An explicit API argument overrides every variable ([precedence](#configuration))
 | `events_dir`, `env` | L2 | The recording's `PRS_EVENTS_DIR` folder, and an environment for children |
 | `add_events_dir`, `add_log` | L2 | Extra event inputs |
 | `SpecViolation`, `SetupError` | L2 | Error types |
-| `artifacts` | L2 | Field of both error types: the failed check's folder (events, checker output, report) |
 | `expect_violation` | L2 | Negative control |
 
 ## L0 Core contract
@@ -79,14 +77,15 @@ An explicit API argument overrides every variable ([precedence](#configuration))
   reorder events or interpret monitor semantics themselves.
 - CLI helpers MUST pass `--json-report` and read results from the report, never from
   console output. Exit codes: 0 pass, 1 spec violation, 2 tool or input error. No report
-  file means a configuration or compile error; its console output is the message.
-- Spec selection: `--spec <names>` when `specs` is set, else `--all-specs` with
-  `--exclude-specs`. `strict` → `--strict`; `check_hot` → `--check-hot`;
-  `unknown_events` → `--unknown-events` ([#47](https://github.com/crowecawcaw/p-rs/issues/47));
+  file means a configuration or compile error; its console output is the message
+  (`error: ...` on stderr, type errors on stdout).
+- Spec selection: `--spec <name>` for each name when `specs` is set, else `--all-specs`
+  with `--exclude-specs <name>` for each excluded spec. `strict` → `--strict`;
+  `check_hot` → `--check-hot`; `unknown_events` → `--unknown-events` ([#47](https://github.com/crowecawcaw/p-rs/issues/47));
   coverage → `--coverage`.
 - Events go to the core in the [events folder format](observe.md#events-folder-format),
   with `-l <folder>`. Extra inputs (`add_events_dir`, `add_log`) are passed as further
-  `-l` values, which the core merges into one input set
+  `-l` options (one path each), which the core merges into one input set
   ([several logs](observe.md#several-logs-and-glob-patterns)).
 - Coverage: per-check `coverage` objects from the report; suite union with
   `prs coverage merge-observe` (or `ObserveCoverageReport::merge` in Rust). Helpers MUST
@@ -161,7 +160,7 @@ An explicit API argument overrides every variable ([precedence](#configuration))
 - `SpecViolation`: fields `spec`, `key`, `message`, `location` (P assert `file:line`),
   `events` (the key's last events, each with `event`, `payload`, `src`), `liveness`
   (true for a hot-state end under `check_hot`), `others` (further violations from the
-  same check), `artifacts` (the check's kept folder). It MUST be the framework's assertion-failure type (Python
+  same check). It MUST be the framework's assertion-failure type (Python
   `AssertionError`, Java `AssertionError` / `AssertionFailedError`, Go: reported through
   `t.Error`/`t.Fatal` and returned as `*SpecViolation` for `errors.As`, Rust: a panic in
   `#[test]` and an `Err` value in the explicit form), so property-test shrinkers treat it
@@ -268,9 +267,7 @@ One project file per ecosystem, same keys as the [concepts](#concepts):
   Go resolves `Config` paths relative to the package folder (`go test`'s working
   directory).
 - Precedence: explicit API argument, then environment variable, then config file, then
-  default. Explicit arguments include Go's `Config` fields, Java's builder calls and
-  Rust's `Model` builders: a set field beats the environment, which applies only when
-  it is unset.
+  default.
 - Unknown keys in a config file are a `SetupError` of kind `config`.
 
 ## Conformance corpus
@@ -341,6 +338,11 @@ specs that catches disabled instrumentation, which is its purpose. With every sp
 selected (pytest `auto` mode) most tests exercise only some specs, so strict would fail
 nearly every test.
 
+Python: `check_spec("Name")`, `check_events(events, "Name")` and `Recorder(specs=[...])`
+become strict by default. This is a behaviour change: for one minor release, a check
+that would newly fail emits a `DeprecationWarning` naming `strict=False` instead of
+failing; then the default flips. `[tool.prs] strict` and `--prs-strict` keep working.
+
 ### Rust `Model`
 
 `Model` accepts both paths and embedded sources, and several specs:
@@ -383,12 +385,11 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `auto` / `marked` / `off`; fixture setup inside, teardown outside
 - [x] `PRS_EVENTS_DIR`, `add_events_dir`, `add_log`
 - [x] Suite coverage with no boilerplate (`--prs-coverage`)
-- [x] `PRS_BIN` (#53)
-- [x] `check_hot` everywhere (`check_spec`, `Recorder`, mark). (`SpecViolation.liveness` stays.)
-- [x] `strict` default per [Strict default](#strict-default)
+- [x] `PRS_BIN`; `PRS_BINARY` as deprecated alias (#53)
+- [x] `check_hot` everywhere `liveness` is used (`check_spec`, `Recorder`, mark); `liveness=` as deprecated alias. (`SpecViolation.liveness` stays.)
+- [x] `strict` default per [Strict default](#strict-default), with deprecation period
 - [x] `unknown_events` option, default `error` (#47)
-- [x] `SetupError` with `kind`; `artifacts` on both error types
-- [x] Emitting after the check fails it (threads started in the recording)
+- [x] `SetupError` with `kind` (`PrsError`, `PrsNotFound` become aliases or subclasses)
 - [x] `PRS_COVERAGE`, `PRS_ARTIFACTS`, `PRS_MODE`, `timeout`
 - [x] `events_dir()` / `env()` on `Recorder`
 - [x] Events folder file name `<name>-<pid>-<random>.jsonl`
@@ -403,8 +404,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `timeout`, artifacts kept on failure
 - [x] Packaging per [Packaging and distribution](#packaging-and-distribution): module at the repo root, release binary downloaded and verified (#64)
 - [x] `Specs` optional (default all), `Exclude`
-- [x] `Strict` (`*bool`, set with `prstest.Bool`)
-- [x] `Config` fields beat environment variables ([precedence](#configuration))
+- [x] Rename `AllowUnobserved` to `Strict` (`*bool` or option func); keep the old field deprecated
 - [x] `*SpecViolation` / `*SetupError` for `errors.As` (#53)
 - [x] `ExpectViolation(t, spec, match)` (a `Recorder` method)
 - [x] Failure output in Python's format, with `src` from `runtime.Caller`
@@ -422,7 +422,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] Suite coverage via the extension; jqwik via `@AfterContainer`
 - [x] Packaging per [Packaging and distribution](#packaging-and-distribution): one `p-rs` artifact with natives classifier jars, on Maven Central (#64)
 - [x] `specs` optional (default all), `exclude`
-- [x] `SpecViolation extends AssertionFailedError` with structured fields; `SetupError` with `kind`
+- [x] `SpecViolation extends AssertionFailedError` with structured fields; `SetupError` with `kind` (`ObservationFailure` stays as their deprecated superclass)
 - [x] `expectViolation(spec, match)`
 - [x] Failure output in Python's format, with `src` from `StackWalker`
 - [x] `auto` (extension autodetection) / `marked` / `off`; `@Prs(skip=..., checkHot=...)`

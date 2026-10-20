@@ -41,6 +41,9 @@ pub struct CheckerOptions {
     pub incremental_seed: bool,
     /// The schedule to replay with [`StrategyKind::Replay`].
     pub replay: Option<ScheduleTrace>,
+    /// Replaying, report the step bound as reached at the end of the schedule, so a bug
+    /// found by `fail_on_max_steps` reproduces. Upstream's replays never reach the bound.
+    pub replay_bound_at_end: bool,
     /// See [`Config::max_work_per_step`](crate::checker::runtime::Config::max_work_per_step).
     pub max_work_per_step: u64,
     /// Write `--test-method:<name>` into the reproducible trace (upstream does so only when
@@ -88,6 +91,7 @@ impl Default for CheckerOptions {
             full_exploration: false,
             incremental_seed: false,
             replay: None,
+            replay_bound_at_end: false,
             max_work_per_step: crate::checker::runtime::DEFAULT_MAX_WORK_PER_STEP,
             record_test_name: true,
             verbose: false,
@@ -386,7 +390,13 @@ fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn S
             Box::new(crate::checker::exhaustive::ExhaustiveStrategy::new(opts.max_unfair_steps, Some(rng.clone())))
         }
         StrategyKind::Replay => match &opts.replay {
-            Some(t) => Box::new(ReplayStrategy::new(t.clone())),
+            Some(t) => {
+                let mut s = ReplayStrategy::new(t.clone());
+                if opts.replay_bound_at_end {
+                    s.stop_at = Some(t.steps.len());
+                }
+                Box::new(s)
+            }
             None => return Err("replay strategy needs a schedule".into()),
         },
     })

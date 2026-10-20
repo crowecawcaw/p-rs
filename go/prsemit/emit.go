@@ -9,7 +9,7 @@
 //     process's own file in that folder, which the test checks
 //     (docs/observe.md#events-folder-format).
 //   - Production, after SetSink(File(path)), SetSink(Stdout()), SetSink(Writer(w)) or
-//     SetSink(Callback(f)): JSON lines that `prs observe -l` reads, written by a
+//     SetSink(Callback(f)): JSON lines that `prs observe` reads, written by a
 //     background goroutine.
 //   - Otherwise: nothing. Emit costs one atomic load.
 //
@@ -37,7 +37,7 @@ import (
 )
 
 // EventsDirEnv names the folder a test recording gives the processes it starts.
-const EventsDirEnv = eventline.EventsDirEnv
+const EventsDirEnv = "PRS_EVENTS_DIR"
 
 // QueueSize is how many lines the production sink buffers before dropping.
 const QueueSize = 4096
@@ -117,7 +117,7 @@ func emit(ctx context.Context, at time.Time, event, key string, payload any) {
 // started.
 func Dropped() uint64 { return dropped.Load() }
 
-// Sink is a production destination for events: JSON lines that `prs observe -l` reads.
+// Sink is a production destination for events: JSON lines that `prs observe` reads.
 // Make one with File, Stdout, Writer or Callback and install it with SetSink.
 type Sink struct {
 	w      io.Writer
@@ -249,7 +249,13 @@ func (d *dirSink) write(line []byte) bool {
 
 // fileName is <program>-<pid>-<random>.jsonl.
 func fileName() string {
-	name := eventline.FileSafe(strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe"))
+	name := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+	name = strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.' {
+			return r
+		}
+		return '_'
+	}, name)
 	if name == "" || name == "." {
 		name = "go"
 	}

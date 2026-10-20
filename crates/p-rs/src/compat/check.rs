@@ -335,7 +335,7 @@ pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exi
         for tc in cases {
             cfg.test_case_name = tc;
             // as upstream, the last test case sets the exit code
-            exit_code = testing_process(host, &loaded, &cfg)?;
+            exit_code = testing_process(host, &loaded, &cfg)?.exit_code();
         }
     }
     host.out_line(". Done");

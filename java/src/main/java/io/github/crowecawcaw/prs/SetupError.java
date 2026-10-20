@@ -6,7 +6,8 @@ import java.nio.file.Path;
  * The check could not run or its input is unusable; not a spec violation. Assert on
  * {@link #kind()}, never on the message text.
  */
-public final class SetupError extends CheckFailure {
+@SuppressWarnings("deprecation")
+public final class SetupError extends ObservationFailure {
     private static final long serialVersionUID = 1L;
     /** No checker binary; the message says how to install one. */
     public static final String BINARY_MISSING = "binary_missing";

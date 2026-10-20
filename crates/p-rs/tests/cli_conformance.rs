@@ -121,18 +121,18 @@ fn run_case(case: &Path, expect: &Value) -> Result<(), String> {
     let unknown_events = options.get("unknown_events").and_then(Value::as_str).unwrap_or("error");
     let coverage = expected.get("coverage").is_some();
 
-    let mut args: Vec<String> = vec!["observe".into(), "-pf".into(), "spec.p".into()];
+    let mut args: Vec<String> = vec!["observe".into(), "spec.p".into(), "events".into()];
     if specs.is_empty() {
         args.push("--all-specs".into());
         if !exclude.is_empty() {
             args.push("--exclude-specs".into());
-            args.extend(exclude);
+            args.push(exclude.join(","));
         }
     } else {
         args.push("--spec".into());
-        args.extend(specs);
+        args.push(specs.join(","));
     }
-    args.extend(["-l", "events", "-o", "out", "--json-report", "report.json"].map(String::from));
+    args.extend(["--json-report", "report.json"].map(String::from));
     if strict {
         args.push("--strict".into());
     }

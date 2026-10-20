@@ -8,9 +8,6 @@ It has no dependencies beyond the standard library. Where an event goes:
 3. a production sink is set with :func:`set_sink`: to that sink, from a background
    thread, never raising or blocking;
 4. otherwise nowhere, at the cost of a list check and an environment lookup.
-
-A thread started inside a recording that emits after that recording was checked
-raises :class:`SetupError`, and fails the pytest test it belongs to.
 """
 
 from __future__ import annotations
@@ -25,7 +22,6 @@ import re
 import sys
 import threading
 import time
-import weakref
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Callable, Optional, Union
@@ -85,10 +81,6 @@ class Event:
 # Recorders currently collecting events in this process, innermost last. A plain list,
 # not a contextvar, so that events from threads started inside a test are kept.
 _recorders: list = []
-# Threads started inside a recording that was then checked, mapped to that recording:
-# their events, with no recording active, would be lost, so emit raises instead.
-# Cleared when a recording starts.
-_late: "weakref.WeakKeyDictionary[threading.Thread, Any]" = weakref.WeakKeyDictionary()
 _lock = threading.Lock()
 _seq = itertools.count(1)
 _last_ns = 0
@@ -103,7 +95,6 @@ def _after_fork_in_child() -> None:
     # events would stay in its own copy of them: it writes to PRS_EVENTS_DIR instead.
     global _file, _lock
     _recorders.clear()
-    _late.clear()
     _file = None
     _lock = threading.Lock()  # another thread may have held it at the fork
     if _sink is not None:
@@ -127,11 +118,6 @@ def emit(event: str, payload: Any = _NO_PAYLOAD, /, *, key: Any = None, at: Unio
     with :func:`set_sink` this does nothing.
     """
     if not _recorders:
-        if _late:
-            late = _late.get(threading.current_thread())
-            if late is not None:
-                frame = sys._getframe(1)
-                late._emitted_late(event, f"{_short_path(frame.f_code.co_filename)}:{frame.f_lineno}")
         events_dir = os.environ.get(EVENTS_DIR_ENV)
         if not events_dir:
             if _sink is not None:

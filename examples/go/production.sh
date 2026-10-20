@@ -18,22 +18,22 @@ printf 'stock tea 2\nreserve tea order-1 2\n' |
 	"$work/inventory" -events "$work/log/app/events/host-b.jsonl"
 
 echo "== batch: every log, after the fact"
-"$prs" observe -pf specs/inventory.p --spec InventoryCorrect --strict \
-	-l "$work/log/app/events/*.jsonl" -o "$work/batch" --json-report "$work/batch.json" >/dev/null
+"$prs" observe specs/inventory.p "$work/log/app/events/*.jsonl" --spec InventoryCorrect --strict \
+	--json-report "$work/batch.json" >/dev/null
 cat "$work/batch.json"
 
 echo "== live: one stream, checked as it arrives"
 cat "$work"/log/app/events/*.jsonl |
-	"$prs" observe -pf specs/inventory.p --spec InventoryCorrect --stdin --fail-fast \
-		-o "$work/live" --json-report "$work/live.json" >/dev/null
+	"$prs" observe specs/inventory.p --spec InventoryCorrect --stdin \
+		--json-report "$work/live.json" >/dev/null
 cat "$work/live.json"
 
 echo "== negative control: a forged oversell must be a violation (exit 1)"
 echo '{"key":"coffee","timestamp":"2100-01-01T00:00:00Z","event":"eReserved","payload":{"order":"forged","units":5}}' \
 	>"$work/log/app/events/host-c.jsonl"
 status=0
-"$prs" observe -pf specs/inventory.p --spec InventoryCorrect \
-	-l "$work/log/app/events/*.jsonl" -o "$work/bad" --json-report "$work/bad.json" >/dev/null || status=$?
+"$prs" observe specs/inventory.p "$work/log/app/events/*.jsonl" --spec InventoryCorrect \
+	--json-report "$work/bad.json" >/dev/null || status=$?
 if [ "$status" -ne 1 ] || ! grep -q '"spec_violation"' "$work/bad.json"; then
 	echo "expected a spec violation (exit 1), got exit $status" >&2
 	cat "$work/bad.json" >&2

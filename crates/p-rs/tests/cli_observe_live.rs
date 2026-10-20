@@ -32,19 +32,7 @@ fn run(input: &str, eof: bool, extra: &[&str]) -> (i32, String, String) {
     let mut command = Command::new(env!("CARGO_BIN_EXE_prs"));
     command
         .current_dir(&root)
-        .args([
-            "observe",
-            "--pfiles",
-            "inventory.p",
-            "--spec",
-            "Inventory",
-            "--stdin",
-            "--fail-fast",
-            "--outputDir",
-            "out",
-            "--json-report",
-            "report.json",
-        ])
+        .args(["observe", "inventory.p", "--spec", "Inventory", "--stdin", "--json-report", "report.json"])
         .args(extra)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -133,7 +121,7 @@ fn partitions_have_fresh_state_and_bounded_replays() {
         "{\"key\":\"b\",\"event\":\"Stock\",\"timestamp\":1,\"payload\":1}\n",
         "{\"key\":\"b\",\"event\":\"Take\",\"timestamp\":2,\"payload\":2}\n"
     );
-    let (code, output, report) = run(input, false, &["--replaySize", "1"]);
+    let (code, output, report) = run(input, false, &["--replay-window", "1"]);
     assert_eq!(code, 1, "{output}");
     assert!(report.contains("\"key\": \"b\""));
     assert!(!report.contains("\"event\": \"Stock\""));
@@ -182,8 +170,8 @@ fn named_pipes_merge_by_sequence_and_fail_while_producers_are_open() {
     }
     let mut child = Command::new(env!("CARGO_BIN_EXE_prs"))
         .current_dir(&root)
-        .args(["observe", "--pfiles", "inventory.p", "--spec", "Inventory", "--outputDir", "out"])
-        .args(["--live", "a", "--live", "b", "--sequence", "seq", "--fail-fast", "--record", "events.jsonl"])
+        .args(["observe", "inventory.p", "--spec", "Inventory"])
+        .args(["--live", "a", "--live", "b", "--sequence", "seq", "--record", "events.jsonl"])
         .args(["--json-report", "report.json"])
         .stdout(Stdio::piped())
         .spawn()

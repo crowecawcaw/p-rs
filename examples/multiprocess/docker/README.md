@@ -81,7 +81,7 @@ observer and fails the run with a parser error showing that line.
 For the healthy run, the supervisor stops and reaps the workers. Their exits end
 the pipes, and the observer completes the history at EOF and writes the final
 report. For the faulty run, it leaves both workers waiting for commands.
-`--fail-fast` makes the observer return on the violating event **before EOF**. The supervisor confirms both actual
+A live observer stops at the first violation, so it returns on the violating event **before EOF**. The supervisor confirms both actual
 containers are running, then forcibly removes them and reaps their launchers.
 Every exit path uses the same cleanup and verifies containers are absent; killing
 only a `docker run` client is insufficient to remove a container.
@@ -89,10 +89,9 @@ only a `docker run` client is insufficient to remove a container.
 The example invokes the equivalent of:
 
 ```sh
-prs observe --pfiles examples/multiprocess/specs/inventory.p \
+prs observe examples/multiprocess/specs/inventory.p \
   --spec InventoryCorrect --live /dev/fd/5 --live /dev/fd/7 --sequence seq \
-  --fail-fast --strict --coverage --record events.jsonl \
-  --json-report report.json --outputDir observe
+  --strict --coverage --record events.jsonl --json-report report.json
 ```
 
 `--strict` fails a completed stream in which no event was relevant to the spec.
@@ -145,7 +144,6 @@ then a concise JSON result. The artifacts directory retains:
 | `report.json` | Structured violations and observed monitor coverage |
 | `result.json` | Supervisor result, exit statuses, emitters, and cleanup evidence |
 | `inventory.sqlite` | Application state and transactional outbox |
-| `observe/` | Human reports and replay events for a detected violation |
 
 The healthy run reports 2/2 states, 3/6 handlers, and one observed transition.
 The three uncovered handlers reject invalid stock setup or operations before

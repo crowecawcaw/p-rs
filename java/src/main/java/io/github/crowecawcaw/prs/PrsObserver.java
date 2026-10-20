@@ -226,23 +226,18 @@ public final class PrsObserver {
         return binary + "\n" + timeout + "\n" + artifacts;
     }
 
-    List<String> command(String executable, List<Path> logs, Path output, Path report, boolean withCoverage) {
-        var args = new ArrayList<>(List.of(executable, "observe", "--pfiles"));
-        files.forEach(p -> args.add(p.toString()));
+    List<String> command(String executable, List<Path> logs, Path report, boolean withCoverage) {
+        var args = new ArrayList<>(List.of(executable, "observe"));
+        files.forEach(p -> args.add(p.toString())); // positional .p sources (absolute paths)
         if (!specs.isEmpty()) {
-            args.add("--spec");
-            args.addAll(specs);
+            for (var spec : specs) args.addAll(List.of("--spec", spec));
         } else {
             args.add("--all-specs");
-            if (!exclude.isEmpty()) {
-                args.add("--exclude-specs");
-                args.addAll(exclude);
-            }
+            for (var spec : exclude) args.addAll(List.of("--exclude-specs", spec));
         }
-        args.add("--logs");
-        logs.forEach(p -> args.add(p.toString()));
-        args.addAll(List.of("--outputDir", output.toString(), "--json-report", report.toString(),
-                "--unknown-events", unknownEvents.option()));
+        // One -l per log, so a log path is never taken for a source (.p/.pproj) or an option.
+        logs.forEach(p -> args.addAll(List.of("-l", p.toString())));
+        args.addAll(List.of("--json-report", report.toString(), "--unknown-events", unknownEvents.option()));
         if (strict) args.add("--strict");
         if (checkHot) args.add("--check-hot");
         if (withCoverage) args.add("--coverage");

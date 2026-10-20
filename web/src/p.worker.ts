@@ -80,9 +80,8 @@ async function handle(req: Request): Promise<CompileResult | CheckResult> {
   const shown = ["check", req.testCase, ...opts];
   const args = ["check", ...sourceArgs(req.files), req.testCase, ...opts];
   const r = (await p()).run(args, toFs(req.files), { seed: req.seed });
-  const dir = `${ROOT}/PCheckerOutput/${req.testCase}/BugFinding/`;
-  const find = (suffix: string) =>
-    Object.entries(r.files).find(([k]) => k.startsWith(dir) && k.endsWith(suffix))?.[1];
+  const dir = `${ROOT}/PCheckerOutput/${req.testCase}/`;
+  const file = (name: string): string | undefined => r.files[dir + name];
   const console = `$ prs ${shown.join(" ")}\n` + (r.stdout + r.stderr).trimEnd();
   return {
     kind: "check",
@@ -92,9 +91,9 @@ async function handle(req: Request): Promise<CompileResult | CheckResult> {
     console,
     diagnostics: parseDiagnostics(console),
     testCase: req.testCase,
-    traceJson: find("_0_0.trace.json"),
-    traceText: find("_0_0.txt"),
-    schedule: find("_0_0.schedule"),
+    traceJson: file("bug.trace.json"),
+    traceText: file("bug.txt"),
+    schedule: file("bug.schedule"),
     millis: performance.now() - t0,
   };
 }
