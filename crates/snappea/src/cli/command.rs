@@ -21,7 +21,7 @@ pub(super) const BUG: i32 = 1;
 pub(super) const ERROR: i32 = 2;
 
 const HELP: &str = "\
-snappea checks P models.
+🫛 snappea checks P models.
 
 Usage: snappea <command> [options]
 
@@ -560,9 +560,9 @@ fn run_check(
         o => o,
     };
     con.inner.out_line(&if failed == 0 && n == 1 {
-        format!("The test case passed in {}{}. Output: {}/", elapsed, memory, out)
+        format!("🫛 The test case passed in {}{}. Output: {}/", elapsed, memory, out)
     } else if failed == 0 {
-        format!("All {} test cases passed in {}{}. Output: {}/", n, elapsed, memory, out)
+        format!("🫛 All {} test cases passed in {}{}. Output: {}/", n, elapsed, memory, out)
     } else {
         format!("{} of {} test case{} failed in {}{}. Output: {}/", failed, n, plural(n), elapsed, memory, out)
     });
