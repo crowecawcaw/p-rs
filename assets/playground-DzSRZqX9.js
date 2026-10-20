@@ -1,4 +1,4 @@
-import{n as e,r as t,t as n}from"./styles-BSUHZVHk.js";import{t as r}from"./pTokens-CtYsRz8E.js";var i=t(),a=e(),o=Object.assign({"../../design/time/RetryBudget/PSpec/Budget.p":`// The budget is an ordinary spec. In a spec handler, clocks are those of the
+import{n as e,r as t,t as n}from"./styles-BcJnaJb1.js";import{t as r}from"./pTokens-CtYsRz8E.js";var i=t(),a=e(),o=Object.assign({"../../design/time/RetryBudget/PSpec/Budget.p":`// The budget is an ordinary spec. In a spec handler, clocks are those of the
 // machine that announced/sent the observed event, so Elapsed(o.started) is
 // measured on the client's clock.
 spec ResolvesWithinDeadline observes eOutcome {
