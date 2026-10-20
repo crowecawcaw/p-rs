@@ -145,7 +145,7 @@ $ prs observe --spec BankBalanceCorrect -l logs/
           </li>
         </ul>
         <p>
-          The <a href={`${REPO}#compatibility`}>compatibility list</a> in the README has every detail.
+          The <a href={`${BLOB}/docs/compatibility.md`}>compatibility list</a> has every detail.
         </p>
       </section>
 
