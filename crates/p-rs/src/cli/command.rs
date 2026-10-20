@@ -427,7 +427,9 @@ fn check_config(a: &Args, cfg: &mut CheckConfig) -> Result<Vec<String>, String> 
             Some(parse_duration(t).ok_or_else(|| format!("bad duration '{}' (examples: 90, 90s, 5m, 1h)", t))?);
     }
     let unbounded = cfg.timeout.is_some() || a.has("exhaustive");
-    cfg.iterations = schedules.unwrap_or(if unbounded { 0 } else { 10000 });
+    if let Some(n) = schedules.or(unbounded.then_some(0)) {
+        cfg.iterations = n;
+    }
     cfg.workers = match uint(a, "workers")? {
         Some(0) => return Err("'--workers' needs at least 1 worker".into()),
         n => n,
@@ -607,7 +609,7 @@ fn tests(args: &[String], host: &mut dyn Host) -> i32 {
 fn observe(args: &[String], host: &mut dyn Host) -> i32 {
     // PObserve's exit codes: 2 a spec violation, 1, 3 and 4 errors
     use crate::driver::observe;
-    match observe::run_named(args, host, Vec::new(), "prs observe") {
+    match observe::run(args, host, Vec::new(), "prs observe") {
         observe::EXIT_SUCCESS => OK,
         observe::EXIT_ASSERTION => BUG,
         _ => ERROR,

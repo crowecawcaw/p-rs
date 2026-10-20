@@ -9,17 +9,18 @@
 //!
 //! Parsers are Rust values implementing [`Parser`]. Two are built in ([`JsonLinesParser`]
 //! for text logs, [`PTraceParser`] for P's JSON traces); programs embedding the crate pass
-//! their own to [`run_named`]. The checking itself is [`crate::checker::observe`].
+//! their own to [`run`]. The checking itself is [`crate::checker::observe`].
 
 use std::path::{Path, PathBuf};
 
 use crate::checker::javafmt;
 use crate::checker::observe::{
-    split_entries, ErrorKind, Metrics, NoScheduling, ObserveError, ObserveOptions, ObserveSession, ObservedEvent,
-    ParsedEntry, Parser, Report, Spec, Timestamp, UnknownEvents,
+    split_entries, ErrorKind, Metrics, NoScheduling, ObserveError, ObserveOptions, ObserveSession, Parser, Report,
+    Spec, UnknownEvents,
 };
 use crate::checker::observe_inputs::{add_log_paths, observe_live, LogFiles, SequenceMerger};
-use crate::checker::observe_json::{civil_from_days, event_from_json, json_int, parse_instant};
+use crate::checker::observe_json::{ptrace_entries, JsonLinesParser, PTraceParser};
+use crate::date::civil_from_days;
 use crate::sema::{MachineKind, Program};
 use serde_json::Value as Json;
 
@@ -33,13 +34,14 @@ pub const EXIT_ASSERTION: i32 = 2;
 pub const EXIT_INTERNAL_ERROR: i32 = 3;
 pub const EXIT_PARSE_LOG_ERROR: i32 = 4;
 
-/// Runs the observe command line with `args`, naming the command `command` in its usage
-/// text, with additional parsers (selected by `--parser <name>`). When `--parser` is not
-/// given and exactly one extra parser is passed, that one is used. Returns the PObserve
-/// exit status.
-pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parser>>, command: &str) -> i32 {
+/// Runs `prs observe` with `args` (without the command name) and returns the PObserve exit
+/// status (`EXIT_*`). `command` names the command in the usage text (`"prs observe"`).
+///
+/// `parsers` are parsers besides the built-in ones, selected by `--parser <name>`; when
+/// `--parser` is not given and exactly one is passed, that one is used.
+pub fn run(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parser>>, command: &str) -> i32 {
     let mut parsers = parsers;
-    let usage = USAGE.replacen("p observe", command, 1);
+    let usage = USAGE.replacen("prs observe", command, 1);
     let cmdline_error = |host: &mut dyn Host, m: &str| cmdline_error(host, m, &usage);
     let cfg = match parse_args(args, host) {
         Ok(Some(c)) => c,
@@ -254,7 +256,7 @@ pub fn run_named(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Pars
     }
     let n: u64 = reports.iter().map(|r| r.error_count()).sum();
     let all = Report { errors: reports.iter().flat_map(|r| r.errors.iter().cloned()).collect(), ..Default::default() };
-    let code = exit_status(&all);
+    let code = all.exit_status();
     if let Some(path) = &cfg.json_report {
         let mut text = json_report(&specs, &reports, code);
         if live {
@@ -358,11 +360,6 @@ fn json_report(specs: &[Spec], reports: &[Report], exit_code: i32) -> String {
     text
 }
 
-/// `TrackErrors.getExitStatus`.
-pub fn exit_status(report: &Report) -> i32 {
-    report.exit_status()
-}
-
 fn cmdline_error(host: &mut dyn Host, msg: &str, usage: &str) -> i32 {
     host.out_colored_line("Failed parsing ::", Color::Red);
     host.out_colored_line(msg, Color::Red);
@@ -372,8 +369,9 @@ fn cmdline_error(host: &mut dyn Host, msg: &str, usage: &str) -> i32 {
 
 // ---- command line --------------------------------------------------------------------------
 
-/// The JCommander usage text, with `--pproj`/`--pfiles` in place of `--jars`.
-pub const USAGE: &str = "Usage: p observe [options]
+/// PObserve's JCommander usage text, with `--pproj`/`--pfiles` in place of `--jars`; [`run`]
+/// puts its command name in place of `prs observe`.
+const USAGE: &str = "Usage: prs observe [options]
   Options:
     --all-specs
       Check every spec in the P sources (prs extension)
@@ -888,14 +886,12 @@ fn load_project(cfg: &ObserveConfig, host: &mut dyn Host) -> Result<Loaded, Stri
             proj.input_files.into_iter().filter(|f| f.to_string_lossy().to_lowercase().ends_with(".p")).collect();
         (files, proj.project_root, "pproj", file)
     };
-    let art = project::read(&quiet, &project_name, &files, &root)?;
-    let sm = art.source_map();
-    let r = crate::sema::compile(&sm, &crate::sema::Options::default());
     let host = quiet.inner;
-    if !project::report_result(host, &art, &sm, &r) {
-        return Err("The P specification does not type-check.".into());
-    }
-    let program = r.map(|a| a.program).map_err(|_| "The P specification does not type-check.".to_string())?;
+    let program = match project::load(host, &project_name, &files, &root) {
+        Ok((_, analysis)) => analysis.program,
+        Err(project::LoadError::Read(e)) => return Err(e),
+        Err(project::LoadError::Types) => return Err("The P specification does not type-check.".into()),
+    };
     crate::checker::time::declares_time(&program)?;
     Ok(Loaded {
         program,
@@ -1128,158 +1124,6 @@ fn java_percent_f(v: f32) -> String {
     let d: f64 = javafmt::float_to_string(v).parse().unwrap_or(0.0);
     let scaled = (d * 1e6 + 0.5).floor() / 1e6;
     format!("{:.6}", scaled)
-}
-
-/// [`event_from_json`] as a [`ParsedEntry`] that names `name` when the program does not
-/// declare it.
-fn parsed_from_json(
-    spec: &Spec,
-    key: String,
-    timestamp: Timestamp,
-    name: &str,
-    payload: Option<&Json>,
-    log_line: Option<&str>,
-) -> Result<ParsedEntry, String> {
-    Ok(match event_from_json(spec, key, timestamp, name, payload, log_line)? {
-        Some(e) => ParsedEntry { events: vec![e], unknown_events: Vec::new() },
-        None => ParsedEntry { events: Vec::new(), unknown_events: vec![name.to_string()] },
-    })
-}
-
-// ---- built-in parsers ----------------------------------------------------------------------
-
-/// One JSON object per log line:
-/// `{"key": "acct-1", "timestamp": 1706894854309, "event": "eWithDrawReq", "payload": {...}}`.
-///
-/// `timestamp` is epoch milliseconds or an ISO-8601 string; `key` and `timestamp` are
-/// optional (missing ones read as `""` and `0`). `--parserConfiguration` remaps the fields
-/// with a JSON object of dotted paths, e.g. `{"event": "msg.type", "key": "msg.account"}`.
-/// Blank lines and events the program does not declare are skipped.
-#[derive(Debug, Clone)]
-pub struct JsonLinesParser {
-    pub key: String,
-    pub timestamp: String,
-    pub event: String,
-    pub payload: String,
-}
-
-impl Default for JsonLinesParser {
-    fn default() -> Self {
-        JsonLinesParser {
-            key: "key".into(),
-            timestamp: "timestamp".into(),
-            event: "event".into(),
-            payload: "payload".into(),
-        }
-    }
-}
-
-fn lookup<'j>(j: &'j Json, path: &str) -> Option<&'j Json> {
-    if path.is_empty() {
-        return Some(j);
-    }
-    path.split('.').try_fold(j, |cur, part| cur.get(part))
-}
-
-fn key_string(j: Option<&Json>) -> String {
-    match j {
-        None | Some(Json::Null) => String::new(),
-        Some(Json::String(s)) => s.clone(),
-        Some(other) => other.to_string(),
-    }
-}
-
-fn timestamp_of(j: Option<&Json>) -> Result<Timestamp, String> {
-    match j {
-        None | Some(Json::Null) => Ok(Timestamp::default()),
-        Some(Json::String(s)) => match s.parse::<i64>() {
-            Ok(ms) => Ok(Timestamp::from_millis(ms)),
-            Err(_) => parse_instant(s).ok_or_else(|| format!("invalid timestamp '{}'", s)),
-        },
-        Some(n) => json_int(n).map(Timestamp::from_millis).ok_or_else(|| format!("invalid timestamp {}", n)),
-    }
-}
-
-impl Parser for JsonLinesParser {
-    fn name(&self) -> &str {
-        "JsonLines"
-    }
-
-    fn set_configuration(&mut self, configuration: &str) -> Result<(), String> {
-        let j: Json = serde_json::from_str(configuration)
-            .map_err(|e| format!("The specified parserConfiguration ({}) is invalid. ({})", configuration, e))?;
-        let Some(o) = j.as_object() else {
-            return Err(format!(
-                "The specified parserConfiguration ({}) is invalid. (expected a JSON object)",
-                configuration
-            ));
-        };
-        for (k, v) in o {
-            let v = v.as_str().ok_or_else(|| format!("parserConfiguration: '{}' must be a string", k))?.to_string();
-            match k.as_str() {
-                "key" => self.key = v,
-                "timestamp" => self.timestamp = v,
-                "event" => self.event = v,
-                "payload" => self.payload = v,
-                other => return Err(format!("parserConfiguration: unknown field '{}'", other)),
-            }
-        }
-        Ok(())
-    }
-
-    fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
-        self.parse_entry(entry, spec).map(|p| p.events)
-    }
-
-    fn parse_entry(&self, entry: &str, spec: &Spec) -> Result<ParsedEntry, String> {
-        if entry.is_empty() {
-            return Ok(ParsedEntry::default());
-        }
-        let j: Json = serde_json::from_str(entry).map_err(|e| e.to_string())?;
-        let name = lookup(&j, &self.event).and_then(|v| v.as_str()).ok_or("missing event name")?;
-        let ts = timestamp_of(lookup(&j, &self.timestamp))?;
-        let key = key_string(lookup(&j, &self.key));
-        parsed_from_json(spec, key, ts, name, lookup(&j, &self.payload), Some(entry))
-    }
-}
-
-/// The `SendEvent` and `Announce` entries of P's JSON traces (`p check` bug traces), for
-/// `--inputkind JSON`. All events share one key and keep their trace order.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct PTraceParser;
-
-impl Parser for PTraceParser {
-    fn name(&self) -> &str {
-        "PTrace"
-    }
-
-    fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
-        self.parse_entry(entry, spec).map(|p| p.events)
-    }
-
-    fn parse_entry(&self, entry: &str, spec: &Spec) -> Result<ParsedEntry, String> {
-        let j: Json = serde_json::from_str(entry).map_err(|e| e.to_string())?;
-        let details = j.get("details").ok_or("missing details")?;
-        let name = details.get("event").and_then(|v| v.as_str()).ok_or("missing event name")?;
-        let name = name.rsplit('.').next().unwrap_or(name);
-        let log = details.get("log").and_then(|v| v.as_str());
-        parsed_from_json(spec, String::new(), Timestamp::default(), name, details.get("payload"), log)
-    }
-}
-
-/// `PTraceJSONFileReader`: the `SendEvent`/`Announce` entries of a JSON trace, each as JSON
-/// text.
-fn ptrace_entries(text: &str) -> Result<Vec<String>, String> {
-    let j: Json = serde_json::from_str(text).map_err(|e| e.to_string())?;
-    let arr = j.as_array().ok_or("expected a JSON array")?;
-    let mut out = Vec::new();
-    for e in arr {
-        let ty = e.get("type").and_then(|t| t.as_str()).unwrap_or("");
-        if ty.eq_ignore_ascii_case("sendevent") || ty.eq_ignore_ascii_case("announce") {
-            out.push(e.to_string());
-        }
-    }
-    Ok(out)
 }
 
 #[cfg(test)]

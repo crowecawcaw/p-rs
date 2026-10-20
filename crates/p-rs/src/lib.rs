@@ -20,8 +20,13 @@
 //! ```
 //!
 //! The checker library is [`syntax`] (parser), [`sema`] (type checker), [`checker`]
-//! (systematic testing and log checking) and [`compat`] (upstream P's command line).
-//! See `docs/library.md` in the repository.
+//! (systematic testing and log checking) and [`driver`] (the commands `prs` runs: loading
+//! projects, checking test cases, observing logs) on a [`host`]. [`compat`] is
+//! `prs-compat`'s upstream-compatible command line on top of them; nothing else depends on
+//! it. See `docs/library.md` in the repository.
+
+#[cfg(any(feature = "emit", feature = "test", feature = "cli"))]
+mod date;
 
 #[cfg(feature = "emit")]
 pub mod emit;

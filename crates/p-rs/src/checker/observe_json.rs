@@ -1,34 +1,14 @@
-//! Reading observed events from JSON: ISO-8601 instants and P values from JSON payloads.
-//! Shared by `prs observe`'s parsers and [`crate::test`].
+//! Reading observed events from JSON: ISO-8601 instants, P values from JSON payloads, and
+//! the built-in parsers of `prs observe` ([`JsonLinesParser`], [`PTraceParser`]). Shared
+//! with [`crate::test`].
 
 use std::rc::Rc;
 
-use crate::checker::observe::{ObservedEvent, Spec, Timestamp};
+use crate::checker::observe::{ObservedEvent, ParsedEntry, Parser, Spec, Timestamp};
 use crate::checker::value::{MachineRef, NamedTuple, SlotMap, SlotSet, Value};
+use crate::date::days_from_civil;
 use crate::sema::{PType, Program};
 use serde_json::Value as Json;
-
-pub(crate) fn civil_from_days(z: i64) -> (i64, u32, u32) {
-    let z = z + 719468;
-    let era = z.div_euclid(146097);
-    let doe = z.rem_euclid(146097);
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    (yoe + era * 400 + if m <= 2 { 1 } else { 0 }, m, d)
-}
-
-fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = y.div_euclid(400);
-    let yoe = y.rem_euclid(400);
-    let mp = if m > 2 { m - 3 } else { m + 9 } as i64;
-    let doy = (153 * mp + 2) / 5 + d as i64 - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146097 + doe - 719468
-}
 
 /// Parses an ISO-8601 instant (`2024-02-02T17:27:34.309Z`, offsets allowed).
 pub fn parse_instant(s: &str) -> Option<Timestamp> {
@@ -263,6 +243,164 @@ pub fn event_from_json(
     }))
 }
 
+/// [`event_from_json`] as a [`ParsedEntry`] that names `name` when the program does not
+/// declare it.
+fn parsed_from_json(
+    spec: &Spec,
+    key: String,
+    timestamp: Timestamp,
+    name: &str,
+    payload: Option<&Json>,
+    log_line: Option<&str>,
+) -> Result<ParsedEntry, String> {
+    Ok(match event_from_json(spec, key, timestamp, name, payload, log_line)? {
+        Some(e) => ParsedEntry { events: vec![e], unknown_events: Vec::new() },
+        None => ParsedEntry { events: Vec::new(), unknown_events: vec![name.to_string()] },
+    })
+}
+
+// ---- built-in parsers ----------------------------------------------------------------------
+
+/// One JSON object per log line:
+/// `{"key": "acct-1", "timestamp": 1706894854309, "event": "eWithDrawReq", "payload": {...}}`.
+///
+/// `timestamp` is epoch milliseconds or an ISO-8601 string; `key` and `timestamp` are
+/// optional (missing ones read as `""` and `0`). `--parserConfiguration` remaps the fields
+/// with a JSON object of dotted paths, e.g. `{"event": "msg.type", "key": "msg.account"}`.
+/// Blank lines and events the program does not declare are skipped.
+#[derive(Debug, Clone)]
+pub struct JsonLinesParser {
+    pub key: String,
+    pub timestamp: String,
+    pub event: String,
+    pub payload: String,
+}
+
+impl Default for JsonLinesParser {
+    fn default() -> Self {
+        JsonLinesParser {
+            key: "key".into(),
+            timestamp: "timestamp".into(),
+            event: "event".into(),
+            payload: "payload".into(),
+        }
+    }
+}
+
+fn lookup<'j>(j: &'j Json, path: &str) -> Option<&'j Json> {
+    if path.is_empty() {
+        return Some(j);
+    }
+    path.split('.').try_fold(j, |cur, part| cur.get(part))
+}
+
+/// A log entry's key: a string as is, any other value as its JSON text, `""` when missing
+/// or null.
+pub(crate) fn key_from_json(j: Option<&Json>) -> String {
+    match j {
+        None | Some(Json::Null) => String::new(),
+        Some(Json::String(s)) => s.clone(),
+        Some(other) => other.to_string(),
+    }
+}
+
+/// A timestamp: epoch milliseconds (a whole number, or a string of one) or an ISO-8601
+/// instant.
+pub(crate) fn timestamp_from_json(j: &Json) -> Result<Timestamp, String> {
+    match j {
+        Json::String(s) => match s.parse::<i64>() {
+            Ok(ms) => Ok(Timestamp::from_millis(ms)),
+            Err(_) => parse_instant(s).ok_or_else(|| format!("invalid timestamp '{}'", s)),
+        },
+        n => json_int(n).map(Timestamp::from_millis).ok_or_else(|| format!("invalid timestamp {}", n)),
+    }
+}
+
+impl Parser for JsonLinesParser {
+    fn name(&self) -> &str {
+        "JsonLines"
+    }
+
+    fn set_configuration(&mut self, configuration: &str) -> Result<(), String> {
+        let j: Json = serde_json::from_str(configuration)
+            .map_err(|e| format!("The specified parserConfiguration ({}) is invalid. ({})", configuration, e))?;
+        let Some(o) = j.as_object() else {
+            return Err(format!(
+                "The specified parserConfiguration ({}) is invalid. (expected a JSON object)",
+                configuration
+            ));
+        };
+        for (k, v) in o {
+            let v = v.as_str().ok_or_else(|| format!("parserConfiguration: '{}' must be a string", k))?.to_string();
+            match k.as_str() {
+                "key" => self.key = v,
+                "timestamp" => self.timestamp = v,
+                "event" => self.event = v,
+                "payload" => self.payload = v,
+                other => return Err(format!("parserConfiguration: unknown field '{}'", other)),
+            }
+        }
+        Ok(())
+    }
+
+    fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
+        self.parse_entry(entry, spec).map(|p| p.events)
+    }
+
+    fn parse_entry(&self, entry: &str, spec: &Spec) -> Result<ParsedEntry, String> {
+        if entry.is_empty() {
+            return Ok(ParsedEntry::default());
+        }
+        let j: Json = serde_json::from_str(entry).map_err(|e| e.to_string())?;
+        let name = lookup(&j, &self.event).and_then(|v| v.as_str()).ok_or("missing event name")?;
+        let ts = match lookup(&j, &self.timestamp) {
+            None | Some(Json::Null) => Timestamp::default(),
+            Some(t) => timestamp_from_json(t)?,
+        };
+        let key = key_from_json(lookup(&j, &self.key));
+        parsed_from_json(spec, key, ts, name, lookup(&j, &self.payload), Some(entry))
+    }
+}
+
+/// The `SendEvent` and `Announce` entries of P's JSON traces (`p check` bug traces), for
+/// `--inputkind JSON`. All events share one key and keep their trace order.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PTraceParser;
+
+impl Parser for PTraceParser {
+    fn name(&self) -> &str {
+        "PTrace"
+    }
+
+    fn parse(&self, entry: &str, spec: &Spec) -> Result<Vec<ObservedEvent>, String> {
+        self.parse_entry(entry, spec).map(|p| p.events)
+    }
+
+    fn parse_entry(&self, entry: &str, spec: &Spec) -> Result<ParsedEntry, String> {
+        let j: Json = serde_json::from_str(entry).map_err(|e| e.to_string())?;
+        let details = j.get("details").ok_or("missing details")?;
+        let name = details.get("event").and_then(|v| v.as_str()).ok_or("missing event name")?;
+        let name = name.rsplit('.').next().unwrap_or(name);
+        let log = details.get("log").and_then(|v| v.as_str());
+        parsed_from_json(spec, String::new(), Timestamp::default(), name, details.get("payload"), log)
+    }
+}
+
+/// `PTraceJSONFileReader`: the `SendEvent`/`Announce` entries of a JSON trace, each as JSON
+/// text.
+pub fn ptrace_entries(text: &str) -> Result<Vec<String>, String> {
+    let j: Json = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    let arr = j.as_array().ok_or("expected a JSON array")?;
+    let mut out = Vec::new();
+    for e in arr {
+        let ty = e.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        if ty.eq_ignore_ascii_case("sendevent") || ty.eq_ignore_ascii_case("announce") {
+            out.push(e.to_string());
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,12 +411,5 @@ mod tests {
         assert_eq!(parse_instant("2024-02-02T17:27:34.309Z").map(|t| t.to_millis()), Some(1706894854309));
         assert_eq!(parse_instant("2024-02-02T18:27:34.309+01:00").map(|t| t.to_millis()), Some(1706894854309));
         assert_eq!(parse_instant("nope"), None);
-    }
-
-    #[test]
-    fn dates() {
-        assert_eq!(civil_from_days(0), (1970, 1, 1));
-        assert_eq!(days_from_civil(2024, 2, 2), 19755);
-        assert_eq!(civil_from_days(19755), (2024, 2, 2));
     }
 }

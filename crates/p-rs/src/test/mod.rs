@@ -21,9 +21,10 @@ use std::time::{Duration, Instant};
 
 use crate::checker::observe::{
     split_entries, ErrorKind as CoreKind, ObserveError, ObserveOptions, ObservedEvent, ParsedEntry, Parser, Report,
-    Spec, Timestamp,
+    Spec,
 };
 use crate::checker::observe_inputs::{add_log_paths, log_paths, StdFiles};
+use crate::checker::observe_json;
 use crate::sema::{MachineKind, PType, Program};
 use crate::syntax::SourceMap;
 
@@ -907,28 +908,14 @@ impl Parser for Lines {
         if matches!(spec.payload_type(id), PType::Null) && !payload.is_null() {
             return Err(format!("{name} has no payload, so its payload must be null"));
         }
-        let value = crate::checker::observe_json::value_from_json(spec.prog, payload, spec.payload_type(id))?;
-        let key = match line.get("key") {
-            None | Some(Value::Null) => String::new(),
-            Some(Value::String(s)) => s.clone(),
-            Some(other) => other.to_string(),
+        let value = observe_json::value_from_json(spec.prog, payload, spec.payload_type(id))?;
+        let key = observe_json::key_from_json(line.get("key"));
+        let timestamp = match line.get("timestamp") {
+            Some(t @ (Value::String(_) | Value::Number(_))) => observe_json::timestamp_from_json(t)?,
+            _ => return Err("missing timestamp".into()),
         };
-        let event = spec.event(key, timestamp(line.get("timestamp"))?, name, value, Some(entry))?;
+        let event = spec.event(key, timestamp, name, value, Some(entry))?;
         Ok(ParsedEntry { events: vec![event], unknown_events: Vec::new() })
-    }
-}
-
-/// ISO-8601, or an integer of epoch milliseconds, as `prs observe` reads it.
-fn timestamp(v: Option<&Value>) -> Result<Timestamp, String> {
-    match v {
-        Some(Value::String(s)) => match s.parse::<i64>() {
-            Ok(ms) => Ok(Timestamp::from_millis(ms)),
-            Err(_) => crate::checker::observe_json::parse_instant(s).ok_or_else(|| format!("invalid timestamp '{s}'")),
-        },
-        Some(Value::Number(n)) => {
-            n.as_i64().map(Timestamp::from_millis).ok_or_else(|| format!("invalid timestamp {n}"))
-        }
-        _ => Err("missing timestamp".into()),
     }
 }
 

@@ -29,7 +29,8 @@ impl Mode {
     }
 }
 
-/// `CheckerConfiguration` (the parts prs uses).
+/// What to check and how (upstream's `CheckerConfiguration`). The defaults are `prs
+/// check`'s.
 #[derive(Debug, Clone)]
 pub struct CheckConfig {
     /// Where the P sources come from.
@@ -46,9 +47,9 @@ pub struct CheckConfig {
     pub list_test_cases: bool,
     pub strategy: StrategyKind,
     pub strategy_bound: usize,
+    /// Schedules per test case; 0 = no limit.
     pub iterations: usize,
-    /// Workers exploring schedules in parallel; `None` = one per CPU core. Upstream has
-    /// one, so `p check` keeps the default of 1.
+    /// Workers exploring schedules in parallel; `None` = one per CPU core.
     pub workers: Option<usize>,
     /// `--schedules` (or `--timeout`) was given.
     pub user_set_iterations: bool,
@@ -88,8 +89,8 @@ impl Default for CheckConfig {
             list_test_cases: false,
             strategy: StrategyKind::Random,
             strategy_bound: 0,
-            iterations: 1,
-            workers: Some(1),
+            iterations: 10000,
+            workers: None,
             user_set_iterations: false,
             seed: None,
             full_exploration: false,
@@ -204,15 +205,12 @@ pub struct Loaded {
 /// Reads and type-checks the project's sources (upstream: `TestingEngine.LoadAssembly`);
 /// type errors are reported as upstream's compiler reports them.
 pub fn load(host: &mut dyn Host, cfg: &CheckConfig) -> Result<Loaded, Exit> {
-    let sources = match project::read(host, &cfg.project_name, &cfg.p_files, &host.cwd()) {
-        Ok(s) => s,
-        Err(e) => return Err(report_and_exit(host, &e)),
+    let cwd = host.cwd();
+    let (sources, analysis) = match project::load(host, &cfg.project_name, &cfg.p_files, &cwd) {
+        Ok(l) => l,
+        Err(project::LoadError::Read(e)) => return Err(report_and_exit(host, &e)),
+        Err(project::LoadError::Types) => return Err(Exit(1)),
     };
-    let sm = sources.source_map();
-    let r = crate::sema::compile(&sm, &crate::sema::Options::default());
-    if !project::report_result(host, &sources, &sm, &r) {
-        return Err(Exit(1));
-    }
     for f in &cfg.foreign_files {
         host.out_colored_line(
             &format!(
@@ -222,39 +220,7 @@ pub fn load(host: &mut dyn Host, cfg: &CheckConfig) -> Result<Loaded, Exit> {
             Color::Yellow,
         );
     }
-    let analysis = r.map_err(|_| Exit(1))?;
     Ok(Loaded { sources, analysis })
-}
-
-/// `Checker.Run`.
-pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exit> {
-    if let Some(schedule_file) = cfg.schedule_file.clone() {
-        host.out_line(&format!(
-            "Replay option is used, checker is ignoring all other parameters and using the {} to replay the schedule",
-            schedule_file
-        ));
-        host.out_line(&format!("... Replaying {}", schedule_file));
-        let loaded = load(host, &cfg)?;
-        let tc = select_test_case(host, &loaded, &cfg.test_case_name)?;
-        let trace = read_schedule(host, &schedule_file)?;
-        replay(host, &loaded, &tc, &mut cfg, trace)?;
-        return Ok(0);
-    }
-
-    host.out_line(&format!(".. Checking {}", cfg.project_name));
-    let mut exit_code = 0;
-    // both modes run the same engine; PEx mode with an exhaustive search strategy
-    let loaded = load(host, &cfg)?;
-    let cases = fetch_test_cases(host, &loaded, &cfg);
-    if !cfg.list_test_cases {
-        for tc in cases {
-            cfg.test_case_name = tc;
-            // as upstream, the last test case sets the exit code
-            exit_code = testing_process(host, &loaded, &cfg)?;
-        }
-    }
-    host.out_line(". Done");
-    Ok(exit_code)
 }
 
 /// Reads a `.schedule` file.
@@ -296,28 +262,6 @@ pub fn replay(
     );
     host.write(Stream::Out, &text, Some(Color::Yellow));
     Ok(n)
-}
-
-/// `TestingProcess.FetchTestCases`.
-fn fetch_test_cases(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> Vec<String> {
-    let names: Vec<String> = loaded.analysis.program.test_cases().into_iter().map(|t| t.name).collect();
-    if cfg.list_test_cases {
-        host.out_line(&format!(".. List of test cases (total {})", names.len()));
-    } else if cfg.test_case_name.is_empty() {
-        return vec![String::new()];
-    } else {
-        host.out_line(&format!(".. Running test cases with prefix '{}':", cfg.test_case_name));
-    }
-    let mut out = Vec::new();
-    for n in names {
-        if cfg.list_test_cases {
-            host.out_line(&n);
-        } else if n.starts_with(&cfg.test_case_name) {
-            host.out_line(&n);
-            out.push(n);
-        }
-    }
-    out
 }
 
 /// `TestMethodInfo.GetTestMethod`: exact name, else the unique test case containing it.

@@ -15,5 +15,5 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
 /// Runs `p observe` with additional parsers (selected by `--parser <name>`). When `--parser`
 /// is not given and exactly one extra parser is passed, that one is used.
 pub fn run_with(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parser>>) -> i32 {
-    crate::driver::observe::run_named(args, host, parsers, "p observe")
+    crate::driver::observe::run(args, host, parsers, "p observe")
 }

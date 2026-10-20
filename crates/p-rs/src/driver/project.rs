@@ -116,6 +116,33 @@ pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, crate::dr
     Ok(r)
 }
 
+/// Why [`load`] failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoadError {
+    /// A file could not be read.
+    Read(String),
+    /// The sources do not type-check; the diagnostics have been printed.
+    Types,
+}
+
+/// Reads `files`, naming each relative to `root`, and type-checks them. Diagnostics and
+/// warnings are printed as upstream's compiler prints them.
+pub fn load(
+    host: &mut dyn Host,
+    project_name: &str,
+    files: &[PathBuf],
+    root: &Path,
+) -> Result<(Sources, crate::sema::Analysis), LoadError> {
+    let sources = read(host, project_name, files, root).map_err(LoadError::Read)?;
+    let sm = sources.source_map();
+    let r = crate::sema::compile(&sm, &crate::sema::Options::default());
+    if !report_result(host, &sources, &sm, &r) {
+        return Err(LoadError::Types);
+    }
+    let analysis = r.map_err(|_| LoadError::Types)?;
+    Ok((sources, analysis))
+}
+
 /// Reads `files`, naming each relative to `root`.
 pub fn read(host: &dyn Host, project_name: &str, files: &[PathBuf], root: &Path) -> Result<Sources, String> {
     let mut out = Vec::new();

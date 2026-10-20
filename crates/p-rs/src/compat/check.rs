@@ -4,9 +4,12 @@ use std::path::Path;
 
 use crate::checker::strategy::StrategyKind;
 use crate::compat::argparse::{ArgParser, DataType, ParseError};
-use crate::driver::check::{finish_options, resolve_sources, run_checker, set_output_directory, CheckConfig, Mode};
+use crate::driver::check::{
+    finish_options, load, read_schedule, replay, resolve_sources, select_test_case, set_output_directory,
+    testing_process, CheckConfig, Loaded, Mode,
+};
 use crate::driver::{report_and_exit, Exit};
-use crate::host::{Color, Host, Stream};
+use crate::host::{Color, Host, HostExt, Stream};
 
 /// `PCheckerOptions` parser definition.
 pub fn parser() -> ArgParser {
@@ -198,7 +201,8 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
         }
         Err(ParseError::Invalid(m)) => return Err(help_and_exit(&p, host, &m)),
     };
-    let mut cfg = CheckConfig::default();
+    // upstream checks one schedule by default, with one worker
+    let mut cfg = CheckConfig { iterations: 1, workers: Some(1), ..CheckConfig::default() };
     for a in &result {
         let v = a.value.clone();
         let uint = || v.as_ref().map(|v| v.as_uint()).unwrap_or(0);
@@ -306,4 +310,57 @@ pub fn parse(args: &[String], host: &mut dyn Host) -> Result<CheckConfig, Exit> 
     }
     set_output_directory(host, &mut cfg)?;
     Ok(cfg)
+}
+
+/// `Checker.Run`.
+pub fn run_checker(mut cfg: CheckConfig, host: &mut dyn Host) -> Result<i32, Exit> {
+    if let Some(schedule_file) = cfg.schedule_file.clone() {
+        host.out_line(&format!(
+            "Replay option is used, checker is ignoring all other parameters and using the {} to replay the schedule",
+            schedule_file
+        ));
+        host.out_line(&format!("... Replaying {}", schedule_file));
+        let loaded = load(host, &cfg)?;
+        let tc = select_test_case(host, &loaded, &cfg.test_case_name)?;
+        let trace = read_schedule(host, &schedule_file)?;
+        replay(host, &loaded, &tc, &mut cfg, trace)?;
+        return Ok(0);
+    }
+
+    host.out_line(&format!(".. Checking {}", cfg.project_name));
+    let mut exit_code = 0;
+    // both modes run the same engine; PEx mode with an exhaustive search strategy
+    let loaded = load(host, &cfg)?;
+    let cases = fetch_test_cases(host, &loaded, &cfg);
+    if !cfg.list_test_cases {
+        for tc in cases {
+            cfg.test_case_name = tc;
+            // as upstream, the last test case sets the exit code
+            exit_code = testing_process(host, &loaded, &cfg)?;
+        }
+    }
+    host.out_line(". Done");
+    Ok(exit_code)
+}
+
+/// `TestingProcess.FetchTestCases`.
+fn fetch_test_cases(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> Vec<String> {
+    let names: Vec<String> = loaded.analysis.program.test_cases().into_iter().map(|t| t.name).collect();
+    if cfg.list_test_cases {
+        host.out_line(&format!(".. List of test cases (total {})", names.len()));
+    } else if cfg.test_case_name.is_empty() {
+        return vec![String::new()];
+    } else {
+        host.out_line(&format!(".. Running test cases with prefix '{}':", cfg.test_case_name));
+    }
+    let mut out = Vec::new();
+    for n in names {
+        if cfg.list_test_cases {
+            host.out_line(&n);
+        } else if n.starts_with(&cfg.test_case_name) {
+            host.out_line(&n);
+            out.push(n);
+        }
+    }
+    out
 }
