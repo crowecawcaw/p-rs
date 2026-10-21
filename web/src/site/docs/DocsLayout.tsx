@@ -1,40 +1,46 @@
 // Docs shell: site header, a sidebar of pages, and the page content.
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { REPO, SiteHeader, links } from "../SiteHeader";
 
 const BLOB = `${REPO}/blob/main`;
 
+type Page = { id: string; title: string; href: (root: string) => string };
+
 /** Docs pages on this site. Add new pages here. */
-const PAGES = [
-  { id: "overview", title: "Overview", href: (root: string) => links(root).overview },
-  { id: "coming-from-p", title: "Coming from P", href: (root: string) => links(root).comingFromP },
+const PAGES: Page[] = [
+  { id: "overview", title: "Overview", href: (root) => links(root).overview },
+  { id: "coming-from-p", title: "Coming from P", href: (root) => links(root).comingFromP },
+];
+
+/** One page per language helper; each follows docs/language-support.md#docs-page. */
+const LANGUAGES: Page[] = [
+  { id: "python", title: "Python", href: (root) => links(root).python },
+  { id: "rust", title: "Rust", href: (root) => links(root).rust },
+  { id: "go", title: "Go", href: (root) => links(root).go },
+  { id: "java", title: "Java", href: (root) => links(root).java },
 ];
 
 /** Guides that still live in the repository. */
 const GUIDES = [
-  { title: "Python tests", href: `${BLOB}/docs/python.md` },
-  { title: "Rust tests", href: `${BLOB}/examples/rust/README.md` },
-  { title: "Java tests", href: `${BLOB}/java/README.md` },
-  { title: "Go tests", href: `${BLOB}/go/README.md` },
   { title: "Checking logs (snappea observe)", href: `${BLOB}/docs/observe.md` },
   { title: "Testing and production", href: `${BLOB}/docs/production.md` },
   { title: "Rust library", href: `${BLOB}/docs/library.md` },
 ];
 
 export function DocsLayout({ root, page, children }: { root: string; page: string; children: ReactNode }) {
+  // The page renders after the browser looked for #anchor, so scroll to it now.
+  useEffect(() => {
+    if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
+  }, []);
   return (
     <div className="site docs">
       <SiteHeader root={root} current="docs" />
       <div className="docs-shell">
         <nav className="docs-side" aria-label="Docs">
           <p className="side-head">Docs</p>
-          <ul>
-            {PAGES.map((p) => (
-              <li key={p.id}>
-                <a href={p.href(root)} aria-current={p.id === page ? "page" : undefined}>{p.title}</a>
-              </li>
-            ))}
-          </ul>
+          <PageList pages={PAGES} root={root} page={page} />
+          <p className="side-head">Languages</p>
+          <PageList pages={LANGUAGES} root={root} page={page} />
           <p className="side-head">Guides on GitHub</p>
           <ul>
             {GUIDES.map((g) => (
@@ -47,5 +53,17 @@ export function DocsLayout({ root, page, children }: { root: string; page: strin
         <main className="doc">{children}</main>
       </div>
     </div>
+  );
+}
+
+function PageList({ pages, root, page }: { pages: Page[]; root: string; page: string }) {
+  return (
+    <ul>
+      {pages.map((p) => (
+        <li key={p.id}>
+          <a href={p.href(root)} aria-current={p.id === page ? "page" : undefined}>{p.title}</a>
+        </li>
+      ))}
+    </ul>
   );
 }

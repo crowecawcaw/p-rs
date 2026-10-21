@@ -9,7 +9,8 @@ import { Workflow } from "./diagrams/Workflow";
 const BLOB = `${REPO}/blob/main`;
 
 export function Overview({ root }: { root: string }) {
-  const DEMO = `${links(root).playground}?demo=lost-update`;
+  const l = links(root);
+  const DEMO = `${l.playground}?demo=lost-update`;
   return (
     <>
       <section className="hero">
@@ -190,9 +191,8 @@ def test_release_makes_stock_available_again(inventory_factory):
         inventory.release("coffee", "order-1")
 `}</Code>
         <p>
-          There are helpers for <a href={`${BLOB}/examples/python/README.md`}>Python</a>,{" "}
-          <a href={`${BLOB}/examples/rust/README.md`}>Rust</a>, <a href={`${BLOB}/examples/java/README.md`}>Java</a>{" "}
-          and <a href={`${BLOB}/examples/go/README.md`}>Go</a>. To check events from running services, see{" "}
+          There are helpers for <a href={l.python}>Python</a>, <a href={l.rust}>Rust</a>,{" "}
+          <a href={l.java}>Java</a> and <a href={l.go}>Go</a>. To check events from running services, see{" "}
           <a href={`${BLOB}/examples/multiprocess/docker/README.md`}>live observation across processes</a> and{" "}
           <a href={`${BLOB}/docs/observe.md`}>snappea observe</a>. The same emit calls can write production logs
           for <code>snappea observe</code>: see <a href={`${BLOB}/docs/production.md`}>testing and production</a>.
