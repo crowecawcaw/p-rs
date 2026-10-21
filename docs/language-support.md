@@ -200,7 +200,7 @@ the rest of the test, so the deliberate violation is not reported twice.
 
 Match Python's format: the spec's message; the violating key's last events (up to 20)
 with `src` and a marker on the failing event (or "events ended here" for liveness); the
-P assert location; the artifacts path. Example in [python.md](python.md#failure-reports).
+P assert location; the artifacts path. Example in the [Python guide](https://crowecawcaw.github.io/snappea/docs/python.html#failures).
 
 ### Event inputs
 
@@ -306,6 +306,40 @@ One project file per ecosystem, same keys as the [concepts](#concepts):
 - A helper is conformant when the corpus passes without skips and its checklist below is
   complete. A new language starts by copying the checklist.
 
+## Docs page
+
+Each helper has one page on the project site (`web/docs/<language>.html`, source
+`web/src/site/docs/languages/`). The pages are for application developers adopting the
+helper, not for helper implementors (this document). Every page has the sections below,
+in this order and with these headings, so a reader can switch language and find the
+same thing in the same place.
+
+| # | Section | Contents |
+| --- | --- | --- |
+| 1 | Intro (no heading) | What the helper does in two or three sentences, what it does not do (it sees only the orderings the tests produce), and a link to the overview |
+| 2 | Install | The one-line install, where the checker comes from ([binary resolution](#binary-resolution)), supported versions, what production code depends on |
+| 3 | Quick start | The shared inventory spec, application code emitting its events, one passing test, the same test against a buggy service, and that failure's real output |
+| 4 | Test setup | Configuration file, L3 framework integration and per-test options, L2 explicit checks, negative controls, property testing |
+| 5 | Emitting events | L1 `emit` and `emit_at`, keys, payload forms, when to emit, the production sink |
+| 6 | Other processes | `env`, `events_dir`, `add_events_dir`, `add_log`; join children before the check |
+| 7 | Failures | The failure output, the `SpecViolation` fields and the `SetupError` kinds, in the language's spelling |
+| 8 | Reference | The [concepts](#concepts) table in the language's spelling with where each is set, the environment variables, suite coverage, and a link to the generated API reference |
+
+- The quick start uses the inventory spec every example shares (`examples/*/specs/inventory.p`),
+  imported from the repository so the pages cannot drift from it. Failure output is
+  pasted from a real run.
+- The settings, environment variable and error kind tables are shared components fed
+  by one table of names per language, so a default changes in one place.
+- API details belong in the language's generated reference, not the page: docs.rs
+  (Rust), pkg.go.dev (Go), javadoc.io (Java, from the javadoc jar on Maven Central) and
+  pdoc (Python, built from the package docstrings into `docs/api/python/` by the Pages
+  workflow). The page links to it and covers only what generated docs cannot: setup,
+  where events go, and how to read a failure.
+- Package READMEs (`python/README.md`, `go/README.md`, `java/README.md`,
+  `crates/snappea/README.md`) stay short: install, one example, a link to the page, and
+  notes only contributors need (building from a checkout, upgrading).
+- A new helper adds its page as part of its [gap checklist](#gap-checklist).
+
 ## Decisions
 
 ### Packaging and distribution
@@ -405,6 +439,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] Coverage file merge under a file lock (pytest-xdist)
 - [x] Production sink for `emit` (#48)
 - [x] Conformance runner
+- [x] [Docs page](#docs-page)
 
 ### Go
 
@@ -423,6 +458,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `SNAPPEA_SPEC_FILES`, `SNAPPEA_ARTIFACTS`, `SNAPPEA_MODE`
 - [x] Production emitter package (#48)
 - [x] Conformance runner
+- [x] [Docs page](#docs-page)
 
 ### Java
 
@@ -441,6 +477,7 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] `SNAPPEA_SPEC_FILES`, `SNAPPEA_COVERAGE`, `SNAPPEA_ARTIFACTS`, `SNAPPEA_MODE`
 - [x] Production emitter package (#48)
 - [x] Conformance runner
+- [x] [Docs page](#docs-page)
 
 ### Rust
 
@@ -457,3 +494,4 @@ The common items #45, #47, #48, #49 and #53 cover are linked.
 - [x] Fixture pattern (`model.check(|recording| ...)`); `SNAPPEA_MODE`
 - [x] Production emitter (#48): `snappea::emit` (feature `emit`)
 - [x] Conformance runner
+- [x] [Docs page](#docs-page)

@@ -48,6 +48,7 @@ model.check(|_recording| app.reserve("coffee", "o1", 2));
 ## Documentation
 
 - [The repository](https://github.com/crowecawcaw/snappea): `snappea` usage and compatibility with upstream P
+- [Rust guide](https://crowecawcaw.github.io/snappea/docs/rust.html): tests, emitting, failures and settings
 - [Rust inventory examples](https://github.com/crowecawcaw/snappea/tree/main/examples/rust)
 - [Testing and production](https://github.com/crowecawcaw/snappea/blob/main/docs/production.md)
 - [Checking logs with `snappea observe`](https://github.com/crowecawcaw/snappea/blob/main/docs/observe.md)

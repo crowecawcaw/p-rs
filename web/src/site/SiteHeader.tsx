@@ -1,3 +1,5 @@
+import { Logo } from "./Logo";
+
 // Header shared by the landing page and the docs. The playground has its own.
 export const REPO = "https://github.com/crowecawcaw/snappea";
 
@@ -8,6 +10,10 @@ export const links = (root: string) => ({
   home: root,
   overview: `${root}docs/overview.html`,
   comingFromP: `${root}docs/coming-from-p.html`,
+  python: `${root}docs/python.html`,
+  rust: `${root}docs/rust.html`,
+  go: `${root}docs/go.html`,
+  java: `${root}docs/java.html`,
   playground: `${root}playground.html`,
 });
 
@@ -16,7 +22,7 @@ export function SiteHeader({ root, current }: { root: string; current: Section }
   return (
     <header className="top site-top">
       <a className="brand" href={l.home} aria-label="Snap Pea home">
-        <span className="logo">Snap Pea</span>
+        <Logo />
       </a>
       <nav className="site-nav">
         <a href={l.overview} aria-current={current === "docs" ? "page" : undefined}>Docs</a>

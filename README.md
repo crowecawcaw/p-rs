@@ -46,7 +46,7 @@ The application helpers are one package per language, all named `snappea`:
 | Python | `pip install pysnappea` |
 | Rust | `cargo add snappea` |
 | Go | `go get github.com/crowecawcaw/snappea` |
-| Java | Maven `io.github.crowecawcaw:snappea`, plus a `natives-<os>-<arch>` jar ([snippet](java/README.md#install)) |
+| Java | Maven `io.github.crowecawcaw:snappea`, plus a `natives-<os>-<arch>` jar ([snippet](https://crowecawcaw.github.io/snappea/docs/java.html#install)) |
 
 ## Usage
 
@@ -123,7 +123,7 @@ snappea-compat check -tc tcMyTest -s 1000
 
 From Python, the `snappea` package ([`python/`](python)) checks specs against events your
 code emits during its ordinary pytest tests, and installs the `snappea` binary. See
-[docs/python.md](docs/python.md) and the runnable
+the [Python guide](https://crowecawcaw.github.io/snappea/docs/python.html) and the runnable
 [inventory integration examples](examples/python/README.md).
 
 From Rust, the [`snappea` crate](crates/snappea/README.md) checks in process:
@@ -131,16 +131,16 @@ From Rust, the [`snappea` crate](crates/snappea/README.md) checks in process:
 `Cargo.toml`, structured violations, events from child processes, and suite coverage.
 [`snappea::emit`](crates/snappea/src/emit/README.md) emits the same events in tests and to
 production logs for `snappea observe`; with only the `emit` feature, no checker is compiled. See the
-[Rust inventory examples](examples/rust/README.md) for explicit checks, checked
+[Rust guide](https://crowecawcaw.github.io/snappea/docs/rust.html) and the [Rust inventory examples](examples/rust/README.md) for explicit checks, checked
 fixtures, and generated operation sequences.
 
-From Java, the [`snappea` artifact](java/README.md) provides a dependency-free emitter
+From Java, the [`snappea` artifact](https://crowecawcaw.github.io/snappea/docs/java.html) provides a dependency-free emitter
 with production sinks, explicit recordings, and automatic JUnit checks with fixture
 lifecycle and coverage support; its `natives-<os>-<arch>` classifier jars carry the
 `snappea` binary. The [Java inventory examples](examples/java/README.md) cover explicit
 checks, a child process, JUnit fixtures, and jqwik sequences.
 
-From Go, [`snappeatest`](go/README.md) records application events and integrates checks
+From Go, [`snappeatest`](https://crowecawcaw.github.io/snappea/docs/go.html) records application events and integrates checks
 with `testing.T`, subtests, and fuzz callbacks; `snappeaemit` emits from processes a test
 starts and writes production logs. The
 [Go inventory examples](examples/go/README.md) show explicit checks, cleanup fixtures,

@@ -6,7 +6,7 @@
 .home .small { font-size: 14px; }
 
 .home-hero { padding: 88px 0 72px; max-width: 780px; }
-.home .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 12px; }
+.home .eyebrow { font: 600 13px var(--mono); letter-spacing: 0.02em; color: var(--accent); margin: 0 0 12px; }
 .home-hero h1 { font-size: clamp(36px, 7vw, 60px); line-height: 1.04; letter-spacing: -0.035em; margin: 0 0 22px; text-wrap: balance; }
 .home-lede { font-size: 19px; line-height: 1.55; margin: 0 0 30px; }
 .home-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -52,7 +52,7 @@
   margin: 0; padding: 16px 18px; border-radius: 12px; overflow-x: auto;
   background: #15171c; color: #e6e8ee; font: 13.5px/1.7 var(--mono); border: 1px solid var(--border);
 }
-.terminal .prompt { color: #818cf8; user-select: none; }
+.terminal .prompt { color: #6cc46a; user-select: none; }
 .terminal .cmt { color: #8d95a8; }
 
 @media (max-width: 860px) {

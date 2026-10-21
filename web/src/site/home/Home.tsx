@@ -124,7 +124,9 @@ export function Home() {
           </pre>
           <p>
             Java: <code>io.github.crowecawcaw:snappea</code> on Maven Central, plus a natives jar with the checker (
-            <a href={`${BLOB}/java/README.md#install`}>Maven and Gradle snippets</a>).
+            <a href={`${l.java}#install`}>Maven and Gradle snippets</a>). Each language has a{" "}
+            guide: <a href={l.python}>Python</a>, <a href={l.rust}>Rust</a>, <a href={l.go}>Go</a>,{" "}
+            <a href={l.java}>Java</a>.
           </p>
         </section>
       </main>

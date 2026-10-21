@@ -1,18 +1,21 @@
 :root {
-  --bg: #f7f7f9;
+  /* Snap Pea palette: Pod #4CA64A, Leaf #166534, Pea #EAB308, Ink #111827, Shell #F5F7F2 */
+  --pod: #4ca64a;
+  --pea: #eab308;
+  --bg: #f5f7f2;
   --panel: #ffffff;
   --editor-bg: #ffffff;
-  --fg: #1d1f24;
-  --muted: #6b7080;
-  --border: #e2e4ea;
-  --accent: #4f46e5;
+  --fg: #111827;
+  --muted: #4b5563;
+  --border: #e5e7eb;
+  --accent: #166534;
   --accent-fg: #ffffff;
   --good: #15803d;
   --bad: #c2410c;
   --bad-bg: #fff1eb;
-  --active-line: #f4f5fb;
-  --selection: #dcdcfb;
-  --flash: #fff5c2;
+  --active-line: #f0f3ec;
+  --selection: #d6ebd3;
+  --flash: #fef3c7;
   --lane-0: #5b5bd6;
   --lane-1: #0f8a80;
   --lane-2: #c2417a;
@@ -21,7 +24,7 @@
   --lane-5: #56657a;
   --spec: #d97706;
   --monitor-head: #fff4e0;
-  --hot: #f59e0b;
+  --hot: #eab308;
   --syn-keyword: #7c3aed;
   --syn-type: #0e7490;
   --syn-event: #b45309;
@@ -30,25 +33,27 @@
   --syn-number: #be185d;
   --syn-comment: #687083;
   --syn-op: #475569;
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1115;
-    --panel: #171a21;
-    --editor-bg: #13161c;
-    --fg: #e6e8ee;
-    --muted: #8b91a3;
-    --border: #2a2f3a;
-    --accent: #818cf8;
-    --accent-fg: #0f1115;
+    --bg: #0e1210;
+    --panel: #161b18;
+    --editor-bg: #121714;
+    --fg: #e7ebe6;
+    --muted: #97a39a;
+    --border: #28312b;
+    --accent: #6cc46a;
+    --accent-fg: #0e1210;
+    --wordmark-pea: var(--pea);
     --good: #4ade80;
     --bad: #fb923c;
     --bad-bg: #2a1a12;
-    --active-line: #1b1f28;
-    --selection: #2f3366;
+    --active-line: #1b221d;
+    --selection: #26442b;
     --flash: #3b3517;
     --lane-0: #8b8bef;
     --lane-1: #3fbfb3;
@@ -75,7 +80,7 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   background: var(--bg);
   color: var(--fg);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 14px/1.45 var(--sans);
   -webkit-text-size-adjust: 100%;
 }
 a { color: var(--accent); }
@@ -110,10 +115,10 @@ input[type="number"] { width: 100%; }
   padding: 0 calc(var(--g) - 4px) 0 var(--g); background: var(--panel); border-bottom: 1px solid var(--border);
 }
 .brand { text-decoration: none; color: var(--fg); display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
-.logo {
-  display: inline-grid; place-items: center; height: 28px; padding: 0 8px; border-radius: 7px;
-  background: var(--accent); color: var(--accent-fg); font: 700 14px var(--mono); letter-spacing: -0.02em;
-}
+.logo { display: inline-flex; align-items: center; gap: 6px; }
+.logo .pea-mark { flex-shrink: 0; }
+.wordmark { font: 600 18px/1 var(--mono); letter-spacing: -0.03em; color: var(--fg); }
+.wordmark span { color: var(--wordmark-pea, var(--accent)); }
 .demo-select { min-width: 0; max-width: 280px; font-weight: 600; }
 .spacer { flex: 1; }
 

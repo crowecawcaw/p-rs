@@ -1,5 +1,5 @@
 # The Python package (python/): tests on PRs and main; wheels with the snappea binary for
-# five platforms; publishing to PyPI when release.yml calls this workflow.
+# five platforms when release.yml calls this workflow (release.yml uploads them to PyPI).
 
 name: Python
 
@@ -14,11 +14,6 @@ on:
         description: "Release tag to build wheels for (vX.Y.Z)"
         required: true
         type: string
-      publish:
-        description: "Publish the wheels to PyPI"
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -47,10 +42,10 @@ jobs:
         with:
           key: python
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: stable
           cache: false
@@ -70,7 +65,7 @@ jobs:
         working-directory: examples/python/hypothesis
         run: python -m pytest -p no:cacheprovider
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: python-model-${{ matrix.os }}-${{ matrix.python }}
@@ -107,7 +102,7 @@ jobs:
           manylinux: ${{ matrix.manylinux || 'auto' }}
           working-directory: python
           args: --release --out dist
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.target }}
           path: python/dist
@@ -125,30 +120,7 @@ jobs:
           command: sdist
           working-directory: python
           args: --out dist
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: sdist
           path: python/dist
-
-  publish:
-    name: Publish to PyPI
-    if: ${{ inputs.tag && inputs.publish }}
-    needs: [wheels, sdist]
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      contents: write # attach the wheels to the GitHub release
-      id-token: write # PyPI trusted publishing
-    steps:
-      - uses: actions/download-artifact@v5
-        with:
-          path: dist
-          merge-multiple: true
-      - name: Attach to the GitHub release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag }}
-        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true

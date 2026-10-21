@@ -34,7 +34,7 @@ The first explores every interleaving and data choice and finds no bug:
 ```text
 Checking Inventory: 1 test case
 ok    tcAtomicReserve (all 20260 schedules, 3.98s)
-The test case passed in 3.99s, peak memory 9 MB. Output: PCheckerOutput/
+🫛 The test case passed in 3.99s, peak memory 9 MB. Output: PCheckerOutput/
 ```
 
 The second finds the oversell within a few schedules, and exits with 1:
