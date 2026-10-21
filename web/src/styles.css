@@ -121,6 +121,17 @@ input[type="number"] { width: 100%; }
 .wordmark span { color: var(--wordmark-pea, var(--accent)); }
 .demo-select { min-width: 0; max-width: 280px; font-weight: 600; }
 .spacer { flex: 1; }
+.open-files { white-space: nowrap; }
+.share-note { font-size: 12px; color: var(--bad); white-space: nowrap; cursor: help; }
+.drop-overlay {
+  position: fixed; inset: 0; z-index: 100; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; padding: var(--g);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+}
+.drop-overlay div {
+  padding: 32px 40px; border: 2px dashed var(--accent); border-radius: 16px;
+  background: var(--panel); color: var(--accent); font-weight: 600; font-size: 16px; text-align: center;
+}
 
 .blurb {
   display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0;
@@ -339,6 +350,8 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
   .gh-text { display: none; }
   .docs-link { white-space: nowrap; padding: 0 6px; }
   .top .gh { min-width: 44px; padding: 0; }
+  .open-files { padding: 0 6px; }
+  .share-note { font-size: 11px; white-space: normal; line-height: 1.2; max-width: 56px; }
   .status-line { padding-top: 8px; }
   .goto-long { display: none; }
   .goto-short { display: inline; }
@@ -395,4 +408,9 @@ button.loc { border: none; background: none; padding: 0; color: var(--accent); t
   .run-bar select, .run-bar .run { min-height: 40px; }
   .step-detail { display: none; }
   .trace-error:not(.open) { padding-top: 6px; padding-bottom: 6px; }
+}
+
+/* Small phones: the demo picker needs the room more than Open does. */
+@media (max-width: 480px) {
+  .open-files { display: none; }
 }

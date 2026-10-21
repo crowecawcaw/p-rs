@@ -14,6 +14,10 @@ The project site, built with Vite and React:
 - `playground.html`: the P Playground (`src/App.tsx`), for editing and
   model-checking P models in the browser. It runs the `snappea-wasm` build of the
   toolchain in a Web Worker; nothing is sent to a server.
+  Drop `.p` files, a folder or a `.zip` on the page (or use Open) to load a project.
+  The URL tracks the project so links can be shared: `?demo=<id>&file=<path>` for an
+  unedited demo, otherwise the files, open file and checker settings are deflated into
+  `#s=...` (`src/share.ts`). Projects over 32k encoded characters are not put in the URL.
 
 The docs diagrams are React components driven by scripted data
 (`src/site/docs/diagrams/`).
