@@ -68,7 +68,7 @@ function highlightP(code: string): ReactNode[] {
 }
 
 // Enough for short snippets: comments, strings, keywords, event names.
-type Lang = "p" | "python" | "rust" | "go" | "java" | "kotlin" | "toml" | "xml" | "shell" | "text";
+type Lang = "p" | "python" | "rust" | "go" | "java" | "kotlin" | "toml" | "xml" | "yaml" | "shell" | "text";
 
 const KEYWORDS: Partial<Record<Lang, Set<string>>> = {
   python: words("def with as import from assert return class if else for in pass raise try except lambda None True False"),
@@ -77,7 +77,7 @@ const KEYWORDS: Partial<Record<Lang, Set<string>>> = {
   java: words("import package class public private static final void new return try catch var if else throw throws record true false null"),
   kotlin: words("val var fun if else in setOf dependencies"),
 };
-const HASH_COMMENTS = new Set<Lang>(["python", "toml", "shell"]);
+const HASH_COMMENTS = new Set<Lang>(["python", "toml", "yaml", "shell"]);
 
 function words(s: string) {
   return new Set(s.split(" "));

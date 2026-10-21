@@ -10,6 +10,8 @@ type Page = { id: string; title: string; href: (root: string) => string };
 const PAGES: Page[] = [
   { id: "overview", title: "Overview", href: (root) => links(root).overview },
   { id: "coming-from-p", title: "Coming from P", href: (root) => links(root).comingFromP },
+  { id: "cli", title: "Command line", href: (root) => links(root).cli },
+  { id: "github-actions", title: "GitHub Actions", href: (root) => links(root).githubActions },
 ];
 
 /** One page per language helper; each follows docs/language-support.md#docs-page. */
