@@ -94,5 +94,5 @@ Application code imports only `emit` and calls it after each committed change, w
 the entity ID as `key`. Point `[tool.snappea] spec_files` at your specs, then choose
 `check_spec` for selected tests, `mode = "auto"` for every test, or a state machine
 that owns its recorder for generated histories. See the
-[Python integration reference](../../docs/python.md) for marks, hot-state checks,
+[Python guide](https://crowecawcaw.github.io/snappea/docs/python.html) for marks, hot-state checks,
 subprocesses and failure reports.

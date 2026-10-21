@@ -10,6 +10,10 @@ export const links = (root: string) => ({
   home: root,
   overview: `${root}docs/overview.html`,
   comingFromP: `${root}docs/coming-from-p.html`,
+  python: `${root}docs/python.html`,
+  rust: `${root}docs/rust.html`,
+  go: `${root}docs/go.html`,
+  java: `${root}docs/java.html`,
   playground: `${root}playground.html`,
 });
 

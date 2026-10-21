@@ -4,12 +4,16 @@ import { createRoot } from "react-dom/client";
 import { DocsLayout } from "./DocsLayout";
 import { ComingFromP } from "./ComingFromP";
 import { Overview } from "./Overview";
+import { Go } from "./languages/Go";
+import { Java } from "./languages/Java";
+import { Python } from "./languages/Python";
+import { Rust } from "./languages/Rust";
 import "../../styles.css";
 import "../site.css";
 import "./docs.css";
 
 const ROOT = "../";
-const PAGES = { overview: Overview, "coming-from-p": ComingFromP };
+const PAGES = { overview: Overview, "coming-from-p": ComingFromP, python: Python, rust: Rust, go: Go, java: Java };
 
 const el = document.getElementById("root")!;
 const id = (el.dataset.page ?? "overview") as keyof typeof PAGES;
