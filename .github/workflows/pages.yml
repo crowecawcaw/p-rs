@@ -1,8 +1,8 @@
 # Builds the web playground (web/) and publishes it to GitHub Pages via the
 # `gh-pages` branch:
 #
-#   * pushes to main      -> site root          https://<owner>.github.io/<repo>/
-#   * maintainer PRs      -> pr/<number>/       https://<owner>.github.io/<repo>/pr/<number>/
+#   * pushes to main      -> site root          https://snappea.dev/ (web/public/CNAME)
+#   * maintainer PRs      -> pr/<number>/       https://snappea.dev/pr/<number>/
 #
 # A PR gets a sticky comment linking its preview; the preview is removed when the
 # PR closes. PRs from forks or non-maintainers are not built here.
