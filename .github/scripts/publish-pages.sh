@@ -3,7 +3,8 @@
 #
 # Replaces <dest> on the gh-pages branch with the contents of <src-dir> (or removes
 # it when <src-dir> is empty). <dest> "." means the site root; the root deploy keeps
-# the pr/ previews. Retries on push races with other deploys.
+# the pr/ previews and the custom-domain CNAME (also shipped from web/public/CNAME).
+# Retries on push races with other deploys.
 set -euo pipefail
 
 dest="$1"
@@ -36,7 +37,7 @@ for attempt in 1 2 3 4 5; do
   fi
 
   if [ "$dest" = "." ]; then
-    find . -mindepth 1 -maxdepth 1 ! -name .git ! -name pr -exec rm -rf {} +
+    find . -mindepth 1 -maxdepth 1 ! -name .git ! -name pr ! -name CNAME -exec rm -rf {} +
   else
     rm -rf "$dest"
   fi
