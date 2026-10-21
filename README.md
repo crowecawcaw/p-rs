@@ -29,14 +29,27 @@ is tested.
 
 ## Install
 
+The `snappea` CLI, prebuilt, with no Rust or Python needed:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/crowecawcaw/snappea/main/scripts/install.sh | sh
+```
+
+On Windows, in PowerShell:
+`irm https://raw.githubusercontent.com/crowecawcaw/snappea/main/scripts/install.ps1 | iex`.
+The script installs the latest [GitHub release](https://github.com/crowecawcaw/snappea/releases)
+for Linux (x86-64, ARM), macOS (Intel, Apple silicon) or Windows, after checking it against the
+release's `SHA256SUMS`. Add `-s -- --version 0.1.0` after `sh` to pin a version. The
+[command line docs](https://crowecawcaw.github.io/snappea/docs/cli.html) cover the options, and
+[GitHub Actions](https://crowecawcaw.github.io/snappea/docs/github-actions.html) how to check
+models in CI.
+
 ```sh
 cargo install snappea   # snappea and snappea-compat, built with a Rust toolchain
 pip install pysnappea     # snappea, prebuilt, with the Python helper
 ```
 
-Each [GitHub release](https://github.com/crowecawcaw/snappea/releases) also has a prebuilt
-`snappea` for Linux (x86-64, ARM), macOS (Intel, Apple silicon) and Windows, with a
-`SHA256SUMS` file. To build the latest `main` instead:
+To build the latest `main` instead:
 `cargo install --git https://github.com/crowecawcaw/snappea snappea`.
 
 The application helpers are one package per language, all named `snappea`:
