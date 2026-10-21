@@ -126,6 +126,18 @@ export const DEMOS: Demo[] = [
   },
 ];
 
+/** Stands in for a demo when the files were opened by the user or came from a shared link. */
+export const CUSTOM: Demo = {
+  id: "custom",
+  title: "Your files",
+  blurb:
+    "Files you opened or that came from a shared link. Edits are kept in the page URL, so copy it to share this project. Drop .p files, a folder or a .zip anywhere to open others.",
+  roots: [],
+  open: "",
+  testCase: "",
+  schedules: 1000,
+};
+
 const ORDER = ["PSrc/", "PSpec/", "PTst/", "Common/"];
 
 /** Sorts paths the way P projects are usually read: sources, specs, tests, shared. */
