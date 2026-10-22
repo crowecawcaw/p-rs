@@ -1,5 +1,5 @@
 // Docs shell: site header, a sidebar of pages, and the page content.
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { REPO, SiteHeader, links } from "../SiteHeader";
 
 const BLOB = `${REPO}/blob/main`;
@@ -30,31 +30,44 @@ const GUIDES = [
 ];
 
 export function DocsLayout({ root, page, children }: { root: string; page: string; children: ReactNode }) {
-  // The page renders after the browser looked for #anchor, so scroll to it now.
-  useEffect(() => {
-    if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
-  }, []);
+  const title = [...PAGES, ...LANGUAGES].find((p) => p.id === page)?.title ?? "Overview";
   return (
     <div className="site docs">
-      <SiteHeader root={root} current="docs" />
+      <div className="docs-header">
+        <SiteHeader root={root} current="docs" />
+        <details className="docs-menu">
+          <summary aria-label={`Docs menu: ${title}`}>
+            <span>Docs <span className="docs-menu-current">· {title}</span></span>
+            <span className="docs-menu-chevron" aria-hidden="true" />
+          </summary>
+          <DocsIndex root={root} page={page} />
+        </details>
+      </div>
       <div className="docs-shell">
-        <nav className="docs-side" aria-label="Docs">
-          <p className="side-head">Docs</p>
-          <PageList pages={PAGES} root={root} page={page} />
-          <p className="side-head">Languages</p>
-          <PageList pages={LANGUAGES} root={root} page={page} />
-          <p className="side-head">Guides on GitHub</p>
-          <ul>
-            {GUIDES.map((g) => (
-              <li key={g.title}>
-                <a href={g.href} target="_blank" rel="noreferrer">{g.title} <span aria-hidden="true">↗</span></a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <DocsIndex root={root} page={page} sidebar />
         <main className="doc">{children}</main>
       </div>
     </div>
+  );
+}
+
+/** One index shared by the desktop sidebar and the native mobile menu. */
+function DocsIndex({ root, page, sidebar = false }: { root: string; page: string; sidebar?: boolean }) {
+  return (
+    <nav className={`docs-index${sidebar ? " docs-side" : ""}`} aria-label="Docs">
+      <p className="side-head">Docs</p>
+      <PageList pages={PAGES} root={root} page={page} />
+      <p className="side-head">Languages</p>
+      <PageList pages={LANGUAGES} root={root} page={page} />
+      <p className="side-head">Guides on GitHub</p>
+      <ul>
+        {GUIDES.map((g) => (
+          <li key={g.title}>
+            <a href={g.href} target="_blank" rel="noreferrer">{g.title} <span aria-hidden="true">↗</span></a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 

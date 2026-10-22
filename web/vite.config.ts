@@ -1,11 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import { staticPages } from "./build/static-pages.ts";
 
 export default defineConfig({
   // Relative asset URLs, so the same build works at the site root and under pr/<n>/.
   base: "./",
-  plugins: [react()],
+  plugins: [react(), staticPages()],
   // Demo models are read straight from the repository (tests/, design/).
   server: { fs: { allow: [fileURLToPath(new URL("..", import.meta.url))] } },
   worker: { format: "es" },

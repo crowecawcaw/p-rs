@@ -41,9 +41,10 @@ export function Loops() {
   const [side, setSide] = useState<Side>("design");
   const [touched, setTouched] = useState(false);
   // On phones, zoom in on the active side and the spec so the text stays readable.
-  const [narrow, setNarrow] = useState(() => matchMedia(NARROW).matches);
+  const [narrow, setNarrow] = useState(false);
   useEffect(() => {
     const mq = matchMedia(NARROW);
+    setNarrow(mq.matches);
     const on = () => setNarrow(mq.matches);
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);

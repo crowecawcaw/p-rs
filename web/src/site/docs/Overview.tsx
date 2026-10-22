@@ -1,4 +1,5 @@
 // Docs overview: what P is, for developers who know unit tests.
+import { Island } from "../Island";
 import { REPO, links } from "../SiteHeader";
 import { Code } from "./Code";
 import { Loops } from "./diagrams/Loops";
@@ -30,7 +31,7 @@ export function Overview({ root }: { root: string }) {
           P is a language for writing small, runnable descriptions of a system's design. You use it to check two
           kinds of thing:
         </p>
-        <Loops />
+        <Island name="loops"><Loops /></Island>
         <dl className="faq">
           <div>
             <dt>Is P my code?</dt>
@@ -64,7 +65,7 @@ export function Overview({ root }: { root: string }) {
           the checker picks the order: which message arrives first and which component runs next. It runs thousands
           of orderings and stops at the first one that breaks a rule.
         </p>
-        <Schedules />
+        <Island name="schedules"><Schedules /></Island>
         <table className="compare">
           <thead>
             <tr>
@@ -146,7 +147,7 @@ FAIL  tcTwoClients (bug found after 9 schedules, 8 workers, 0.00s)
 1 of 1 test case failed in 0.01s, peak memory 9 MB. Output: PCheckerOutput/
 `}</Code>
         <p>The trace shows exactly how the update was lost:</p>
-        <Trace />
+        <Island name="trace"><Trace /></Island>
         <p>
           <b>The fix is a design change:</b> replace the read and write with one <code>eIncrement</code> event that
           the Counter applies itself. With that change, <code>snappea check --exhaustive</code> covers every possible
@@ -201,7 +202,7 @@ def test_release_makes_stock_available_again(inventory_factory):
 
       <section>
         <h2>Where P fits</h2>
-        <Workflow />
+        <Island name="workflow"><Workflow /></Island>
         <p>
           AI agents are well suited to writing models: they can turn a design doc into machines and specs quickly,
           and rerun the checker after every change. Your part is to read the specs. They are the short, plain

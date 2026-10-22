@@ -1,4 +1,5 @@
 // Landing page: what Snap Pea is, in one screen.
+import { Island } from "../Island";
 import { REPO, SiteHeader, links } from "../SiteHeader";
 import { SpeedBars } from "./SpeedBars";
 
@@ -63,7 +64,7 @@ export function Home() {
               <a href={`${BLOB}/docs/development.md#benchmarks`}>Benchmarks</a>
             </p>
           </div>
-          <SpeedBars />
+          <Island name="speed"><SpeedBars /></Island>
         </section>
 
         <section className="home-features">

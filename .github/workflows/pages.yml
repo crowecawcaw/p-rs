@@ -55,6 +55,7 @@ jobs:
         run: |
           npm ci
           npm run build
+          npm run test:html
 
       - uses: actions/setup-python@v7
         with:
