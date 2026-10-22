@@ -3,9 +3,10 @@ import { useEffect, useRef, useState } from "react";
 /** True when the user asked the OS for less motion. */
 export function useReducedMotion(): boolean {
   const q = "(prefers-reduced-motion: reduce)";
-  const [reduced, setReduced] = useState(() => matchMedia(q).matches);
+  const [reduced, setReduced] = useState(false);
   useEffect(() => {
     const mq = matchMedia(q);
+    setReduced(mq.matches);
     const on = () => setReduced(mq.matches);
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);

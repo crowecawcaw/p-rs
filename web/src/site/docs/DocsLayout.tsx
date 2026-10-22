@@ -1,5 +1,5 @@
 // Docs shell: site header, a sidebar of pages, and the page content.
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { REPO, SiteHeader, links } from "../SiteHeader";
 
 const BLOB = `${REPO}/blob/main`;
@@ -30,10 +30,6 @@ const GUIDES = [
 ];
 
 export function DocsLayout({ root, page, children }: { root: string; page: string; children: ReactNode }) {
-  // The page renders after the browser looked for #anchor, so scroll to it now.
-  useEffect(() => {
-    if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
-  }, []);
   return (
     <div className="site docs">
       <SiteHeader root={root} current="docs" />

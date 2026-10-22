@@ -198,12 +198,12 @@ export function ApiReference({ lang, root }: { lang: Lang; root: string }) {
   );
 }
 
-/** The quick start's buggy variant, so every page says it the same way. */
+/** The quick start's buggy variant. Used inside a paragraph, so keep its HTML phrasing content. */
 export function BugIntro({ children }: { children: ReactNode }) {
   return (
-    <p>
+    <span style={{ display: "block" }}>
       Now break the service: {children} The test's own code still passes, because it accepts either outcome for the
       second order. The spec does not:
-    </p>
+    </span>
   );
 }

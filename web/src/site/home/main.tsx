@@ -1,12 +1,6 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import { Home } from "./Home";
+import { hydrateIslands } from "../islands";
 import "../../styles.css";
 import "../site.css";
 import "./home.css";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <Home />
-  </StrictMode>,
-);
+hydrateIslands({ speed: () => import("./SpeedBars").then((m) => m.SpeedBars) });

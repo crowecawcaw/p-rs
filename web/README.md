@@ -1,10 +1,14 @@
 # Website
 
-The project site, built with Vite and React:
+The project site, built with Vite and React. The landing page and docs are rendered
+to HTML at build time, including navigation, code highlighting and initial diagrams.
+Their content is readable without JavaScript. Only interactive islands hydrate in
+the browser; the playground remains a client application.
 
 - `index.html`: the landing page (`src/site/home/`).
 - `docs/*.html`: docs pages (`src/site/docs/`). Add a page by adding an HTML entry
-  in `vite.config.ts` and a link in `src/site/docs/DocsLayout.tsx`.
+  in `vite.config.ts`, its component in `src/site/render.tsx`, and a link in
+  `src/site/docs/DocsLayout.tsx`.
 - `docs/python.html`, `rust.html`, `go.html`, `java.html`: one page per language helper
   (`src/site/docs/languages/`), all with the outline in
   [language-support.md](../docs/language-support.md#docs-page). `languages/shared.tsx`
@@ -20,13 +24,18 @@ The project site, built with Vite and React:
   `#s=...` (`src/share.ts`). Projects over 32k encoded characters are not put in the URL.
 
 The docs diagrams are React components driven by scripted data
-(`src/site/docs/diagrams/`).
+(`src/site/docs/diagrams/`). `build/static-pages.ts` renders `src/site/render.tsx`
+for both development requests and production HTML entries. Wrap interactive
+components in `src/site/Island.tsx` and register their lazy loaders in the page
+entry (`src/site/docs/main.tsx` or `src/site/home/main.tsx`). Keep initial renders
+independent of browser APIs so HTML and hydration match; read media queries in effects.
 
 ```sh
 cd web
 npm ci
 npm run dev      # builds the wasm module (needs the wasm32-unknown-unknown target), then starts Vite
 npm run build    # production build in dist/
+npm run test:html # verify published content is present in the HTML
 ```
 
 - Demo models come straight from the repository (`tests/upstream/Tutorial`,
