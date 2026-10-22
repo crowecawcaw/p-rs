@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="390" viewBox="0 0 840 390" role="img" aria-labelledby="title desc">
+  <title id="title">One spec checks your design and your code</title>
+  <desc id="desc">At design time, snappea check runs a P model with many event orderings. At test time, your tests run your application code. Both send events to the same P specification, which checks that its rules hold. Application tests check only the event orderings they produce.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="#648477"/></marker>
+  </defs>
+  <style>
+    text {font-family:system-ui,-apple-system,Segoe UI,sans-serif;fill:#193d30;text-anchor:middle}
+    .label {font-size:12px;font-weight:700;letter-spacing:1.5px;fill:#517363}
+    .heading {font-size:17px;font-weight:650}
+    .sub {font-size:12px;fill:#517363}
+    .edge {fill:none;stroke:#648477;stroke-width:2;marker-end:url(#arrow)}
+    .event {font-size:13px;fill:#517363}
+  </style>
+  <rect width="840" height="390" rx="16" fill="#f6faf6"/>
+  <text x="420" y="34" class="heading">One spec checks your design and your code</text>
+  <text x="140" y="72" class="label">DESIGN TIME</text>
+  <text x="700" y="72" class="label">TEST TIME</text>
+  <path class="edge" d="M140 150V257"/>
+  <path class="edge" d="M700 150V257"/>
+  <path id="model-events" class="edge" d="M230 291H260Q292 291 292 218H324"/>
+  <path id="code-events" class="edge" d="M610 291H580Q548 291 548 218H516"/>
+  <text x="155" y="190" class="event" style="text-anchor:start"><tspan x="155">explores many</tspan><tspan x="155" dy="18">event orderings</tspan></text>
+  <text x="685" y="199" class="event" style="text-anchor:end">runs</text>
+  <text x="267" y="320" class="event">events</text>
+  <text x="573" y="320" class="event">events</text>
+  <g><rect x="50" y="86" width="180" height="64" rx="10" fill="#e8f1eb" stroke="#a8c3b0"/><text x="140" y="114" class="heading">snappea check</text><text x="140" y="134" class="sub">the model checker</text></g>
+  <g><rect x="50" y="259" width="180" height="64" rx="10" fill="#e8f1eb" stroke="#a8c3b0"/><text x="140" y="287" class="heading">Model</text><text x="140" y="307" class="sub">your design, in P</text></g>
+  <g><rect x="610" y="86" width="180" height="64" rx="10" fill="#eef1f5" stroke="#b6c1cc"/><text x="700" y="114" class="heading">Your tests</text><text x="700" y="134" class="sub">your existing test suite</text></g>
+  <g><rect x="610" y="259" width="180" height="64" rx="10" fill="#eef1f5" stroke="#b6c1cc"/><text x="700" y="287" class="heading">Your code</text><text x="700" y="307" class="sub">the real application</text></g>
+  <g><rect x="326" y="186" width="188" height="64" rx="10" fill="#dceec9" stroke="#83a65b" stroke-width="2"/><text x="420" y="214" class="heading">Same P spec</text><text x="420" y="234" class="sub">rules that must hold</text></g>
+  <text x="420" y="359" class="sub">Explore the design. Check the events your code produces.</text>
+</svg>
