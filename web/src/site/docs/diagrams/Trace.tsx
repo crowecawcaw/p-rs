@@ -1,5 +1,5 @@
 // Diagram 3: the checker's bug trace for the lost-update model, as a sequence
-// diagram you can step through. Scripted from a real `prs check` trace, trimmed
+// diagram you can step through. Scripted from a real `snappea check` trace, trimmed
 // to the messages that matter.
 import { useEffect, useState } from "react";
 import { useInView, useInterval, useReducedMotion } from "../../motion";
@@ -34,7 +34,7 @@ const STEPS: Step[] = [
   { from: "M", to: "C", label: "eGet", text: "Both clients are done, so Main asks for the final value.", state: { value: 1, a: 0, b: 0 } },
   { from: "C", to: "M", label: "eValue(1)", text: "The Counter replies 1.", state: { value: 1, a: 0, b: 0, final: 1 }, changed: "final" },
   {
-    text: "assert final == 2 fails: “expected 2 increments, counter is 1”. prs check saves this schedule so you can replay it.",
+    text: "assert final == 2 fails: “expected 2 increments, counter is 1”. snappea check saves this schedule so you can replay it.",
     state: { value: 1, a: 0, b: 0, final: 1 },
     bug: true,
   },

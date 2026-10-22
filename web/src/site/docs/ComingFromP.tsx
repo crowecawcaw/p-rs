@@ -1,4 +1,4 @@
-// Docs: p-rs for people who already know P well.
+// Docs: Snap Pea for people who already know P well.
 import { REPO, links } from "../SiteHeader";
 import { Code } from "./Code";
 
@@ -14,10 +14,10 @@ export function ComingFromP({ root }: { root: string }) {
         <h1>Coming from P</h1>
         <p className="subtitle">The same language and the same results, with a different toolchain underneath.</p>
         <p>
-          p-rs is another implementation of the <a href="https://github.com/p-org/P">P</a> toolchain, written in
+          Snap Pea is another implementation of the <a href="https://github.com/p-org/P">P</a> toolchain, written in
           Rust. Your models, test cases and specs stay plain P, and checks produce the bug reports, traces and output
           folders you already know. Upstream P's language design, test suites, tutorials and golden traces are what
-          p-rs is built and validated against, and they're the reason it can aim for exact compatibility at all.
+          Snap Pea is built and validated against, and they're the reason it can aim for exact compatibility at all.
         </p>
         <p>
           The goal is to put P in more places: in CI on every change, inside application test suites in several
@@ -32,7 +32,7 @@ export function ComingFromP({ root }: { root: string }) {
             <tr>
               <th />
               <th>P</th>
-              <th>p-rs</th>
+              <th>Snap Pea</th>
             </tr>
           </thead>
           <tbody>
@@ -47,7 +47,7 @@ export function ComingFromP({ root }: { root: string }) {
                 <code>p compile</code>, then <code>p check</code>
               </td>
               <td>
-                <code>prs check</code> reads <code>.pproj</code> or <code>.p</code> files
+                <code>snappea check</code> reads <code>.pproj</code> or <code>.p</code> files
               </td>
             </tr>
             <tr>
@@ -56,7 +56,7 @@ export function ComingFromP({ root }: { root: string }) {
                 <code>p</code>
               </td>
               <td>
-                <code>prs-compat</code> (same options and output), or <code>prs</code>
+                <code>snappea-compat</code> (same options and output), or <code>snappea</code>
               </td>
             </tr>
             <tr>
@@ -68,7 +68,7 @@ export function ComingFromP({ root }: { root: string }) {
               <th>Checking logs</th>
               <td>PObserve, with compiled jars</td>
               <td>
-                <code>prs observe</code>, with specs read from source
+                <code>snappea observe</code>, with specs read from source
               </td>
             </tr>
             <tr>
@@ -83,27 +83,33 @@ export function ComingFromP({ root }: { root: string }) {
       <section>
         <h2>Commands</h2>
         <p>
-          <code>prs-compat</code> is a drop-in replacement for <code>p</code>. Alias it and existing scripts keep working:
+          <code>snappea-compat</code> is a drop-in replacement for <code>p</code>. Alias it and existing scripts keep working:
         </p>
         <Code lang="shell">{`
-$ alias p=prs-compat
+$ alias p=snappea-compat
 $ p check -tc tcMyTest -s 1000          # no p compile first
 $ p check -r PCheckerOutput/BugFinding/MyProject_0_0.schedule
 `}</Code>
         <p>
-          <code>prs</code> is the same checker with shorter options. It finds the project the way <code>p</code> does:
+          <code>snappea</code> is the same checker with shorter options, concise output and one folder per test case. It
+          finds the project the way <code>p</code> does:
         </p>
         <Code lang="shell">{`
-$ prs check tcMyTest -n 1000            # one test case
-$ prs check 'tcMy*' --time 5m           # a glob, five minutes each
-$ prs replay PCheckerOutput/tcMyTest/BugFinding/MyProject_0_0.schedule
-$ prs observe --spec BankBalanceCorrect -l logs/
+$ snappea check tcMyTest -n 1000            # one test case
+$ snappea check 'tcMy*' --time 5m           # a glob, five minutes each
+$ snappea replay PCheckerOutput/tcMyTest/bug.schedule
+$ snappea observe --spec BankBalanceCorrect logs/
 `}</Code>
       </section>
 
       <section>
         <h2>What stays the same</h2>
-        <p>These match upstream exactly:</p>
+        <p>
+          These match upstream exactly in <code>snappea-compat</code>. <code>snappea</code> has its own options, console output
+          and output folder (<code>PCheckerOutput/&lt;test&gt;/bug.txt</code>, <code>bug.schedule</code>,{" "}
+          <code>bug.trace.json</code>, replaced by each run), resolves <code>&lt;IncludeProject&gt;</code> paths against
+          the including project file first, and its <code>observe</code> writes no report folder.
+        </p>
         <ul>
           <li>
             <code>check</code>, <code>merge-scenario-coverage</code> and <code>observe</code> options, help, console
@@ -132,7 +138,7 @@ $ prs observe --spec BankBalanceCorrect -l logs/
           </li>
           <li>Foreign functions and log parsers are written in Rust, not C# or Java.</li>
           <li>
-            <code>prs check</code> runs one worker per CPU core by default. Each worker has its own seed, so a given{" "}
+            <code>snappea check</code> runs one worker per CPU core by default. Each worker has its own seed, so a given{" "}
             <code>--seed</code> explores different schedules from upstream's, and which bug is reported can vary between
             runs.
           </li>
@@ -150,7 +156,7 @@ $ prs observe --spec BankBalanceCorrect -l logs/
       </section>
 
       <section>
-        <h2>What p-rs adds</h2>
+        <h2>What Snap Pea adds</h2>
         <dl className="faq">
           <div>
             <dt>Parallel workers</dt>
@@ -185,8 +191,9 @@ $ prs observe --spec BankBalanceCorrect -l logs/
             <dt>More from observe</dt>
             <dd>
               Several specs per run, <code>--all-specs</code>, <code>--check-hot</code>, <code>--json-report</code>,{" "}
-              <code>--coverage</code>, <code>--strict</code> and live input (<code>--live</code>). Runs that use none of them behave as upstream. See{" "}
-              <a href={`${BLOB}/docs/observe.md`}>prs observe</a>.
+              <code>--coverage</code>, <code>--strict</code> and live input (<code>--live</code>). In{" "}
+              <code>snappea-compat observe</code>, runs that use none of them behave as upstream. See{" "}
+              <a href={`${BLOB}/docs/observe.md`}>snappea observe</a>.
             </dd>
           </div>
           <div>
@@ -208,12 +215,12 @@ $ prs observe --spec BankBalanceCorrect -l logs/
           <li>The tutorials give the same results as upstream's tutorial CI.</li>
           <li>Readable and JSON traces match upstream's golden files.</li>
           <li>
-            <code>prs observe</code> and PObserve give the same exit code on all 192 runs of upstream's log suite, with
+            <code>snappea-compat observe</code> and PObserve give the same exit code on all 192 runs of upstream's log suite, with
             identical output on 186. The other 6 differ only in the null-dereference message.
           </li>
         </ul>
         <p>
-          If p-rs disagrees with upstream on a model, that's a p-rs bug.{" "}
+          If Snap Pea disagrees with upstream on a model, that's a Snap Pea bug.{" "}
           <a href={`${REPO}/issues`}>Please report it.</a> <a href={`${BLOB}/docs/development.md#validation`}>Validation</a>{" "}
           and <a href={`${BLOB}/docs/development.md#benchmarks`}>benchmarks</a> have the details.
         </p>
@@ -224,7 +231,7 @@ $ prs observe --spec BankBalanceCorrect -l logs/
         <p>
           Upstream's <a href={P_DOCS}>documentation</a>, <a href={`${P_DOCS}tutsoutline/`}>tutorials</a> and{" "}
           <a href={`${P_DOCS}casestudies/`}>case studies</a> are the best way to learn the language, and every tutorial
-          runs unchanged with p-rs.
+          runs unchanged with snappea.
         </p>
       </section>
     </>

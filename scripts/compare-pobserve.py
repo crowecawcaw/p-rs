@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Compares `prs-compat observe` with upstream PObserve on upstream's PObserve regression logs.
+"""Compares `snappea-compat observe` with upstream PObserve on upstream's PObserve regression logs.
 
     UPSTREAM_POBSERVE="java -cp PObserveCommons-1.0.0.jar:PObserve-1.0.0.jar pobserve.PObserve" \
     UPSTREAM_JARS=regression.jar \
-    PRS_OBSERVE_BIN=target/release/examples/observe_regression \
+    SNAPPEA_OBSERVE_BIN=target/release/examples/observe_regression \
     scripts/compare-pobserve.py <P checkout>/Src/PObserve/PObserveRegressionTesting/src [filter]
 
 UPSTREAM_JARS is a jar built from the regression project (its generated spec classes plus
-the TestCase parsers). PRS_OBSERVE_BIN is `prs-compat observe` with the Rust ports of those parsers
-(`cargo build --release -p p-rs --example observe_regression`).
+the TestCase parsers). SNAPPEA_OBSERVE_BIN is `snappea-compat observe` with the Rust ports of those parsers
+(`cargo build --release -p snappea --example observe_regression`).
 
 Every log file and log directory of the happy and error suites runs through both tools,
 with and without --assumeInputsAreSorted. Compared: exit code, console output, and every
@@ -99,7 +99,7 @@ def main():
     filt = sys.argv[2] if len(sys.argv) > 2 else ""
     up = shlex.split(os.environ["UPSTREAM_POBSERVE"])
     jars = os.path.abspath(os.environ["UPSTREAM_JARS"])
-    pn = [os.path.abspath(os.environ.get("PRS_OBSERVE_BIN", "target/release/examples/observe_regression"))]
+    pn = [os.path.abspath(os.environ.get("SNAPPEA_OBSERVE_BIN", "target/release/examples/observe_regression"))]
     pproj = os.path.join(src, "main/java/pobserve/testing/spec/p_specs.pproj")
     logs = os.path.join(src, "resources/logs/unit-test-logs")
     total = same = 0

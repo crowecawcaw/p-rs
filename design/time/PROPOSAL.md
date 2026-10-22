@@ -1,13 +1,14 @@
-# Time, timeouts and latency budgets in p-rs (design)
+# Time, timeouts and latency budgets in Snap Pea (design)
 
-Status: Phase 1 is implemented in `prs::checker` (`crates/p-rs/src/checker/time.rs`) and
-`prs check` (`--latency <file>[:<profile>]`, `--timed`), tested in
-`crates/p-rs/tests/checker_time.rs`. Time in `prs observe` is documented in
+Status: Phase 1 is implemented in `snappea::checker` (`crates/snappea/src/checker/time.rs`) and
+`snappea check` (`--latency <file>[:<profile>]`, `--timed`), tested in
+`crates/snappea/tests/checker_time.rs`. Time in `snappea observe` is documented in
 [docs/observe.md](../../docs/observe.md#time-and-latency-budgets). The worked example is
 [RetryBudget](RetryBudget/README.md).
 
 **No language change.** Models use plain P (foreign functions and ordinary machines).
-A native syntax over the same semantics may come later.
+`examples/` sketches a possible later native syntax over the same semantics; those files
+do not parse with `snappea`.
 
 ## Motivation and scope
 
@@ -37,7 +38,7 @@ fun Elapsed(m: int): int;      // worst case of (clock - mark m)
 fun ElapsedBest(m: int): int;  // best case
 ```
 
-* p-rs implements these natively and does not consult a user's Rust
+* Snap Pea implements these natively and does not consult a user's Rust
   `ForeignFunctions` for them. Only global declarations count (a machine-owned
   `fun Now()` is an ordinary foreign function). If a declaration uses one of these
   names with a different signature, that is an error that names the expected
@@ -206,7 +207,7 @@ which makes `Now()`-based deadline checks pessimistic.
 
 ## Profiles
 
-A small TOML subset, passed with `prs check --latency <file>`:
+A small TOML subset, passed with `snappea check --latency <file>`:
 
 ```toml
 # comments, [sections], key = "string" only
@@ -259,10 +260,10 @@ tcRetry = "same-az"             # profile per test case
 
 When time tracking is active, the `.schedule` file gets these lines:
 
-    --prs-time:timed=<0|1>;profile=<name or ->
-    --prs-latency:<key>=<lo>us..<hi>us      (one per resolved profile entry)
+    --snappea-time:timed=<0|1>;profile=<name or ->
+    --snappea-latency:<key>=<lo>us..<hi>us      (one per resolved profile entry)
 
-`prs replay` takes the mode and profile from these lines, so it has no time
+`snappea replay` takes the mode and profile from these lines, so it has no time
 options. A replay therefore needs no latency file and cannot silently run a
 different mode. The profile's names and the time-function signatures are still
 checked against the program. A schedule without these lines was recorded
@@ -292,10 +293,10 @@ line, and diverge.
 * measuring the collapse policy;
 * porting the Raft and FailureDetector tutorials, then deciding whether to keep
   going;
-* **done:** time in `prs observe` (issues #1 and #2): checking budgets against
+* **done:** time in `snappea observe` (issues #1 and #2): checking budgets against
   production trace timestamps as exact epoch microseconds, with per-key stopwatches.
 
-**Later, only if Phase 2 pays off:** native syntax.
+**Later, only if Phase 2 pays off:** native syntax (`examples/`).
 
 ## Open questions
 

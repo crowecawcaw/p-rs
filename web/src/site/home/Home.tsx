@@ -1,4 +1,4 @@
-// Landing page: what p-rs is, in one screen.
+// Landing page: what Snap Pea is, in one screen.
 import { REPO, SiteHeader, links } from "../SiteHeader";
 import { SpeedBars } from "./SpeedBars";
 
@@ -19,12 +19,12 @@ const FEATURES = [
   },
   {
     title: "Application integration",
-    text: "Record events from ordinary tests in Python, Rust, Java and Go, and check them against P specs. prs observe checks logs from running systems.",
+    text: "Record events from ordinary tests in Python, Rust, Java and Go, and check them against P specs. snappea observe checks logs from running systems.",
     link: { label: "Integration examples", href: `${BLOB}/examples/README.md` },
   },
   {
     title: "Compatible with P",
-    text: "prs-compat is a drop-in replacement for the p command. prs passes upstream's 424 compiler tests, 249 checker tests and its tutorials.",
+    text: "snappea-compat is a drop-in replacement for the p command. snappea passes upstream's 424 compiler tests, 249 checker tests and its tutorials.",
     link: { label: "Coming from P", href: l.comingFromP },
   },
 ];
@@ -38,7 +38,7 @@ export function Home() {
           <p className="eyebrow">The P language, in Rust</p>
           <h1>Fast formal models that also check your code</h1>
           <p className="home-lede">
-            p-rs is a Rust implementation of <a href="#what-is-p">P</a>: a parser, type checker and model checker in
+            Snap Pea is a Rust implementation of <a href="#what-is-p">P</a>: a parser, type checker and model checker in
             one binary, with no compile step. It's built for speed, and for checking your application's real events
             against the same specs that checked its design.
           </p>
@@ -53,13 +53,13 @@ export function Home() {
           <div className="home-band-text">
             <h2>A fast edit-check loop</h2>
             <p>
-              p-rs interprets models directly instead of compiling them, and runs schedules in parallel, so short
+              Snap Pea interprets models directly instead of compiling them, and runs schedules in parallel, so short
               checks finish almost instantly. That makes it easy to check a model on every edit, in CI and inside
               application test suites.
             </p>
             <p>Checking the Raft tutorial, 120 schedules:</p>
             <p className="muted small">
-              Warmed up, prs checks 290 schedules per second, and P checks 4.{" "}
+              Warmed up, snappea checks 290 schedules per second, and P checks 4.{" "}
               <a href={`${BLOB}/docs/development.md#benchmarks`}>Benchmarks</a>
             </p>
           </div>
@@ -90,7 +90,7 @@ export function Home() {
               tutorials and case studies show how to model everything from two-phase commit to Paxos and Raft.
             </p>
             <p>
-              p-rs aims to make P easier to adopt in more projects. It keeps P's language and results, and is tested
+              Snap Pea aims to make P easier to adopt in more projects. It keeps P's language and results, and is tested
               against P's own test suites and tutorials.
             </p>
             <p className="home-p-links">
@@ -106,25 +106,27 @@ export function Home() {
           <p>The checker, from crates.io or PyPI:</p>
           <pre className="terminal">
             <code>
-              <span className="prompt">$ </span>cargo install p-rs{"   "}<span className="cmt"># prs and prs-compat, with a Rust toolchain</span>{"\n"}
-              <span className="prompt">$ </span>pip install p-rs{"     "}<span className="cmt"># prebuilt prs, plus the Python helper</span>{"\n"}
-              <span className="prompt">$ </span>prs check{"            "}<span className="cmt"># check every test case in the .pproj</span>
+              <span className="prompt">$ </span>cargo install snappea{"   "}<span className="cmt"># snappea and snappea-compat, with a Rust toolchain</span>{"\n"}
+              <span className="prompt">$ </span>pip install pysnappea{"     "}<span className="cmt"># prebuilt snappea, plus the Python helper</span>{"\n"}
+              <span className="prompt">$ </span>snappea check{"            "}<span className="cmt"># check every test case in the .pproj</span>
             </code>
           </pre>
           <p>
-            Each <a href={`${REPO}/releases`}>GitHub release</a> also has prebuilt <code>prs</code> binaries for Linux,
-            macOS and Windows. The application helpers are one <code>p-rs</code> package per language:
+            Each <a href={`${REPO}/releases`}>GitHub release</a> also has prebuilt <code>snappea</code> binaries for Linux,
+            macOS and Windows. The application helpers are one <code>snappea</code> package per language:
           </p>
           <pre className="terminal">
             <code>
-              <span className="prompt">$ </span>pip install p-rs{"                       "}<span className="cmt"># Python</span>{"\n"}
-              <span className="prompt">$ </span>cargo add --dev p-rs{"                   "}<span className="cmt"># Rust</span>{"\n"}
-              <span className="prompt">$ </span>go get github.com/crowecawcaw/p-rs{"     "}<span className="cmt"># Go</span>
+              <span className="prompt">$ </span>pip install pysnappea{"                       "}<span className="cmt"># Python</span>{"\n"}
+              <span className="prompt">$ </span>cargo add --dev snappea{"                   "}<span className="cmt"># Rust</span>{"\n"}
+              <span className="prompt">$ </span>go get github.com/crowecawcaw/snappea{"     "}<span className="cmt"># Go</span>
             </code>
           </pre>
           <p>
-            Java: <code>io.github.crowecawcaw:p-rs</code> on Maven Central, plus a natives jar with the checker (
-            <a href={`${BLOB}/java/README.md#install`}>Maven and Gradle snippets</a>).
+            Java: <code>io.github.crowecawcaw:snappea</code> on Maven Central, plus a natives jar with the checker (
+            <a href={`${l.java}#install`}>Maven and Gradle snippets</a>). Each language has a{" "}
+            guide: <a href={l.python}>Python</a>, <a href={l.rust}>Rust</a>, <a href={l.go}>Go</a>,{" "}
+            <a href={l.java}>Java</a>.
           </p>
         </section>
       </main>

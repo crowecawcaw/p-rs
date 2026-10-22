@@ -58,10 +58,10 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked
-      - name: Clippy, each p-rs feature alone
+      - name: Clippy, each snappea feature alone
         run: |
           for feature in emit test cli; do
-            cargo clippy -p p-rs --no-default-features --features "$feature" --locked
+            cargo clippy -p snappea --no-default-features --features "$feature" --locked
           done
 
   test:
@@ -80,16 +80,16 @@ jobs:
         run: cargo build --workspace --all-targets --locked
       - name: Test
         run: cargo test --workspace --locked
-      - name: Build p-rs for production use (emit only, no checker)
+      - name: Build snappea for production use (emit only, no checker)
         run: |
-          cargo build -p p-rs --no-default-features --features emit --locked
-          deps=$(cargo tree -p p-rs --no-default-features --features emit -e normal --prefix none)
+          cargo build -p snappea --no-default-features --features emit --locked
+          deps=$(cargo tree -p snappea --no-default-features --features emit -e normal --prefix none)
           if echo "$deps" | grep -E '^(regex|roxmltree|rustc-hash|sha2) '; then
-            echo "::error::p-rs with only the emit feature pulls in checker dependencies" >&2
+            echo "::error::snappea with only the emit feature pulls in checker dependencies" >&2
             exit 1
           fi
       - name: Check the published crate package
-        run: cargo package -p p-rs --locked
+        run: cargo package -p snappea --locked
 
   web:
     name: web playground
@@ -114,4 +114,4 @@ jobs:
           npm ci
           npm run build
       - name: Smoke-test the wasm module in Node
-        run: node crates/prs-wasm/js/smoke.mjs target/wasm32-unknown-unknown/wasm/prs_wasm.wasm
+        run: node crates/snappea-wasm/js/smoke.mjs target/wasm32-unknown-unknown/wasm/snappea_wasm.wasm

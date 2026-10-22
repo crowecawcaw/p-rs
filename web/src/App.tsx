@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DEMOS, loadDemo, sortPaths, type Demo } from "./demos";
+import { CUSTOM, DEMOS, loadDemo, sortPaths, type Demo } from "./demos";
+import { filesFromDrop, filesFromList } from "./importFiles";
+import { decodeShared, sharedFromHash, urlFor, MAX_SHARE_CHARS, type Shared } from "./share";
 import { PEditor } from "./editor/PEditor";
 import type { CheckResult, Diagnostic, Files } from "./protocol";
 import { Runner } from "./runner";
 import { TraceView } from "./trace/TraceView";
+import { Logo } from "./site/Logo";
 
 /** Output tabs. "files" is the editor, which is a tab only on phones. */
 type Tab = "files" | "console" | "trace" | "log";
@@ -17,8 +20,10 @@ const STRATEGIES: { label: string; args: string[] }[] = [
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 const splitArgs = (s: string) => s.split(/\s+/).filter(Boolean);
-const REPO = "https://github.com/crowecawcaw/p-rs";
+const REPO = "https://github.com/crowecawcaw/snappea";
 const NARROW = "(max-width: 900px)";
+/** How long the URL waits for edits to settle before it is rewritten. */
+const URL_DEBOUNCE_MS = 500;
 const TAB_LABEL: Record<Tab, string> = { files: "Files", console: "Console", trace: "Trace", log: "Log" };
 
 export function App() {
@@ -48,21 +53,48 @@ export function App() {
   const [blurbClamped, setBlurbClamped] = useState(false);
   const blurbRef = useRef<HTMLParagraphElement>(null);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [shareTooBig, setShareTooBig] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const fileInput = useRef<HTMLInputElement>(null);
 
-  const applyDemo = useCallback((d: Demo) => {
-    const f = loadDemo(d);
+  /** Shows a project: a demo, or files the user opened or a link carried. */
+  const applyProject = useCallback((d: Demo, s: Shared, isEdited: boolean) => {
     setDemo(d);
-    setFiles(f);
-    setOpen(f[d.open] !== undefined ? d.open : sortPaths(Object.keys(f))[0]);
-    setTestCase(d.testCase);
-    setSchedules(d.schedules);
-    setExtraArgs(d.extraArgs ?? "");
+    setFiles(s.files);
+    setOpen(s.files[s.open] !== undefined ? s.open : sortPaths(Object.keys(s.files))[0] ?? "");
+    setTestCase(s.testCase ?? d.testCase);
+    setSchedules(s.schedules ?? d.schedules);
+    setExtraArgs(s.extraArgs ?? d.extraArgs ?? "");
     setStrategy(0);
     setResult(undefined);
     setRunError(undefined);
+    setDiagnostics([]);
     setTab(matchMedia(NARROW).matches ? "files" : "console");
-    edited.current = false;
+    edited.current = isEdited;
   }, []);
+
+  const applyDemo = useCallback(
+    (d: Demo, open = d.open) => applyProject(d, { demo: d.id, files: loadDemo(d), open }, false),
+    [applyProject],
+  );
+
+  /** Loads what the URL describes: a shared project in the hash, else ?demo=<id>&file=<path>. */
+  const loadFromUrl = useCallback(() => {
+    const encoded = sharedFromHash();
+    if (encoded) {
+      try {
+        const s = decodeShared(encoded);
+        applyProject(DEMOS.find((d) => d.id === s.demo) ?? CUSTOM, s, true);
+        return;
+      } catch {
+        alert("This link's project couldn't be read; it may have been cut off. Opening a demo instead.");
+      }
+    }
+    const q = new URLSearchParams(location.search);
+    const d = DEMOS.find((x) => x.id === q.get("demo")) ?? DEMOS[0];
+    applyDemo(d, q.get("file") ?? d.open);
+  }, [applyDemo, applyProject]);
 
   // Offer "more" only when the phone layout actually cuts the blurb off.
   useEffect(() => {
@@ -86,12 +118,35 @@ export function App() {
     return () => mq.removeEventListener("change", on);
   }, []);
 
-  // Initial load: ?demo=<id>, or the first demo.
+  // Initial load from the URL, and again when a pasted link changes only the hash.
   useEffect(() => {
-    const id = new URLSearchParams(location.search).get("demo");
-    applyDemo(DEMOS.find((d) => d.id === id) ?? DEMOS[0]);
+    loadFromUrl();
     setLoaded(true);
-  }, [applyDemo]);
+    const onHash = () => {
+      if (sharedFromHash()) loadFromUrl();
+    };
+    addEventListener("hashchange", onHash);
+    return () => removeEventListener("hashchange", onHash);
+  }, [loadFromUrl]);
+
+  // Keep the URL in step with the project, once edits settle, so it can be shared.
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => {
+      const state: Shared = {
+        demo: demo === CUSTOM ? undefined : demo.id,
+        files,
+        open,
+        testCase,
+        schedules,
+        extraArgs: extraArgs || undefined,
+      };
+      const { url, tooBig } = urlFor(state, edited.current);
+      setShareTooBig(tooBig);
+      if (url !== location.search + location.hash) history.replaceState(null, "", url);
+    }, URL_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [loaded, demo, files, open, testCase, schedules, extraArgs]);
 
   // Compile shortly after each edit: diagnostics and the list of test cases.
   useEffect(() => {
@@ -159,9 +214,48 @@ export function App() {
 
   const pickDemo = (id: string) => {
     if (edited.current && !confirm("Discard your edits and load another demo?")) return;
-    const d = DEMOS.find((x) => x.id === id)!;
-    history.replaceState(null, "", `?demo=${d.id}`);
-    applyDemo(d);
+    applyDemo(DEMOS.find((x) => x.id === id)!);
+  };
+
+  /** Opens dropped or picked files as a new project. */
+  const importFiles = async (read: Promise<Files>) => {
+    let f: Files;
+    try {
+      f = await read;
+    } catch (e) {
+      alert(`Couldn't open those files: ${(e as Error).message ?? e}`);
+      return;
+    }
+    if (edited.current && !confirm("Discard your edits and open these files?")) return;
+    const paths = sortPaths(Object.keys(f));
+    applyProject(CUSTOM, { files: f, open: paths.find((p) => p.endsWith(".p")) ?? paths[0] }, true);
+  };
+
+  const dropHandlers = {
+    onDragEnter: (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes("Files")) return;
+      e.preventDefault();
+      dragDepth.current++;
+      setDragging(true);
+    },
+    onDragOver: (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes("Files")) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    },
+    onDragLeave: () => {
+      if (--dragDepth.current <= 0) {
+        dragDepth.current = 0;
+        setDragging(false);
+      }
+    },
+    onDrop: (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes("Files")) return;
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      void importFiles(filesFromDrop(e.dataTransfer));
+    },
   };
 
   const addFile = () => {
@@ -189,11 +283,13 @@ export function App() {
         : result
           ? result.bug
             ? "Bug found"
-            : `No bugs in ${schedules} schedules`
+            : result.exitCode !== 0
+              ? "Error (see console)"
+              : `No bugs in ${schedules} schedules`
           : compileOk
             ? "Ready"
             : "Loading…";
-  const statusClass = running ? "" : compileOk === false || result?.bug || (result && !result.ok) ? "bad" : result?.ok ? "good" : "";
+  const statusClass = running ? "" : compileOk === false || result?.bug || (result && (!result.ok || result.exitCode !== 0)) ? "bad" : result?.ok ? "good" : "";
 
   const blurb = (
     <div className={blurbOpen ? "blurb open" : "blurb"}>
@@ -218,19 +314,52 @@ export function App() {
   );
 
   return (
-    <div className="app">
+    <div className="app" {...dropHandlers}>
+      {dragging && (
+        <div className="drop-overlay" aria-hidden="true">
+          <div>Drop .p files, a folder or a .zip to open them</div>
+        </div>
+      )}
       <header className="top">
-        <a className="brand" href="./" aria-label="p-rs home">
-          <span className="logo">p-rs</span>
+        <a className="brand" href="./" aria-label="Snap Pea home">
+          <Logo />
           <span className="brand-name">Playground</span>
         </a>
         <select className="demo-select" value={demo.id} onChange={(e) => pickDemo(e.target.value)} aria-label="Demo">
+          {demo === CUSTOM && <option value={CUSTOM.id}>{CUSTOM.title}</option>}
           {DEMOS.map((d) => (
             <option key={d.id} value={d.id}>
               {d.title}
             </option>
           ))}
         </select>
+        <button
+          className="ghost open-files"
+          onClick={() => fileInput.current?.click()}
+          title="Open .p files or a .zip (or drop them anywhere)"
+        >
+          Open
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          accept=".p,.zip,.toml,.json,.txt,.md"
+          hidden
+          onChange={(e) => {
+            const list = e.target.files;
+            if (list?.length) void importFiles(filesFromList(list));
+            e.target.value = "";
+          }}
+        />
+        {shareTooBig && (
+          <span
+            className="share-note"
+            title={`The project is over ${MAX_SHARE_CHARS / 1000}k characters compressed, so the page URL no longer holds your edits.`}
+          >
+            Too big to link
+          </span>
+        )}
         <div className="spacer" />
         <a className="button ghost docs-link" href="./docs/overview.html">
           Docs
@@ -436,7 +565,7 @@ export function App() {
           <div className="output">
             {tab === "console" && (
               <Console
-                summary={!runError && result?.ok ? (result.bug ? `✕ ${bugLine(result)}` : `✓ No bugs found in ${result.testCase}`) : undefined}
+                summary={!runError && result?.ok && (result.bug || result.exitCode === 0) ? (result.bug ? `✕ ${bugLine(result)}` : `✓ No bugs found in ${result.testCase}`) : undefined}
                 bad={result?.bug}
                 text={runError ?? (result ? result.console : compileOk === false ? compileConsole : "")}
                 onOpenLocation={openLocation}
@@ -475,9 +604,9 @@ function Console({ text, empty, summary, bad, onOpenLocation }: {
       {summary && <div className={bad ? "summary bad" : "summary good"}>{summary}</div>}
       {text.split("\n").map((line, i) => {
         const cls =
-          /Error|Assertion Failed|\bbug\b(?! found: 0)|Found [1-9]/i.test(line) && !/Found 0 bug/.test(line)
+          /^FAIL\s|\bfailed in\b|Error|Assertion Failed|\bbug found\b|found a bug|Found [1-9]/i.test(line)
             ? "line bad"
-            : /succeeded|Found 0 bug/.test(line)
+            : /^ok\s|\bpassed in\b|Found 0 bug/.test(line)
               ? "line good"
               : line.startsWith("$ ")
                 ? "line cmd"

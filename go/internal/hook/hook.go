@@ -1,5 +1,5 @@
-// Package hook connects prsemit to the test recordings prstest starts in the same
-// process, without prsemit depending on prstest.
+// Package hook connects snappeaemit to the test recordings snappeatest starts in the same
+// process, without snappeaemit depending on snappeatest.
 package hook
 
 import (
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Recording receives events from prsemit.
+// Recording receives events from snappeaemit.
 type Recording interface {
 	// Record adds an event; at is zero for the wall clock.
 	Record(at time.Time, src, event, key string, payload any)
@@ -23,7 +23,7 @@ var (
 	active []Recording
 )
 
-// Register makes r receive prsemit events until Unregister.
+// Register makes r receive snappeaemit events until Unregister.
 func Register(r Recording) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -74,7 +74,7 @@ func Dispatch(ctx context.Context, at time.Time, src, event, key string, payload
 
 type ctxKey struct{}
 
-// WithRecording attaches r to ctx, for prsemit.EmitCtx.
+// WithRecording attaches r to ctx, for snappeaemit.EmitCtx.
 func WithRecording(ctx context.Context, r Recording) context.Context {
 	return context.WithValue(ctx, ctxKey{}, r)
 }

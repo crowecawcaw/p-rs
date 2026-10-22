@@ -3,15 +3,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.crowecawcaw</groupId>
-  <artifactId>p-rs</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <artifactId>snappea</artifactId>
+  <version>0.1.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>p-rs</name>
+  <name>snappea</name>
   <description>Check the events your Java code emits against P specs: a JDK-only emitter for application
-    code, and test helpers (any framework, plus JUnit 5) that run the prs checker. The checker binary
+    code, and test helpers (any framework, plus JUnit 5) that run the snappea checker. The checker binary
     comes in the classifier jars natives-{linux,macos}-{x86_64,aarch64} and natives-windows-x86_64.</description>
-  <url>https://github.com/crowecawcaw/p-rs</url>
+  <url>https://github.com/crowecawcaw/snappea</url>
   <licenses>
     <license>
       <name>MIT</name>
@@ -32,22 +32,22 @@
     </developer>
   </developers>
   <scm>
-    <connection>scm:git:https://github.com/crowecawcaw/p-rs.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/crowecawcaw/p-rs.git</developerConnection>
-    <url>https://github.com/crowecawcaw/p-rs</url>
+    <connection>scm:git:https://github.com/crowecawcaw/snappea.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/crowecawcaw/snappea.git</developerConnection>
+    <url>https://github.com/crowecawcaw/snappea</url>
   </scm>
   <issueManagement>
     <system>GitHub</system>
-    <url>https://github.com/crowecawcaw/p-rs/issues</url>
+    <url>https://github.com/crowecawcaw/snappea/issues</url>
   </issueManagement>
 
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.11.4</junit.version>
-    <!-- natives profile: a folder holding <classifier>/prs (or prs.exe), one per platform -->
-    <prs.natives>${project.basedir}/natives</prs.natives>
-    <prs.natives.staging>${project.build.directory}/natives</prs.natives.staging>
+    <!-- natives profile: a folder holding <classifier>/snappea (or snappea.exe), one per platform -->
+    <snappea.natives>${project.basedir}/natives</snappea.natives>
+    <snappea.natives.staging>${project.build.directory}/natives</snappea.natives.staging>
   </properties>
 
   <dependencyManagement>
@@ -129,10 +129,10 @@
   <profiles>
     <!--
       Classifier jars with the checker binary, attached to this artifact:
-        mvn -f java/pom.xml -Pnatives -Dprs.natives=DIR install
-      DIR holds one folder per platform with the binary in it: DIR/natives-linux-x86_64/prs,
-      DIR/natives-windows-x86_64/prs.exe, ... Missing platforms are skipped. Each jar holds
-      io/github/crowecawcaw/prs/native/<classifier>/prs[.exe] and prs.sha256 beside it.
+        mvn -f java/pom.xml -Pnatives -Dsnappea.natives=DIR install
+      DIR holds one folder per platform with the binary in it: DIR/natives-linux-x86_64/snappea,
+      DIR/natives-windows-x86_64/snappea.exe, ... Missing platforms are skipped. Each jar holds
+      io/github/crowecawcaw/snappea/native/<classifier>/snappea[.exe] and snappea.sha256 beside it.
     -->
     <profile>
       <id>natives</id>
@@ -149,18 +149,18 @@
                 <goals><goal>run</goal></goals>
                 <configuration>
                   <target>
-                    <delete dir="${prs.natives.staging}"/>
-                    <copy todir="${prs.natives.staging}">
-                      <fileset dir="${prs.natives}" includes="natives-*/prs,natives-*/prs.exe"/>
-                      <regexpmapper handledirsep="true" from="^(natives-[a-z0-9_-]+)/(prs(\.exe)?)$"
-                                    to="\1/io/github/crowecawcaw/prs/native/\1/\2"/>
+                    <delete dir="${snappea.natives.staging}"/>
+                    <copy todir="${snappea.natives.staging}">
+                      <fileset dir="${snappea.natives}" includes="natives-*/snappea,natives-*/snappea.exe"/>
+                      <regexpmapper handledirsep="true" from="^(natives-[a-z0-9_-]+)/(snappea(\.exe)?)$"
+                                    to="\1/io/github/crowecawcaw/snappea/native/\1/\2"/>
                     </copy>
                     <checksum algorithm="SHA-256" fileext=".sha256" pattern="{0}  {1}" forceoverwrite="yes">
-                      <fileset dir="${prs.natives.staging}" includes="**/prs,**/prs.exe"/>
+                      <fileset dir="${snappea.natives.staging}" includes="**/snappea,**/snappea.exe"/>
                     </checksum>
-                    <move todir="${prs.natives.staging}">
-                      <fileset dir="${prs.natives.staging}" includes="**/prs.exe.sha256"/>
-                      <globmapper handledirsep="true" from="*prs.exe.sha256" to="*prs.sha256"/>
+                    <move todir="${snappea.natives.staging}">
+                      <fileset dir="${snappea.natives.staging}" includes="**/snappea.exe.sha256"/>
+                      <globmapper handledirsep="true" from="*snappea.exe.sha256" to="*snappea.sha256"/>
                     </move>
                   </target>
                 </configuration>
@@ -176,7 +176,7 @@
                 <goals><goal>jar</goal></goals>
                 <configuration>
                   <classifier>natives-linux-x86_64</classifier>
-                  <classesDirectory>${prs.natives.staging}/natives-linux-x86_64</classesDirectory>
+                  <classesDirectory>${snappea.natives.staging}/natives-linux-x86_64</classesDirectory>
                   <skipIfEmpty>true</skipIfEmpty>
                 </configuration>
               </execution>
@@ -185,7 +185,7 @@
                 <goals><goal>jar</goal></goals>
                 <configuration>
                   <classifier>natives-linux-aarch64</classifier>
-                  <classesDirectory>${prs.natives.staging}/natives-linux-aarch64</classesDirectory>
+                  <classesDirectory>${snappea.natives.staging}/natives-linux-aarch64</classesDirectory>
                   <skipIfEmpty>true</skipIfEmpty>
                 </configuration>
               </execution>
@@ -194,7 +194,7 @@
                 <goals><goal>jar</goal></goals>
                 <configuration>
                   <classifier>natives-macos-x86_64</classifier>
-                  <classesDirectory>${prs.natives.staging}/natives-macos-x86_64</classesDirectory>
+                  <classesDirectory>${snappea.natives.staging}/natives-macos-x86_64</classesDirectory>
                   <skipIfEmpty>true</skipIfEmpty>
                 </configuration>
               </execution>
@@ -203,7 +203,7 @@
                 <goals><goal>jar</goal></goals>
                 <configuration>
                   <classifier>natives-macos-aarch64</classifier>
-                  <classesDirectory>${prs.natives.staging}/natives-macos-aarch64</classesDirectory>
+                  <classesDirectory>${snappea.natives.staging}/natives-macos-aarch64</classesDirectory>
                   <skipIfEmpty>true</skipIfEmpty>
                 </configuration>
               </execution>
@@ -212,7 +212,7 @@
                 <goals><goal>jar</goal></goals>
                 <configuration>
                   <classifier>natives-windows-x86_64</classifier>
-                  <classesDirectory>${prs.natives.staging}/natives-windows-x86_64</classesDirectory>
+                  <classesDirectory>${snappea.natives.staging}/natives-windows-x86_64</classesDirectory>
                   <skipIfEmpty>true</skipIfEmpty>
                 </configuration>
               </execution>
@@ -260,7 +260,7 @@
     <!--
       Signing and upload to Maven Central (the Sonatype Central Portal). The release
       workflow runs:
-        mvn -f java/pom.xml -Pnatives,release,central -Dprs.natives=DIR deploy
+        mvn -f java/pom.xml -Pnatives,release,central -Dsnappea.natives=DIR deploy
       It needs a GPG key in the agent (passphrase in MAVEN_GPG_PASSPHRASE) and a server
       "central" in settings.xml holding a Central Portal user token. Locally,
       -Dgpg.skip skips signing (use verify, not deploy). Kept out of `release` so CI

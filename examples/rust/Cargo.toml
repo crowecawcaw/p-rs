@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-# A standalone workspace, using the p-rs crate from this repository.
+# A standalone workspace, using the snappea crate from this repository.
 [workspace]
 
-# Read by prs::test::Model::load(); paths are relative to this file.
-[package.metadata.prs]
+# Read by snappea::test::Model::load(); paths are relative to this file.
+[package.metadata.snappea]
 spec_files = ["specs/inventory.p"]
 specs = ["InventoryCorrect"]
 
 [dev-dependencies]
-p-rs = { path = "../../crates/p-rs", default-features = false, features = ["test"] }
+snappea = { path = "../../crates/snappea", default-features = false, features = ["test"] }
 proptest = "1.11"

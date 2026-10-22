@@ -2,7 +2,7 @@
 
 Four test packages check one [inventory service](inventory/inventory.go) against
 the [P spec](specs/inventory.p) with the [Go helper](../../go/README.md), which runs
-the `prs observe` CLI. See the [shared overview](../README.md#how-the-checks-work)
+the `snappea observe` CLI. See the [shared overview](../README.md#how-the-checks-work)
 for what the checks do and why.
 
 ## Run
@@ -10,21 +10,21 @@ for what the checks do and why.
 From the repository root, with Rust and Go 1.22+:
 
 ```sh
-cargo build -p p-rs --bin prs --locked
-export PRS_BIN="$(pwd)/target/debug/prs"
+cargo build -p snappea --bin snappea --locked
+export SNAPPEA_BIN="$(pwd)/target/debug/snappea"
 cd examples/go
 go test -count=1 ./...
 go test ./fuzz -run='^$' -fuzz=FuzzInventory -fuzztime=5s -parallel=2
 ```
 
-`PRS_BIN` must be absolute (or a name on `PATH`) because Go runs each package from
+`SNAPPEA_BIN` must be absolute (or a name on `PATH`) because Go runs each package from
 its own directory. A missing binary fails the tests rather than skipping them. The
 [CI workflow](../../.github/workflows/go-examples.yml) runs the tests, the fuzz seeds,
-the [production log check](#5-production-logs-with-prs-observe) and a bounded fuzz
+the [production log check](#5-production-logs-with-snappea-observe) and a bounded fuzz
 campaign.
 
 The service takes an injected `Emit` func, so it has no test dependency: tests pass a
-recording's `Emit`, and [cmd/inventory](cmd/inventory/main.go) passes `prsemit.Emit`.
+recording's `Emit`, and [cmd/inventory](cmd/inventory/main.go) passes `snappeaemit.Emit`.
 [internal/fixture](internal/fixture/fixture.go) holds the spec configuration.
 
 ## 1. Explicit checks in selected tests
@@ -45,7 +45,7 @@ start recording first, then register worker shutdown, so workers stop before the
 check. In a concurrent service, emit inside the same critical section as the commit
 so the recorded order matches.
 
-`TestMain` is `prstest.Main(m)`: after the tests it prints
+`TestMain` is `snappeatest.Main(m)`: after the tests it prints
 [coverage](../README.md#coverage) and writes `checked/coverage/monitor.json`
 (`go test -v` shows it). Delete the file before a run if the spec changed.
 
@@ -62,35 +62,35 @@ Each case starts the CLI, so throughput is lower than an in-process property che
 command to reproduce a failure; commit useful inputs from
 `fuzz/testdata/fuzz/FuzzInventory/`.
 
-## 4. prsemit: in the test process and in processes the test starts
+## 4. snappeaemit: in the test process and in processes the test starts
 
 [process/inventory_test.go](process/inventory_test.go) shows code that emits with
-`prsemit` instead of an injected func. `TestInProcess` passes `prsemit.Emit` to the
+`snappeaemit` instead of an injected func. `TestInProcess` passes `snappeaemit.Emit` to the
 inventory in the test process; it reaches the recording. It is not parallel:
-`prsemit.Emit` cannot tell parallel tests apart (use `prsemit.EmitCtx` with
+`snappeaemit.Emit` cannot tell parallel tests apart (use `snappeaemit.EmitCtx` with
 `r.Context(...)` for that). The other tests build
 [cmd/inventory](cmd/inventory/main.go), a program that reads operations from stdin and
-emits with `prsemit`. `TestWorkerProcesses` starts two of them with `cmd.Env =
+emits with `snappeaemit`. `TestWorkerProcesses` starts two of them with `cmd.Env =
 r.Env()`, waits for them, and the cleanup checks their events. `TestProductionLog`
 runs it the production way, writing a log, and checks the log with `r.AddLog`.
 
-## 5. Production logs with `prs observe`
+## 5. Production logs with `snappea observe`
 
 [production.sh](production.sh) runs [cmd/inventory](cmd/inventory/main.go) as two
-"hosts", each writing its own log through `prsemit.SetSink(prsemit.File(...))`, the
-same `prsemit.Emit` calls the tests above check. It then checks the logs with
-`prs observe`, in batch (`-l '.../*.jsonl'`) and live (`--stdin`), and confirms that a
+"hosts", each writing its own log through `snappeaemit.SetSink(snappeaemit.File(...))`, the
+same `snappeaemit.Emit` calls the tests above check. It then checks the logs with
+`snappea observe`, in batch (a log glob, `'.../*.jsonl'`) and live (`--stdin`), and confirms that a
 forged oversell is reported as a violation. CI runs it:
 
 ```sh
-PRS_BIN="$PRS_BIN" sh production.sh
+SNAPPEA_BIN="$SNAPPEA_BIN" sh production.sh
 ```
 
 [Testing and production](../../docs/production.md) explains the deployment side.
 
 ## Adapt to your project
 
-Inject `Recorder.Emit` (tests) and `prsemit.Emit` (programs) at your
+Inject `Recorder.Emit` (tests) and `snappeaemit.Emit` (programs) at your
 committed-change boundary, and set `SpecFiles` (relative to each test package) and
 `Specs`. See the [helper setup](../../go/README.md) for the `replace` directive this
 example's `go.mod` uses, and the [observation reference](../../docs/observe.md) for

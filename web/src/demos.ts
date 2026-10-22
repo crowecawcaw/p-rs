@@ -117,7 +117,7 @@ export const DEMOS: Demo[] = [
     id: "retry-budget",
     title: "Time: retry budget",
     blurb:
-      "Uses the prs time extension: a client retries with timeouts and backoff, and a spec asserts every request resolves within a 1 s budget. Set timeoutAfter = ms(250) in PSrc/RetryClient.p to fix it.",
+      "Uses the snappea time extension: a client retries with timeouts and backoff, and a spec asserts every request resolves within a 1 s budget. Set timeoutAfter = ms(250) in PSrc/RetryClient.p to fix it.",
     roots: [{ from: "../../design/time/RetryBudget/" }],
     open: "PSrc/RetryClient.p",
     testCase: "tcRetry",
@@ -125,6 +125,18 @@ export const DEMOS: Demo[] = [
     extraArgs: "--latency PTst/latency.toml --timed",
   },
 ];
+
+/** Stands in for a demo when the files were opened by the user or came from a shared link. */
+export const CUSTOM: Demo = {
+  id: "custom",
+  title: "Your files",
+  blurb:
+    "Files you opened or that came from a shared link. Edits are kept in the page URL, so copy it to share this project. Drop .p files, a folder or a .zip anywhere to open others.",
+  roots: [],
+  open: "",
+  testCase: "",
+  schedules: 1000,
+};
 
 const ORDER = ["PSrc/", "PSpec/", "PTst/", "Common/"];
 

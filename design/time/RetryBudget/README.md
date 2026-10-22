@@ -1,24 +1,26 @@
 # RetryBudget: the time extension without new syntax
 
-A retry-with-backoff client under a latency budget, written with no new syntax. The
-extension is:
+Sample 5 of `../examples/` rewritten with no new syntax. The extension is:
 
 | Piece | Where |
 |---|---|
 | `Now()`, `NowBest()`, `Elapse(lo, hi)`, `Mark()`, `Elapsed(m)`, `ElapsedBest(m)` | foreign functions in `PSrc/Time.p` |
 | One-shot `Timer` | plain P in `PSrc/Timer.p` |
 | Delivery latencies | `PTst/latency.toml` |
-| Time-ordered scheduling | `prs check --timed` |
+| Time-ordered scheduling | `snappea check --timed` |
 
 Runs with the current build:
 
 ```
-$ prs check tcRetry -n 1000                        # no latency file
-<ErrorLog> Assertion Failed: PSpec/Budget.p:7:7 resolved (ok = False) after up to 1050000us; deadline is 1000000us
-... Found 1 bug.
+$ snappea check tcRetry -n 1000                        # no latency file
+Checking RetryBudget: 1 test case
+FAIL  tcRetry (bug found after 10 schedules, 8 workers, 0.00s)
+      Assertion Failed: PSpec/Budget.p:7:7 resolved (ok = False) after up to 1050000us; deadline is 1000000us
+      Replay: snappea replay PCheckerOutput/tcRetry/bug.schedule
+1 of 1 test case failed in 0.01s, peak memory 10 MB. Output: PCheckerOutput/
 
-$ prs check tcRetry -n 1000 --latency PTst/latency.toml          # same bug
-$ prs check tcRetry -n 1000 --latency PTst/latency.toml --timed  # same bug
+$ snappea check tcRetry -n 1000 --latency PTst/latency.toml          # same bug
+$ snappea check tcRetry -n 1000 --latency PTst/latency.toml --timed  # same bug
 ```
 
 Time is tracked as soon as the model declares the time functions: the timer
@@ -31,9 +33,9 @@ Fix: `timeoutAfter = ms(250)` makes the give-up path 900ms and the check passes
 in all three modes. The slowest successful path is the third attempt answered
 at the last moment: 750ms + 2 + 36 + 2 = 790ms.
 
-The bug's `.schedule` file records the time mode and the resolved profile
-(`--prs-time:` and `--prs-latency:` lines), so `prs replay` needs no
-other options.
+The bug's schedule file, `PCheckerOutput/tcRetry/bug.schedule`, records the time
+mode and the resolved profile (`--snappea-time:` and `--snappea-latency:` lines), so
+`snappea replay PCheckerOutput/tcRetry/bug.schedule` needs no other options.
 
 ## What `--timed` changes here
 

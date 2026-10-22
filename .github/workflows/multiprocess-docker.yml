@@ -24,21 +24,21 @@ jobs:
         with:
           key: docker-example
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Build this checkout's checker
-        run: cargo build -p p-rs --bin prs --locked
+        run: cargo build -p snappea --bin snappea --locked
       - name: Build the stdlib-only worker image
-        run: docker build -f examples/multiprocess/docker/Dockerfile -t prs-inventory-example:local examples/multiprocess
+        run: docker build -f examples/multiprocess/docker/Dockerfile -t snappea-inventory-example:local examples/multiprocess
       - name: Check valid operations and detect overselling before producer EOF
         env:
-          PRS_BIN: ${{ github.workspace }}/target/debug/prs
+          SNAPPEA_BIN: ${{ github.workspace }}/target/debug/snappea
           EXAMPLE_ARTIFACTS: ${{ runner.temp }}/docker-inventory
         run: python -m unittest discover -s examples/multiprocess/docker -p test_example.py -v
       - name: Save events, observer reports and worker logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: docker-inventory-reports
           path: ${{ runner.temp }}/docker-inventory

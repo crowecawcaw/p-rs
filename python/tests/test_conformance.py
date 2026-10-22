@@ -10,8 +10,8 @@ import warnings
 import pytest
 from conftest import ROOT
 
-from prs import Recorder, SetupError, SpecViolation, emit
-from prs._recorder import _parse_time
+from snappea import Recorder, SetupError, SpecViolation, StrictDefaultWarning, emit
+from snappea._recorder import _parse_time
 
 CORPUS = os.path.join(ROOT, "tests", "conformance")
 FEATURES = {"events_dir", "unknown_events"}
@@ -29,7 +29,7 @@ def run_case(case: str, options: dict, coverage: bool):
         unknown_events=options.get("unknown_events"),
         coverage=coverage,
     )
-    with warnings.catch_warnings(record=True):  # unknown_events = "warn" cases
+    with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         try:
             with rec:
@@ -45,6 +45,11 @@ def run_case(case: str, options: dict, coverage: bool):
             outcome = None
         except (SpecViolation, SetupError) as e:
             outcome = e
+    # While strict's named-specs default only warns, the warning carries the error the
+    # default will raise: that is the outcome the corpus specifies.
+    deferred = [w.message.error for w in caught if isinstance(w.message, StrictDefaultWarning)]
+    if outcome is None and deferred:
+        outcome = deferred[0]
     return outcome, rec
 
 

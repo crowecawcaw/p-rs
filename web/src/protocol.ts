@@ -42,9 +42,9 @@ export interface CheckResult {
   console: string;
   diagnostics: Diagnostic[];
   testCase: string;
-  /** Upstream-format JSON trace of the first buggy schedule. */
+  /** The buggy schedule's JSON trace (`bug.trace.json`). */
   traceJson?: string;
-  /** Upstream-format text log of the first buggy schedule. */
+  /** The buggy schedule's text log (`bug.txt`). */
   traceText?: string;
   /** Replayable schedule file. */
   schedule?: string;

@@ -2,7 +2,7 @@
 
 Run two long-lived inventory workers in separate containers. Both modify the
 same SQLite inventory database and emit their committed application events. A
-host-side `prs observe` reads each container's events, the supervisor checks
+host-side `snappea observe` reads each container's events, the supervisor checks
 its exit status, and removes both containers when observation fails. This is a
 small example of checking services while an external test driver runs them.
 
@@ -14,17 +14,17 @@ After the image is built, both containers run with networking disabled.
 From the repository root:
 
 ```sh
-cargo build -p p-rs --bin prs --locked
-export PRS_BIN="$PWD/target/debug/prs"
+cargo build -p snappea --bin snappea --locked
+export SNAPPEA_BIN="$PWD/target/debug/snappea"
 docker build -f examples/multiprocess/docker/Dockerfile \
-  -t prs-inventory-example:local examples/multiprocess
+  -t snappea-inventory-example:local examples/multiprocess
 python examples/multiprocess/docker/run.py
 ```
 
 The default healthy scenario exits 0. Every invocation creates a fresh database
 and artifacts directory, printed at the end. To choose a location, pass
 `--artifacts /path/to/a/new/directory`; that final directory must not exist.
-Use `--prs /path/to/prs` or `PRS_BIN` to select the binary; the fallback is `prs`
+Use `--snappea /path/to/snappea` or `SNAPPEA_BIN` to select the binary; the fallback is `snappea`
 on `PATH`. `--image` selects a different prebuilt worker image.
 
 Run the actual overselling defect:
@@ -81,7 +81,7 @@ observer and fails the run with a parser error showing that line.
 For the healthy run, the supervisor stops and reaps the workers. Their exits end
 the pipes, and the observer completes the history at EOF and writes the final
 report. For the faulty run, it leaves both workers waiting for commands.
-`--fail-fast` makes the observer return on the violating event **before EOF**. The supervisor confirms both actual
+A live observer stops at the first violation, so it returns on the violating event **before EOF**. The supervisor confirms both actual
 containers are running, then forcibly removes them and reaps their launchers.
 Every exit path uses the same cleanup and verifies containers are absent; killing
 only a `docker run` client is insufficient to remove a container.
@@ -89,15 +89,14 @@ only a `docker run` client is insufficient to remove a container.
 The example invokes the equivalent of:
 
 ```sh
-prs observe --pfiles examples/multiprocess/specs/inventory.p \
+snappea observe examples/multiprocess/specs/inventory.p \
   --spec InventoryCorrect --live /dev/fd/5 --live /dev/fd/7 --sequence seq \
-  --fail-fast --strict --coverage --record events.jsonl \
-  --json-report report.json --outputDir observe
+  --strict --coverage --record events.jsonl --json-report report.json
 ```
 
 `--strict` fails a completed stream in which no event was relevant to the spec.
 
-The native `prs` process exits 1 for a spec violation. The JSON report preserves
+The native `snappea` process exits 1 for a spec violation. The JSON report preserves
 PObserve's `exit_code: 2` for that same violation; it additionally reports
 `input_complete: false` and `stop_reason: "error"`. A healthy EOF reports 0,
 `input_complete: true`, and `stop_reason: "eof"`. A real supervisor must propagate
@@ -145,7 +144,6 @@ then a concise JSON result. The artifacts directory retains:
 | `report.json` | Structured violations and observed monitor coverage |
 | `result.json` | Supervisor result, exit statuses, emitters, and cleanup evidence |
 | `inventory.sqlite` | Application state and transactional outbox |
-| `observe/` | Human reports and replay events for a detected violation |
 
 The healthy run reports 2/2 states, 3/6 handlers, and one observed transition.
 The three uncovered handlers reject invalid stock setup or operations before

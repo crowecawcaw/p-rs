@@ -25,7 +25,7 @@ jobs:
           key: model-example
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build this checkout's checker
-        run: cargo build -p p-rs --bin prs --locked
+        run: cargo build -p snappea --bin snappea --locked
       - name: Every example checks the shared spec
         run: |
           shared=examples/model/PSpec/inventory.p
@@ -35,15 +35,15 @@ jobs:
           done
       - name: The atomic design keeps the spec in every behaviour
         working-directory: examples/model
-        run: ../../target/debug/prs check tcAtomicReserve --exhaustive
+        run: ../../target/debug/snappea check tcAtomicReserve --exhaustive
       - name: The check-then-reserve design oversells
         working-directory: examples/model
         run: |
           status=0
-          ../../target/debug/prs check tcCheckThenReserve -n 1000 || status=$?
+          ../../target/debug/snappea check tcCheckThenReserve -n 1000 || status=$?
           test "$status" -eq 1 || { echo "expected a bug (exit 1), got exit $status"; exit 1; }
-          grep -q "reservation exceeds available stock" PCheckerOutput/tcCheckThenReserve/BugFinding/*_0_0.txt
-      - uses: actions/upload-artifact@v5
+          grep -q "reservation exceeds available stock" PCheckerOutput/tcCheckThenReserve/bug.txt
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: model-example-output

@@ -50,8 +50,6 @@ class LineStream {
   current() { return this.string.slice(this.start, this.pos); }
 }
 
-const PY_KEYWORDS = new Set("def with as import from assert return class if else for in pass raise".split(" "));
-
 function highlightP(code: string): ReactNode[] {
   const out: ReactNode[] = [];
   const state = pTokenizer.startState!(2);
@@ -70,14 +68,39 @@ function highlightP(code: string): ReactNode[] {
 }
 
 // Enough for short snippets: comments, strings, keywords, event names.
-function highlightPython(code: string): ReactNode[] {
-  const re = /(#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b([A-Za-z_]\w*)\b/gm;
+type Lang = "p" | "python" | "rust" | "go" | "java" | "kotlin" | "toml" | "xml" | "yaml" | "shell" | "text";
+
+const KEYWORDS: Partial<Record<Lang, Set<string>>> = {
+  python: words("def with as import from assert return class if else for in pass raise try except lambda None True False"),
+  rust: words("fn let mut use pub struct impl enum match if else for in return mod move static const true false Some None Ok Err self Self as ref where"),
+  go: words("func package import var const type struct return if else for range defer go nil true false map chan interface"),
+  java: words("import package class public private static final void new return try catch var if else throw throws record true false null"),
+  kotlin: words("val var fun if else in setOf dependencies"),
+};
+const HASH_COMMENTS = new Set<Lang>(["python", "toml", "yaml", "shell"]);
+
+function words(s: string) {
+  return new Set(s.split(" "));
+}
+
+function highlight(code: string, lang: Lang): ReactNode[] {
+  const comment = HASH_COMMENTS.has(lang) ? "#.*$" : lang === "xml" ? "<!--[\\s\\S]*?-->" : "//.*$";
+  const re = new RegExp(`(${comment})|("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*')|(@[A-Za-z]\\w*)|\\b([A-Za-z_]\\w*)\\b`, "gm");
+  const keywords = KEYWORDS[lang];
   const out: ReactNode[] = [];
   let last = 0;
   for (const m of code.matchAll(re)) {
     const i = m.index ?? 0;
     if (i > last) out.push(code.slice(last, i));
-    const cls = m[1] ? "c" : m[2] ? (/^["']e[A-Z]/.test(m[2]) ? "ev" : "s") : PY_KEYWORDS.has(m[3]) ? "k" : undefined;
+    const cls = m[1]
+      ? "c"
+      : m[2]
+        ? /^["']e[A-Z]/.test(m[2]) ? "ev" : "s"
+        : m[3]
+          ? "nm"
+          : keywords?.has(m[4])
+            ? "k"
+            : undefined;
     out.push(cls ? <span key={i} className={cls}>{m[0]}</span> : m[0]);
     last = i + m[0].length;
   }
@@ -86,7 +109,7 @@ function highlightPython(code: string): ReactNode[] {
 }
 
 interface Props {
-  lang: "p" | "python" | "shell";
+  lang: Lang;
   children: string;
   /** Shown above the code, e.g. a file name. */
   title?: string;
@@ -95,7 +118,7 @@ interface Props {
 export function Code({ lang, children, title }: Props) {
   const code = children.replace(/^\n/, "").replace(/\s+$/, "");
   const parts = useMemo(
-    () => (lang === "p" ? highlightP(code) : lang === "python" ? highlightPython(code) : [code]),
+    () => (lang === "p" ? highlightP(code) : lang === "shell" || lang === "text" ? [code] : highlight(code, lang)),
     [lang, code],
   );
   return (

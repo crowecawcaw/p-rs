@@ -1,3 +1,3 @@
-module github.com/crowecawcaw/p-rs
+module github.com/crowecawcaw/snappea
 
 go 1.22

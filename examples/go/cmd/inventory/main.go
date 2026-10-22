@@ -4,8 +4,8 @@
 //	reserve coffee order-1 2
 //	release coffee order-1
 //
-// It emits events with prsemit: into the test's recording when a test starts it
-// (PRS_EVENTS_DIR), to the -events file in production, and nowhere otherwise.
+// It emits events with snappeaemit: into the test's recording when a test starts it
+// (SNAPPEA_EVENTS_DIR), to the -events file in production, and nowhere otherwise.
 package main
 
 import (
@@ -17,23 +17,23 @@ import (
 	"strings"
 
 	"example.com/inventory/inventory"
-	"github.com/crowecawcaw/p-rs/go/prsemit"
+	"github.com/crowecawcaw/snappea/go/snappeaemit"
 )
 
 func main() {
-	events := flag.String("events", "", "append events as JSON lines to this file, for prs observe")
+	events := flag.String("events", "", "append events as JSON lines to this file, for snappea observe")
 	flag.Parse()
 	if *events != "" {
-		sink, err := prsemit.File(*events)
+		sink, err := snappeaemit.File(*events)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		prsemit.SetSink(sink)
+		snappeaemit.SetSink(sink)
 	}
-	defer prsemit.Close()
+	defer snappeaemit.Close()
 
-	app := inventory.New(prsemit.Emit)
+	app := inventory.New(snappeaemit.Emit)
 	in := bufio.NewScanner(os.Stdin)
 	for in.Scan() {
 		f := strings.Fields(in.Text())

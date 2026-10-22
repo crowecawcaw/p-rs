@@ -1,43 +1,76 @@
-# Checking logs with `prs observe`
+# Checking logs with `snappea observe`
 
-`prs observe` checks events recorded by a running system against the spec monitors of
+`snappea observe` checks events recorded by a running system against the spec monitors of
 a P project. It replaces [PObserve](https://github.com/p-org/P/tree/master/Src/PObserve)
-and follows its options, console output and `PObserve-<date>/` output. The
-`prs-compat` process and the structured report's `exit_code` preserve PObserve
-status codes (0 ok, 1 command line, 2 spec violation, 3 internal error, 4 parser
-errors only). The native `prs` process uses 0 for success, 1 for a spec violation,
-and 2 for tool or input errors; supervisors should check the process status and
-read the report for detail.
+without jars: the P sources are type-checked in memory.
 
-The difference is where the spec comes from: there are no jars. The P sources are
-type-checked in memory, from the `.pproj` in the current folder, `-pp/--pproj <file>`
-or `-pf/--pfiles <files>`.
-
-```sh
-prs observe --spec BankBalanceCorrect -l logs/                 # JSON lines
-prs observe --spec BankBalanceCorrect -l trace.json -ik JSON   # a P JSON trace
-prs observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log --keys 7 9
-prs observe --spec BankBalanceCorrect -l a.log b.log -l "archive/**/*.log"
+```
+Usage: snappea observe [SOURCE...] [LOG...] --spec <NAME> [options]
 ```
 
-## prs extensions
+A SOURCE is a `.pproj` or `.p` file. Without one, the `*.pproj` in the current folder
+is used, or else the `*.p` files in it and its immediate subfolders, as for `snappea check`.
+Every other argument is a LOG: a file, a folder of logs or a quoted glob pattern.
 
-These options are not in PObserve; runs that do not use them behave as upstream.
+```sh
+snappea observe --spec BankBalanceCorrect logs/                     # JSON lines
+snappea observe --spec BankBalanceCorrect bug.trace.json --p-trace  # a P JSON trace
+snappea observe PSpec/Bank.p app.log --spec BankBalanceCorrect --key 7 --key 9
+snappea observe --spec BankBalanceCorrect a.log b.log "archive/**/*.log"
+```
+
+It prints one line per spec, and each error under it:
+
+```
+$ snappea observe inventory.p logs/ --spec InventoryCorrect
+FAIL  InventoryCorrect (1 error; 2 events, 1 key)
+      key c: Assertion failure: inventory.p:27:7 reservation exceeds available stock
+```
+
+Exit status: 0 no violation, 1 a violation (a spec assertion, or a hot state with
+`--check-hot`), 2 any other error (command line, P type errors, log parser errors,
+`--unknown-events error`, `--strict`, I/O). Command-line errors go to stderr as
+`error: <message>`. Supervisors should check the exit status and read the
+`--json-report` file for detail.
+
+`snappea-compat observe` takes PObserve's options instead (`-pf`, `-pp`, `-l A B ...`,
+`-ik`, `-pc`, `--keys`, `--replaySize`, `-o`, ...), writes PObserve's console output
+and report folder (`PObserve-<date>/` with `replayEvents_*.log` and
+`PObserveMetrics.txt`) and uses PObserve's exit codes (0 ok, 1 command line, 2 spec
+violation, 3 internal error, 4 parser errors only). It also takes the checks below
+that PObserve doesn't have (`--all-specs`, `--check-hot`, `--strict`, `--coverage`,
+`--unknown-events`, `--json-report`, live input).
+
+## Options
 
 | Option | Effect |
 | --- | --- |
-| `--spec A B ...` | Check several specs in one run. Each writes its replay logs and metrics to `<outputDir>/<Spec>/`. |
+| `--spec NAME` | The spec to check. Repeat it or separate names with commas to check several in one run. |
 | `--all-specs` | Check every spec in the P sources (instead of `--spec`). |
-| `--exclude-specs A B ...` | Specs `--all-specs` leaves out. |
-| `--check-hot` | Also report a key whose spec is in a hot state after its last event, with the message `prs check` uses for liveness bugs at the end of an execution. |
-| `--json-report <file>` | Write the result as JSON (below). |
+| `--exclude-specs NAME` | A spec `--all-specs` leaves out; repeat or use commas. |
+| `-l PATH` | A LOG, as an option (one value per `-l`). All logs, folders and patterns form one input set ([below](#several-logs-and-glob-patterns)). |
+| `--live PATH` | Check a live stream (a pipe, named pipe or file; `-` is stdin) until it ends, stopping at the first error. Repeatable with `--sequence`. |
+| `--stdin` | The same as `--live -`. |
+| `--sequence FIELD` | Check live lines in the order of a global sequence number in each line. |
+| `--record FILE` | Write the checked live lines to `FILE`, in check order. |
+| `--p-trace` | The logs are P JSON traces, such as the `bug.trace.json` of `snappea check`. |
+| `--parser NAME` | The log parser: `JsonLines` (default), `PTrace`, or a [custom one](#custom-parsers). |
+| `--parser-config JSON` | Parser settings, e.g. `JsonLines` field paths ([below](#log-formats)). |
+| `--key KEY` | Check only this partition key; repeat for several. |
+| `--key-file FILE` | Check only the keys in `FILE`, one per line. |
+| `--replay-window N` | Events kept per key to report with an error (default 100). |
+| `--sorted` | The logs are already in timestamp order: merge them instead of sorting. |
+| `--check-hot` | Also report a key whose spec is in a hot state after its last event, with the message `snappea check` uses for liveness bugs at the end of an execution. |
 | `--strict` | Require at least one successfully checked relevant event per selected spec, after key filtering. |
 | `--unknown-events ignore\|warn\|error` | What to do with event names no loaded P source declares (default `ignore`, as PObserve). See [Unknown event names](#unknown-event-names). |
 | `--coverage` | Report observed monitor state and handler coverage, including in JSON when requested. |
-| `-l A B ...`, repeated `-l`, glob patterns | Read several log files, directories and patterns as one input set ([below](#several-logs-and-glob-patterns)). |
-| `--live PATH` | Check a live stream (a pipe, named pipe or file; `-` is stdin) until it ends. Repeatable with `--sequence`. `--stdin` is `--live -`. |
-| `--sequence FIELD` | Check live lines in the order of a global sequence number in each line. |
-| `--record FILE` | Write the checked live lines to `FILE`, in check order. |
+| `--json-report FILE` | Write the result as JSON (below). |
+| `-v`, `--verbose` | Show progress, logged messages and each error's events. |
+
+`snappea observe` writes no report folder; the JSON report is its machine-readable output.
+The report has the same format in `snappea` and `snappea-compat`, and its `exit_code` keeps PObserve's
+values (0 success, 2 violation, 3 validation, ordering, internal or unknown-event
+error, 4 parser errors only):
 
 ```json
 {
@@ -67,62 +100,66 @@ These options are not in PObserve; runs that do not use them behave as upstream.
 
 `kind` is `spec_violation`, `out_of_order`, `parser`, `validation` (`--strict`),
 `unknown_event` (`--unknown-events error`) or `unknown`. `events` are the
-key's last events (`--replaySize`), the failing one last; parser errors have none,
+key's last events (`--replay-window`), the failing one last; parser errors have none,
 their `message` is the log entry and `cause` says why it could not be read.
 
-[docs/python.md](python.md) builds on these to check specs from pytest.
+The [Python guide](https://crowecawcaw.github.io/snappea/docs/python.html) builds on these to check specs from pytest.
 
 ## Log formats
 
 Parsers turn log entries into events. Two are built in:
 
-* `JsonLines` (default for `-ik TEXT`): one JSON object per line,
+* `JsonLines` (default): one JSON object per line,
   `{"key": "7", "timestamp": 1700000000000, "event": "eWithDraw", "payload": {...}}`.
   The timestamp is epoch milliseconds or ISO-8601. Payloads are matched against the
-  event's payload type. `-pc '{"key": "ctx.account", "event": "type"}'` remaps the
-  fields (dotted paths).
-* `PTrace` (default for `-ik JSON`): the `.trace.json` written by `prs check`, checking
+  event's payload type. `--parser-config '{"key": "ctx.account", "event": "type"}'`
+  remaps the fields (dotted paths).
+* `PTrace` (`--p-trace`): the `bug.trace.json` written by `snappea check`, checking
   its sends and announcements.
 
 ## Several logs and glob patterns
 
-`-l` takes one or more values and can be repeated: `-l a.log b.log -l more/` reads
-the same files as `-l a.log -l b.log -l more/`. Each value is a file, a directory
-(its files, not its subdirectories) or a glob pattern. All files form one input set,
+Each LOG argument (or `-l` value) is a file, a directory (its files, not its
+subdirectories) or a glob pattern; `a.log more/` reads the same files as
+`-l a.log -l more/`. All files form one input set,
 combined as the files of one directory are: each key's events are sorted by
 timestamp (equal timestamps keep file order), or merged in order with
-`--assumeInputsAreSorted`. A file named more than once is read once.
+`--sorted`. A file named more than once is read once.
 
-prs expands patterns itself, so quote them to keep the shell from doing it. This
+snappea expands patterns itself, so quote them to keep the shell from doing it. This
 also works in cmd and PowerShell, which don't expand patterns, and avoids
 command-line length limits with large log sets:
 
 ```sh
-prs observe --spec BankBalanceCorrect -l "logs/**/*.log"
+snappea observe --spec BankBalanceCorrect "logs/**/*.log"
 ```
 
 `*`, `?` and `[abc]` / `[a-z]` / `[!abc]` match within one path component, and `**`
 matches any number of directories, including none. `*`, `?` and `**` skip names
-starting with `.`. A matched directory reads its files, as `-l dir` does. Matches
+starting with `.`. A matched directory reads its files, as a directory argument does. Matches
 are sorted. A pattern that matches nothing is an error, like a missing path. A value
 that exists as written is taken as given, so arguments the shell already expanded
 read the same as a quoted pattern.
 
-Rust callers use the same code: `prs::checker::observe_inputs::read_logs(&StdFiles,
+Rust callers use the same code: `snappea::checker::observe_inputs::read_logs(&StdFiles,
 cwd, &paths, "\n")` returns the inputs `Spec::observe` takes, and `log_paths` returns
 only the file list.
 
 ## Custom parsers
 
 Other log formats need a parser written in Rust: implement
-`prs::checker::observe::Parser` and run
-`prs::driver::observe::run(args, host, parsers, "prs observe")`.
-`crates/p-rs/examples/observe_regression.rs` is a worked example; it ports
-upstream's regression parsers.
+`snappea::checker::observe::Parser`, then check with `snappea::driver::observe`:
+`compile` type-checks the P sources, `prepare(program, &config, parsers)` picks the
+specs and the parser (your parsers are added to the built-in ones and selected by
+`ObserveConfig::parser`), `Observer::run(&config, host)` checks the logs, and
+`json_report` renders the [JSON report](#options). To run PObserve's command line with
+your parsers, call `snappea::compat::observe::run_with(args, host, parsers)`;
+`crates/snappea/examples/observe_regression.rs` does this with ports of upstream's
+regression parsers.
 
 ## Time and latency budgets
 
-Specs can declare the same global foreign time functions used by `prs check`:
+Specs can declare the same global foreign time functions used by `snappea check`:
 
 ```p
 fun Now(): int;
@@ -133,7 +170,7 @@ fun ElapsedBest(m: int): int;
 ```
 
 Time tracking is enabled automatically by these declarations; signatures are checked
-as in `prs check`. During each observed event, `Now()` and `NowBest()` return its
+as in `snappea check`. During each observed event, `Now()` and `NowBest()` return its
 log timestamp in **epoch microseconds**. ISO-8601 timestamps retain microsecond
 precision (nanoseconds are rounded down); numeric timestamps remain epoch
 milliseconds in the log format and are converted to microseconds. Values outside
@@ -147,7 +184,7 @@ zero. The spec's start entry action reads time zero; mark request starts in thei
 event handlers to measure request duration. State transitions and raised events
 within a handler keep that observed event's clock.
 
-`Elapse` and `ElapseCost` cannot be called from a monitor, as in `prs check`.
+`Elapse` and `ElapseCost` cannot be called from a monitor, as in `snappea check`.
 Observation uses recorded timestamps and takes no latency profile or `--timed`
 option. Logs without timestamps keep the parser's existing default of epoch zero;
 provide timestamps to check meaningful budgets. `PTrace` currently has no time
@@ -160,7 +197,7 @@ unvisited states and uncovered handlers. With `--json-report report.json`, each
 selected spec also gets a `coverage` object:
 
 ```sh
-prs observe -pf PSpec/Bank.p --spec BankBalanceCorrect -l app.log \
+snappea observe PSpec/Bank.p app.log --spec BankBalanceCorrect \
   --coverage --json-report report.json
 ```
 
@@ -183,18 +220,18 @@ branches, schedules or whether the application emits the right events.
   Without `--coverage`, output is unchanged.
 
 Rust callers can set `ObserveOptions.coverage = true` and read `Report.coverage`.
-`prs::checker::observe_coverage::ObserveCoverage` exposes the declaration and hit
+`snappea::checker::observe_coverage::ObserveCoverage` exposes the declaration and hit
 sets, `merge(&other)` for test-suite unions, `render_text()` for human output, and
 `to_json()` for the same structured coverage object as the CLI.
 
 ## Live checks for external tests
 
-Use `--live` (or `--stdin`, the same as `--live -`) with `--fail-fast` to check
-newline-delimited events while a test or service is still running:
+Use `--live` (or `--stdin`, the same as `--live -`) to check newline-delimited events
+while a test or service is still running. Live input always stops at the first error:
 
 ```sh
-producer | prs observe --pfiles inventory.p --spec Inventory \
-  --stdin --fail-fast --check-hot --json-report observe.json
+producer | snappea observe inventory.p --spec Inventory \
+  --stdin --check-hot --json-report observe.json
 ```
 
 `--live PATH` reads a stream until it ends: stdin (`-`), a pipe such as
@@ -209,9 +246,9 @@ are allowed). Separate keys may interleave freely.
 Give each producer its own stream and order them with `--sequence`:
 
 ```sh
-prs observe --pfiles inventory.p --spec Inventory \
+snappea observe inventory.p --spec Inventory \
   --live a.events --live b.events --sequence seq \
-  --fail-fast --strict --record events.jsonl --json-report observe.json
+  --strict --record events.jsonl --json-report observe.json
 ```
 
 `--sequence FIELD` names a JSON field (a dotted path such as `meta.seq`) holding a
@@ -220,14 +257,14 @@ leave no gaps across all streams and keys. Event *n* is checked as soon as event
 to *n*-1 have been, whichever stream they came from, so an idle producer that is
 still running never delays checking the others. Every non-blank line needs a
 number, including events the spec doesn't observe. The run fails, with JSON kind
-`unknown` and native exit code 2, on a line without a whole number, a duplicate
+`unknown` and exit code 2, on a line without a whole number, a duplicate
 number, more than 10,000 lines waiting behind a missing number, or a missing
 number when every stream has ended. Several `--live` inputs require `--sequence`;
 ordering several streams by timestamp alone is not supported yet.
 
 `--record FILE` writes the lines in the order they were checked, one per line,
 when the observer finishes. It keeps a reproducible copy of a live run that
-`-l FILE` can check again later.
+`snappea observe` can check again later as an ordinary log.
 
 ### Stopping
 
@@ -235,7 +272,7 @@ The observer finishes once **every** stream has ended (EOF), or at its first
 parser, ordering, sequence, monitor initialization or spec error, even while
 streams remain open. Every selected spec sees the current line before the observer
 stops. The observer reads at most one line ahead of the one it is checking on each
-stream. Replay storage retains only the last `--replaySize` events per key,
+stream. Replay storage retains only the last `--replay-window` events per key,
 alongside each key's monitor state. The observer retains monitor state for every
 encountered key until the run ends.
 
@@ -245,10 +282,11 @@ JSON includes `input_complete: false` and `stop_reason: "error"`. At EOF these a
 `true` and `"eof"`, including when the EOF `--check-hot` check fails. Coverage, when enabled,
 describes the checked prefix.
 
-Live mode requires `--fail-fast`, TEXT input, and a newline-delimited parser; it
-cannot be combined with `--logs`. Existing batch observation retains its sorting
-behavior. `prs` returns 1 for a spec violation and 2 for parser, ordering, sequence
-or transport errors.
+Live input needs a newline-delimited parser (not `--p-trace`) and cannot be combined
+with log arguments. When it stops early, `snappea observe` prints `Live input stopped at
+the first error; the results cover the lines checked.` It exits with 1 for a spec
+violation and 2 for parser, ordering, sequence or transport errors. In `snappea-compat
+observe`, live input also needs `--fail-fast`.
 
 For external tests, run the observer under a supervisor that starts the observer
 before the producers, watches its exit status, terminates the producers on failure,
@@ -260,7 +298,7 @@ complete supervisor for two worker processes, natively and in Docker.
 Embedding applications can use `ObserveSession` to push one entry at a time and
 inspect `failed()`, then `finish(eof, now)` to collect a report. Give each selected
 spec its own session and feed all sessions before reading another line.
-`prs::checker::observe_inputs` has the pieces `--live` uses: `SequenceMerger` orders
+`snappea::checker::observe_inputs` has the pieces `--live` uses: `SequenceMerger` orders
 lines by sequence number, and `observe_live` feeds a `LiveSource` of several streams
 to the sessions.
 
@@ -270,18 +308,18 @@ Save each observation with `--coverage --json-report`, then merge them (set unio
 declared and visited states, handlers and transitions; nothing is re-executed):
 
 ```sh
-prs coverage merge-observe reports/*.json --json-report suite-coverage.json
+snappea coverage merge-observe reports/*.json --json-report suite-coverage.json
 ```
 
 It prints a human-readable summary with uncovered declarations; `--json` prints JSON
-instead, and `--json-report` writes JSON to a file. `prs coverage merge` is the
-separate command for scenario coverage from `prs check`.
+instead, and `--json-report` writes JSON to a file. `snappea coverage merge` is the
+separate command for scenario coverage from `snappea check`.
 
 Test helpers can skip the per-test subprocess by passing a JSON array of observation
 reports once at suite end:
 
 ```sh
-prs coverage merge-observe --stdin --json-report suite-coverage.json < observations.json
+snappea coverage merge-observe --stdin --json-report suite-coverage.json < observations.json
 ```
 
 - An empty array gives empty coverage. Inputs without valid coverage (missing,
@@ -295,7 +333,7 @@ prs coverage merge-observe --stdin --json-report suite-coverage.json < observati
   contents (not paths, so different checkouts merge). Reports for one spec must have
   the same fingerprint and declarations, or the merge fails without changing the
   output. Regenerate older reports with `observe --coverage`.
-- Rust: `prs::checker::observe_report::ObserveCoverageReport` with `from_observation`
+- Rust: `snappea::checker::observe_report::ObserveCoverageReport` with `from_observation`
   (an in-process `Report`), `from_json` / `from_json_str`, `merge` (validated, atomic),
   `render_text` and `to_json`.
 
@@ -307,9 +345,9 @@ must successfully check at least one event. A spec with an existing parser, orde
 or safety error keeps that error instead of receiving a secondary validation error.
 A missing explicitly requested spec is already an error without strict mode.
 
-Strict failures have JSON error kind `validation` and native `prs` exit code 2.
+Strict failures have JSON error kind `validation` and `snappea` exit code 2.
 Live streams validate nonempty input only at EOF. An actual violation still stops
-`--fail-fast` immediately, with prefix coverage and `input_complete: false`.
+live input immediately, with prefix coverage and `input_complete: false`.
 Strict mode does not imply `--check-hot`, check every key named by a filter, or
 detect arbitrary missing events: use model assertions or explicit completion events
 for stronger application-specific guarantees.
@@ -335,9 +373,9 @@ very bug the spec should catch. `--unknown-events` decides what happens to them:
   appeared and a likely intended name; the result and exit status are unchanged. The
   JSON report lists the names under `unknown_events` and the lines under `warnings`.
 * `error`: report each distinct name once as an error of kind `unknown_event`, with
-  the same details. The exit status is the tool/input error (native `prs` 2, PObserve
-  3), even alongside a spec violation, since the input cannot be trusted. Known events
-  are still checked. With `--stdin --fail-fast` the run stops at the first unknown
+  the same details. The exit status is the tool/input error (`snappea` 2, PObserve and
+  `snappea-compat` 3), even alongside a spec violation, since the input cannot be trusted.
+  Known events are still checked. With `--stdin` the run stops at the first unknown
   name.
 
 ```text
@@ -359,11 +397,11 @@ names; a custom Rust `Parser` does so by overriding `parse_entry`. Rust callers 
 ## Events folder format
 
 Test helpers and emitters exchange events through a folder: each process writes its own
-file there, and `prs observe -l <folder>` (or a helper) checks every file together. The
+file there, and `snappea observe <folder>` (or a helper) checks every file together. The
 [language helpers](language-support.md) use it for events from child processes, and it
 is the shape to use for any producer that writes events for later checking.
 
-**The folder.** Named by the `PRS_EVENTS_DIR` environment variable. A recording creates
+**The folder.** Named by the `SNAPPEA_EVENTS_DIR` environment variable. A recording creates
 one folder and sets the variable for the processes it starts. Each writing process
 appends to one file of its own, `<name>-<pid>-<random>.jsonl`, where `<name>` is the
 program or service name when known (it shows up in failure reports) and `<random>` keeps
@@ -406,8 +444,8 @@ the check are lost. A truncated last line (not valid JSON), from a crashed or
 still-running writer, is a `parser` error (exit 2), never dropped silently.
 
 Undeclared event names in these files follow the same policy as any other
-[input](#unknown-event-names). Several folders are checked together with several `-l`
-values ([above](#several-logs-and-glob-patterns)); folders still being written are
+[input](#unknown-event-names). Several folders are checked together by naming each
+([above](#several-logs-and-glob-patterns)); folders still being written are
 checked with `--live`.
 
 The emitters write this format in production too, to a file, stdout or a callback:

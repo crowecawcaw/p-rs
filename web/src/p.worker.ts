@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
-// Runs the WebAssembly build of the `prs` tool. Each request starts from the user's
+// Runs the WebAssembly build of the `snappea` tool. Each request starts from the user's
 // files in a fresh in-memory file system rooted at /work.
-import { loadP, type PTool, type PResult } from "../../crates/prs-wasm/js/prs.mjs";
-import wasmUrl from "./generated/prs.wasm?url";
+import { loadP, type PTool, type PResult } from "../../crates/snappea-wasm/js/snappea.mjs";
+import wasmUrl from "./generated/snappea.wasm?url";
 import type { CheckResult, CompileResult, Diagnostic, Files, Request, WorkerReply } from "./protocol";
 
 const ROOT = "/work";
@@ -80,10 +80,9 @@ async function handle(req: Request): Promise<CompileResult | CheckResult> {
   const shown = ["check", req.testCase, ...opts];
   const args = ["check", ...sourceArgs(req.files), req.testCase, ...opts];
   const r = (await p()).run(args, toFs(req.files), { seed: req.seed });
-  const dir = `${ROOT}/PCheckerOutput/${req.testCase}/BugFinding/`;
-  const find = (suffix: string) =>
-    Object.entries(r.files).find(([k]) => k.startsWith(dir) && k.endsWith(suffix))?.[1];
-  const console = `$ prs ${shown.join(" ")}\n` + (r.stdout + r.stderr).trimEnd();
+  const dir = `${ROOT}/PCheckerOutput/${req.testCase}/`;
+  const file = (name: string): string | undefined => r.files[dir + name];
+  const console = `$ snappea ${shown.join(" ")}\n` + (r.stdout + r.stderr).trimEnd();
   return {
     kind: "check",
     ok: true,
@@ -92,9 +91,9 @@ async function handle(req: Request): Promise<CompileResult | CheckResult> {
     console,
     diagnostics: parseDiagnostics(console),
     testCase: req.testCase,
-    traceJson: find("_0_0.trace.json"),
-    traceText: find("_0_0.txt"),
-    schedule: find("_0_0.schedule"),
+    traceJson: file("bug.trace.json"),
+    traceText: file("bug.txt"),
+    schedule: file("bug.schedule"),
     millis: performance.now() - t0,
   };
 }

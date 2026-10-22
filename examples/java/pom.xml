@@ -4,28 +4,28 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>example</groupId>
-  <artifactId>prs-inventory</artifactId>
+  <artifactId>snappea-inventory</artifactId>
   <version>1.0-SNAPSHOT</version>
 
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <prs.version>0.1.0-SNAPSHOT</prs.version>
+    <snappea.version>0.1.1-SNAPSHOT</snappea.version>
   </properties>
 
   <dependencies>
     <!-- The emitter for application code, and the test helpers. -->
     <dependency>
       <groupId>io.github.crowecawcaw</groupId>
-      <artifactId>p-rs</artifactId>
-      <version>${prs.version}</version>
+      <artifactId>snappea</artifactId>
+      <version>${snappea.version}</version>
     </dependency>
-    <!-- The prs checker for this platform; ${prs.natives} comes from the profiles below. -->
+    <!-- The snappea checker for this platform; ${snappea.natives} comes from the profiles below. -->
     <dependency>
       <groupId>io.github.crowecawcaw</groupId>
-      <artifactId>p-rs</artifactId>
-      <version>${prs.version}</version>
-      <classifier>${prs.natives}</classifier>
+      <artifactId>snappea</artifactId>
+      <version>${snappea.version}</version>
+      <classifier>${snappea.natives}</classifier>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -57,12 +57,12 @@
     </plugins>
   </build>
 
-  <!-- Pick the p-rs natives classifier for the platform Maven runs on. -->
+  <!-- Pick the snappea natives classifier for the platform Maven runs on. -->
   <profiles>
-    <profile><id>prs-linux-x86_64</id><activation><os><name>linux</name><arch>amd64</arch></os></activation><properties><prs.natives>natives-linux-x86_64</prs.natives></properties></profile>
-    <profile><id>prs-linux-aarch64</id><activation><os><name>linux</name><arch>aarch64</arch></os></activation><properties><prs.natives>natives-linux-aarch64</prs.natives></properties></profile>
-    <profile><id>prs-macos-x86_64</id><activation><os><family>mac</family><arch>x86_64</arch></os></activation><properties><prs.natives>natives-macos-x86_64</prs.natives></properties></profile>
-    <profile><id>prs-macos-aarch64</id><activation><os><family>mac</family><arch>aarch64</arch></os></activation><properties><prs.natives>natives-macos-aarch64</prs.natives></properties></profile>
-    <profile><id>prs-windows-x86_64</id><activation><os><family>windows</family><arch>amd64</arch></os></activation><properties><prs.natives>natives-windows-x86_64</prs.natives></properties></profile>
+    <profile><id>snappea-linux-x86_64</id><activation><os><name>linux</name><arch>amd64</arch></os></activation><properties><snappea.natives>natives-linux-x86_64</snappea.natives></properties></profile>
+    <profile><id>snappea-linux-aarch64</id><activation><os><name>linux</name><arch>aarch64</arch></os></activation><properties><snappea.natives>natives-linux-aarch64</snappea.natives></properties></profile>
+    <profile><id>snappea-macos-x86_64</id><activation><os><family>mac</family><arch>x86_64</arch></os></activation><properties><snappea.natives>natives-macos-x86_64</snappea.natives></properties></profile>
+    <profile><id>snappea-macos-aarch64</id><activation><os><family>mac</family><arch>aarch64</arch></os></activation><properties><snappea.natives>natives-macos-aarch64</snappea.natives></properties></profile>
+    <profile><id>snappea-windows-x86_64</id><activation><os><family>windows</family><arch>amd64</arch></os></activation><properties><snappea.natives>natives-windows-x86_64</snappea.natives></properties></profile>
   </profiles>
 </project>

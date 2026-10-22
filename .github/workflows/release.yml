@@ -1,25 +1,25 @@
-# Manually triggered release of every p-rs package at one version. See .github/RELEASING.md.
+# Manually triggered release of every snappea package at one version. See .github/RELEASING.md.
 #
 #   Actions -> Release -> Run workflow (on main) -> pick a level
 #
 #   preflight       fmt, clippy, tests and a package dry run on main.
-#   helpers         the Go, Python and Java helper tests against this commit's prs.
 #   version         the release version (scripts/release.py next) and whether its tag
 #                   already exists (a re-run of a release that got as far as tagging).
-#   build           the prs binary for five targets, from this run's commit with the
-#                   version applied (scripts/release.py set), so `prs --version` is the
-#                   release. Archives prs-vX.Y.Z-<target>.tar.gz (.zip on Windows). If
+#   build           the snappea binary for five targets, from this run's commit with the
+#                   version applied (scripts/release.py set), so `snappea --version` is the
+#                   release. Archives snappea-vX.Y.Z-<target>.tar.gz (.zip on Windows). If
 #                   the tag exists, the archives are downloaded from its GitHub release
 #                   instead: the tag's committed checksums name those exact files.
 #   prepare         SHA256SUMS of the archives. Commits the release (Cargo.toml, the Java
-#                   pom, Go's prsbin version and checksums), tags it v<version>, commits
+#                   pom, Go's snappeabin version and checksums), tags it v<version>, commits
 #                   Go and Java back to development versions, and pushes both commits
 #                   and the tag to main atomically.
-#   crates          publishes p-rs to crates.io (trusted publishing, no stored token).
+#   crates          publishes snappea to crates.io (trusted publishing, no stored token).
 #   github-release  creates the GitHub release with the archives and SHA256SUMS (Go
 #                   downloads them), then Claude's notes; GitHub's notes are the fallback.
-#   python          the Python wheels (python.yml): attached to the release, to PyPI.
-#   maven           io.github.crowecawcaw:p-rs with natives jars built from the
+#   python          the Python wheels (python.yml).
+#   pypi            attaches the wheels to the release and uploads them to PyPI.
+#   maven           io.github.crowecawcaw:snappea with natives jars built from the
 #                   archives, to Maven Central. Skipped, with a notice, until the
 #                   Maven secrets exist.
 #   Go needs only the tag.
@@ -59,7 +59,7 @@ env:
 jobs:
   preflight:
     name: Preflight checks
-    if: github.repository == 'crowecawcaw/p-rs' && github.ref == 'refs/heads/main'
+    if: github.repository == 'crowecawcaw/snappea' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: -D warnings
@@ -75,50 +75,11 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked
       - run: cargo test --workspace --locked
-      - run: cargo publish -p p-rs --locked --dry-run
-
-  helpers:
-    name: Preflight helper tests
-    if: github.repository == 'crowecawcaw/p-rs' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    env:
-      PRS_BIN: ${{ github.workspace }}/target/debug/prs
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: test
-          save-if: false
-      - run: cargo build -p p-rs --bin prs --locked
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-          cache: false
-      - name: Go
-        run: |
-          go vet ./...
-          go test -count=1 ./...
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.13"
-      - name: Python
-        run: |
-          pip install ./python pytest
-          cd python && python -m pytest -p no:cacheprovider
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: '3.9.9'
-      - name: Java
-        run: mvn --batch-mode --no-transfer-progress -f java/pom.xml test
+      - run: cargo publish -p snappea --locked --dry-run
 
   version:
     name: Release version
-    if: github.repository == 'crowecawcaw/p-rs' && github.ref == 'refs/heads/main'
+    if: github.repository == 'crowecawcaw/snappea' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -152,7 +113,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build prs (${{ matrix.target }})
+    name: Build snappea (${{ matrix.target }})
     needs: version
     strategy:
       matrix:
@@ -176,7 +137,7 @@ jobs:
       EXE: ${{ contains(matrix.target, 'windows') && '.exe' || '' }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
@@ -187,7 +148,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags --depth=1 origin "refs/tags/${TAG}:refs/tags/${TAG}"
-          git show "${TAG}:go/internal/prsbin/SHA256SUMS" | grep -F "  prs-${TAG}-${TARGET}." > "$RUNNER_TEMP/SHA256SUMS"
+          git show "${TAG}:go/internal/snappeabin/SHA256SUMS" | grep -F "  snappea-${TAG}-${TARGET}." > "$RUNNER_TEMP/SHA256SUMS"
           name=$(awk '{print $2}' "$RUNNER_TEMP/SHA256SUMS")
           if ! gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist --pattern "$name"; then
             echo "::error::${TAG} has no ${name} on its GitHub release. Re-run the failed jobs of the run that pushed ${TAG}: its artifacts hold the archives." >&2
@@ -215,20 +176,20 @@ jobs:
           ZIG: ${{ matrix.zig }}
         run: |
           if [ "$ZIG" = true ]; then
-            cargo zigbuild --release --locked -p p-rs --bin prs --target "${TARGET}.2.17"
+            cargo zigbuild --release --locked -p snappea --bin snappea --target "${TARGET}.2.17"
           else
-            cargo build --release --locked -p p-rs --bin prs --target "$TARGET"
+            cargo build --release --locked -p snappea --bin snappea --target "$TARGET"
           fi
       - name: Check the version it reports
         if: needs.version.outputs.tagged != 'true' && matrix.run
         run: |
-          got=$("target/${TARGET}/release/prs${EXE}" --version | tr -d '\r')
-          [ "$got" = "prs ${VERSION}" ] || { echo "::error::prs --version says '${got}', want 'prs ${VERSION}'" >&2; exit 1; }
+          got=$("target/${TARGET}/release/snappea${EXE}" --version | tr -d '\r')
+          [ "$got" = "snappea ${VERSION}" ] || { echo "::error::snappea --version says '${got}', want 'snappea ${VERSION}'" >&2; exit 1; }
       - name: Package
         if: needs.version.outputs.tagged != 'true'
-        run: python scripts/release.py package "$TARGET" "$VERSION" "target/${TARGET}/release/prs${EXE}" dist
+        run: python scripts/release.py package "$TARGET" "$VERSION" "target/${TARGET}/release/snappea${EXE}" dist
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: archive-${{ matrix.target }}
           path: dist/
@@ -236,7 +197,7 @@ jobs:
 
   prepare:
     name: Commit and tag
-    needs: [preflight, helpers, version, build]
+    needs: [preflight, version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -250,14 +211,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           pattern: archive-*
           path: dist
           merge-multiple: true
       - name: Checksums
         run: python3 scripts/release.py sums dist "$VERSION"
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: release-assets
           path: dist/
@@ -267,12 +228,12 @@ jobs:
         if: needs.version.outputs.tagged == 'true'
         run: |
           set -euo pipefail
-          git show "${TAG}:go/internal/prsbin/SHA256SUMS" | diff - dist/SHA256SUMS
+          git show "${TAG}:go/internal/snappeabin/SHA256SUMS" | diff - dist/SHA256SUMS
           echo "${TAG} exists and its checksums match the archives; nothing to commit."
 
       - uses: dtolnay/rust-toolchain@stable
         if: needs.version.outputs.tagged != 'true'
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         if: needs.version.outputs.tagged != 'true'
         with:
           go-version: stable
@@ -288,19 +249,19 @@ jobs:
           python3 scripts/release.py set "$VERSION" --sums dist/SHA256SUMS
           # Refresh the workspace's entries in the lock files without touching dependencies.
           cargo update --workspace
-          cargo update --manifest-path examples/rust/Cargo.toml -p p-rs
-          go test -count=1 ./go/internal/prsbin
-          git add Cargo.toml Cargo.lock examples/rust/Cargo.lock java/pom.xml examples/java/pom.xml go/internal/prsbin
-          git commit -m "Release p-rs ${TAG}"
-          git tag -a "${TAG}" -m "p-rs ${TAG}"
+          cargo update --manifest-path examples/rust/Cargo.toml -p snappea
+          go test -count=1 ./go/internal/snappeabin
+          git add Cargo.toml Cargo.lock examples/rust/Cargo.lock java/pom.xml examples/java/pom.xml go/internal/snappeabin
+          git commit -m "Release Snap Pea ${TAG}"
+          git tag -a "${TAG}" -m "Snap Pea ${TAG}"
 
           # Then main goes back to development versions: Go "dev" (a checkout downloads
           # no binary) and Java <next patch>-SNAPSHOT (a local install never shadows the
           # release). Cargo.toml keeps the release version.
           python3 scripts/release.py dev
-          go test -count=1 ./go/internal/prsbin
-          git add java/pom.xml examples/java/pom.xml go/internal/prsbin
-          git commit -m "Release p-rs ${TAG}: back to development"
+          go test -count=1 ./go/internal/snappeabin
+          git add java/pom.xml examples/java/pom.xml go/internal/snappeabin
+          git commit -m "Release Snap Pea ${TAG}: back to development"
 
           # Atomic: main and the tag move together or not at all. If main moved since
           # the run started, the push fails and nothing is published.
@@ -328,11 +289,11 @@ jobs:
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' -A 'p-rs release workflow (github.com/crowecawcaw/p-rs)' \
-            "https://crates.io/api/v1/crates/p-rs/${VERSION}")
+          code=$(curl -s -o /dev/null -w '%{http_code}' -A 'snappea release workflow (github.com/crowecawcaw/snappea)' \
+            "https://crates.io/api/v1/crates/snappea/${VERSION}")
           if [ "$code" = 200 ]; then
             echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "p-rs ${VERSION} is already on crates.io; skipping publish." >> "$GITHUB_STEP_SUMMARY"
+            echo "snappea ${VERSION} is already on crates.io; skipping publish." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
@@ -344,7 +305,7 @@ jobs:
 
       - name: Publish
         if: steps.exists.outputs.published == 'false'
-        run: cargo +stable publish -p p-rs --locked
+        run: cargo +stable publish -p snappea --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
@@ -364,7 +325,7 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.tag }}
           fetch-depth: 0
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: release-assets
           path: ${{ runner.temp }}/assets
@@ -387,7 +348,7 @@ jobs:
             done
             echo "created=false" >> "$GITHUB_OUTPUT"
           else
-            gh release create "$TAG" "$ASSETS"/* --title "p-rs $TAG" --verify-tag --generate-notes
+            gh release create "$TAG" "$ASSETS"/* --title "Snap Pea $TAG" --verify-tag --generate-notes
             echo "created=true" >> "$GITHUB_OUTPUT"
             echo "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -436,15 +397,44 @@ jobs:
           fi
 
   python:
-    name: Python wheels to PyPI
-    needs: [prepare, github-release]
+    name: Python wheels
+    needs: prepare
     uses: ./.github/workflows/python.yml
     permissions:
-      contents: write
-      id-token: write
+      contents: read
     with:
       tag: ${{ needs.prepare.outputs.tag }}
-      publish: true
+
+  # In this file, not python.yml: PyPI checks the upload's attestation against the
+  # top-level workflow, so trusted publishing must not run in a reusable workflow.
+  pypi:
+    name: Publish to PyPI
+    needs: [prepare, github-release, python]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: write # attach the wheels to the GitHub release
+      id-token: write # PyPI trusted publishing
+    steps:
+      # Only the Python packages: this run also holds the binary archives and
+      # SHA256SUMS, which PyPI rejects.
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: sdist
+          path: dist
+      - name: Attach to the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
 
   maven:
     name: Publish to Maven Central
@@ -472,10 +462,10 @@ jobs:
           fi
           auth=$(printf '%s:%s' "$CENTRAL_TOKEN_USERNAME" "$CENTRAL_TOKEN_PASSWORD" | base64 -w0)
           published=$(curl -fsS -H "Authorization: Bearer ${auth}" \
-            "https://central.sonatype.com/api/v1/publisher/published?namespace=io.github.crowecawcaw&name=p-rs&version=${VERSION}" \
+            "https://central.sonatype.com/api/v1/publisher/published?namespace=io.github.crowecawcaw&name=snappea&version=${VERSION}" \
             | jq -r '.published') || published=unknown
           if [ "$published" = true ]; then
-            echo "io.github.crowecawcaw:p-rs:${VERSION} is already on Maven Central; skipping publish." >> "$GITHUB_STEP_SUMMARY"
+            echo "io.github.crowecawcaw:snappea:${VERSION} is already on Maven Central; skipping publish." >> "$GITHUB_STEP_SUMMARY"
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
@@ -486,7 +476,7 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.tag }}
           persist-credentials: false
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         if: steps.check.outputs.publish == 'true'
         with:
           name: release-assets
@@ -495,7 +485,7 @@ jobs:
         if: steps.check.outputs.publish == 'true'
         run: python3 scripts/release.py natives "$RUNNER_TEMP/assets" "$RUNNER_TEMP/natives"
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         if: steps.check.outputs.publish == 'true'
         with:
           distribution: temurin
@@ -523,7 +513,7 @@ jobs:
           pom=$(mvn -q -f java/pom.xml help:evaluate -Dexpression=project.version -DforceStdout)
           [ "$pom" = "$VERSION" ] || { echo "::error::java/pom.xml at ${TAG} is ${pom}, want ${VERSION}" >&2; exit 1; }
           # The tests run against the release's Linux binary.
-          PRS_BIN="$RUNNER_TEMP/natives/natives-linux-x86_64/prs" \
+          SNAPPEA_BIN="$RUNNER_TEMP/natives/natives-linux-x86_64/snappea" \
             mvn --batch-mode --no-transfer-progress -f java/pom.xml -Pnatives,release,central \
-            -Dprs.natives="$RUNNER_TEMP/natives" deploy
-          echo "Published io.github.crowecawcaw:p-rs:${VERSION} to Maven Central." >> "$GITHUB_STEP_SUMMARY"
+            -Dsnappea.natives="$RUNNER_TEMP/natives" deploy
+          echo "Published io.github.crowecawcaw:snappea:${VERSION} to Maven Central." >> "$GITHUB_STEP_SUMMARY"

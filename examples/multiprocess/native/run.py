@@ -43,21 +43,21 @@ class SubprocessBackend:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prs", default=os.environ.get("PRS_BIN", "prs"),
-                        help="checker binary (default: PRS_BIN or prs on PATH)")
+    parser.add_argument("--snappea", default=os.environ.get("SNAPPEA_BIN", "snappea"),
+                        help="checker binary (default: SNAPPEA_BIN or snappea on PATH)")
     parser.add_argument("--scenario", choices=("healthy", "oversell"), default="healthy")
     parser.add_argument("--artifacts", type=Path,
                         help="new output directory; existing directories are never overwritten")
     args = parser.parse_args()
-    prs_bin = shutil.which(args.prs)
-    if prs_bin is None:
-        parser.error("cannot find checker; build prs and pass --prs /absolute/path/to/prs")
+    snappea_bin = shutil.which(args.snappea)
+    if snappea_bin is None:
+        parser.error("cannot find checker; build snappea and pass --snappea /absolute/path/to/snappea")
     artifacts = args.artifacts
     if artifacts is None:
         parent = Path(__file__).resolve().parent / "artifacts"
         parent.mkdir(exist_ok=True)
         artifacts = Path(tempfile.mkdtemp(prefix="run-", dir=parent)) / args.scenario
-    result = run_scenario(SubprocessBackend(), str(Path(prs_bin).resolve()), artifacts, args.scenario)
+    result = run_scenario(SubprocessBackend(), str(Path(snappea_bin).resolve()), artifacts, args.scenario)
     # Preserve the checker's real status for an external test runner. The fault
     # scenario validates its exact assertion and cleanup before returning 1.
     return result["observer_process_exit"]

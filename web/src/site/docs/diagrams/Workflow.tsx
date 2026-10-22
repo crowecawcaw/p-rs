@@ -6,10 +6,10 @@ import { useInView, useInterval, useReducedMotion } from "../../motion";
 const STEPS = [
   { title: "Design", who: "you", text: "Write or update the design doc: components, messages, failure cases." },
   { title: "Model", who: "agent", text: "An agent writes the P model and specs from the design. You review the specs." },
-  { title: "Check", who: "prs check", text: "The checker explores orderings and failures. A bug sends you back to the design." },
+  { title: "Check", who: "snappea check", text: "The checker explores orderings and failures. A bug sends you back to the design." },
   { title: "Build", who: "you + agent", text: "Implement the service. Emit events where the spec needs them." },
   { title: "Test", who: "CI", text: "Ordinary tests run, and the same specs check the events your code emits." },
-  { title: "Observe", who: "prs observe", text: "Optionally, check production logs against the specs." },
+  { title: "Observe", who: "snappea observe", text: "Optionally, check production logs against the specs." },
 ];
 
 // The walk: design, model, check, a bug back to model, check again, then on.

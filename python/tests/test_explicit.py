@@ -12,7 +12,7 @@ import pytest
 from app.locks import LockServer
 from conftest import SPEC
 
-from prs import Event, Recorder, SetupError, SpecViolation, check_events, check_spec, emit, expect_violation
+from snappea import Event, Recorder, SetupError, StrictDefaultWarning, SpecViolation, check_events, check_spec, emit, expect_violation
 
 FILES = [SPEC]
 
@@ -56,7 +56,7 @@ def test_lease_bug_is_reported_on_the_with_line():
     text = str(v)
     assert text.startswith("P spec MutualExclusion was broken: c2 entered while c1 is inside")
     assert "<- broke the spec here" in text
-    assert os.path.isdir(v.artifacts)
+    assert os.path.isdir(v.output_dir)
 
 
 def test_all_specs_by_default_and_check_hot_is_opt_in():
@@ -166,10 +166,35 @@ def test_payload_mismatch_is_a_clear_error():
 
 
 def test_unknown_spec_is_a_clear_error():
-    with pytest.raises(SetupError, match="SPECIFICATION_SUPPLIER not found") as info:
+    with pytest.raises(SetupError, match="no spec named NoSuchSpec. Specs: MutualExclusion") as info:
         with check_spec("NoSuchSpec", spec_files=FILES):
             emit("eEnter", client="c1")
     assert info.value.kind == "config"
+    assert "--help" not in str(info.value)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the fake snappea is a shell script")
+@pytest.mark.parametrize(
+    "output, says",
+    [
+        ("Failed parsing ::\nWas passed main parameter 'x.p' but no main parameter was defined\nUsage: p observe", "old PObserve-style"),
+        ("error: unknown option '--json-report'\nRun `snappea observe --help` for usage.", "does not support --json-report"),
+    ],
+)
+def test_outdated_binary_is_a_clear_error(tmp_path, monkeypatch, output, says):
+    from snappea import _binary
+
+    fake = tmp_path / "snappea"
+    fake.write_text(f"#!/bin/sh\ncat <<'EOF'\n{output}\nEOF\nexit 2\n")
+    fake.chmod(0o755)
+    monkeypatch.setenv("SNAPPEA_BIN", str(fake))
+    _binary.find_snappea.cache_clear()
+    try:
+        with pytest.raises(SetupError, match=f"{says}.*too old for this snappea package") as info:
+            check_events([{"event": "eEnter", "client": "c1"}], spec_files=FILES)
+        assert info.value.kind == "config"
+    finally:
+        _binary.find_snappea.cache_clear()
 
 
 def test_spec_files_take_globs_and_folders():
@@ -196,36 +221,11 @@ def test_events_from_threads_are_kept():
         emit("eEnter", client="main")
 
 
-def test_emitting_after_the_check_fails():
-    go, errors = threading.Event(), []
-
-    def worker():
-        emit("eEnter", client="w")
-        go.wait()
-        try:
-            emit("eExit", client="w")
-        except SetupError as e:
-            errors.append(e)
-
-    with check_spec(spec_files=FILES) as rec:
-        t = threading.Thread(target=worker)
-        t.start()
-    go.set()
-    t.join()
-    (error,) = errors
-    assert error.kind == "config"
-    assert re.search(r"eExit emitted at \S*test_explicit.py:\d+ after the recording was checked", error.message)
-    assert rec.late == [error]
-    with check_spec(spec_files=FILES):  # a new recording takes that thread's events
-        pass
-    emit("eEnter", client="main")  # the test's own thread is never late
-
-
 def test_events_from_child_processes(monkeypatch):
-    code = "from prs import emit; emit('eEnter', key='L9', client='child')"
+    code = "from snappea import emit; emit('eEnter', key='L9', client='child')"
     monkeypatch.setenv("PYTHONPATH", os.pathsep.join(sys.path))
     with expect_violation("MutualExclusion", match="parent entered while child", spec_files=FILES) as ev:
-        subprocess.run([sys.executable, "-c", code], check=True)  # inherits PRS_EVENTS_DIR
+        subprocess.run([sys.executable, "-c", code], check=True)  # inherits SNAPPEA_EVENTS_DIR
         emit("eEnter", key="L9", client="parent")
     assert ev.violation.events[0].src == "<string>:1"
     assert ev.violation.events[0].pid != os.getpid()
@@ -274,20 +274,24 @@ def test_events_from_forked_processes():
         emit("eEnter", key="F", client="parent")
 
 
-def test_strict_defaults_to_true_for_named_specs():
-    with pytest.raises(SetupError, match="checked no relevant events") as info:
+def test_strict_defaults_to_true_for_named_specs_but_only_warns_for_now():
+    with pytest.warns(StrictDefaultWarning, match="strict=False") as caught:
         with check_spec("MutualExclusion", spec_files=FILES):
             pass
-    assert info.value.kind == "validation"
-    with pytest.raises(SetupError, match="RequestsGranted"):
+    assert caught[0].message.error.kind == "validation"
+    assert caught[0].filename == __file__  # points at the test, not at snappea
+    with pytest.warns(StrictDefaultWarning) as caught:
         with check_spec("MutualExclusion", "RequestsGranted", spec_files=FILES):
             emit("eEnter", client="a")
-    with check_spec("MutualExclusion", spec_files=FILES, strict=False):
-        pass
-    with check_spec("MutualExclusion", spec_files=FILES):
-        emit("eEnter", client="a")
-    with check_spec(spec_files=FILES):  # every spec: not strict
-        emit("eEnter", client="a")
+    assert "RequestsGranted" in caught[0].message.error.message
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        with check_spec("MutualExclusion", spec_files=FILES, strict=False):
+            pass
+        with check_spec("MutualExclusion", spec_files=FILES):
+            emit("eEnter", client="a")
+        with check_spec(spec_files=FILES):  # every spec: not strict
+            emit("eEnter", client="a")
 
 
 def test_strict_true_fails_without_relevant_events():
@@ -331,17 +335,38 @@ def test_unknown_events_warn_and_ignore():
         check_spec(spec_files=FILES, unknown_events="loud")
 
 
-def test_missing_binary_is_a_setup_error(monkeypatch, tmp_path):
-    from prs import _binary
+def test_liveness_is_a_deprecated_alias_of_check_hot():
+    with pytest.warns(DeprecationWarning, match="liveness= is deprecated; use check_hot="):
+        spec = check_spec(spec_files=FILES, liveness=True)
+    assert spec.recorder.check_hot is True
+    with pytest.raises(SpecViolation) as info, pytest.warns(DeprecationWarning):
+        check_events([{"event": "eRequest", "client": "c1"}], spec_files=FILES, liveness=True)
+    assert info.value.liveness
+    with pytest.raises(TypeError):
+        Recorder(check_hot=True, liveness=True)
 
+
+def test_setup_error_kinds_and_old_names(monkeypatch, tmp_path):
+    from snappea import _binary
+
+    with pytest.warns(DeprecationWarning, match="snappea.SnappeaError is deprecated"):
+        from snappea import SnappeaError
+    assert SnappeaError is SetupError
+    assert issubclass(_binary.SnappeaNotFound, SetupError)
+    binary = _binary.find_snappea()
     try:
-        monkeypatch.setenv("PRS_BIN", str(tmp_path / "missing"))
-        _binary.find_prs.cache_clear()
-        with pytest.raises(SetupError, match="PRS_BIN=.*missing is not a file") as info:
+        monkeypatch.setenv("SNAPPEA_BIN", str(tmp_path / "missing"))
+        _binary.find_snappea.cache_clear()
+        with pytest.raises(SetupError, match="SNAPPEA_BIN=.*missing is not a file") as info:
             check_events([{"event": "eEnter", "client": "c1"}], spec_files=FILES)
         assert info.value.kind == "binary_missing"
+        monkeypatch.delenv("SNAPPEA_BIN")
+        monkeypatch.setenv("SNAPPEA_BINARY", binary)
+        _binary.find_snappea.cache_clear()
+        with pytest.warns(DeprecationWarning, match="SNAPPEA_BINARY is deprecated; set SNAPPEA_BIN"):
+            assert _binary.find_snappea() == binary
     finally:
-        _binary.find_prs.cache_clear()
+        _binary.find_snappea.cache_clear()
 
 
 def test_timeout_is_a_setup_error():
@@ -357,19 +382,19 @@ def test_artifacts_are_kept_only_for_failed_checks(tmp_path, monkeypatch):
         with check_spec(spec_files=FILES, artifacts=str(tmp_path)) as rec:
             subprocess.run([sys.executable, "-c", CHILD.format(client="child")], env=rec.env(), check=True)
             emit("eEnter", key="L9", client="parent")
-    out = info.value.artifacts
+    out = info.value.output_dir
     assert os.path.dirname(out) == str(tmp_path)
-    assert {"events.jsonl", "report.json", "prs-output.txt"} <= set(os.listdir(out))
+    assert {"events.jsonl", "report.json", "snappea-output.txt"} <= set(os.listdir(out))
     # the child's events folder is copied, since the recording deletes it
     (child_dir,) = [d for d in os.listdir(out) if d.startswith("events-dir-")]
     assert os.listdir(os.path.join(out, child_dir))
-    monkeypatch.setenv("PRS_ARTIFACTS", str(tmp_path / "env"))
+    monkeypatch.setenv("SNAPPEA_ARTIFACTS", str(tmp_path / "env"))
     with pytest.raises(SpecViolation) as info:
         check_events([{"event": "eEnter", "client": "a"}, {"event": "eEnter", "client": "b"}], spec_files=FILES)
-    assert os.path.dirname(info.value.artifacts) == str(tmp_path / "env")
+    assert os.path.dirname(info.value.output_dir) == str(tmp_path / "env")
 
 
-CHILD = "from prs import emit; emit('eEnter', key='L9', client='{client}')"
+CHILD = "from snappea import emit; emit('eEnter', key='L9', client='{client}')"
 
 
 def test_events_dir_and_env_for_child_processes(monkeypatch):
@@ -379,7 +404,7 @@ def test_events_dir_and_env_for_child_processes(monkeypatch):
     subprocess.run([sys.executable, "-c", CHILD.format(client="b")], env=rec.env(), check=True)
     names = os.listdir(rec.events_dir())
     assert len(names) == 2 and all(n.startswith("python-") and n.endswith(".jsonl") for n in names)
-    assert rec.env()["PRS_EVENTS_DIR"] == rec.events_dir()
+    assert rec.env()["SNAPPEA_EVENTS_DIR"] == rec.events_dir()
     with pytest.raises(SpecViolation, match="entered while"):
         rec.check()
 

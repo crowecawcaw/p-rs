@@ -23,31 +23,43 @@ The model has two designs for a reservation:
 From the repository root:
 
 ```sh
-cargo build -p p-rs --bin prs
+cargo build -p snappea --bin snappea
 cd examples/model
-../../target/debug/prs check tcAtomicReserve --exhaustive
-../../target/debug/prs check tcCheckThenReserve
+../../target/debug/snappea check tcAtomicReserve --exhaustive
+../../target/debug/snappea check tcCheckThenReserve
 ```
 
 The first explores every interleaving and data choice and finds no bug:
 
 ```text
-..... Found 0 bugs.
-..... Search finished: every behaviour of the test was explored.
+Checking Inventory: 1 test case
+ok    tcAtomicReserve (all 20260 schedules, 3.98s)
+🫛 The test case passed in 3.99s, peak memory 9 MB. Output: PCheckerOutput/
 ```
 
 The second finds the oversell within a few schedules, and exits with 1:
 
 ```text
-<ErrorLog> Assertion Failed: PSpec/inventory.p:27:7 reservation exceeds available stock
+Checking Inventory: 1 test case
+FAIL  tcCheckThenReserve (bug found after 8 schedules, 8 workers, 0.01s)
+      Assertion Failed: PSpec/inventory.p:27:7 reservation exceeds available stock
+      Replay: snappea replay PCheckerOutput/tcCheckThenReserve/bug.schedule
+1 of 1 test case failed in 0.02s, peak memory 10 MB. Output: PCheckerOutput/
 ```
 
-The trace in `PCheckerOutput/tcCheckThenReserve/BugFinding/` shows both orders reading
-3 units before either commits. `prs check` with no test case checks both, so it exits
-with 1 too.
+The log in `PCheckerOutput/tcCheckThenReserve/bug.txt` shows both orders reading
+3 units before either commits, and the `snappea replay` command runs the same schedule
+again. `snappea check` with no test case checks both, so it exits with 1 too.
 
 The spec is the same file the language examples check. A unit test of the Python
 service runs one ordering per test; the model explores every ordering of concurrent
 orders, which tests of an implementation do not reach. The
 [CI workflow](../../.github/workflows/model-example.yml) runs both test cases and
 checks that every example's `specs/inventory.p` links here.
+
+## In CI
+
+[`github-workflow.yml`](github-workflow.yml) links to this repository's
+[check-model.yml](../../.github/workflows/check-model.yml), a workflow you can copy: it
+installs the released `snappea` with the install script and checks this model on every
+pull request. See [GitHub Actions](https://crowecawcaw.github.io/snappea/docs/github-actions.html).

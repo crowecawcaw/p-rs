@@ -15,7 +15,7 @@ from harness import run_scenario, TIMEOUT
 class DockerBackend:
     def __init__(self, image):
         self.image = image
-        self.prefix = "prs-inventory-" + uuid.uuid4().hex[:12] + "-"
+        self.prefix = "snappea-inventory-" + uuid.uuid4().hex[:12] + "-"
 
     def container(self, name):
         return self.prefix + name
@@ -67,15 +67,15 @@ class DockerBackend:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prs", default=os.environ.get("PRS_BIN", "prs"))
-    parser.add_argument("--image", default="prs-inventory-example:local")
+    parser.add_argument("--snappea", default=os.environ.get("SNAPPEA_BIN", "snappea"))
+    parser.add_argument("--image", default="snappea-inventory-example:local")
     parser.add_argument("--scenario", choices=("healthy", "oversell"), default="healthy")
     parser.add_argument("--artifacts", type=Path, default=None)
     args = parser.parse_args()
     if args.artifacts is None:
-        args.artifacts = Path(tempfile.mkdtemp(prefix="prs-docker-")) / args.scenario
+        args.artifacts = Path(tempfile.mkdtemp(prefix="snappea-docker-")) / args.scenario
     try:
-        result = run_scenario(DockerBackend(args.image), args.prs, args.artifacts, args.scenario)
+        result = run_scenario(DockerBackend(args.image), args.snappea, args.artifacts, args.scenario)
     except Exception as exc:
         print("integration failed: " + str(exc), file=sys.stderr)
         return 2

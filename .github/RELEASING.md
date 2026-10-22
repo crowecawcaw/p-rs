@@ -1,4 +1,4 @@
-# Releasing p-rs
+# Releasing Snap Pea
 
 Releases are cut by the manually triggered **Release** workflow
 (`.github/workflows/release.yml`). Nothing publishes on a tag push. One run releases
@@ -6,13 +6,13 @@ every package at one version:
 
 | Package | Where |
 | --- | --- |
-| crate `p-rs` | crates.io |
-| `p-rs` wheels (with `prs`) and sdist | PyPI, and the GitHub release |
-| `io.github.crowecawcaw:p-rs` and its `natives-<os>-<arch>` jars | Maven Central |
-| module `github.com/crowecawcaw/p-rs` | the `vX.Y.Z` tag (Go needs nothing else) |
-| `prs-vX.Y.Z-<target>.tar.gz` / `.zip` and `SHA256SUMS` | the GitHub release |
+| crate `snappea` | crates.io |
+| `pysnappea` wheels (with `snappea`) and sdist | PyPI, and the GitHub release |
+| `io.github.crowecawcaw:snappea` and its `natives-<os>-<arch>` jars | Maven Central |
+| module `github.com/crowecawcaw/snappea` | the `vX.Y.Z` tag (Go needs nothing else) |
+| `snappea-vX.Y.Z-<target>.tar.gz` / `.zip` and `SHA256SUMS` | the GitHub release |
 
-`crates/prs-wasm` (the playground's WebAssembly build) is not published.
+`crates/snappea-wasm` (the playground's WebAssembly build) is not published.
 
 ## Cut a release
 
@@ -32,30 +32,29 @@ Or from a terminal: `gh workflow run release.yml --ref main -f level=patch`.
 
 The workflow:
 
-1. **Preflight**: fmt, clippy, tests and `cargo publish --dry-run` on `main`, and the
-   Go, Python and Java helper tests.
+1. **Preflight**: fmt, clippy, tests and `cargo publish --dry-run` on `main`.
 2. **Version**: the next version, and whether its tag already exists.
-3. **Build**: `prs` for `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`
+3. **Build**: `snappea` for `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`
    (both glibc 2.17+, via cargo-zigbuild), `x86_64-apple-darwin`,
    `aarch64-apple-darwin` and `x86_64-pc-windows-msvc` (static CRT), from the run's
-   commit with the version applied, so `prs --version` reports the release. Each is
-   archived as `prs-vX.Y.Z-<target>.tar.gz` (Windows: `.zip` with `prs.exe`).
+   commit with the version applied, so `snappea --version` reports the release. Each is
+   archived as `snappea-vX.Y.Z-<target>.tar.gz` (Windows: `.zip` with `snappea.exe`).
 4. **Commit and tag**: writes `SHA256SUMS` for those exact archives, then commits
-   `Release p-rs vX.Y.Z` with every package at the version: `Cargo.toml` and the lock
+   `Release Snap Pea vX.Y.Z` with every package at the version: `Cargo.toml` and the lock
    files, `java/pom.xml` (and `examples/java`), and Go's
-   `go/internal/prsbin/version.go` and `SHA256SUMS` (checked by
-   `go test ./go/internal/prsbin`). It tags that commit `vX.Y.Z`, then commits
-   `Release p-rs vX.Y.Z: back to development`, and pushes both commits and the tag
+   `go/internal/snappeabin/version.go` and `SHA256SUMS` (checked by
+   `go test ./go/internal/snappeabin`). It tags that commit `vX.Y.Z`, then commits
+   `Release Snap Pea vX.Y.Z: back to development`, and pushes both commits and the tag
    atomically. If `main` moved since the run started, the push fails and nothing is
    published.
 5. In parallel, from the tag:
-   - **crates.io**: publishes `p-rs`.
+   - **crates.io**: publishes `snappea`.
    - **GitHub release**: created at once with the archives and `SHA256SUMS` (Go's
-     `prstest` downloads them, verified against the checksums in the module), then
+     `snappeatest` downloads them, verified against the checksums in the module), then
      Claude replaces GitHub's generated notes with notes written from the merged PRs,
      following `.github/release-notes-prompt.md`. If that fails (for example an
      expired token), the generated notes stay and the run still succeeds.
-   - **Python** (after the release exists): wheels with the `prs` binary for the same
+   - **Python** (after the release exists): wheels with the `snappea` binary for the same
      five platforms, plus an sdist, built from the tag, attached to the release and
      published to PyPI.
    - **Maven Central**: natives jars made from the archives' binaries, the Java tests
@@ -97,17 +96,19 @@ Claude and replaces them on the release. Tick *dry run* to only print them.
 
 - The `github-actions[bot]` must be able to push to `main`. If `main` gets branch
   protection, allow GitHub Actions to bypass it (or the commit step will fail).
-- crates.io trusted publishing for `p-rs` trusts:
-  - Repository: `crowecawcaw/p-rs`
+- crates.io trusted publishing for `snappea` trusts:
+  - Repository: `crowecawcaw/snappea`
   - Workflow: `release.yml`
   - Environment: `release`
 
   The `release` environment must allow the `main` branch. No crates.io token is
   stored in GitHub; the auth action gets a short-lived token and revokes it after.
-- PyPI trusted publishing for `p-rs` (set up once on pypi.org, as a pending
+  The crate requires trusted publishing for new versions, so API tokens are rejected.
+- PyPI trusted publishing for `pysnappea` (set up once on pypi.org, as a pending
   publisher before the first release) trusts:
-  - Repository: `crowecawcaw/p-rs`
-  - Workflow: `release.yml`
+  - Repository: `crowecawcaw/snappea`
+  - Workflow: `release.yml` (the upload runs there, not in the reusable
+    `python.yml`: PyPI checks attestations against the top-level workflow)
   - Environment: `pypi`
 
   Create the `pypi` environment in the repository settings.
@@ -125,7 +126,7 @@ Claude and replaces them on the release. Tick *dry run* to only print them.
      the signatures:
 
      ```sh
-     gpg --quick-gen-key "p-rs releases <you@example.com>" ed25519 sign 3y
+     gpg --quick-gen-key "Snap Pea releases <you@example.com>" ed25519 sign 3y
      gpg --list-secret-keys --keyid-format long          # note the key id
      gpg --keyserver keyserver.ubuntu.com --send-keys KEYID
      gpg --keyserver keys.openpgp.org --send-keys KEYID  # then confirm the email it sends

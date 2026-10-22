@@ -1,5 +1,5 @@
 // Package inventory implements an in-memory inventory service. Tests pass a
-// recording's Emit; programs pass prsemit.Emit (see cmd/inventory).
+// recording's Emit; programs pass snappeaemit.Emit (see cmd/inventory).
 package inventory
 
 import "errors"
