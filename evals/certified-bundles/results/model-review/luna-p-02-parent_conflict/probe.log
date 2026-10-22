@@ -1,5 +1,0 @@
-Checking generatedOutput: 1 test case
-FAIL  DefaultImpl (bug found after 1 schedule, 0.00s)
-      Assertion Failed: bundle_model.p:15:9
-      Replay: snappea replay PCheckerOutput/DefaultImpl/bug.schedule bundle_model.p
-1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/

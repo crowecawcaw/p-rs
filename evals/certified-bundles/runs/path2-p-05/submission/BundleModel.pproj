@@ -1,8 +1,0 @@
-<Project>
-  <ProjectName>CertifiedBundles</ProjectName>
-  <InputFiles>
-    <PFile>./PSrc/</PFile>
-    <PFile>./PSpec/</PFile>
-    <PFile>./PTst/</PFile>
-  </InputFiles>
-</Project>

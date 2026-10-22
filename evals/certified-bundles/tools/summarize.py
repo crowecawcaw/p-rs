@@ -29,5 +29,6 @@ for arm in ['python','p']:
 summary['comparison_available']=all(summary['arms'][arm]['runs']>0 for arm in ['python','p'])
 if not summary['comparison_available']:
     summary['interpretation']='No P versus Python-only agent comparison is available. Smoke and mutation results do not measure agent design quality.'
+(ROOT/args.output).parent.mkdir(parents=True,exist_ok=True)
 (ROOT/args.output).write_text(json.dumps(summary,indent=2))
 print(json.dumps(summary,indent=2))

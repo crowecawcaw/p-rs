@@ -1,7 +1,9 @@
 __pycache__/
 *.pyc
-/vendor/bin/
-/vendor/source/
-/vendor/*.tar.gz
-/runs/*/work/
-/runs/*/bridge.lock
+/runs/
+/results/
+/vendor/
+/report.json
+**/PCheckerOutput/
+**/PGenerated/
+*.log

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the supplemental wide-bundle probe against all frozen Luna submissions."""
+"""Run the supplemental wide-bundle probe against selected frozen submissions."""
 from concurrent.futures import ThreadPoolExecutor,as_completed
 import json
 import argparse
@@ -31,4 +31,5 @@ if __name__=='__main__':
         for f in as_completed([pool.submit(check,run) for run in runs]):
             result=f.result();results.append(result)
             print(result['run'],result['passed'],result.get('error',''),flush=True)
+    (ROOT/args.output).parent.mkdir(parents=True,exist_ok=True)
     (ROOT/args.output).write_text(json.dumps(sorted(results,key=lambda r:r['run']),indent=2))

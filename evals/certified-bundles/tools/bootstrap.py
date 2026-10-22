@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage the historical checker and docs without committing binaries or a source copy."""
+"""Stage the pinned checker and checkout docs without committing binaries or a source copy."""
 import argparse
 import hashlib
 import io

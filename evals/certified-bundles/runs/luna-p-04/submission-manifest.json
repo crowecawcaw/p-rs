@@ -1,7 +1,0 @@
-{
-  "solution.py": "fd4a907ca5360208c68c84632cffa9b88fc7239dd6fad8045c62545e122d7870",
-  "DESIGN.md": "2d7bb53df09b837fdd3b7c307c0425b919ab365b629ca19765e6d709b04ef415",
-  "model/AtomicJournal.p": "07f5a7dc98f841a7f87d0c0243e70ba3ee9e71af8d798ffd9df3ab67f745e06b",
-  "PCheckerOutput/tcAtomicJournal/summary.txt": "3155716ce4d73ce222b5cd78ed85140e4be19480c357bb2b4b4458a050d1f96e",
-  "PCheckerOutput/tcAtomicJournal/coverage.txt": "33dc66688e0e3a9a356e86ff2aab47e80468333a332c55b362314ce9c68f3773"
-}

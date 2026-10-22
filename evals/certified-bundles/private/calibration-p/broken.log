@@ -1,5 +1,0 @@
-Checking BundleCalibration: 1 test case
-FAIL  tcBroken (bug found after 1 schedule, 0.00s)
-      Assertion Failed: Model.p:14:7 two candidates landed against the same parent
-      Replay: snappea replay PCheckerOutput/tcBroken/bug.schedule
-1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/

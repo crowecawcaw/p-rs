@@ -1,5 +1,0 @@
-Checking generatedOutput: 1 test case
-FAIL  tcAtomicPublish (bug found after 1 schedule, 0.00s)
-      Assertion Failed: Bundle.p:80:7 two competing bundles both committed
-      Replay: snappea replay PCheckerOutput/tcAtomicPublish/bug.schedule Bundle.p
-1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/
