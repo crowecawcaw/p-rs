@@ -30,6 +30,11 @@ def start(run_id,arm):
         'prompt_sha256':hashlib.sha256(prompt.encode()).hexdigest(),'smoke':False,
         'status':'running','seconds':None,'generated_tokens':None,'input_tokens':None,'tool_calls':0,
         'provisioned_unix':time.time()}
+    if arm=='p':
+        binary, source = r.tool_paths()
+        revision = r.command(['git','-C',str(source),'rev-parse','HEAD'])
+        meta['snappea_binary_sha256'] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        meta['docs_source_revision'] = revision.stdout.strip() if revision.returncode == 0 else None
     (run/'metadata.json').write_text(json.dumps(meta,indent=2))
     print(json.dumps({'run':run_id,'arm':arm,'container':'snappea-eval-'+run_id}))
 

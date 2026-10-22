@@ -17,6 +17,12 @@ PUBLIC = ['TASK.md','contract.py','runtime.py','test_public.py']
 from prompts import COMMON, P, CONTROL, VERSION as PROMPT_VERSION, task_prompt
 
 
+def tool_paths():
+    binary = Path(os.environ.get('SNAPPEA_EVAL_BINARY', ROOT/'vendor/bin/snappea-v0.1.0-x86_64-unknown-linux-gnu/snappea')).resolve()
+    source = Path(os.environ.get('SNAPPEA_EVAL_SOURCE', ROOT/'vendor/source/snappea-main')).resolve()
+    return binary, source
+
+
 def command(argv, **kwargs):
     return subprocess.run(argv,capture_output=True,text=True,**kwargs)
 
@@ -39,9 +45,9 @@ def container_args(name,work,arm):
         '--pids-limit','128','--read-only','--tmpfs','/tmp:rw,size=128m',
         '--mount',f'type=bind,src={work},dst=/work','-w','/work']
     if arm == 'p':
-        binary = ROOT/'vendor/bin/snappea-v0.1.0-x86_64-unknown-linux-gnu/snappea'
-        docs = ROOT/'vendor/source/snappea-main/docs'
-        inventory = ROOT/'vendor/source/snappea-main/examples/model'
+        binary, source = tool_paths()
+        docs = source/'docs'
+        inventory = source/'examples/model'
         args += ['--env','PATH=/opt:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin',
                  '--mount',f'type=bind,src={binary},dst=/opt/snappea,readonly',
                  '--mount',f'type=bind,src={docs},dst=/opt/pdocs,readonly',

@@ -121,3 +121,41 @@ python tools/run_sonnet.py --run-id sonnet-p-01 --arm p --model claude-sonnet-4-
 `python tools/test_runner_protocol.py` exercises the API loop, submission freezing,
 and container grading with scripted responses and no live API call. Its outputs
 are local smoke artifacts, excluded from agent comparisons.
+
+## Compare checker output with one extra sentence
+
+Prompt version 3 shares “Design and implement the service in Python.” The P arm
+adds “First, model it with P/Snappea and check what could go wrong.” Tool paths
+are supplied separately; there is no extra testing advice for either arm.
+
+To compare old and new output, use three independent cohorts: Python-only, P
+with the baseline binary, and P with the modified binary. Keep both P cohorts'
+docs/examples identical. Provision each with explicit binary/source overrides:
+
+```sh
+SNAPPEA_EVAL_BINARY=/absolute/path/to/baseline/snappea SNAPPEA_EVAL_SOURCE=/absolute/path/to/shared-source python tools/collaboration_run.py start --run-id pilot-base-01 --arm p
+SNAPPEA_EVAL_BINARY=/absolute/path/to/modified/snappea SNAPPEA_EVAL_SOURCE=/absolute/path/to/shared-source python tools/collaboration_run.py start --run-id pilot-feedback-01 --arm p
+python tools/collaboration_run.py start --run-id pilot-python-01 --arm python
+```
+
+Use fresh Luna high agents with generated delegations as above. Binary hashes
+and docs Git revision are recorded in each P run's metadata. Freeze/grade before
+inspecting hidden results. Summarize each cohort separately with `--prefix`;
+inspect first model exploration versus first implementation write and whether
+coverage feedback causes scenario changes. Handler coverage and distinct abstract
+timelines measure the P model's exploration, not Python correctness or requirement
+coverage. Preserve negative results and keep wide-input probes separate.
+
+## Automatic reachability research probe
+
+```sh
+python tools/probe_reachability.py --binary vendor/bin/snappea-v0.1.0-x86_64-unknown-linux-gnu/snappea --output-dir results/reachability-probe
+```
+
+This copies two small calibration fixtures and automatically inserts a failing
+sentinel in each commit handler. The known vacuous handler remains unexercised;
+the exercised monitor fails with its unique marker. The JSON report separates
+invalid variants, timeouts, other failures and markers reached within budget.
+This helper is a targeted research experiment, not a general semantic mutation
+feature in `snappea check`. The implementation proposal and current diversity
+signals are documented in [the investigation](../../design/check-quality/mutation-checking.md).
