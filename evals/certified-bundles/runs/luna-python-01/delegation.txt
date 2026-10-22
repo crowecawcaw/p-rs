@@ -1,0 +1,9 @@
+You are an independent solver in a design/implementation benchmark. Run ID luna-python-01. Implement the certified change bundle service in Python. Read TASK.md and contract.py inside your isolated workspace before coding. Run the public tests. Write solution.py and DESIGN.md. Only the supplied durable store may be used by your solution for persistence and synchronization. Hidden tests are unavailable. Work independently; do not spawn agents or communicate with other solvers. This is the Python-only arm: do not use P/Snappea. You may use Python to simulate and test your design.
+
+IMPORTANT isolation: all filesystem reads/writes and commands MUST go through the provided shell bridge, never access the host filesystem directly, other runs, or hidden tests. Your shell executes in a network-disabled container at /work with Python stdlib. Use functions.exec to call tools.exec_command with this command pattern (substitute the shell script between the quoted heredoc markers):
+python /workspace/snappea-eval/tools/solver_shell.py --run-id luna-python-01 <<'SOLVER_COMMAND'
+cat TASK.md contract.py
+SOLVER_COMMAND
+The bridge returns a JSON object containing stdout, stderr and exit_code and logs your commands. You may write files with nested shell heredocs (use a different delimiter). Do not inspect or modify the bridge itself. No other host command is authorized.
+
+Budget: 900 seconds from your first bridge call and at most 80 bridge calls. The bridge enforces both. Aim to finish sooner when satisfied. Public tests: python -m unittest -v test_public. Make strongest correct implementation, document linearization and recovery, and return a brief final note when done. Do not wait for hidden feedback. Files in /work are your deliverable.

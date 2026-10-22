@@ -1,0 +1,40 @@
+<TestLog> Running test 'tcTwoPublishers'.
+<CreateLog> PImplementation.AtomicBundle was created.
+<MonitorLog> PImplementation.AtomicBundle enters state 'Ready'.
+<CreateLog> TwoPublishers(1) was created by task '1'.
+<StateLog> TwoPublishers(1) enters state 'Init'.
+<CreateLog> StoreModel(2) was created by TwoPublishers(1).
+<CreateLog> Publisher(3) was created by TwoPublishers(1).
+<CreateLog> Publisher(4) was created by TwoPublishers(1).
+<StateLog> Publisher(4) enters state 'Init'.
+<SendLog> 'Publisher(4)' in state 'Init' sent event 'eRead with payload (<client:Publisher(4), >)' to 'StoreModel(2)'.
+<GotoLog> Publisher(4) is transitioning from state 'Init' to state 'PImplementation.Publisher.Read'.
+<StateLog> Publisher(4) exits state 'Init'.
+<StateLog> Publisher(4) enters state 'Read'.
+<StateLog> Publisher(3) enters state 'Init'.
+<SendLog> 'Publisher(3)' in state 'Init' sent event 'eRead with payload (<client:Publisher(3), >)' to 'StoreModel(2)'.
+<GotoLog> Publisher(3) is transitioning from state 'Init' to state 'PImplementation.Publisher.Read'.
+<StateLog> Publisher(3) exits state 'Init'.
+<StateLog> Publisher(3) enters state 'Read'.
+<StateLog> StoreModel(2) enters state 'Init'.
+<GotoLog> StoreModel(2) is transitioning from state 'Init' to state 'PImplementation.StoreModel.Serving'.
+<StateLog> StoreModel(2) exits state 'Init'.
+<StateLog> StoreModel(2) enters state 'Serving'.
+<DequeueLog> 'StoreModel(2)' dequeued event 'eRead with payload (<client:Publisher(4), >)' in state 'Serving'.
+<SendLog> 'StoreModel(2)' in state 'Serving' sent event 'eSnapshot with payload (<version:0, left:"l0", right:"r0", done:False, outcome:"", >)' to 'Publisher(4)'.
+<DequeueLog> 'StoreModel(2)' dequeued event 'eRead with payload (<client:Publisher(3), >)' in state 'Serving'.
+<SendLog> 'StoreModel(2)' in state 'Serving' sent event 'eSnapshot with payload (<version:0, left:"l0", right:"r0", done:False, outcome:"", >)' to 'Publisher(3)'.
+<DequeueLog> 'Publisher(3)' dequeued event 'eSnapshot with payload (<version:0, left:"l0", right:"r0", done:False, outcome:"", >)' in state 'Read'.
+<SendLog> 'Publisher(3)' in state 'Read' sent event 'eCas with payload (<client:Publisher(3), base:0, request:"p1", >)' to 'StoreModel(2)'.
+<GotoLog> Publisher(3) is transitioning from state 'Read' to state 'PImplementation.Publisher.Commit'.
+<StateLog> Publisher(3) exits state 'Read'.
+<StateLog> Publisher(3) enters state 'Commit'.
+<DequeueLog> 'StoreModel(2)' dequeued event 'eCas with payload (<client:Publisher(3), base:0, request:"p1", >)' in state 'Serving'.
+<ErrorLog> Assertion Failed: BundleModel.p:47:9 publish outcome and all target heads share one visibility point
+<StrategyLog> Found bug using 'random-dfs' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.

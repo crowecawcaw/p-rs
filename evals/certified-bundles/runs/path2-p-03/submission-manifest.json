@@ -1,0 +1,10 @@
+{
+  "solution.py": "8bcd5e56d55ee8a5ce94334639bcc1b7b628039e8c434fd393f109260f0cbaa1",
+  "ChangeBundles.pproj": "b058aae6179dd864f3bcd90635e947b77ff0a2b2e2a7df179324432ab031ec45",
+  "DESIGN.md": "a646c41826ea4e5c0de0ba04e00c50a485f72a7c685974be937bb52b2cbf9039",
+  "PTst/TestScript.p": "9fd1783dc0fbdc1747da0a0027ec66d44468b970cf79de6e76f942950434133f",
+  "PSrc/Service.p": "6d5cf90a735f41398aad5a9aff8aa3a51fcc87acb59e942413c8658c5c3c7733",
+  "PSpec/change.p": "be2e876e30f464f8468d73e627652d6becd890a56edc5cd6e4def1dd501f5f80",
+  "PCheckerOutput/tcAtomicPublish/summary.txt": "c6fcb8df0eccd90e27b303e30b6cc3d977f34084c5477ce2b363ace9da662437",
+  "PCheckerOutput/tcAtomicPublish/coverage.txt": "6ce1e63f8dd8a1f6a157ac417b4acefedb10266424b842e4c88f5ad2d3e9ebe1"
+}

@@ -1,0 +1,16 @@
+Read TASK.md and contract.py. Write solution.py and DESIGN.md.
+
+Design the certified change bundle service and model it with P/Snappea. Then implement it in Python.
+
+P/Snappea: /opt/snappea; docs: /opt/pdocs/; example: /opt/inventory/.
+
+Run ID: path2-p-01. Work independently; do not spawn or contact other agents.
+Use only this shell bridge for commands and file access; do not inspect host files,
+other runs, or the bridge itself. Commands run in your isolated /work container:
+
+python /workspace/snappea-eval/tools/solver_shell.py --run-id path2-p-01 <<'SOLVER_COMMAND'
+cat TASK.md contract.py
+SOLVER_COMMAND
+
+The bridge returns stdout, stderr and exit_code. Budget: 900 seconds from the first
+call and 80 calls. Return when finished; files in /work are your submission.

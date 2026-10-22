@@ -1,0 +1,53 @@
+Total event coverage: 100.0%
+============================
+StateMachine: CasClient
+=======================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: eCas
+		Next states: Waiting
+
+	State: Waiting
+		State event coverage: 100.0%
+		Events received: eCasResp
+		Events sent: eCas
+		Previous states: Init
+		Next states: Done
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Previous states: Waiting
+
+StateMachine: CompetingPublishes
+================================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Journal
+=====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Serving
+
+	State: Serving
+		State event coverage: 100.0%
+		Events received: eCas
+		Events sent: eCasResp
+		Previous states: Init
+
+Monitor: WholeCommit
+====================
+Event coverage: 100.0%
+
+	State: Clean
+		State event coverage: 100.0%
+		Events received: eCommit
+		Previous states: Clean
+		Next states: Clean
+

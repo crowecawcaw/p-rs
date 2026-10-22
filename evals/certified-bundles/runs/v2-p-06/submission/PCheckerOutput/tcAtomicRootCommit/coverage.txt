@@ -1,0 +1,36 @@
+Total event coverage: 100.0%
+============================
+Monitor: AtomicBundlePublish
+============================
+Event coverage: 100.0%
+
+	State: Open
+		State event coverage: 100.0%
+		Events received: eRootCommit
+		Previous states: Open
+		Next states: Open
+
+StateMachine: Driver
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Done
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Previous states: Init
+
+StateMachine: RootWriter
+========================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Done
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Previous states: Init
+

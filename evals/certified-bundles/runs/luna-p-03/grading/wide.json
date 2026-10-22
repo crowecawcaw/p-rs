@@ -1,0 +1,8 @@
+{
+  "solution": "/submission/solution.py",
+  "branches": 64,
+  "update_map_bytes": 27565,
+  "supplemental": true,
+  "passed": false,
+  "error": "ValueError: record exceeds 16384 bytes"
+}

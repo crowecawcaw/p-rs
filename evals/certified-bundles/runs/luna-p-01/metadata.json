@@ -1,0 +1,30 @@
+{
+  "run_id": "luna-p-01",
+  "arm": "p",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "high",
+  "backend": "collaboration",
+  "image": "python:3.12-slim@sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2",
+  "limits": {
+    "seconds": 900,
+    "tool_calls": 80,
+    "generated_tokens": null
+  },
+  "public_sha256": {
+    "TASK.md": "b38d9c729348e08f30e299be314b64e9a3426bfdd2254b3a80da770f50f473ab",
+    "contract.py": "1a175d41273cd37535ca9836429c3b7860480daa43578d791b15e655ecab9b02",
+    "runtime.py": "ae92c26b230a6205546c38ec9c4707e0c598f35ab490f13b9883970e2b276668",
+    "test_public.py": "f83a227bfef8b84bfd218a6264757169d057aa2a724616a73eee811332f26397"
+  },
+  "prompt_sha256": "1911c6ac11142feaf8438b7a020c0b9ba6146824ae4e572df48d70816d0c9894",
+  "smoke": false,
+  "status": "agent_finished",
+  "seconds": 114.556,
+  "generated_tokens": null,
+  "input_tokens": null,
+  "tool_calls": 22,
+  "provisioned_unix": 1792706524.3074944,
+  "public_files_unchanged": true,
+  "delegation_prompt_sha256": "52a61149753ef637110894167f1ecd5b0103cbf528f37284c8f95f574a38097f",
+  "tool_bridge_version": 1
+}

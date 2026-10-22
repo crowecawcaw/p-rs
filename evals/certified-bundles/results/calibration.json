@@ -1,0 +1,97 @@
+[
+  {
+    "mutant": "stale_ci_after_revision",
+    "detected": true,
+    "passed": 16,
+    "total": 20,
+    "killed_by": [
+      "test_concurrent_evidence_revision_publish",
+      "test_crash_revision_atomic",
+      "test_generated_sequential_traces",
+      "test_revision_evidence_and_submit_retry"
+    ]
+  },
+  {
+    "mutant": "wrong_ci_digest_accepted",
+    "detected": true,
+    "passed": 18,
+    "total": 20,
+    "killed_by": [
+      "test_ci_exact_candidate",
+      "test_generated_sequential_traces"
+    ]
+  },
+  {
+    "mutant": "duplicate_approvals_count",
+    "detected": true,
+    "passed": 18,
+    "total": 20,
+    "killed_by": [
+      "test_distinct_authorized_approvals",
+      "test_generated_sequential_traces"
+    ]
+  },
+  {
+    "mutant": "ci_failure_ignored",
+    "detected": true,
+    "passed": 18,
+    "total": 20,
+    "killed_by": [
+      "test_failing_ci_revokes_success",
+      "test_generated_sequential_traces"
+    ]
+  },
+  {
+    "mutant": "no_parent_validation",
+    "detected": true,
+    "passed": 18,
+    "total": 20,
+    "killed_by": [
+      "test_concurrent_overlapping_publish",
+      "test_stale_bases_and_conflict_memo"
+    ]
+  },
+  {
+    "mutant": "rejected_results_not_memoized",
+    "detected": true,
+    "passed": 17,
+    "total": 20,
+    "killed_by": [
+      "test_all_rejection_memos",
+      "test_crash_rejection_memo",
+      "test_stale_bases_and_conflict_memo"
+    ]
+  },
+  {
+    "mutant": "submit_retry_current_revision",
+    "detected": true,
+    "passed": 18,
+    "total": 20,
+    "killed_by": [
+      "test_crash_submit_retry",
+      "test_revision_evidence_and_submit_retry"
+    ]
+  },
+  {
+    "mutant": "lost_cas_update",
+    "detected": true,
+    "passed": 16,
+    "total": 20,
+    "killed_by": [
+      "test_concurrent_evidence_revision_publish",
+      "test_concurrent_independent_progress",
+      "test_concurrent_overlapping_publish",
+      "test_initialization_race"
+    ]
+  },
+  {
+    "mutant": "read_heads_per_branch",
+    "detected": true,
+    "passed": 18,
+    "total": 20,
+    "killed_by": [
+      "test_concurrent_duplicate_requests",
+      "test_concurrent_overlapping_publish"
+    ]
+  }
+]

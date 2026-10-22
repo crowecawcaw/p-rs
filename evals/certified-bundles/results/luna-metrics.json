@@ -1,0 +1,110 @@
+[
+  {
+    "run": "luna-p-01",
+    "arm": "p",
+    "cohort": "pilot",
+    "tool_calls": 22,
+    "seconds_through_last_tool": 103.144,
+    "tool_seconds": 8.955,
+    "shell_error_calls": 7
+  },
+  {
+    "run": "luna-p-02",
+    "arm": "p",
+    "cohort": "pilot",
+    "tool_calls": 13,
+    "seconds_through_last_tool": 56.103,
+    "tool_seconds": 2.643,
+    "shell_error_calls": 1
+  },
+  {
+    "run": "luna-p-03",
+    "arm": "p",
+    "cohort": "pilot",
+    "tool_calls": 13,
+    "seconds_through_last_tool": 70.545,
+    "tool_seconds": 1.605,
+    "shell_error_calls": 1
+  },
+  {
+    "run": "luna-p-04",
+    "arm": "p",
+    "cohort": "runtime_fixed",
+    "tool_calls": 14,
+    "seconds_through_last_tool": 94.504,
+    "tool_seconds": 12.814,
+    "shell_error_calls": 5
+  },
+  {
+    "run": "luna-p-05",
+    "arm": "p",
+    "cohort": "runtime_fixed",
+    "tool_calls": 13,
+    "seconds_through_last_tool": 85.966,
+    "tool_seconds": 3.578,
+    "shell_error_calls": 2
+  },
+  {
+    "run": "luna-p-06",
+    "arm": "p",
+    "cohort": "runtime_fixed",
+    "tool_calls": 23,
+    "seconds_through_last_tool": 141.327,
+    "tool_seconds": 13.665,
+    "shell_error_calls": 7
+  },
+  {
+    "run": "luna-python-01",
+    "arm": "python",
+    "cohort": "pilot",
+    "tool_calls": 2,
+    "seconds_through_last_tool": 27.737,
+    "tool_seconds": 0.641,
+    "shell_error_calls": 0
+  },
+  {
+    "run": "luna-python-02",
+    "arm": "python",
+    "cohort": "pilot",
+    "tool_calls": 7,
+    "seconds_through_last_tool": 39.878,
+    "tool_seconds": 1.032,
+    "shell_error_calls": 0
+  },
+  {
+    "run": "luna-python-03",
+    "arm": "python",
+    "cohort": "pilot",
+    "tool_calls": 5,
+    "seconds_through_last_tool": 42.385,
+    "tool_seconds": 1.367,
+    "shell_error_calls": 0
+  },
+  {
+    "run": "luna-python-04",
+    "arm": "python",
+    "cohort": "runtime_fixed",
+    "tool_calls": 5,
+    "seconds_through_last_tool": 44.059,
+    "tool_seconds": 1.128,
+    "shell_error_calls": 0
+  },
+  {
+    "run": "luna-python-05",
+    "arm": "python",
+    "cohort": "runtime_fixed",
+    "tool_calls": 7,
+    "seconds_through_last_tool": 55.435,
+    "tool_seconds": 1.39,
+    "shell_error_calls": 0
+  },
+  {
+    "run": "luna-python-06",
+    "arm": "python",
+    "cohort": "runtime_fixed",
+    "tool_calls": 6,
+    "seconds_through_last_tool": 45.043,
+    "tool_seconds": 0.916,
+    "shell_error_calls": 0
+  }
+]

@@ -1,0 +1,455 @@
+{
+  "cohort": "short-design-first-v2-path-corrected",
+  "solver_runs_scored": 12,
+  "control_reused": true,
+  "control_source": "v2-python-01 through v2-python-06",
+  "p_source": "path2-p-01 through path2-p-06",
+  "diagnostic_p_runs_separate": "v2-p-01 through v2-p-06; stored in results/v2-comparison.json",
+  "model": "gpt-6-luna",
+  "thinking": "high",
+  "prompt_version": 2,
+  "harness_version": "1.1.3",
+  "primary_case_count": 20,
+  "schedule_seeds": 64,
+  "arms": {
+    "python": {
+      "runs": 6,
+      "primary_all_passed": 4,
+      "primary_cases_passed": 117,
+      "primary_cases_total": 120,
+      "median_tool_calls": 4.5,
+      "median_seconds_through_last_tool": 44.835,
+      "secondary_wide_passed": 0,
+      "primary_and_secondary_passed": 0,
+      "p_checker_invoked": 0,
+      "p_check_before_solution": 0
+    },
+    "p": {
+      "runs": 6,
+      "primary_all_passed": 6,
+      "primary_cases_passed": 120,
+      "primary_cases_total": 120,
+      "median_tool_calls": 16.0,
+      "median_seconds_through_last_tool": 111.116,
+      "secondary_wide_passed": 3,
+      "primary_and_secondary_passed": 3,
+      "p_checker_invoked": 6,
+      "p_check_before_solution": 0
+    }
+  },
+  "trials": [
+    {
+      "run": "v2-python-01",
+      "arm": "python",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "pre-path-fix",
+      "primary_passed": 19,
+      "primary_total": 20,
+      "primary_all_passed": false,
+      "failed_cases": [
+        {
+          "case": "test_record_growth_and_quiescent_progress",
+          "error": "AssertionError: quiescent per-operation progress budget exceeded"
+        }
+      ],
+      "tool_calls": 5,
+      "seconds_through_last_tool": 45.357,
+      "first_solution_write_call": 4,
+      "first_p_check_call": null,
+      "p_checker_invoked": false,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [],
+      "postfreeze_model_review": null
+    },
+    {
+      "run": "v2-python-02",
+      "arm": "python",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "pre-path-fix",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 6,
+      "seconds_through_last_tool": 78.568,
+      "first_solution_write_call": 3,
+      "first_p_check_call": null,
+      "p_checker_invoked": false,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [],
+      "postfreeze_model_review": null
+    },
+    {
+      "run": "v2-python-03",
+      "arm": "python",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "pre-path-fix",
+      "primary_passed": 18,
+      "primary_total": 20,
+      "primary_all_passed": false,
+      "failed_cases": [
+        {
+          "case": "test_crash_submit_retry",
+          "error": "AssertionError: "
+        },
+        {
+          "case": "test_revision_evidence_and_submit_retry",
+          "error": "AssertionError: submit('b', {'schema': {'expected': 's0', 'new': 's1'}, 'service': {'expected': 'v0', 'new': 'v1'}}): expected {'bundle': 'b', 'revision': 1, 'digest': '7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065'}, got {'bundle': 'b', 'revision': 1, 'digest': 'bd10abb38bba8e56f770e5c4105f496b74a95adca057c4ad39ae26f38d70aaa3'}"
+        }
+      ],
+      "tool_calls": 4,
+      "seconds_through_last_tool": 44.313,
+      "first_solution_write_call": 4,
+      "first_p_check_call": null,
+      "p_checker_invoked": false,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [],
+      "postfreeze_model_review": null
+    },
+    {
+      "run": "v2-python-04",
+      "arm": "python",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "pre-path-fix",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 3,
+      "seconds_through_last_tool": 41.596,
+      "first_solution_write_call": 3,
+      "first_p_check_call": null,
+      "p_checker_invoked": false,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [],
+      "postfreeze_model_review": null
+    },
+    {
+      "run": "v2-python-05",
+      "arm": "python",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "pre-path-fix",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 6,
+      "seconds_through_last_tool": 45.743,
+      "first_solution_write_call": 4,
+      "first_p_check_call": null,
+      "p_checker_invoked": false,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [],
+      "postfreeze_model_review": null
+    },
+    {
+      "run": "v2-python-06",
+      "arm": "python",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "pre-path-fix",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 3,
+      "seconds_through_last_tool": 39.688,
+      "first_solution_write_call": 3,
+      "first_p_check_call": null,
+      "p_checker_invoked": false,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [],
+      "postfreeze_model_review": null
+    },
+    {
+      "run": "path2-p-01",
+      "arm": "p",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "snappea-on-path",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 15,
+      "seconds_through_last_tool": 97.998,
+      "first_solution_write_call": 6,
+      "first_p_check_call": 14,
+      "p_checker_invoked": true,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": true,
+      "public_files_unchanged": true,
+      "monitor_coverage": [
+        {
+          "monitor": "PublishSafety",
+          "event_coverage_percent": 100.0,
+          "path": "PCheckerOutput/tcCompetingPublishes/coverage.txt"
+        }
+      ],
+      "postfreeze_model_review": {
+        "run": "path2-p-01",
+        "p_source_files": [
+          "CertifiedBundles.p"
+        ],
+        "solver_checker_invoked": true,
+        "solver_check_commands": [
+          "snappea check tcCompetingPublishes --exhaustive"
+        ],
+        "reviewer_only": true,
+        "reviewer_exit": 0,
+        "reviewer_output": "Checking generatedOutput: 1 test case\nok    tcCompetingPublishes (all 53 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n"
+      }
+    },
+    {
+      "run": "path2-p-02",
+      "arm": "p",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "snappea-on-path",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 17,
+      "seconds_through_last_tool": 110.913,
+      "first_solution_write_call": 5,
+      "first_p_check_call": 12,
+      "p_checker_invoked": true,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [
+        {
+          "monitor": "CertifiedBundleCorrect",
+          "event_coverage_percent": 100.0,
+          "path": "PCheckerOutput/tcCertifiedPublish/coverage.txt"
+        }
+      ],
+      "postfreeze_model_review": {
+        "run": "path2-p-02",
+        "p_source_files": [
+          "CertifiedBundles.p"
+        ],
+        "solver_checker_invoked": true,
+        "solver_check_commands": [
+          "/opt/snappea check tcCertifiedPublish --pfiles CertifiedBundles.p",
+          "/opt/snappea check CertifiedBundles.p tcCertifiedPublish --exhaustive",
+          "/opt/snappea check CertifiedBundles.p tcCertifiedPublish --exhaustive"
+        ],
+        "reviewer_only": true,
+        "reviewer_exit": 0,
+        "reviewer_output": "Checking generatedOutput: 1 test case\nok    tcCertifiedPublish (all 1 schedule, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n"
+      }
+    },
+    {
+      "run": "path2-p-03",
+      "arm": "p",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "snappea-on-path",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 15,
+      "seconds_through_last_tool": 119.052,
+      "first_solution_write_call": 6,
+      "first_p_check_call": 10,
+      "p_checker_invoked": true,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [
+        {
+          "monitor": "ChangeBundles",
+          "event_coverage_percent": 100.0,
+          "path": "PCheckerOutput/tcAtomicPublish/coverage.txt"
+        }
+      ],
+      "postfreeze_model_review": {
+        "run": "path2-p-03",
+        "p_source_files": [
+          "PTst/TestScript.p",
+          "PSrc/Service.p",
+          "PSpec/change.p"
+        ],
+        "solver_checker_invoked": true,
+        "solver_check_commands": [
+          "/opt/snappea check --exhaustive",
+          "/opt/snappea check --exhaustive"
+        ],
+        "reviewer_only": true,
+        "reviewer_exit": 0,
+        "reviewer_output": "Checking generatedOutput: 1 test case\nok    tcAtomicPublish (all 53 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n"
+      }
+    },
+    {
+      "run": "path2-p-04",
+      "arm": "p",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "snappea-on-path",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 17,
+      "seconds_through_last_tool": 111.319,
+      "first_solution_write_call": 6,
+      "first_p_check_call": 14,
+      "p_checker_invoked": true,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": true,
+      "public_files_unchanged": true,
+      "monitor_coverage": [
+        {
+          "monitor": "BundleProtocol",
+          "event_coverage_percent": 33.3,
+          "path": "PCheckerOutput/tcAtomicBundlePublish/coverage.txt"
+        }
+      ],
+      "postfreeze_model_review": {
+        "run": "path2-p-04",
+        "p_source_files": [
+          "bundle_model.p"
+        ],
+        "solver_checker_invoked": true,
+        "solver_check_commands": [
+          "snappea check bundle_model.p",
+          "snappea check bundle_model.p"
+        ],
+        "reviewer_only": true,
+        "reviewer_exit": 0,
+        "reviewer_output": "Checking generatedOutput: 1 test case\nok    tcAtomicBundlePublish (all 1 schedule, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n"
+      }
+    },
+    {
+      "run": "path2-p-05",
+      "arm": "p",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "snappea-on-path",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 22,
+      "seconds_through_last_tool": 131.687,
+      "first_solution_write_call": 5,
+      "first_p_check_call": 7,
+      "p_checker_invoked": true,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": true,
+      "public_files_unchanged": true,
+      "monitor_coverage": [],
+      "postfreeze_model_review": {
+        "run": "path2-p-05",
+        "p_source_files": [
+          "PTst/Driver.p",
+          "PTst/TestScript.p",
+          "PSrc/Coordinator.p",
+          "PSpec/AtomicHeads.p"
+        ],
+        "solver_checker_invoked": true,
+        "solver_check_commands": [
+          "snappea check BundleModel.pproj --exhaustive",
+          "snappea check BundleModel.pproj --exhaustive",
+          "snappea check BundleModel.pproj --exhaustive",
+          "snappea check BundleModel.pproj --exhaustive",
+          "snappea check BundleModel.pproj --exhaustive"
+        ],
+        "reviewer_only": true,
+        "reviewer_exit": 0,
+        "reviewer_output": "Checking generatedOutput: 1 test case\nok    tcCompetingPublishes (all 53 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n"
+      }
+    },
+    {
+      "run": "path2-p-06",
+      "arm": "p",
+      "model": "gpt-6-luna",
+      "thinking": "high",
+      "prompt_version": 2,
+      "harness_version": "1.1.3",
+      "environment_revision": "snappea-on-path",
+      "primary_passed": 20,
+      "primary_total": 20,
+      "primary_all_passed": true,
+      "failed_cases": [],
+      "tool_calls": 13,
+      "seconds_through_last_tool": 83.082,
+      "first_solution_write_call": 7,
+      "first_p_check_call": 10,
+      "p_checker_invoked": true,
+      "p_check_before_solution": false,
+      "secondary_wide_passed": false,
+      "public_files_unchanged": true,
+      "monitor_coverage": [
+        {
+          "monitor": "AtomicBundleHeads",
+          "event_coverage_percent": 100.0,
+          "path": "PCheckerOutput/tcAtomicBundles/coverage.txt"
+        }
+      ],
+      "postfreeze_model_review": {
+        "run": "path2-p-06",
+        "p_source_files": [
+          "ChangeBundles.p"
+        ],
+        "solver_checker_invoked": true,
+        "solver_check_commands": [
+          "/opt/snappea check ChangeBundles.p tcAtomicBundles --exhaustive",
+          "/opt/snappea check ChangeBundles.p tcAtomicBundles --exhaustive"
+        ],
+        "reviewer_only": true,
+        "reviewer_exit": 0,
+        "reviewer_output": "Checking generatedOutput: 1 test case\nok    tcAtomicBundles (all 35 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n"
+      }
+    }
+  ],
+  "caveats": [
+    "One task, six independent solvers per arm; exploratory outcomes.",
+    "The corrected P arm uses fresh agents; the Python controls are reused unchanged rather than rerun.",
+    "P is now on normal PATH; task prompt text is unchanged except independent run IDs.",
+    "V2 bridge output is bounded; v1 used an earlier bridge, so cross-cohort timing is descriptive.",
+    "Phase order measures observed file writes/checks, not unobservable internal design reasoning."
+  ]
+}

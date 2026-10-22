@@ -1,0 +1,65 @@
+[
+  {
+    "run": "luna-p-01",
+    "probe": "parent_conflict",
+    "baseline_exit": 0,
+    "probe_exit": 1,
+    "baseline_output": "Checking ChangeBundle: 1 test case\nok    tcConcurrentPublish (all 80 schedules, 0.01s)\nThe test case passed in 0.01s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "probe_output": "Checking ChangeBundle: 1 test case\nFAIL  tcConcurrentPublish (bug found after 1 schedule, 0.00s)\n      Assertion Failed: ChangeBundle.p:77:7 publish did not check the current expected parent\n      Replay: snappea replay PCheckerOutput/tcConcurrentPublish/bug.schedule ChangeBundle.pproj\n1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "property_triggered": true
+  },
+  {
+    "run": "luna-p-02",
+    "probe": "parent_conflict",
+    "baseline_exit": 0,
+    "probe_exit": 1,
+    "baseline_output": "Checking generatedOutput: 1 test case\nok    DefaultImpl (all 53 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "probe_output": "Checking generatedOutput: 1 test case\nFAIL  DefaultImpl (bug found after 1 schedule, 0.00s)\n      Assertion Failed: bundle_model.p:15:9\n      Replay: snappea replay PCheckerOutput/DefaultImpl/bug.schedule bundle_model.p\n1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "property_triggered": true
+  },
+  {
+    "run": "luna-p-03",
+    "probe": "parent_conflict",
+    "baseline_exit": 0,
+    "probe_exit": 1,
+    "baseline_output": "Checking generatedOutput: 1 test case\nok    tcAtomicPublish (all 53 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "probe_output": "Checking generatedOutput: 1 test case\nFAIL  tcAtomicPublish (bug found after 1 schedule, 0.00s)\n      Assertion Failed: Bundle.p:80:7 two competing bundles both committed\n      Replay: snappea replay PCheckerOutput/tcAtomicPublish/bug.schedule Bundle.p\n1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "property_triggered": true
+  },
+  {
+    "run": "luna-p-04",
+    "probe": "torn_publication",
+    "baseline_exit": 0,
+    "probe_exit": 1,
+    "baseline_output": "Checking generatedOutput: 1 test case\nok    tcAtomicJournal (all 133 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "probe_output": "Checking generatedOutput: 1 test case\nFAIL  tcAtomicJournal (bug found after 1 schedule, 0.00s)\n      Assertion Failed: model/AtomicJournal.p:49:7 multi-branch commit became partially visible\n      Replay: snappea replay PCheckerOutput/tcAtomicJournal/bug.schedule model/AtomicJournal.p\n1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "property_triggered": true
+  },
+  {
+    "run": "luna-p-04",
+    "probe": "stale_cas_acceptance",
+    "baseline_exit": 0,
+    "probe_exit": 0,
+    "baseline_output": "Checking generatedOutput: 1 test case\nok    tcAtomicJournal (all 133 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "probe_output": "Checking generatedOutput: 1 test case\nok    tcAtomicJournal (all 133 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "property_triggered": false
+  },
+  {
+    "run": "luna-p-05",
+    "probe": "commit_reachability",
+    "baseline_exit": 0,
+    "probe_exit": 0,
+    "baseline_output": "Checking generatedOutput: 1 test case\nok    tcAtomicBundlePublish (all 52 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "probe_output": "Checking generatedOutput: 1 test case\nok    tcAtomicBundlePublish (all 52 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "property_triggered": false
+  },
+  {
+    "run": "luna-p-06",
+    "probe": "torn_publication",
+    "baseline_exit": 0,
+    "probe_exit": 1,
+    "baseline_output": "Checking generatedOutput: 1 test case\nok    tcTwoPublishers (all 121 schedules, 0.00s)\nThe test case passed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "probe_output": "Checking generatedOutput: 1 test case\nFAIL  tcTwoPublishers (bug found after 1 schedule, 0.00s)\n      Assertion Failed: BundleModel.p:47:9 publish outcome and all target heads share one visibility point\n      Replay: snappea replay PCheckerOutput/tcTwoPublishers/bug.schedule BundleModel.p TwoPublishers.p\n1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/\n",
+    "property_triggered": true
+  }
+]

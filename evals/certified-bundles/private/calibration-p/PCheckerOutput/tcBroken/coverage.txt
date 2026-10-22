@@ -1,0 +1,49 @@
+Total event coverage: 80.0%
+===========================
+StateMachine: Branch
+====================
+Event coverage: 66.7%
+
+	State: Serving
+		State event coverage: 66.7%
+		Events received: eSplitCommit, eValidate
+		Events sent: eValidated
+		Events not covered: eAtomicCommit
+
+StateMachine: Broken
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+Monitor: OneChildPerBase
+========================
+Event coverage: 100.0%
+
+	State: Watching
+		State event coverage: 100.0%
+		Events received: eLanded
+		Previous states: Watching
+		Next states: Watching
+
+StateMachine: Publisher
+=======================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: eValidate
+		Next states: Waiting
+
+	State: Waiting
+		State event coverage: 100.0%
+		Events received: eValidated
+		Events sent: eSplitCommit
+		Previous states: Init
+		Next states: Done
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Previous states: Waiting
+

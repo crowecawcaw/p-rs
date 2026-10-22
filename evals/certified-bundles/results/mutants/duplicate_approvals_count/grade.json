@@ -1,0 +1,457 @@
+{
+  "harness_version": "1.1.3",
+  "source_sha256": {
+    "public/runtime.py": "c8b0caf9a74f01b5dbf2e529b2e568a37189104934fa67918ef6a10c88a495e8",
+    "private/grade.py": "9568cafc4ae577d49de98324b4bbdbbed94d727d2f71acbd8c6598c0db8fe8d2",
+    "private/oracle.py": "4618d57f239c4eb07d8ff43572021b223a8be0a4ea4cf045dc97226f0f943a9e"
+  },
+  "solution": "/workspace/snappea-eval/results/mutants/duplicate_approvals_count/solution.py",
+  "seeds": 12,
+  "passed": 18,
+  "case_timeout_seconds": 10.0,
+  "total": 20,
+  "all_passed": false,
+  "cases": [
+    {
+      "case": "test_all_rejection_memos",
+      "passed": true,
+      "seconds": 0.0014
+    },
+    {
+      "case": "test_basic_durability",
+      "passed": true,
+      "seconds": 0.0006
+    },
+    {
+      "case": "test_ci_exact_candidate",
+      "passed": true,
+      "seconds": 0.0004
+    },
+    {
+      "case": "test_concurrent_duplicate_requests",
+      "passed": true,
+      "seconds": 0.0123
+    },
+    {
+      "case": "test_concurrent_evidence_revision_publish",
+      "passed": true,
+      "seconds": 0.0139
+    },
+    {
+      "case": "test_concurrent_independent_progress",
+      "passed": true,
+      "seconds": 0.0149
+    },
+    {
+      "case": "test_concurrent_overlapping_publish",
+      "passed": true,
+      "seconds": 0.0176
+    },
+    {
+      "case": "test_crash_publish_atomic_and_retry",
+      "passed": true,
+      "seconds": 0.0031
+    },
+    {
+      "case": "test_crash_rejection_memo",
+      "passed": true,
+      "seconds": 0.0048
+    },
+    {
+      "case": "test_crash_revision_atomic",
+      "passed": true,
+      "seconds": 0.0033
+    },
+    {
+      "case": "test_crash_submit_retry",
+      "passed": true,
+      "seconds": 0.0023
+    },
+    {
+      "case": "test_distinct_authorized_approvals",
+      "passed": false,
+      "error": "AssertionError: publish('b', 1, 'p'): expected 'not_ready', got 'published'",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/snappea-eval/private/grade.py\", line 344, in main\n    await asyncio.wait_for(getattr(grader,name)(),timeout=args.timeout)\n  File \"/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/workspace/snappea-eval/private/grade.py\", line 63, in test_distinct_authorized_approvals\n    await self.call(s,m,'publish','b',1,'p')\n  File \"/workspace/snappea-eval/private/grade.py\", line 39, in call\n    assert got == want, f'{method}{args}: expected {want!r}, got {got!r}'\n           ^^^^^^^^^^^\nAssertionError: publish('b', 1, 'p'): expected 'not_ready', got 'published'\n",
+      "replay": [
+        {
+          "method": "submit",
+          "args": [
+            "b",
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b",
+            1,
+            "alice"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b",
+            1,
+            "alice"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b",
+            1,
+            "mallory"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b",
+            1,
+            "root"
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b",
+            1,
+            "7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065",
+            true
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b",
+            1,
+            "p"
+          ]
+        }
+      ],
+      "seconds": 0.0012
+    },
+    {
+      "case": "test_failing_ci_revokes_success",
+      "passed": true,
+      "seconds": 0.0006
+    },
+    {
+      "case": "test_generated_sequential_traces",
+      "passed": false,
+      "error": "AssertionError: get_status('b2',): expected {'revision': 1, 'updates': {'schema': {'expected': 's0', 'new': 's1'}, 'service': {'expected': 'v0', 'new': 'v1'}}, 'digest': '7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065', 'approvals': ['carol'], 'ci': False, 'published': False}, got {'approvals': ['carol', 'carol'], 'ci': False, 'digest': '7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065', 'published': False, 'revision': 1, 'updates': {'schema': {'expected': 's0', 'new': 's1'}, 'service': {'expected': 'v0', 'new': 'v1'}}}",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/snappea-eval/private/grade.py\", line 344, in main\n    await asyncio.wait_for(getattr(grader,name)(),timeout=args.timeout)\n  File \"/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/workspace/snappea-eval/private/grade.py\", line 301, in test_generated_sequential_traces\n    await self.call(s,m,method,*args)\n  File \"/workspace/snappea-eval/private/grade.py\", line 39, in call\n    assert got == want, f'{method}{args}: expected {want!r}, got {got!r}'\n           ^^^^^^^^^^^\nAssertionError: get_status('b2',): expected {'revision': 1, 'updates': {'schema': {'expected': 's0', 'new': 's1'}, 'service': {'expected': 'v0', 'new': 'v1'}}, 'digest': '7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065', 'approvals': ['carol'], 'ci': False, 'published': False}, got {'approvals': ['carol', 'carol'], 'ci': False, 'digest': '7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065', 'published': False, 'revision': 1, 'updates': {'schema': {'expected': 's0', 'new': 's1'}, 'service': {'expected': 'v0', 'new': 'v1'}}}\n",
+      "replay": [
+        {
+          "method": "record_ci",
+          "args": [
+            "b4",
+            2,
+            "wrong",
+            true
+          ]
+        },
+        {
+          "method": "revise",
+          "args": [
+            "b1",
+            2,
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "read_heads",
+          "args": [
+            [
+              "schema",
+              "service",
+              "client"
+            ]
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b2",
+            1,
+            "7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065",
+            false
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b0",
+            2,
+            "wrong",
+            false
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b1",
+            1,
+            "wrong",
+            true
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b1",
+            1,
+            "7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065",
+            true
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b2",
+            1,
+            "wrong",
+            true
+          ]
+        },
+        {
+          "method": "read_heads",
+          "args": [
+            [
+              "schema",
+              "service",
+              "client"
+            ]
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b0",
+            1,
+            "wrong",
+            false
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b1",
+            1,
+            "p3-37"
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b1",
+            2,
+            "p3-38"
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b2",
+            2,
+            "wrong",
+            true
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b2",
+            1,
+            "p3-40"
+          ]
+        },
+        {
+          "method": "get_status",
+          "args": [
+            "b4"
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b4",
+            1,
+            "bd10abb38bba8e56f770e5c4105f496b74a95adca057c4ad39ae26f38d70aaa3",
+            false
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b0",
+            2,
+            "p3-43"
+          ]
+        },
+        {
+          "method": "read_heads",
+          "args": [
+            [
+              "schema",
+              "service",
+              "client"
+            ]
+          ]
+        },
+        {
+          "method": "revise",
+          "args": [
+            "b3",
+            3,
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b2",
+            1,
+            "wrong",
+            false
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b1",
+            2,
+            "p3-47"
+          ]
+        },
+        {
+          "method": "get_status",
+          "args": [
+            "b0"
+          ]
+        },
+        {
+          "method": "read_heads",
+          "args": [
+            [
+              "schema",
+              "service",
+              "client"
+            ]
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b3",
+            2,
+            "mallory"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b3",
+            2,
+            "mallory"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b2",
+            0,
+            "bob"
+          ]
+        },
+        {
+          "method": "get_status",
+          "args": [
+            "b1"
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b1",
+            1,
+            "p3-54"
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b4",
+            2,
+            "p3-55"
+          ]
+        },
+        {
+          "method": "get_status",
+          "args": [
+            "b2"
+          ]
+        }
+      ],
+      "seconds": 0.0205
+    },
+    {
+      "case": "test_initialization_race",
+      "passed": true,
+      "seconds": 0.0045
+    },
+    {
+      "case": "test_no_mutable_aliases",
+      "passed": true,
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_published_bundle_cannot_reapply",
+      "passed": true,
+      "seconds": 0.0012
+    },
+    {
+      "case": "test_record_growth_and_quiescent_progress",
+      "passed": true,
+      "seconds": 0.3093
+    },
+    {
+      "case": "test_revision_evidence_and_submit_retry",
+      "passed": true,
+      "seconds": 0.0009
+    },
+    {
+      "case": "test_stale_bases_and_conflict_memo",
+      "passed": true,
+      "seconds": 0.0015
+    }
+  ]
+}

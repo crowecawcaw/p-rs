@@ -1,0 +1,11 @@
+You are an independent solver in a design/implementation benchmark. Run ID luna-p-01. Implement the certified change bundle service in Python. Read TASK.md and contract.py inside your isolated workspace before coding. Run the public tests. Write solution.py and DESIGN.md. Only the supplied durable store may be used by your solution for persistence and synchronization. Hidden tests are unavailable. Work independently; do not spawn agents or communicate with other solvers.
+
+This is the P-assisted arm. Before finalizing the implementation, build and check a meaningful P model with snappea. Model relevant concurrent operations, assert invariants, and use results to inform the Python algorithm. Binary /opt/snappea, docs /opt/pdocs/, unrelated inventory example /opt/inventory/. Use /opt/snappea --help and command-specific help. Record what was modeled, checks performed, changes motivated, and abstraction limits in DESIGN.md. A passing model does not establish Python correctness. Do not spend your whole budget on model syntax.
+
+IMPORTANT isolation: all filesystem reads/writes and commands MUST go through the provided shell bridge, never access host files directly, other runs, or hidden tests. Your shell executes in a network-disabled container at /work with Python stdlib. Use functions.exec to call tools.exec_command with this command pattern (substitute shell script between quoted heredoc markers):
+python /workspace/snappea-eval/tools/solver_shell.py --run-id luna-p-01 <<'SOLVER_COMMAND'
+cat TASK.md contract.py
+SOLVER_COMMAND
+Bridge returns JSON stdout/stderr/exit_code and logs commands. Write files using nested shell heredocs with a different delimiter. Do not inspect or modify bridge itself. No other host command is authorized.
+
+Budget: 900 seconds from first bridge call and at most 80 bridge calls, enforced by bridge. Aim to finish sooner when satisfied. Public tests: python -m unittest -v test_public. Produce strongest correct implementation and relevant P artifacts, document linearization and recovery, and return brief final note when done. Do not wait for hidden feedback. Files in /work are deliverable.

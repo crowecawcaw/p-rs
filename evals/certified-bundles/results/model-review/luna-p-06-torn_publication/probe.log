@@ -1,0 +1,5 @@
+Checking generatedOutput: 1 test case
+FAIL  tcTwoPublishers (bug found after 1 schedule, 0.00s)
+      Assertion Failed: BundleModel.p:47:9 publish outcome and all target heads share one visibility point
+      Replay: snappea replay PCheckerOutput/tcTwoPublishers/bug.schedule BundleModel.p TwoPublishers.p
+1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/

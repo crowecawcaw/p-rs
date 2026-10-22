@@ -1,0 +1,54 @@
+Total event coverage: 50.0%
+===========================
+Monitor: BundleInvariant
+========================
+Event coverage: 50.0%
+
+	State: Initial
+		State has no expected events, so coverage is 100%
+		Next states: Active
+
+	State: Active
+		State event coverage: 50.0%
+		Events received: ePublished
+		Events not covered: eRejected
+		Previous states: Active, Initial
+		Next states: Active
+
+StateMachine: BundleStore
+=========================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Serving
+
+	State: Serving
+		State event coverage: 100.0%
+		Events received: ePublish
+		Events sent: eResponse
+		Previous states: Init
+
+StateMachine: ConcurrentPublish
+===============================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Publisher
+=======================
+Event coverage: 0.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: ePublish
+		Next states: Waiting
+
+	State: Waiting is uncovered
+		Events not covered: eResponse
+		Previous states: Init
+
+	State: Done
+		State has no expected events, so coverage is 100%
+

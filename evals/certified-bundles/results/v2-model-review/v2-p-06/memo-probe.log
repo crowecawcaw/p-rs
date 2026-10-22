@@ -1,0 +1,5 @@
+Checking generatedOutput: 1 test case
+FAIL  tcAtomicRootCommit (bug found after 1 schedule, 0.00s)
+      Assertion Failed: CertifiedBundles.p:8:7 every publish outcome must be memoized with the root transition
+      Replay: snappea replay PCheckerOutput/tcAtomicRootCommit/bug.schedule CertifiedBundles.p
+1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/

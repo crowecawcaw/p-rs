@@ -1,0 +1,25 @@
+{
+  "cohort": "short-design-first-v2",
+  "prompt_version": 2,
+  "model": "gpt-6-luna",
+  "reasoning_effort": "high",
+  "runs_per_arm": 6,
+  "run_prefix": "v2",
+  "primary_cases": 20,
+  "seeds": 64,
+  "secondary_probe": "existing wide-bundle test, specified before this cohort",
+  "limits": {
+    "seconds": 900,
+    "shell_calls": 80
+  },
+  "created_unix": 1792709106.5481656,
+  "source_sha256": {
+    "tools/prompts.py": "bb24806f923383fb468f3a03f489147dc883098188a02182d3d200719a5119d6",
+    "tools/delegation.py": "9dc1f666e3cf3f2bf6af8dcdb14b423940058fcff99e1ef63e496066b481167e",
+    "public/TASK.md": "b38d9c729348e08f30e299be314b64e9a3426bfdd2254b3a80da770f50f473ab",
+    "public/runtime.py": "c8b0caf9a74f01b5dbf2e529b2e568a37189104934fa67918ef6a10c88a495e8",
+    "private/grade.py": "46f225c55aa12d3361398eaf5701625161d11449e652050c3cc63f2316048d79",
+    "private/oracle.py": "4618d57f239c4eb07d8ff43572021b223a8be0a4ea4cf045dc97226f0f943a9e",
+    "private/stress_wide.py": "96acd693a9cf5bca3ca2408bf95c76b56e0b12197f2bace046ff23b741504e81"
+  }
+}

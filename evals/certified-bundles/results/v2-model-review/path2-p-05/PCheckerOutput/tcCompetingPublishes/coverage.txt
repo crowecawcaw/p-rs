@@ -1,0 +1,52 @@
+Total event coverage: 100.0%
+============================
+Monitor: AtomicHeads
+====================
+Event coverage: 100.0%
+
+	State: Stable
+		State event coverage: 100.0%
+		Events received: eHeads
+		Previous states: Stable
+		Next states: Stable
+
+StateMachine: CompetingPublishes
+================================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Coordinator
+=========================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Serving
+
+	State: Serving
+		State event coverage: 100.0%
+		Events received: ePublish
+		Events sent: eReply
+		Previous states: Init
+
+StateMachine: PublishClient
+===========================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: ePublish
+		Next states: Waiting
+
+	State: Waiting
+		State event coverage: 100.0%
+		Events received: eReply
+		Previous states: Init
+		Next states: Done
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Previous states: Waiting
+

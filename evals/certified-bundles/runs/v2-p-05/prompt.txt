@@ -1,0 +1,5 @@
+Read TASK.md and contract.py. Write solution.py and DESIGN.md.
+
+Design the certified change bundle service and model it with P/Snappea. Then implement it in Python.
+
+P/Snappea: /opt/snappea; docs: /opt/pdocs/; example: /opt/inventory/.

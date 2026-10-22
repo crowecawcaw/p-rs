@@ -1,0 +1,280 @@
+{
+  "harness_version": "1.1.3",
+  "source_sha256": {
+    "public/runtime.py": "c8b0caf9a74f01b5dbf2e529b2e568a37189104934fa67918ef6a10c88a495e8",
+    "private/grade.py": "9568cafc4ae577d49de98324b4bbdbbed94d727d2f71acbd8c6598c0db8fe8d2",
+    "private/oracle.py": "4618d57f239c4eb07d8ff43572021b223a8be0a4ea4cf045dc97226f0f943a9e"
+  },
+  "solution": "/workspace/snappea-eval/results/mutants/wrong_ci_digest_accepted/solution.py",
+  "seeds": 12,
+  "passed": 18,
+  "case_timeout_seconds": 10.0,
+  "total": 20,
+  "all_passed": false,
+  "cases": [
+    {
+      "case": "test_all_rejection_memos",
+      "passed": true,
+      "seconds": 0.0011
+    },
+    {
+      "case": "test_basic_durability",
+      "passed": true,
+      "seconds": 0.0005
+    },
+    {
+      "case": "test_ci_exact_candidate",
+      "passed": false,
+      "error": "AssertionError: record_ci('b', 1, '045a4e612be6ec882e1fde8c64c94bf1a7025bc18a72e1cd4f8fe011b2bf0a7d', True): expected False, got True",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/snappea-eval/private/grade.py\", line 344, in main\n    await asyncio.wait_for(getattr(grader,name)(),timeout=args.timeout)\n  File \"/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/workspace/snappea-eval/private/grade.py\", line 72, in test_ci_exact_candidate\n    await self.call(s,m,'record_ci','b',1,digest(changed_base),True)\n  File \"/workspace/snappea-eval/private/grade.py\", line 39, in call\n    assert got == want, f'{method}{args}: expected {want!r}, got {got!r}'\n           ^^^^^^^^^^^\nAssertionError: record_ci('b', 1, '045a4e612be6ec882e1fde8c64c94bf1a7025bc18a72e1cd4f8fe011b2bf0a7d', True): expected False, got True\n",
+      "replay": [
+        {
+          "method": "submit",
+          "args": [
+            "b",
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b",
+            1,
+            "alice"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b",
+            1,
+            "bob"
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b",
+            1,
+            "045a4e612be6ec882e1fde8c64c94bf1a7025bc18a72e1cd4f8fe011b2bf0a7d",
+            true
+          ]
+        }
+      ],
+      "seconds": 0.0009
+    },
+    {
+      "case": "test_concurrent_duplicate_requests",
+      "passed": true,
+      "seconds": 0.0126
+    },
+    {
+      "case": "test_concurrent_evidence_revision_publish",
+      "passed": true,
+      "seconds": 0.0144
+    },
+    {
+      "case": "test_concurrent_independent_progress",
+      "passed": true,
+      "seconds": 0.0155
+    },
+    {
+      "case": "test_concurrent_overlapping_publish",
+      "passed": true,
+      "seconds": 0.0183
+    },
+    {
+      "case": "test_crash_publish_atomic_and_retry",
+      "passed": true,
+      "seconds": 0.0032
+    },
+    {
+      "case": "test_crash_rejection_memo",
+      "passed": true,
+      "seconds": 0.0049
+    },
+    {
+      "case": "test_crash_revision_atomic",
+      "passed": true,
+      "seconds": 0.0033
+    },
+    {
+      "case": "test_crash_submit_retry",
+      "passed": true,
+      "seconds": 0.0023
+    },
+    {
+      "case": "test_distinct_authorized_approvals",
+      "passed": true,
+      "seconds": 0.0006
+    },
+    {
+      "case": "test_failing_ci_revokes_success",
+      "passed": true,
+      "seconds": 0.0005
+    },
+    {
+      "case": "test_generated_sequential_traces",
+      "passed": false,
+      "error": "AssertionError: record_ci('b3', 1, 'wrong', False): expected False, got True",
+      "traceback": "Traceback (most recent call last):\n  File \"/workspace/snappea-eval/private/grade.py\", line 344, in main\n    await asyncio.wait_for(getattr(grader,name)(),timeout=args.timeout)\n  File \"/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/workspace/snappea-eval/private/grade.py\", line 301, in test_generated_sequential_traces\n    await self.call(s,m,method,*args)\n  File \"/workspace/snappea-eval/private/grade.py\", line 39, in call\n    assert got == want, f'{method}{args}: expected {want!r}, got {got!r}'\n           ^^^^^^^^^^^\nAssertionError: record_ci('b3', 1, 'wrong', False): expected False, got True\n",
+      "replay": [
+        {
+          "method": "submit",
+          "args": [
+            "b0",
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "submit",
+          "args": [
+            "b1",
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "submit",
+          "args": [
+            "b2",
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "submit",
+          "args": [
+            "b3",
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "submit",
+          "args": [
+            "b4",
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b0",
+            1,
+            "p0-0"
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b2",
+            1,
+            "p0-1"
+          ]
+        },
+        {
+          "method": "read_heads",
+          "args": [
+            [
+              "schema",
+              "service",
+              "client"
+            ]
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b3",
+            1,
+            "wrong",
+            false
+          ]
+        }
+      ],
+      "seconds": 0.0013
+    },
+    {
+      "case": "test_initialization_race",
+      "passed": true,
+      "seconds": 0.0044
+    },
+    {
+      "case": "test_no_mutable_aliases",
+      "passed": true,
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_published_bundle_cannot_reapply",
+      "passed": true,
+      "seconds": 0.0012
+    },
+    {
+      "case": "test_record_growth_and_quiescent_progress",
+      "passed": true,
+      "seconds": 0.3108
+    },
+    {
+      "case": "test_revision_evidence_and_submit_retry",
+      "passed": true,
+      "seconds": 0.0009
+    },
+    {
+      "case": "test_stale_bases_and_conflict_memo",
+      "passed": true,
+      "seconds": 0.0016
+    }
+  ]
+}

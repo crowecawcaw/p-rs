@@ -1,0 +1,11 @@
+# Certified change bundles design
+
+The service stores a single durable root pointer and an append-only chain of immutable event records. Each event is a compact JSON value containing its predecessor hash, event kind, and the state changes for one operation. The event hash is its key. The root value is the hash of the latest committed event; the root key's store version serializes writers. Event records are immutable and remain available after restart.
+
+A snapshot reads the root and follows predecessor hashes to the initialization event, then replays the chain from oldest to newest. The branch heads, bundle records, submit responses, and publish outcomes are all reconstructed from that snapshot. This allows history to grow without placing the entire history in one bounded store value. Each event carries only one bundle update, an outcome, or the heads and bundle record changed by a successful publish.
+
+For a state-changing operation, the service computes the proposed event from a snapshot, writes the immutable event, then compare-and-swaps the root at the snapshot version. The successful root CAS is the operation's linearization point. A losing writer retries from a fresh snapshot. Events written by losing or crashed writers are harmless orphans because no committed root points to them. If a process dies after the root CAS but before receiving its response, a retry observes the durable result. Submit responses and publish request outcomes are retained in the event history, so their IDs remain idempotent. Publish success places the head changes, published marker, and request outcome in one event and makes all three visible through one root CAS.
+
+Snapshot reads linearize at the root read: the immutable chain reachable from that pointer cannot change. Read-only rejection paths (such as stale revisions) also decide from a single reconstructed snapshot. Concurrent calls therefore observe a serial order defined by root CAS operations and root reads.
+
+The design uses only the store's public `read` and `cas` methods. Its tradeoff is replay cost: each operation reads the full committed event chain, so latency grows with history. Individual events remain small for the expected workload, and the chain avoids the store's per-value size limit. It assumes event values fit that limit, as required of the store's JSON values.

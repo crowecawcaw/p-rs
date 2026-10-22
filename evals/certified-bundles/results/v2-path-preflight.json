@@ -1,0 +1,38 @@
+[
+  {
+    "run": "path2-p-01",
+    "exit_code": 0,
+    "stdout": "/opt/snappea\nsnappea 0.1.0\n",
+    "purpose": "controller preflight; not shown to solver"
+  },
+  {
+    "run": "path2-p-02",
+    "exit_code": 0,
+    "stdout": "/opt/snappea\nsnappea 0.1.0\n",
+    "purpose": "controller preflight; not shown to solver"
+  },
+  {
+    "run": "path2-p-03",
+    "exit_code": 0,
+    "stdout": "/opt/snappea\nsnappea 0.1.0\n",
+    "purpose": "controller preflight; not shown to solver"
+  },
+  {
+    "run": "path2-p-04",
+    "exit_code": 0,
+    "stdout": "/opt/snappea\nsnappea 0.1.0\n",
+    "purpose": "controller preflight; not shown to solver"
+  },
+  {
+    "run": "path2-p-05",
+    "exit_code": 0,
+    "stdout": "/opt/snappea\nsnappea 0.1.0\n",
+    "purpose": "controller preflight; not shown to solver"
+  },
+  {
+    "run": "path2-p-06",
+    "exit_code": 0,
+    "stdout": "/opt/snappea\nsnappea 0.1.0\n",
+    "purpose": "controller preflight; not shown to solver"
+  }
+]

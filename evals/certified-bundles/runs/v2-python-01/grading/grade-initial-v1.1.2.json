@@ -1,0 +1,165 @@
+{
+  "harness_version": "1.1.2",
+  "source_sha256": {
+    "public/runtime.py": "c8b0caf9a74f01b5dbf2e529b2e568a37189104934fa67918ef6a10c88a495e8",
+    "private/grade.py": "46f225c55aa12d3361398eaf5701625161d11449e652050c3cc63f2316048d79",
+    "private/oracle.py": "4618d57f239c4eb07d8ff43572021b223a8be0a4ea4cf045dc97226f0f943a9e"
+  },
+  "solution": "/submission/solution.py",
+  "seeds": 64,
+  "passed": 19,
+  "case_timeout_seconds": 180,
+  "total": 20,
+  "all_passed": false,
+  "cases": [
+    {
+      "case": "test_all_rejection_memos",
+      "passed": true,
+      "seconds": 0.0525
+    },
+    {
+      "case": "test_basic_durability",
+      "passed": true,
+      "seconds": 0.0422
+    },
+    {
+      "case": "test_ci_exact_candidate",
+      "passed": true,
+      "seconds": 0.0219
+    },
+    {
+      "case": "test_concurrent_duplicate_requests",
+      "passed": true,
+      "seconds": 4.8085
+    },
+    {
+      "case": "test_concurrent_evidence_revision_publish",
+      "passed": true,
+      "seconds": 3.9963
+    },
+    {
+      "case": "test_concurrent_independent_progress",
+      "passed": true,
+      "seconds": 8.3309
+    },
+    {
+      "case": "test_concurrent_overlapping_publish",
+      "passed": true,
+      "seconds": 6.3937
+    },
+    {
+      "case": "test_crash_publish_atomic_and_retry",
+      "passed": true,
+      "seconds": 57.5039
+    },
+    {
+      "case": "test_crash_rejection_memo",
+      "passed": true,
+      "seconds": 12.7034
+    },
+    {
+      "case": "test_crash_revision_atomic",
+      "passed": true,
+      "seconds": 5.7121
+    },
+    {
+      "case": "test_crash_submit_retry",
+      "passed": true,
+      "seconds": 18.0023
+    },
+    {
+      "case": "test_distinct_authorized_approvals",
+      "passed": true,
+      "seconds": 0.0247
+    },
+    {
+      "case": "test_failing_ci_revokes_success",
+      "passed": true,
+      "seconds": 0.028
+    },
+    {
+      "case": "test_generated_sequential_traces",
+      "passed": true,
+      "seconds": 13.8631
+    },
+    {
+      "case": "test_initialization_race",
+      "passed": true,
+      "seconds": 1.777
+    },
+    {
+      "case": "test_no_mutable_aliases",
+      "passed": true,
+      "seconds": 0.0111
+    },
+    {
+      "case": "test_published_bundle_cannot_reapply",
+      "passed": true,
+      "seconds": 0.0776
+    },
+    {
+      "case": "test_record_growth_and_quiescent_progress",
+      "passed": false,
+      "error": "AssertionError: quiescent per-operation progress budget exceeded",
+      "traceback": "Traceback (most recent call last):\n  File \"/grader/private/grade.py\", line 342, in main\n    await asyncio.wait_for(getattr(grader,name)(),timeout=args.timeout)\n  File \"/usr/local/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/grader/private/grade.py\", line 315, in test_record_growth_and_quiescent_progress\n    assert store.steps-before <= 10000, 'quiescent per-operation progress budget exceeded'\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: quiescent per-operation progress budget exceeded\n",
+      "replay": [
+        {
+          "method": "submit",
+          "args": [
+            "bundle-0000",
+            {
+              "repo-00": {
+                "expected": "initial-0",
+                "new": "commit-0-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            }
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "bundle-0000",
+            1,
+            "alice"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "bundle-0000",
+            1,
+            "bob"
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "bundle-0000",
+            1,
+            "91415b567f6efa8faf90cff6d4df20394d094115f1eb34b3e360ac09dc17b978",
+            true
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "bundle-0000",
+            1,
+            "publish-0000"
+          ]
+        }
+      ],
+      "seconds": 0.2815
+    },
+    {
+      "case": "test_revision_evidence_and_submit_retry",
+      "passed": true,
+      "seconds": 0.0353
+    },
+    {
+      "case": "test_stale_bases_and_conflict_memo",
+      "passed": true,
+      "seconds": 0.0882
+    }
+  ]
+}

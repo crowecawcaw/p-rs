@@ -1,0 +1,18 @@
+<TestLog> Running test 'tcAtomicRootCommit'.
+<CreateLog> PImplementation.AtomicBundlePublish was created.
+<MonitorLog> PImplementation.AtomicBundlePublish enters state 'Open'.
+<CreateLog> Driver(1) was created by task '1'.
+<StateLog> Driver(1) enters state 'Init'.
+<CreateLog> RootWriter(2) was created by Driver(1).
+<StateLog> RootWriter(2) enters state 'Init'.
+<RandomLog> RootWriter(2) nondeterministically chose '1'.
+<AnnounceLog> 'RootWriter(2)' announced event 'eRootCommit' with payload <headsAdvanced:2, memoized:False, >.
+<MonitorLog> AtomicBundlePublish is processing event 'eRootCommit with payload (<headsAdvanced:2, memoized:False, >)' in state 'Open'.
+<ErrorLog> Assertion Failed: CertifiedBundles.p:8:7 every publish outcome must be memoized with the root transition
+<StrategyLog> Found bug using 'random-dfs' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.

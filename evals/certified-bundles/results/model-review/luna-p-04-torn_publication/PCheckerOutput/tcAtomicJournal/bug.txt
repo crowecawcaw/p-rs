@@ -1,0 +1,27 @@
+<TestLog> Running test 'tcAtomicJournal'.
+<CreateLog> PImplementation.WholeCommit was created.
+<MonitorLog> PImplementation.WholeCommit enters state 'Clean'.
+<CreateLog> CompetingPublishes(1) was created by task '1'.
+<StateLog> CompetingPublishes(1) enters state 'Init'.
+<CreateLog> Journal(2) was created by CompetingPublishes(1).
+<CreateLog> CasClient(3) was created by CompetingPublishes(1).
+<StateLog> CasClient(3) enters state 'Init'.
+<StateLog> Journal(2) enters state 'Init'.
+<GotoLog> Journal(2) is transitioning from state 'Init' to state 'PImplementation.Journal.Serving'.
+<StateLog> Journal(2) exits state 'Init'.
+<StateLog> Journal(2) enters state 'Serving'.
+<SendLog> 'CasClient(3)' in state 'Init' sent event 'eCas with payload (<client:CasClient(3), request:1, expected:0, value:11, >)' to 'Journal(2)'.
+<GotoLog> CasClient(3) is transitioning from state 'Init' to state 'PImplementation.CasClient.Waiting'.
+<StateLog> CasClient(3) exits state 'Init'.
+<StateLog> CasClient(3) enters state 'Waiting'.
+<DequeueLog> 'Journal(2)' dequeued event 'eCas with payload (<client:CasClient(3), request:1, expected:0, value:11, >)' in state 'Serving'.
+<AnnounceLog> 'Journal(2)' announced event 'eCommit' with payload <version:1, left:11, right:12, >.
+<MonitorLog> WholeCommit is processing event 'eCommit with payload (<version:1, left:11, right:12, >)' in state 'Clean'.
+<ErrorLog> Assertion Failed: model/AtomicJournal.p:49:7 multi-branch commit became partially visible
+<StrategyLog> Found bug using 'random-dfs' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.

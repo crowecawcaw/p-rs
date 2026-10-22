@@ -1,0 +1,5 @@
+Checking generatedOutput: 1 test case
+FAIL  tcAtomicJournal (bug found after 1 schedule, 0.00s)
+      Assertion Failed: model/AtomicJournal.p:49:7 multi-branch commit became partially visible
+      Replay: snappea replay PCheckerOutput/tcAtomicJournal/bug.schedule model/AtomicJournal.p
+1 of 1 test case failed in 0.00s, peak memory 4 MB. Output: PCheckerOutput/

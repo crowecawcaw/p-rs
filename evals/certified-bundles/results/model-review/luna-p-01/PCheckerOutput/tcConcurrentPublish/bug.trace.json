@@ -1,0 +1,550 @@
+[
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "BundleInvariant was created.",
+      "payload": "null",
+      "monitor": "BundleInvariant",
+      "clock": {
+        "BundleInvariant": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BundleInvariant enters state \u0027Initial\u0027.",
+      "state": "Initial",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "BundleInvariant",
+      "clock": {
+        "BundleInvariant": 2
+      }
+    }
+  },
+  {
+    "type": "MonitorRaiseEvent",
+    "details": {
+      "log": "Monitor \u0027BundleInvariant\u0027 raised event \u0027GotoStateEvent\u0027 in state \u0027Initial\u0027.",
+      "event": "GotoStateEvent",
+      "state": "Initial",
+      "payload": "null",
+      "monitor": "BundleInvariant",
+      "clock": {
+        "BundleInvariant": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BundleInvariant exits state \u0027Initial\u0027.",
+      "state": "Initial",
+      "payload": "null",
+      "isEntry": false,
+      "monitor": "BundleInvariant",
+      "clock": {
+        "BundleInvariant": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BundleInvariant enters state \u0027Active\u0027.",
+      "state": "Active",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "BundleInvariant",
+      "clock": {
+        "BundleInvariant": 5
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "ConcurrentPublish(1) was created by task \u00271\u0027.",
+      "id": "ConcurrentPublish(1)",
+      "payload": "null",
+      "clock": {
+        "ConcurrentPublish(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "ConcurrentPublish(1) enters state \u0027Init\u0027.",
+      "id": "ConcurrentPublish(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "ConcurrentPublish(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "BundleStore(2) was created by ConcurrentPublish(1).",
+      "id": "BundleStore(2)",
+      "creatorName": "ConcurrentPublish(1)",
+      "creatorType": "ConcurrentPublish",
+      "payload": "null",
+      "clock": {
+        "BundleStore(2)": 1
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Publisher(3) was created by ConcurrentPublish(1).",
+      "id": "Publisher(3)",
+      "creatorName": "ConcurrentPublish(1)",
+      "creatorType": "ConcurrentPublish",
+      "payload": "null",
+      "clock": {
+        "Publisher(3)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "BundleStore(2) enters state \u0027Init\u0027.",
+      "id": "BundleStore(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "BundleStore(2)": 2
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "BundleStore(2) is transitioning from state \u0027Init\u0027 to state \u0027Serving\u0027.",
+      "id": "BundleStore(2)",
+      "startState": "Init",
+      "endState": "Serving",
+      "payload": "null",
+      "clock": {
+        "BundleStore(2)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "BundleStore(2) exits state \u0027Init\u0027.",
+      "id": "BundleStore(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "BundleStore(2)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "BundleStore(2) enters state \u0027Serving\u0027.",
+      "id": "BundleStore(2)",
+      "state": "Serving",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "BundleStore(2)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Publisher(3) enters state \u0027Init\u0027.",
+      "id": "Publisher(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Publisher(3)": 2
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Publisher(3)\u0027 in state \u0027Init\u0027 sent event \u0027ePublish with payload (\u003Cclient:Publisher(3), bundle:\u0022a\u0022, request:\u0022pa\u0022, \u003E)\u0027 to \u0027BundleStore(2)\u0027.",
+      "event": "ePublish",
+      "state": "Init",
+      "payload": {
+        "client": "Publisher(3)",
+        "bundle": "a",
+        "request": "pa"
+      },
+      "sender": "Publisher(3)",
+      "target": "BundleStore(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Publisher(3)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Publisher(3) is transitioning from state \u0027Init\u0027 to state \u0027Waiting\u0027.",
+      "id": "Publisher(3)",
+      "startState": "Init",
+      "endState": "Waiting",
+      "payload": "null",
+      "clock": {
+        "Publisher(3)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Publisher(3) exits state \u0027Init\u0027.",
+      "id": "Publisher(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Publisher(3)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Publisher(3) enters state \u0027Waiting\u0027.",
+      "id": "Publisher(3)",
+      "state": "Waiting",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Publisher(3)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027BundleStore(2)\u0027 dequeued event \u0027ePublish with payload (\u003Cclient:Publisher(3), bundle:\u0022a\u0022, request:\u0022pa\u0022, \u003E)\u0027 in state \u0027Serving\u0027.",
+      "id": "BundleStore(2)",
+      "event": "ePublish",
+      "state": "Serving",
+      "payload": {
+        "client": "Publisher(3)",
+        "bundle": "a",
+        "request": "pa"
+      },
+      "clock": {
+        "BundleStore(2)": 6,
+        "Publisher(3)": 3
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "BundleStore(2) announced event ePublished with payload \u003Cbundle:\u0022a\u0022, oldHead:\u0022s0\u0022, newHead:\u0022s1\u0022, \u003E.",
+      "id": "BundleStore(2)",
+      "event": "ePublished",
+      "payload": {
+        "bundle": "a",
+        "oldHead": "s0",
+        "newHead": "s1"
+      },
+      "clock": {
+        "BundleStore(2)": 7,
+        "Publisher(3)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BundleInvariant is processing event \u0027ePublished with payload (\u003Cbundle:\u0022a\u0022, oldHead:\u0022s0\u0022, newHead:\u0022s1\u0022, \u003E)\u0027 in state \u0027Active\u0027.",
+      "event": "ePublished",
+      "state": "Active",
+      "payload": {
+        "bundle": "a",
+        "oldHead": "s0",
+        "newHead": "s1"
+      },
+      "sender": "BundleStore(2)",
+      "monitor": "BundleInvariant",
+      "clock": {
+        "BundleInvariant": 6,
+        "BundleStore(2)": 7,
+        "Publisher(3)": 3
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Publisher(4) was created by ConcurrentPublish(1).",
+      "id": "Publisher(4)",
+      "creatorName": "ConcurrentPublish(1)",
+      "creatorType": "ConcurrentPublish",
+      "payload": "null",
+      "clock": {
+        "Publisher(4)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Publisher(4) enters state \u0027Init\u0027.",
+      "id": "Publisher(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Publisher(4)": 2
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027BundleStore(2)\u0027 in state \u0027Serving\u0027 sent event \u0027eResponse with payload (\u003Crequest:\u0022pa\u0022, result:\u0022published\u0022, \u003E)\u0027 to \u0027Publisher(3)\u0027.",
+      "event": "eResponse",
+      "state": "Serving",
+      "payload": {
+        "request": "pa",
+        "result": "published"
+      },
+      "sender": "BundleStore(2)",
+      "target": "Publisher(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "BundleStore(2)": 8,
+        "Publisher(3)": 3
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Publisher(4)\u0027 in state \u0027Init\u0027 sent event \u0027ePublish with payload (\u003Cclient:Publisher(4), bundle:\u0022b\u0022, request:\u0022pb\u0022, \u003E)\u0027 to \u0027BundleStore(2)\u0027.",
+      "event": "ePublish",
+      "state": "Init",
+      "payload": {
+        "client": "Publisher(4)",
+        "bundle": "b",
+        "request": "pb"
+      },
+      "sender": "Publisher(4)",
+      "target": "BundleStore(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Publisher(4)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Publisher(4) is transitioning from state \u0027Init\u0027 to state \u0027Waiting\u0027.",
+      "id": "Publisher(4)",
+      "startState": "Init",
+      "endState": "Waiting",
+      "payload": "null",
+      "clock": {
+        "Publisher(4)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Publisher(4) exits state \u0027Init\u0027.",
+      "id": "Publisher(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Publisher(4)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Publisher(4) enters state \u0027Waiting\u0027.",
+      "id": "Publisher(4)",
+      "state": "Waiting",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Publisher(4)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Publisher(3)\u0027 dequeued event \u0027eResponse with payload (\u003Crequest:\u0022pa\u0022, result:\u0022published\u0022, \u003E)\u0027 in state \u0027Waiting\u0027.",
+      "id": "Publisher(3)",
+      "event": "eResponse",
+      "state": "Waiting",
+      "payload": {
+        "request": "pa",
+        "result": "published"
+      },
+      "clock": {
+        "Publisher(3)": 7,
+        "BundleStore(2)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Publisher(3)\u0027 in state \u0027Waiting\u0027 sent event \u0027ePublish with payload (\u003Cclient:Publisher(3), bundle:\u0022a\u0022, request:\u0022pa\u0022, \u003E)\u0027 to \u0027BundleStore(2)\u0027.",
+      "event": "ePublish",
+      "state": "Waiting",
+      "payload": {
+        "client": "Publisher(3)",
+        "bundle": "a",
+        "request": "pa"
+      },
+      "sender": "Publisher(3)",
+      "target": "BundleStore(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Publisher(3)": 8,
+        "BundleStore(2)": 8
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Publisher(3) is transitioning from state \u0027Waiting\u0027 to state \u0027Waiting\u0027.",
+      "id": "Publisher(3)",
+      "startState": "Waiting",
+      "endState": "Waiting",
+      "payload": "null",
+      "clock": {
+        "Publisher(3)": 9,
+        "BundleStore(2)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Publisher(3) exits state \u0027Waiting\u0027.",
+      "id": "Publisher(3)",
+      "state": "Waiting",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Publisher(3)": 10,
+        "BundleStore(2)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Publisher(3) enters state \u0027Waiting\u0027.",
+      "id": "Publisher(3)",
+      "state": "Waiting",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Publisher(3)": 11,
+        "BundleStore(2)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027BundleStore(2)\u0027 dequeued event \u0027ePublish with payload (\u003Cclient:Publisher(4), bundle:\u0022b\u0022, request:\u0022pb\u0022, \u003E)\u0027 in state \u0027Serving\u0027.",
+      "id": "BundleStore(2)",
+      "event": "ePublish",
+      "state": "Serving",
+      "payload": {
+        "client": "Publisher(4)",
+        "bundle": "b",
+        "request": "pb"
+      },
+      "clock": {
+        "BundleStore(2)": 9,
+        "Publisher(3)": 3,
+        "Publisher(4)": 3
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "BundleStore(2) announced event ePublished with payload \u003Cbundle:\u0022b\u0022, oldHead:\u0022s0\u0022, newHead:\u0022s1\u0022, \u003E.",
+      "id": "BundleStore(2)",
+      "event": "ePublished",
+      "payload": {
+        "bundle": "b",
+        "oldHead": "s0",
+        "newHead": "s1"
+      },
+      "clock": {
+        "BundleStore(2)": 10,
+        "Publisher(3)": 3,
+        "Publisher(4)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BundleInvariant is processing event \u0027ePublished with payload (\u003Cbundle:\u0022b\u0022, oldHead:\u0022s0\u0022, newHead:\u0022s1\u0022, \u003E)\u0027 in state \u0027Active\u0027.",
+      "event": "ePublished",
+      "state": "Active",
+      "payload": {
+        "bundle": "b",
+        "oldHead": "s0",
+        "newHead": "s1"
+      },
+      "sender": "BundleStore(2)",
+      "monitor": "BundleInvariant",
+      "clock": {
+        "BundleInvariant": 7,
+        "BundleStore(2)": 10,
+        "Publisher(3)": 3,
+        "Publisher(4)": 3
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: ChangeBundle.p:77:7 publish did not check the current expected parent",
+      "error": "Assertion Failed: ChangeBundle.p:77:7 publish did not check the current expected parent",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random-dfs\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random-dfs",
+      "strategyDescription": "pex[random, seed \u00271531783503\u0027]"
+    }
+  }
+]

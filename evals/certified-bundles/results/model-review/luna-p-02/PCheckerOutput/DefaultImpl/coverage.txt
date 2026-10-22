@@ -1,0 +1,42 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Client
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: eTry
+		Next states: Waiting
+
+	State: Waiting
+		State event coverage: 100.0%
+		Events received: eDone
+		Previous states: Init
+		Next states: Done
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Previous states: Waiting
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: SharedStore
+=========================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Serving
+
+	State: Serving
+		State event coverage: 100.0%
+		Events received: eTry
+		Events sent: eDone
+		Previous states: Init
+

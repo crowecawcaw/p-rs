@@ -1,0 +1,42 @@
+Total event coverage: 33.3%
+===========================
+Monitor: BundleProtocol
+=======================
+Event coverage: 33.3%
+
+	State: Empty
+		State event coverage: 16.7%
+		Events received: eCreated
+		Events not covered: eApproved, eCi, eHeadChanged, ePublish, eRevised
+		Previous states: Empty
+		Next states: Active, Empty
+
+	State: Active
+		State event coverage: 50.0%
+		Events received: eApproved, eCi, ePublish
+		Events not covered: eCreated, eHeadChanged, eRevised
+		Previous states: Active, Empty
+		Next states: Active
+
+StateMachine: BundleScenario
+============================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Approving
+
+	State: Approving
+		State has no expected events, so coverage is 100%
+		Previous states: Init
+		Next states: Publishing
+
+	State: Publishing
+		State has no expected events, so coverage is 100%
+		Previous states: Approving
+		Next states: Done
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Previous states: Publishing
+

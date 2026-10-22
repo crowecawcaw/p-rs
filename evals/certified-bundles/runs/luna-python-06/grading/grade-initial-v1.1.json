@@ -1,0 +1,273 @@
+{
+  "harness_version": "1.1",
+  "source_sha256": {
+    "public/runtime.py": "c8b0caf9a74f01b5dbf2e529b2e568a37189104934fa67918ef6a10c88a495e8",
+    "private/grade.py": "d36b955e91dc7d024a6baa0d6f9a338c9c7ce80d0204b6a238547e661f501083",
+    "private/oracle.py": "4618d57f239c4eb07d8ff43572021b223a8be0a4ea4cf045dc97226f0f943a9e"
+  },
+  "solution": "/submission/solution.py",
+  "seeds": 64,
+  "passed": 19,
+  "total": 20,
+  "all_passed": false,
+  "cases": [
+    {
+      "case": "test_all_rejection_memos",
+      "passed": true,
+      "seconds": 0.0041
+    },
+    {
+      "case": "test_basic_durability",
+      "passed": true,
+      "seconds": 0.0025
+    },
+    {
+      "case": "test_ci_exact_candidate",
+      "passed": true,
+      "seconds": 0.0017
+    },
+    {
+      "case": "test_concurrent_duplicate_requests",
+      "passed": true,
+      "seconds": 0.2622
+    },
+    {
+      "case": "test_concurrent_evidence_revision_publish",
+      "passed": true,
+      "seconds": 0.2872
+    },
+    {
+      "case": "test_concurrent_independent_progress",
+      "passed": true,
+      "seconds": 0.3934
+    },
+    {
+      "case": "test_concurrent_overlapping_publish",
+      "passed": true,
+      "seconds": 0.4423
+    },
+    {
+      "case": "test_crash_publish_atomic_and_retry",
+      "passed": true,
+      "seconds": 0.0342
+    },
+    {
+      "case": "test_crash_rejection_memo",
+      "passed": true,
+      "seconds": 0.0288
+    },
+    {
+      "case": "test_crash_revision_atomic",
+      "passed": true,
+      "seconds": 0.0288
+    },
+    {
+      "case": "test_crash_submit_retry",
+      "passed": true,
+      "seconds": 0.0265
+    },
+    {
+      "case": "test_distinct_authorized_approvals",
+      "passed": true,
+      "seconds": 0.0019
+    },
+    {
+      "case": "test_failing_ci_revokes_success",
+      "passed": true,
+      "seconds": 0.0021
+    },
+    {
+      "case": "test_generated_sequential_traces",
+      "passed": true,
+      "seconds": 1.7537
+    },
+    {
+      "case": "test_initialization_race",
+      "passed": true,
+      "seconds": 0.0518
+    },
+    {
+      "case": "test_no_mutable_aliases",
+      "passed": true,
+      "seconds": 0.0006
+    },
+    {
+      "case": "test_published_bundle_cannot_reapply",
+      "passed": false,
+      "error": "AssertionError: read_heads(['schema', 'service', 'client'],): expected {'schema': 's3', 'service': 'v1', 'client': 'c0'}, got {'schema': 's1', 'service': 'v1', 'client': 'c0'}",
+      "traceback": "Traceback (most recent call last):\n  File \"/grader/private/grade.py\", line 332, in main\n    await asyncio.wait_for(getattr(grader,name)(),timeout=args.timeout)\n  File \"/usr/local/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/grader/private/grade.py\", line 129, in test_published_bundle_cannot_reapply\n    await self.call(s,m,'read_heads',list(HEADS))\n  File \"/grader/private/grade.py\", line 39, in call\n    assert got == want, f'{method}{args}: expected {want!r}, got {got!r}'\n           ^^^^^^^^^^^\nAssertionError: read_heads(['schema', 'service', 'client'],): expected {'schema': 's3', 'service': 'v1', 'client': 'c0'}, got {'schema': 's1', 'service': 'v1', 'client': 'c0'}\n",
+      "replay": [
+        {
+          "method": "submit",
+          "args": [
+            "a",
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s1"
+              },
+              "service": {
+                "expected": "v0",
+                "new": "v1"
+              }
+            }
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "a",
+            1,
+            "alice"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "a",
+            1,
+            "bob"
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "a",
+            1,
+            "7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065",
+            true
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "a",
+            1,
+            "pa"
+          ]
+        },
+        {
+          "method": "submit",
+          "args": [
+            "b",
+            {
+              "schema": {
+                "expected": "s1",
+                "new": "s3"
+              }
+            }
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b",
+            1,
+            "alice"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "b",
+            1,
+            "bob"
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "b",
+            1,
+            "71ed7643f49a049784d07b0a3ede3cac2b156ad488bc2384a4bead600645d083",
+            true
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "b",
+            1,
+            "pb"
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "a",
+            1,
+            "pa"
+          ]
+        },
+        {
+          "method": "publish",
+          "args": [
+            "a",
+            1,
+            "another"
+          ]
+        },
+        {
+          "method": "approve",
+          "args": [
+            "a",
+            1,
+            "carol"
+          ]
+        },
+        {
+          "method": "record_ci",
+          "args": [
+            "a",
+            1,
+            "7fb477ca7660b0363bfd2d207ef9fd8428fe939e42a274e5dbe5ddc03158a065",
+            false
+          ]
+        },
+        {
+          "method": "revise",
+          "args": [
+            "a",
+            1,
+            {
+              "schema": {
+                "expected": "s0",
+                "new": "s2"
+              },
+              "client": {
+                "expected": "c0",
+                "new": "c2"
+              }
+            }
+          ]
+        },
+        {
+          "method": "read_heads",
+          "args": [
+            [
+              "schema",
+              "service",
+              "client"
+            ]
+          ]
+        }
+      ],
+      "seconds": 0.0053
+    },
+    {
+      "case": "test_record_growth_and_quiescent_progress",
+      "passed": true,
+      "seconds": 2.8709
+    },
+    {
+      "case": "test_revision_evidence_and_submit_retry",
+      "passed": true,
+      "seconds": 0.0024
+    },
+    {
+      "case": "test_stale_bases_and_conflict_memo",
+      "passed": true,
+      "seconds": 0.0047
+    }
+  ]
+}

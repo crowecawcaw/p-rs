@@ -1,0 +1,49 @@
+Total event coverage: 66.7%
+===========================
+StateMachine: Client
+====================
+Event coverage: 0.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: ePublish
+		Next states: Waiting
+
+	State: Waiting is uncovered
+		Events not covered: eDone
+		Previous states: Init
+
+	State: Done
+		State has no expected events, so coverage is 100%
+
+Monitor: CommitChain
+====================
+Event coverage: 100.0%
+
+	State: Empty
+		State event coverage: 100.0%
+		Events received: eCommit
+		Previous states: Empty
+		Next states: Empty
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Server
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Serving
+
+	State: Serving
+		State event coverage: 100.0%
+		Events received: ePublish
+		Events sent: eDone
+		Previous states: Init
+

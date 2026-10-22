@@ -1,0 +1,4 @@
+Replaying tcBroken from PCheckerOutput/tcBroken/bug.schedule
+Reproduced the bug (0.00s):
+      Assertion Failed: Model.p:14:7 two candidates landed against the same parent
+Run with --verbose to see the schedule's log.
