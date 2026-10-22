@@ -128,12 +128,13 @@ Prompt version 3 shares “Design and implement the service in Python.” The P 
 adds “First, model it with P/Snappea and check what could go wrong.” Tool paths
 are supplied separately; there is no extra testing advice for either arm.
 
-The completed output-comparison pilot used version 3. Fresh runs now use version 4:
+The completed output-comparison pilot used version 3. Fresh runs now use version 5:
 “Write a design and a P/Snappea model. Check and refine the model until you're happy
 with it, then implement it in Python.” The control says “Write a design. Then
-implement it in Python.” Shared deliverables appear after the task instruction,
-so the prompt no longer leads with writing the Python file. Version 4 has not
-been evaluated yet; keep its results separate from the completed pilot.
+implement it in Python.” The P prompt adds “Use pysnappea in Python tests.” and
+the control adds “Add Python tests.” Shared deliverables appear after the task
+instruction, so the prompt no longer leads with writing the Python file. Versions
+4 and 5 have not been evaluated yet; keep their results separate from the completed pilot.
 
 To compare old and new output, use three independent cohorts: Python-only, P
 with the baseline binary, and P with the modified binary. Keep both P cohorts'
