@@ -539,6 +539,15 @@ impl CaseOutcome {
 
 /// `TestingProcess.Run` for one test case.
 pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) -> Result<CaseOutcome, Exit> {
+    testing_process_with_summary(host, loaded, cfg).map(|(case, _)| case)
+}
+
+/// Runs one Snappea-style check and returns concise coverage feedback for the CLI.
+pub(crate) fn testing_process_with_summary(
+    host: &mut dyn Host,
+    loaded: &Loaded,
+    cfg: &CheckConfig,
+) -> Result<(CaseOutcome, Vec<String>), Exit> {
     let process_start = host.now();
     let seed = match cfg.seed {
         Some(s) => s, // + 673 * TestingProcessId: see `WorkerPool::worker_options`
@@ -591,6 +600,22 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
     }
     let process_elapsed = host.now() - process_start;
     host.out_line(&res.report.text(&opts, "..."));
+    let coverage_summary = if snappea && res.report.num_bugs == 0 && !res.cancelled {
+        let schedules = res.report.explored_fair_schedules + res.report.explored_unfair_schedules;
+        let mut lines = vec![format!(
+            "Distinct timelines: {} across {} schedules ({:?} abstraction)",
+            res.report.timelines.len(),
+            schedules,
+            cfg.timeline.repr
+        )];
+        if let Some(cov) = &res.coverage {
+            let sm = loaded.sources.source_map();
+            lines.extend(activity_coverage_summary(&loaded.analysis.program, &sm, cov));
+        }
+        lines
+    } else {
+        Vec::new()
+    };
     if let Some(x) = &res.exhaustive {
         let schedules = res.report.explored_fair_schedules + res.report.explored_unfair_schedules;
         host.out_line(&x.text(schedules, opts.max_unfair_steps, "....."));
@@ -621,17 +646,84 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
     } else {
         host.out_line(&format!("... Elapsed {} sec.", process_elapsed));
     }
-    Ok(CaseOutcome {
-        test_case: tc.name.clone(),
-        bugs: res.report.num_bugs,
-        bug_report: res.report.bug_reports.first().cloned(),
-        schedules: res.report.explored_fair_schedules + res.report.explored_unfair_schedules,
-        workers,
-        timed_out: res.cancelled,
-        exhaustive_finished: res.exhaustive.as_ref().map(|x| x.finished),
-        elapsed: process_elapsed,
-        schedule_file,
-    })
+    Ok((
+        CaseOutcome {
+            test_case: tc.name.clone(),
+            bugs: res.report.num_bugs,
+            bug_report: res.report.bug_reports.first().cloned(),
+            schedules: res.report.explored_fair_schedules + res.report.explored_unfair_schedules,
+            workers,
+            timed_out: res.cancelled,
+            exhaustive_finished: res.exhaustive.as_ref().map(|x| x.finished),
+            elapsed: process_elapsed,
+            schedule_file,
+        },
+        coverage_summary,
+    ))
+}
+
+/// Compact coverage feedback for a successful `snappea check`. This deliberately uses the
+/// same coverage definition as `coverage.txt`: executable `do`/`goto` event handlers on
+/// machine types declared by the test case, counted as covered when the runtime recorded
+/// that state/event pair as received.
+fn activity_coverage_summary(
+    prog: &crate::sema::Program,
+    sm: &crate::syntax::SourceMap,
+    coverage: &crate::checker::coverage::CoverageInfo,
+) -> Vec<String> {
+    use crate::sema::HandlerAction;
+    use std::collections::HashSet;
+
+    let declared: HashSet<_> = coverage.declared.iter().map(|(machine, _)| *machine).collect();
+    let tables = crate::checker::coverage::CoverageTables::new(prog);
+    let mut total = 0usize;
+    let mut covered = 0usize;
+    let mut uncovered = Vec::new();
+    for (machine_idx, machine) in prog.machines.iter().enumerate() {
+        let machine_id = crate::sema::MachineId(machine_idx as u32);
+        if !declared.contains(&machine_id) {
+            continue;
+        }
+        for state_id in &machine.states {
+            let state = prog.state(*state_id);
+            for handler in &state.handlers {
+                if !matches!(handler.action, HandlerAction::Do(_) | HandlerAction::Goto { .. }) {
+                    continue;
+                }
+                total += 1;
+                if coverage.received.contains(&(tables.plain(*state_id), handler.event.0)) {
+                    covered += 1;
+                } else if !handler.span.is_dummy() {
+                    let loc = sm.location(handler.span);
+                    let event = &prog.event(handler.event).name;
+                    uncovered.push(format!(
+                        "  {}:{}: {}.{} on {}",
+                        loc.file.unwrap_or_default(),
+                        loc.line,
+                        machine.name,
+                        state.name,
+                        event
+                    ));
+                }
+            }
+        }
+    }
+
+    if total == 0 {
+        return vec!["Handler coverage: no executable event handlers in checked machines".to_string()];
+    }
+    let pct = covered as f64 * 100.0 / total as f64;
+    let mut lines = vec![format!("Handler coverage: {}/{} ({:.1}%) in explored schedules", covered, total, pct)];
+    if !uncovered.is_empty() {
+        const MAX_LOCATIONS: usize = 20;
+        lines.push(format!("Handlers not exercised in this run ({}):", uncovered.len()));
+        lines.extend(uncovered.iter().take(MAX_LOCATIONS).cloned());
+        if uncovered.len() > MAX_LOCATIONS {
+            lines.push(format!("  ... and {} more; see coverage.txt", uncovered.len() - MAX_LOCATIONS));
+        }
+        lines.push("Add scenarios or vary the search to exercise these handlers.".to_string());
+    }
+    lines
 }
 
 /// The trace file index: one more than the largest `<name>_<n>_<index>` already present.
