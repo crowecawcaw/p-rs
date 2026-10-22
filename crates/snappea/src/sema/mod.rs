@@ -157,7 +157,8 @@ pub fn analyze(sm: &SourceMap, programs: &[ast::Program], opts: &Options) -> Res
         digest.update((source.len() as u64).to_le_bytes());
         digest.update(source);
     }
-    a.prog.source_fingerprint = Some(format!("sha256:{:x}", digest.finalize()));
+    let hex: String = digest.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    a.prog.source_fingerprint = Some(format!("sha256:{hex}"));
     Ok(Analysis { program: a.prog, warnings: a.diags.warnings })
 }
 
