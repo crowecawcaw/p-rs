@@ -1,0 +1,63 @@
+# Runs this checkout's install scripts on every platform they support, so a change to them
+# is tested before check-model.yml (and users) fetch them from main.
+
+name: Install script
+
+on:
+  pull_request:
+    paths: [scripts/install.sh, scripts/install.ps1, .github/workflows/install-script.yml]
+  push:
+    branches: [main]
+    paths: [scripts/install.sh, scripts/install.ps1, .github/workflows/install-script.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sh:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the latest release
+        run: sh scripts/install.sh
+      - name: snappea is on the PATH of later steps
+        run: snappea version
+      - name: Install a pinned version to a chosen folder
+        run: |
+          sh scripts/install.sh --version v0.1.0 --to "$RUNNER_TEMP/pinned"
+          test "$("$RUNNER_TEMP/pinned/snappea" --version | tr -d '\r')" = "snappea 0.1.0"
+      - name: Check the example model
+        working-directory: examples/model
+        run: snappea check tcAtomicReserve
+
+  powershell:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the latest release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./scripts/install.ps1
+      - name: snappea is on the PATH of later steps
+        shell: pwsh
+        run: snappea version
+      - name: Install a pinned version to a chosen folder
+        shell: pwsh
+        env:
+          SNAPPEA_VERSION: 0.1.0
+          SNAPPEA_INSTALL_DIR: ${{ runner.temp }}\pinned
+        run: |
+          ./scripts/install.ps1
+          $got = & "$env:SNAPPEA_INSTALL_DIR\snappea.exe" --version
+          if ($got -ne 'snappea 0.1.0') { throw "got '$got'" }

@@ -56,3 +56,10 @@ service runs one ordering per test; the model explores every ordering of concurr
 orders, which tests of an implementation do not reach. The
 [CI workflow](../../.github/workflows/model-example.yml) runs both test cases and
 checks that every example's `specs/inventory.p` links here.
+
+## In CI
+
+[`github-workflow.yml`](github-workflow.yml) links to this repository's
+[check-model.yml](../../.github/workflows/check-model.yml), a workflow you can copy: it
+installs the released `snappea` with the install script and checks this model on every
+pull request. See [GitHub Actions](https://crowecawcaw.github.io/snappea/docs/github-actions.html).

@@ -52,6 +52,12 @@
 .compare.ref tbody th { white-space: normal; color: var(--fg); }
 .compare.ref tbody th code { overflow-wrap: normal; white-space: nowrap; }
 .compare.ref td:last-child { font-weight: 400; }
+/* Option tables: on phones, the option above its meaning. */
+@media (max-width: 700px) {
+  .compare.opts tr { display: block; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .compare.opts th, .compare.opts td { display: block; padding: 2px 0; border: 0; }
+  .compare.opts th code { word-break: normal; white-space: normal; }
+}
 
 .next ul { padding-left: 20px; margin: 0; }
 .next li { margin-bottom: 6px; }
