@@ -151,7 +151,7 @@ $ snappea observe --spec BankBalanceCorrect logs/
           </li>
         </ul>
         <p>
-          The <a href={`${REPO}#compatibility`}>compatibility list</a> in the README has every detail.
+          The <a href={`${BLOB}/docs/compatibility.md`}>compatibility reference</a> has every detail.
         </p>
       </section>
 

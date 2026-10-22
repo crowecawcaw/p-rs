@@ -24,4 +24,4 @@ Make P easier for developers to incorporate into application design and developm
    Help developers understand what P is and how to use it strategically, and help agents
    incorporate P effectively into development for design and implementation validation.
 
-For compatibility details, see [Compatibility](README.md#compatibility) in the README.
+For compatibility details, see [Compatibility](docs/compatibility.md).
