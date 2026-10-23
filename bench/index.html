@@ -7,8 +7,8 @@
 <!--
   Benchmark history for snappea. Data comes from the `benchmarks` branch, written by
   .github/workflows/bench.yml (main.jsonl, every main commit) and
-  bench-upstream.yml (upstream.jsonl, manual runs). For local testing:
-  ?main=<url>&upstream=<url>.
+  bench-upstream.yml (upstream.jsonl, manual runs) and bench-search.yml (search.jsonl,
+  every main commit). For local testing: ?main=<url>&upstream=<url>&search=<url>.
 -->
 <style>
   :root {
@@ -120,6 +120,12 @@
     <div class="grid" id="workload-charts"></div>
   </section>
 
+  <section id="search" hidden>
+    <h2>Search effectiveness</h2>
+    <p class="sub" id="search-sub"></p>
+    <div class="scroll"><table id="search-table"></table></div>
+  </section>
+
   <section id="latest" hidden>
     <h2>Latest commit</h2>
     <p class="sub" id="latest-sub"></p>
@@ -137,6 +143,7 @@
   const repoUrl = `https://github.com/${host[0]}/${host[1]}`;
   const mainUrl = params.get("main") || raw("main.jsonl");
   const upstreamUrl = params.get("upstream") || raw("upstream.jsonl");
+  const searchUrl = params.get("search") || raw("search.jsonl");
 
   const fmtNum = (v) => v >= 100 ? Math.round(v).toLocaleString() : v.toPrecision(3);
   const day = (r) => (r.commit_date || r.date).slice(0, 10);
@@ -338,6 +345,45 @@
     }
   }
 
+  // Schedules until every planted bug in a model is found, per strategy, for the latest
+  // main commit next to the one before it (scripts/bench-search.py).
+  function renderSearch(runs) {
+    runs = [...new Map(runs.map((r) => [r.commit, r])).values()]
+      .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+    if (!runs.length) return;
+    const latest = runs[runs.length - 1], prev = runs.length > 1 ? runs[runs.length - 2] : null;
+    const summarize = (run) => {
+      const out = new Map();
+      for (const r of run.rows) {
+        const k = `${r.workload}\u0000${r.strategy}`;
+        const s = out.get(k) || { workload: r.workload, strategy: r.strategy, runs: 0, done: [], penalized: 0 };
+        s.runs += 1;
+        if (r.schedules_to_all != null) s.done.push(r.schedules_to_all);
+        s.penalized += r.schedules_to_all ?? 2 * run.budget;
+        out.set(k, s);
+      }
+      return out;
+    };
+    const median = (v) => { const a = [...v].sort((x, y) => x - y); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+    const cur = summarize(latest), old = prev && prev.suite_version === latest.suite_version ? summarize(prev) : null;
+    document.getElementById("search-sub").textContent =
+      `${latest.commit.slice(0, 7)} · ${latest.timestamp.slice(0, 10)} · ${latest.seeds} seeds, ${latest.budget.toLocaleString()} schedule budget. ` +
+      "Schedules until every planted bug in a model is found; lower is better. An unfinished run counts twice the budget. " +
+      (old ? `Change is against ${prev.commit.slice(0, 7)}.` : "");
+    const rows = [...cur.values()].sort((a, b) => a.workload.localeCompare(b.workload) || a.strategy.localeCompare(b.strategy));
+    table(document.getElementById("search-table"),
+      ["model", "strategy", "all bugs found", "median schedules", "mean (penalized)", "change"],
+      rows.map((s) => {
+        const mean = s.penalized / s.runs;
+        const o = old && old.get(`${s.workload}\u0000${s.strategy}`);
+        const pct = o ? Math.round((mean / (o.penalized / o.runs) - 1) * 100) : null;
+        const change = pct == null ? "" : `${pct > 0 ? "+" : ""}${pct}%`;
+        return [s.workload, s.strategy, `${s.done.length}/${s.runs}`, s.done.length ? fmtNum(median(s.done)) : "—", fmtNum(mean), change];
+      }));
+    document.getElementById("search").hidden = false;
+  }
+
+  jsonl(searchUrl).then(renderSearch).catch(() => {});
   Promise.all([jsonl(mainUrl), jsonl(upstreamUrl).catch(() => [])])
     .then(([h, u]) => render(h, u))
     .catch((e) => { document.getElementById("status").textContent = `Could not load benchmark data: ${e.message}`; });
