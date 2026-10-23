@@ -383,9 +383,11 @@ impl EventSink {
         emitter
     }
 
+    /// Events received so far.
     pub fn len(&self) -> usize {
         self.state.lock().unwrap_or_else(|e| e.into_inner()).events.len()
     }
+    /// No events received yet.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -448,6 +450,7 @@ impl Recording {
     pub fn len(&self) -> usize {
         self.sink.len()
     }
+    /// No in-process events yet.
     pub fn is_empty(&self) -> bool {
         self.sink.is_empty()
     }

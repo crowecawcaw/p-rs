@@ -16,14 +16,21 @@ use crate::project::{self, pproj::Includes, Input};
 pub(super) const HELP: &str = "\
 Usage: snappea observe [SOURCE...] [LOG...] --spec <NAME> [options]
 
-Checks logs of a running system against spec monitors. A SOURCE is a .pproj or .p
-file; without any, the *.pproj file in the current folder is used, or else the *.p
-files in it and its immediate subfolders. Every other argument is a LOG: a file, a
-folder of logs, or a glob (quoted; ** for subfolders).
+Checks events logged by a real system against the model's spec monitors. Use it to
+test that an implementation behaves as the model says: in integration tests, on
+production logs, or live. A SOURCE is a .pproj or .p file; without any, the *.pproj
+file in the current folder is used, or else the *.p files in it and its immediate
+subfolders. Every other argument is a LOG: a file, a folder of logs, or a glob
+(quoted; ** for subfolders). Logs are JSON lines by default.
+
+Examples:
+  snappea observe --spec BankBalanceCorrect logs/
+  snappea observe --all-specs --strict --check-hot \"test-logs/**/*.jsonl\"
+  my-service | snappea observe --spec BankBalanceCorrect --stdin
 
 Specs:
       --spec <NAME>           Spec monitor to check; repeat or separate with commas
-      --all-specs             Check every spec monitor
+      --all-specs             Check every spec monitor. Use in test suites.
       --exclude-specs <NAME>  A spec --all-specs leaves out; repeat or use commas
 
 Input:
@@ -33,23 +40,28 @@ Input:
                               need --sequence.
       --stdin                 Same as --live -
       --sequence <FIELD>      Check the lines of live streams in the order of this JSON
-                              field: a global sequence number from 1, with no gaps
-      --record <FILE>         Write the checked live lines, in check order, to FILE
+                              field: a global sequence number from 1, with no gaps.
+                              Use when several processes stream events.
+      --record <FILE>         Write the checked live lines, in check order, to FILE,
+                              to re-check or debug them later
       --p-trace               The logs are P JSON traces (bug.trace.json of snappea check)
       --parser <NAME>         Log parser: JsonLines (default), PTrace (--p-trace)
       --parser-config <JSON>  Parser settings; JsonLines takes the dotted paths of
                               its fields, e.g. {\"event\": \"msg.type\", \"key\": \"msg.id\"}
-      --key <KEY>             Check only this key; repeat for several
+      --key <KEY>             Check only this key; repeat for several. Use to narrow
+                              a large log to a failing key.
       --key-file <FILE>       Check only the keys in FILE, one per line
       --replay-window <N>     Events kept per key to report with an error (default: 100)
-      --sorted                The logs are already in timestamp order
+      --sorted                The logs are already in timestamp order: merge instead
+                              of sorting (faster on large logs)
 
 Checks:
       --check-hot             Report a key whose spec is in a hot state after its last
-                              event
-      --strict                Fail a spec that checked no relevant event
+                              event: work that never finished (liveness)
+      --strict                Fail a spec that checked no relevant event. Use in
+                              tests to catch missing instrumentation.
       --unknown-events <P>    Events no P source declares: ignore (default), warn or
-                              error
+                              error. Use error to catch misspelled event names.
 
 Output:
   -v, --verbose               Show progress, logged messages and each error's events

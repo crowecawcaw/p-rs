@@ -1,5 +1,10 @@
 //! The [P modeling language](https://p-org.github.io/P/) in Rust.
 //!
+//! P models a distributed system as communicating state machines; the checker runs
+//! the model over many event orders to find design bugs before they are built. With
+//! snappea, the same P specs then check the real application's events, in tests and
+//! production, so the implementation stays true to the design.
+//!
 //! Application code emits events with [`emit`]; tests check them against P specs, in
 //! process, with [`test`](mod@test); the `snappea` binary checks P models and production logs.
 //!

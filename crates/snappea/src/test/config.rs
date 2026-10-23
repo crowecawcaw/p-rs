@@ -15,8 +15,11 @@ const KEYS: &[&str] = &["spec_files", "specs", "exclude", "strict", "check_hot",
 /// "check where the fixture is used".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
+    /// Check where the fixture is used (the default).
     Auto,
+    /// Same as `Auto` in Rust.
     Marked,
+    /// Run test bodies without checking.
     Off,
 }
 

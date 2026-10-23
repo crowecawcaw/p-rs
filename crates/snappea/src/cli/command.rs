@@ -30,51 +30,67 @@ const HELP: &str = "\
 Usage: snappea [output options] <command> [options]
 
 Commands:
-  check      Check test cases by exploring schedules (and `check lint`,
-             `check mutation`)
-  replay     Replay a .schedule file
-  tests      List the test cases
-  observe    Check logs against spec monitors
-  coverage   Merge scenario or observe coverage
+  check      Find bugs in a model: run its test cases over many schedules.
+             Use after every model change.
+  replay     Re-run a bug's .schedule file to debug it or confirm a fix
+  tests      List test cases, e.g. to pick one for `check`
+  observe    Check logs of a real system against the model's spec monitors.
+             Use to test that an implementation matches the model.
+  coverage   Merge coverage from several runs (CI shards, processes)
   version    Print the version
+
+Typical loop:
+  snappea check                       # check every test case
+  snappea replay PCheckerOutput/tcFoo/bug.schedule -v   # debug a bug
+  snappea check tcFoo                 # confirm the fix
 
 Commands that read P sources take .pproj or .p files. Without any, they use the
 *.pproj file in the current folder, or else the *.p files in it and its immediate
 subfolders.
 
-Every command prints text on a terminal or in CI, and JSON otherwise (agents and
-scripts): --format text|json or --json chooses, as does SNAPPEA_FORMAT=text|json.
+Output is text on a terminal or in CI, JSON otherwise (agents, scripts).
+--format text|json, --json or SNAPPEA_FORMAT=text|json override it.
 --json-report FILE also writes the JSON result to FILE.
 
-Run `snappea <command> --help` for a command's options.
+Run `snappea <command> --help` for a command's options and examples.
 Exit status: 0 no bug found, 1 bug found, 2 error.
 ";
 
 const CHECK_HELP: &str = "\
 Usage: snappea check [SOURCE...] [TEST...] [options]
-
-Checks test cases by exploring schedules. A SOURCE is a .pproj or .p file, a TEST
-a test case name or a glob (`*`, `?`). Without tests, all test cases are checked.
        snappea check lint [SOURCE...] [--list-rules]
        snappea check mutation [SOURCE...] [TEST...] [options]
 
-Sources are linted before exploration; findings fail the command with exit status 2.
-`check lint` lints alone; `check mutation` runs only mutation testing. Run
-`snappea check lint --help` or `snappea check mutation --help` for theirs.
+Runs test cases over many schedules (event orders, nondeterministic choices) to
+find assertion failures, spec violations and liveness bugs. A SOURCE is a .pproj or
+.p file, a TEST a test case name or a glob (`*`, `?`). Without tests, all run.
+
+Sources are linted first; findings fail with exit status 2. `check lint` only lints;
+`check mutation` only runs mutation testing. See their --help.
+
+Examples:
+  snappea check                       # all test cases, 10s each
+  snappea check 'tcRetry*' --timeout 1m   # more search time on a few
+  snappea check --no-mutation         # faster iteration while editing
 
 Exploration:
-      --timeout <DURATION>  Time limit per test case (default: 10s; accepts 90s, 5m, 1h)
-  -j, --workers <N>         Worker limit (default: one per CPU core)
-      --seed <N>            Seed for reproducible choices; recorded bugs always replay
+      --timeout <DURATION>  Time limit per test case (default: 10s; accepts 90s, 5m, 1h).
+                            Raise it before trusting a pass on a large model.
+  -j, --workers <N>         Worker limit (default: one per CPU core). Lower it on
+                            shared machines.
+      --seed <N>            Seed for reproducible choices. Not needed to reproduce
+                            a bug: its .schedule replays exactly.
 
-Search strategies and their work shares are selected automatically. A completed
-exhaustive search ends early; a timeout leaves the search incomplete.
+Strategies are chosen automatically. A search that covers every schedule ends
+early; one that times out is incomplete.
 
-Time:
+Time (for models with timeouts or latency budgets):
       --latency <FILE>[:<PROFILE>]
                             Latency profiles (TOML), and the profile to use
       --timed               Time-aware scheduling: never run a step that is certainly
-                            later than another
+                            later than another. Use when untimed checking reports
+                            orders real timing rules out, e.g. a timeout handled
+                            before a reply that arrives earlier.
 
 Mutation testing:
       --mutation-timeout <DURATION>
@@ -86,20 +102,24 @@ Output:
       --coverage-file <FILE>
                             Write every statement, branch and event handler no test
                             case ran to FILE
-  -v, --verbose             Show progress and statistics, and log every schedule
+  -v, --verbose             Show progress and statistics, and log every schedule.
+                            Uses one worker.
 
 Prints one line per test case with its coverage, and for a bug its report and the
-`snappea replay` command that reproduces it; then the statements, branches and event
-handlers no test case ran. A bug's files go to <DIR>/<TEST>/, replacing the previous
-run's: bug.txt (the buggy schedule's log), bug.schedule and bug.trace.json; scenario
-monitors write scenario_coverage.json there too.
+`snappea replay` command that reproduces it; then the code no test case ran. Uncovered
+code is unchecked code: add a test case or scenario that reaches it.
 
-When every test case passes, mutation testing follows: small changes to the model's
-code (a removed statement, a forced `if`, a swapped operator) that the test cases
-are run against. A change no test case detects marks code whose effect no spec or
-assertion checks. Undetected changes are listed; they do not change the exit status.
-`// snappea-lint: allow mutation[:<kind>] -- reason` before a statement suppresses its
-changes (see docs/checking-models.md). `snappea check mutation` runs it alone.
+A bug's files go to <DIR>/<TEST>/, replacing the previous run's: bug.txt (the buggy
+schedule's log; read this first), bug.schedule (for `snappea replay`) and
+bug.trace.json (for `snappea observe --p-trace`). Scenario monitors also write
+scenario_coverage.json.
+
+When every test case passes, mutation testing follows: each mutant changes the model
+slightly (a removed statement, a forced `if`, a swapped operator). A mutant no test
+case detects marks code whose effect no spec or assertion checks. Undetected mutants
+are listed but do not change the exit status. To accept one, put
+`// snappea-lint: allow mutation[:<kind>] -- reason` before the statement
+(see docs/checking-models.md).
 ";
 
 const MUTATION_HELP: &str = "\
@@ -107,9 +127,15 @@ Usage: snappea check mutation [SOURCE...] [TEST...] [options]
 
 Runs the test cases, then runs them against mutants: copies of the model with one
 small change (a removed statement, a forced `if`, a swapped operator). Lists every
-change no test case detects: code whose effect no spec or assertion checks. Unlike
-`snappea check`, it reports no coverage or scenarios, and fails when a change goes
+mutant no test case detects: code whose effect no spec or assertion checks. Fix one
+by adding an assertion or spec that the change breaks.
+
+Use it to judge whether the specs are strong enough, e.g. as a CI gate. Unlike
+`snappea check`, it reports no coverage or scenarios, and fails when a mutant goes
 undetected.
+
+Example:
+  snappea check mutation tcBank --mutation-timeout 10m
 
 Options:
       --mutation-timeout <DURATION>
@@ -123,40 +149,56 @@ Options:
   -v, --verbose             Show progress and statistics
 
 `// snappea-lint: allow mutation[:<kind>] -- reason` before a statement, handler,
-function or machine suppresses its changes. See docs/checking-models.md.
-Exit status: 0 every change detected, 1 a change undetected or a test case failed,
+function or machine accepts its mutants. See docs/checking-models.md.
+Exit status: 0 every mutant detected, 1 a mutant undetected or a test case failed,
 2 error.
 ";
 
 const REPLAY_HELP: &str = "\
 Usage: snappea replay <FILE.schedule> [SOURCE...] [options]
 
-Replays a schedule written by `snappea check`. Exit status 1 means the bug was reproduced.
+Replays a schedule written by `snappea check`: the same event order and choices,
+so the same bug. Use it to debug a bug (-v logs each step) and, after editing the
+model, to confirm the fix. Exit status 1 means the bug was reproduced, 0 that it
+was not.
+
+Examples:
+  snappea replay PCheckerOutput/tcBank/bug.schedule -v
+  snappea replay bug.schedule Bank.pproj --test tcBank
 
 Options:
       --test <NAME>         Test case to replay, for schedules that name none
-      --max-steps <N>       The step options the schedule was found with; the
-      --fair-max-steps <N>  Replay line of `snappea check` includes them
-      --fail-on-max-steps
+      --max-steps <N>       The step options the schedule was found with. Copy
+      --fair-max-steps <N>  them from the replay line `snappea check` prints;
+      --fail-on-max-steps   only older schedules need them.
   -v, --verbose             Log the schedule
 ";
 
 const TESTS_HELP: &str = "\
 Usage: snappea tests [SOURCE...]
 
-Type-checks the sources and lists their test cases, one per line.
+Type-checks the sources and lists their test cases, one per line. Use it to find
+names for `snappea check TEST` or to check that sources compile.
 ";
 
 const COVERAGE_HELP: &str = "\
 Usage: snappea coverage merge [DIR]
        snappea coverage merge-observe [REPORT.json ...] [--stdin] [--json-report OUT] [--json]
 
-Merges the scenario coverage reports (*_scenario_coverage.json) under DIR (default:
-the current folder), recursively, into one report.
+Combines coverage from separate runs, e.g. CI shards or one observe per process, to
+see what the whole suite covers.
 
-merge-observe merges the coverage of snappea observe JSON results without the P sources.
-It validates matching spec versions and preserves failure/completion metadata.
-Run `snappea coverage merge-observe --help` for input and output options.
+merge         Merges the scenario coverage reports (scenario_coverage.json and
+              *_scenario_coverage.json) under DIR (default: the current folder),
+              recursively, into one report.
+merge-observe Merges `snappea observe` JSON results without the P sources. The
+              results must come from the same spec sources and snappea version.
+
+Examples:
+  snappea coverage merge PCheckerOutput
+  snappea coverage merge-observe reports/*.json --json-report suite.json
+
+Run `snappea coverage merge-observe --help` for its options.
 ";
 
 /// Runs `snappea` with `args` (without the program name); returns the exit status.
@@ -584,7 +626,7 @@ const LINT_HELP: &str = "\
 Usage: snappea check lint [SOURCE...] [--list-rules]
 
 Type-checks and lints .p or .pproj sources without exploring schedules or writing
-checker output. The same lint rules run automatically before `snappea check`.
+checker output. Fast; use it while editing. The same rules run before `snappea check`.
 Exit status: 0 clean, 2 unsuppressed findings or source errors.
 
   --list-rules  List available rule IDs and descriptions without loading sources
@@ -1270,7 +1312,7 @@ fn merge_observe(args: &[String], host: &mut dyn Host) -> i32 {
         Err(e) => return usage_error(host, &e, Some("coverage")),
     };
     if a.help {
-        host.write(Stream::Out, &format!("Usage: snappea coverage merge-observe [REPORT.json ...] [--stdin]\n\nMerges the coverage of snappea observe JSON results (or of merged ones) without loading\nP sources. --stdin reads a JSON array of them.\n\n{}", OUTPUT_HELP), None);
+        host.write(Stream::Out, &format!("Usage: snappea coverage merge-observe [REPORT.json ...] [--stdin]\n\nMerges the coverage of `snappea observe` JSON results (or of merged ones) without\nloading P sources. Use it to combine observations from several processes or test\nruns. --stdin reads a JSON array of them.\n\nExample:\n  snappea coverage merge-observe reports/*.json --json-report suite.json\n\n{}", OUTPUT_HELP), None);
         return OK;
     }
     if a.positional.is_empty() && !a.has("stdin") {
