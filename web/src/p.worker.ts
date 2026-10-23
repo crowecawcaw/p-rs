@@ -76,7 +76,12 @@ async function handle(req: Request): Promise<CompileResult | CheckResult> {
       diagnostics: c.diagnostics, testCase: req.testCase, millis: performance.now() - t0,
     };
   }
-  const opts = ["--timeout", `${req.timeout}s`, "--seed", String(req.seed), ...req.extraArgs];
+  // the browser checks on one thread: mutation testing gets the test case's time limit
+  // unless the extra options set it
+  const mutation = req.extraArgs.some((a) => /^--(no-mutation|mutation-timeout)\b/.test(a))
+    ? []
+    : ["--mutation-timeout", `${req.timeout}s`];
+  const opts = ["--timeout", `${req.timeout}s`, ...mutation, "--seed", String(req.seed), ...req.extraArgs];
   const shown = ["check", req.testCase, ...opts];
   const args = ["check", ...sourceArgs(req.files), req.testCase, ...opts];
   const r = (await p()).run(args, toFs(req.files), { seed: req.seed });

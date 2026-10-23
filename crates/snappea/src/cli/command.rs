@@ -11,7 +11,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::checker::code_coverage::{uncovered_lines, CodeMap, Hits, Scope};
+use crate::checker::code_coverage::{uncovered_lines, CodeMap, Hits, Scope, SHOWN_UNCOVERED};
 use crate::checker::strategy::StrategyKind;
 use crate::driver::check::{self, CheckConfig, Style};
 use crate::driver::scenario;
@@ -72,6 +72,11 @@ Time:
       --timed               Time-aware scheduling: never run a step that is certainly
                             later than another
 
+Mutation testing:
+      --mutation-timeout <DURATION>
+                            Time limit for mutation testing (default: 30s)
+      --no-mutation         Skip mutation testing
+
 Output:
   -o, --out <DIR>           Output folder (default: PCheckerOutput)
       --coverage-file <FILE>
@@ -84,6 +89,11 @@ Prints one line per test case with its coverage, and for a bug its report and th
 handlers no test case ran. A bug's files go to <DIR>/<TEST>/, replacing the previous
 run's: bug.txt (the buggy schedule's log), bug.schedule and bug.trace.json; scenario
 monitors write scenario_coverage.json there too.
+
+When every test case passes, mutation testing follows: small changes to the model's
+code (a removed statement, a forced `if`, a swapped operator) that the test cases
+are run against. A change no test case detects marks code whose effect no spec or
+assertion checks. Undetected changes are listed; they do not change the exit status.
 ";
 
 const REPLAY_HELP: &str = "\
@@ -608,7 +618,12 @@ const CHECK_OPTS: &[Opt] = &[
     flag("timed", None),
     value("out", Some('o')),
     flag("verbose", Some('v')),
+    value("mutation-timeout", None),
+    flag("no-mutation", None),
 ];
+
+/// Default time limit for mutation testing, in seconds.
+const MUTATION_TIMEOUT: u32 = 30;
 
 fn check(args: &[String], host: &mut dyn Host) -> i32 {
     let parsed = match parse_args(args, CHECK_OPTS) {
@@ -624,7 +639,24 @@ fn check(args: &[String], host: &mut dyn Host) -> i32 {
         Ok(p) => p,
         Err(m) => return usage_error(host, &m, Some("check")),
     };
-    with_output(host, &parsed, "check", |host| run_check(host, cfg, &patterns, parsed.get("latency")))
+    let mutation = match mutation_timeout(&parsed) {
+        Ok(t) => t,
+        Err(m) => return usage_error(host, &m, Some("check")),
+    };
+    with_output(host, &parsed, "check", |host| run_check(host, cfg, &patterns, parsed.get("latency"), mutation))
+}
+
+/// The time limit for mutation testing in seconds, `None` to skip it.
+fn mutation_timeout(a: &Args) -> Result<Option<u32>, String> {
+    match (a.has("no-mutation"), a.get("mutation-timeout")) {
+        (true, Some(_)) => Err("use only one of '--no-mutation' and '--mutation-timeout'".into()),
+        (true, None) => Ok(None),
+        (false, None) => Ok(Some(MUTATION_TIMEOUT)),
+        (false, Some(t)) => match parse_duration(t) {
+            Some(t) => Ok(Some(t)),
+            None => Err(format!("bad duration '{}' (examples: 90, 90s, 5m, 1h)", t)),
+        },
+    }
 }
 
 /// Fills `cfg` from the `check` options; returns the test patterns.
@@ -708,7 +740,13 @@ fn snappea_config() -> CheckConfig {
     cfg
 }
 
-fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], latency: Option<&str>) -> Outcome {
+fn run_check(
+    host: &mut dyn Host,
+    mut cfg: CheckConfig,
+    patterns: &[String],
+    latency: Option<&str>,
+    mutation_timeout: Option<u32>,
+) -> Outcome {
     let start = host.now();
     // the upstream-style progress shows only with --verbose
     let mut con = Quiet::new(host, !cfg.verbose);
@@ -738,6 +776,8 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
     let mut cases = Vec::new();
     let mut scenarios = Vec::new();
     let mut incomplete = 0;
+    let all_tests = prog.test_cases();
+    let mut passed = Vec::new();
     for name in selected {
         cfg.test_case_name = name;
         check::set_output_directory(&mut con, &mut cfg)?;
@@ -760,6 +800,11 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
             result["coverage"]["partial"] = json!(case.bugs > 0);
             scope.add(s);
             hits.add(h);
+            if case.bugs == 0 {
+                if let Some(tc) = all_tests.iter().find(|t| t.name == case.test_case) {
+                    passed.push((tc.clone(), h.clone()));
+                }
+            }
         }
         if !case.scenario_coverage.scenarios.is_empty() {
             result["scenarios"] = serde_json::from_str(&case.scenario_coverage.to_json()).unwrap();
@@ -781,6 +826,20 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
     if !scenarios.is_empty() {
         con.inner.write(Stream::Out, &scenario::merge(&scenarios), None);
     }
+    let mutation = match mutation_timeout {
+        None => json!({"skipped": "--no-mutation"}),
+        Some(_) if failed > 0 => {
+            con.inner.out_line("Mutation testing skipped: a test case failed.");
+            json!({"skipped": "a test case failed"})
+        }
+        Some(limit) => {
+            let report = crate::driver::mutation::run(con.inner, prog, &cfg, &passed, f64::from(limit));
+            for l in report.lines(SHOWN_UNCOVERED) {
+                con.inner.out_line(&l);
+            }
+            report.to_json()
+        }
+    };
     let seconds = con.inner.now() - start;
     let (elapsed, memory) = (duration(seconds), memory(con.inner));
     let out = match cfg.output_path.trim_end_matches('/') {
@@ -813,6 +872,7 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
         "seconds": round_ms(seconds),
         "output": format!("{}/", out),
         "coverage": coverage,
+        "mutation": mutation,
         "scenarios": scenarios.iter().map(|a| serde_json::from_str::<Value>(&a.to_json()).unwrap()).collect::<Vec<_>>(),
     });
     Ok((if failed > 0 { BUG } else { OK }, result))

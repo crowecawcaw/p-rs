@@ -372,7 +372,7 @@ pub fn select_test_case(host: &mut dyn Host, loaded: &Loaded, name: &str) -> Res
     }
 }
 
-fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
+pub(crate) fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
     CheckerOptions {
         strategy: cfg.strategy,
         seed,

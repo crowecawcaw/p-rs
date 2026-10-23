@@ -38,6 +38,11 @@ const CHECK_OTHER: Option[] = [
   ["-v, --verbose", "Show progress and statistics, and log every schedule."],
 ];
 
+const CHECK_MUTATION: Option[] = [
+  ["--mutation-timeout <DURATION>", "Time limit for mutation testing. Default 30s."],
+  ["--no-mutation", "Skip mutation testing."],
+];
+
 const OBSERVE: Option[] = [
   ["--spec <NAME>", "Spec monitor to check; repeat or separate with commas."],
   ["--all-specs", "Check every spec monitor (--exclude-specs to leave some out)."],
@@ -230,8 +235,18 @@ snappea check [SOURCE...] [TEST...] [options]
           does not establish that the model is correct. The default timeout is fixed at ten seconds per test.
           <code> --time</code> remains an alias for <code>--timeout</code>.
         </p>
+        <p>
+          When every test case passes, <code>check</code> then runs them against mutants: copies of the model with
+          one small change, such as a removed statement, an <code>if</code> forced one way, or <code>&lt;</code>{" "}
+          swapped for <code>&lt;=</code>. A change no test case detects is listed with its line: the code ran, but no
+          spec or assertion depends on what it does. Add a spec, an assertion or a test case that would fail with the
+          change. Specs and test drivers are not mutated, and undetected mutants do not change the exit status. JSON
+          results list them under <code>mutation.undetected</code>.
+        </p>
         <h3>How much to explore</h3>
         <Options rows={CHECK_EXPLORATION} />
+        <h3>Mutation testing</h3>
+        <Options rows={CHECK_MUTATION} />
         <h3>Time and output</h3>
         <Options rows={CHECK_OTHER} />
         <h3>Output files</h3>

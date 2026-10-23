@@ -74,6 +74,7 @@ Not covered by any test case:
   PSrc/Inventory.p:46  Inventory.Serving, on eReleaseReq: if (req.order in reservations) never false
   PSrc/Inventory.p:85  OrderClient.Checking, on eAvailableResp: if (resp.units < units) never true
 Coverage includes partial results from test cases stopped at their first bug.
+Mutation testing skipped: a test case failed.
 1 of 2 test cases failed in 0.08s, peak memory 10 MB. Output: PCheckerOutput/
 ```
 
@@ -85,7 +86,8 @@ is, and 2 on any other error. `snappea <command> --help` lists the options.
 
 On a terminal or in CI (`CI` set) the output is the text above; otherwise (agents,
 scripts) it is JSON: per test case its result, schedules, bug report and `replay`
-command, and coverage; then the coverage of all test cases with every uncovered entry.
+command, and coverage; then the coverage of all test cases with every uncovered entry,
+and the mutation testing results under `mutation`.
 `--format text|json` or `--json` chooses, as does `SNAPPEA_FORMAT=text|json`, and
 `--json-report FILE` also writes the JSON to `FILE`. Every `snappea` command takes
 these options, before or after the command (for example, `snappea --json check`).
@@ -115,6 +117,62 @@ missing (no test sends the event, or none reaches the state), or a test driver n
 chooses the value that takes the branch; sometimes the code cannot run, which is worth
 knowing too. Uncovered code in a spec monitor means the property it checks was never
 exercised.
+
+## Mutation testing
+
+Coverage shows what ran; it does not show whether anything checked it. When every test
+case passes, `snappea check` runs them again against mutants: copies of the model with
+one small change. A mutant that every test case still passes marks code whose effect no
+spec or assertion depends on:
+
+```
+$ snappea check tcAtomicReserve
+...
+Mutation testing: 13 of 34 mutants detected (0.1s)
+Not detected by any test case (every test case still passes with the change):
+  PSrc/Inventory.p:24  Inventory.Init entry: removed `stock = units;`
+  PSrc/Inventory.p:32  Inventory.Serving, on eReserveReq: `req.units <= stock` → `req.units < stock`
+  PSrc/Inventory.p:35  Inventory.Serving, on eReserveReq: removed `send req.client, eReserveResp, (order = req.order, ok = f...`
+  PSrc/Inventory.p:48  Inventory.Serving, on eReleaseReq: `stock + units` → `stock - units`
+  ...
+```
+
+Here the spec catches overselling but nothing else: an inventory that starts with no
+stock, refuses an order that fits exactly, never answers a refused order, or loses stock
+on release passes every test case. Each line is a choice: add a spec or an assertion
+that the change would break (a liveness spec that every order gets an answer, an
+assertion that a refusal is justified), add a test case that drives the code into the
+situation, or decide the code does not matter.
+
+A mutant changes one place in the code of the machines under test:
+
+| Mutation | Example |
+| --- | --- |
+| `remove-statement` | removes an assignment, collection update, `send`, `raise`, `announce`, `goto`, `new` or function call |
+| `condition-true`, `condition-false` | replaces an `if` condition by `true` or `false` |
+| `swap-operator` | `<` and `<=`, `>` and `>=`, `==` and `!=`, `+` and `-`, `&&` and `\|\|` |
+| `remove-not` | `!e` becomes `e` |
+| `flip-boolean` | `true` becomes `false` and back |
+
+Spec monitors and each test case's main machine are the tests, so they are not mutated,
+and neither are assertions, `print` or format strings. Only code a passing test case ran
+is mutated (coverage lists the rest), and an `if` is forced only to the outcome a test
+case did not take: forcing a condition that was always true changes nothing.
+
+Each mutant runs only the test cases that ran the changed code, for 1000 schedules
+shared between them (at least 100 each) and a fixed seed, so a mutant gets the same
+verdict on every run and machine. A mutant can survive because no test case reached the
+failing schedule within that budget; `search_complete: true` in JSON means every one of
+its test cases explored all of its schedules, so no test case can detect it as written.
+Some mutants cannot be detected by any test: `x < n` and `x <= n` behave the same if `x`
+never equals `n`.
+
+Mutation testing stops at its time limit, 30 seconds by default
+(`--mutation-timeout 2m` changes it, `--no-mutation` skips it); mutants are tested in a
+fixed shuffled order, so a run cut short samples the whole model. It is skipped when a
+test case fails: fix the bug first. Undetected mutants never change the exit status.
+The JSON result has every undetected mutant under `mutation.undetected`, with its
+`file`, `line`, `context`, `mutation`, `change`, `test_cases` and `search_complete`.
 
 For installation and a first model, see the [command line guide](https://snappea.dev/docs/cli.html).
 For checking application events and logs, see [snappea observe](observe.md).
