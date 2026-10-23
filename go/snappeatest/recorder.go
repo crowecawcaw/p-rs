@@ -401,18 +401,15 @@ func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []stri
 	for _, input := range inputs {
 		args = append(args, "-l", input)
 	}
-	args = append(args, "--json-report", report, "--unknown-events", s.unknownEvents)
+	// The console output is kept for people (snappea-output.txt); the result is read
+	// from the report.
+	args = append(args, "--format", "text", "--json-report", report, "--unknown-events", s.unknownEvents)
 	if s.strict {
 		args = append(args, "--strict")
 	}
 	if s.checkHot {
 		args = append(args, "--check-hot")
 	}
-	coverage := s.coverage != "" || s.suite != nil
-	if coverage {
-		args = append(args, "--coverage")
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, args...)
@@ -425,24 +422,24 @@ func (r *Recorder) run(ctx context.Context, trace []byte, count int, dirs []stri
 		return nil, setup("timeout", fmt.Sprintf("snappea did not finish within %v", s.timeout), errors.Join(ctx.Err(), cmdErr))
 	}
 	data, readErr := os.ReadFile(report)
-	if readErr != nil {
+	if readErr == nil {
+		r.result.Report = data
+	}
+	if readErr != nil || failedBeforeChecking(data) {
 		var exitErr *exec.ExitError
 		if cmdErr != nil && !errors.As(cmdErr, &exitErr) {
 			return nil, setup("config", "cannot run snappea: "+cmdErr.Error(), cmdErr)
 		}
 		return nil, setup("config", commandError(string(output), binary), cmdErr)
 	}
-	r.result.Report = data
 	if err := validateReport(data, s.specs, cmdErr == nil, s.strict); err != nil {
 		return nil, setup("config", fmt.Sprintf("snappea wrote an unexpected report (is it snappea %s?): %v", Version, err), err)
 	}
-	if coverage {
-		if s.suite != nil {
-			s.suite.collect(data)
-		}
-		if err := addCoverage(s, data); err != nil {
-			return nil, setup("config", "suite coverage: "+err.Error(), err)
-		}
+	if s.suite != nil {
+		s.suite.collect(data)
+	}
+	if err := addCoverage(s, data); err != nil {
+		return nil, setup("config", "suite coverage: "+err.Error(), err)
 	}
 	return classify(data, s.workDir, r.dir)
 }
@@ -497,13 +494,24 @@ func commandError(output, binary string) string {
 	}
 	text = strings.TrimSpace(strings.TrimPrefix(text, "Failed parsing ::"))
 	if strings.Contains(text, "error: unknown option '") || strings.Contains(text, "main parameter '") {
-		version, _ := exec.Command(binary, "--version").Output()
+		version, _ := exec.Command(binary, "--version", "--format", "text").Output()
 		return fmt.Sprintf("%s\n%s (%s) lacks an option snappeatest %s needs; use snappea from the same snappea release",
 			text, binary, strings.TrimSpace(string(version)), Version)
 	}
 	return "snappea could not check the events:\n" + text
 }
 
+// failedBeforeChecking reports a result without specs: snappea stopped before checking
+// (unreadable sources, a bad option value), and its console output says why.
+func failedBeforeChecking(data []byte) bool {
+	var report struct {
+		Specs json.RawMessage `json:"specs"`
+	}
+	return json.Unmarshal(data, &report) == nil && report.Specs == nil
+}
+
+// validateReport checks a report's shape and that its exit_code (snappea's: 0 no error,
+// 1 a spec violation, 2 any other error) agrees with its errors and the process.
 func validateReport(data []byte, names []string, commandOK, strict bool) error {
 	var report struct {
 		Exit  *int `json:"exit_code"`
@@ -529,7 +537,7 @@ func validateReport(data []byte, names []string, commandOK, strict bool) error {
 		wanted[name] = true
 	}
 	seen := map[string]bool{}
-	hasErrors := false
+	hasErrors, hasViolation := false, false
 	for _, s := range report.Specs {
 		if seen[s.Name] || (len(names) > 0 && !wanted[s.Name]) {
 			return fmt.Errorf("unexpected or duplicate report spec %q", s.Name)
@@ -554,9 +562,10 @@ func validateReport(data []byte, names []string, commandOK, strict bool) error {
 				return errors.New("report error without kind or message")
 			}
 			hasErrors = true
+			hasViolation = hasViolation || e.Kind == "spec_violation"
 		}
 	}
-	if *report.Exit < 0 || *report.Exit > 4 || (*report.Exit == 0) == hasErrors || (commandOK && *report.Exit != 0) || (!commandOK && *report.Exit == 0) {
+	if *report.Exit < 0 || *report.Exit > 2 || (*report.Exit == 0) == hasErrors || (*report.Exit == 1 && !hasViolation) || commandOK != (*report.Exit == 0) {
 		return fmt.Errorf("inconsistent process/report status %d", *report.Exit)
 	}
 	return nil

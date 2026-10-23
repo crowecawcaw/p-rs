@@ -507,10 +507,7 @@ fn observe_reports_coverage_and_merges_it_without_the_sources() {
     );
     assert!(h.stdout.contains("InventoryCorrect: 8/12 statements"), "{}", h.stdout);
     assert_eq!(snappea(&mut h, &["coverage", "merge-observe", "suite.json", "b.json", "--format", "text"]), 0);
-    assert_eq!(
-        h.stdout,
-        "Coverage of 2 observations:\n  InventoryCorrect: 12/12 statements, 0/0 branches, 3/3 event handlers\n"
-    );
+    assert_eq!(h.stdout, "Coverage:\n  InventoryCorrect: 12/12 statements, 0/0 branches, 3/3 event handlers\n");
     // merging again changes nothing
     let merged = read(&h, "suite.json");
     h.add_file("again.json", &merged);

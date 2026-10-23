@@ -262,32 +262,51 @@ pub(crate) struct Quiet<'a> {
     pub quiet: bool,
     /// The last stdout text was shown, so the newline ending it is too.
     shown: bool,
-    /// When set, all stdout text goes here instead, and stderr text here too (as well as
-    /// to stderr).
+    /// When set, all stdout text goes here instead.
     pub captured: Option<String>,
+    /// With `record_errors`, the stderr text so far (also written to stderr).
     pub captured_err: String,
+    /// With `record_errors`, the stdout text shown so far.
+    pub shown_out: String,
+    record_errors: bool,
 }
 
 #[cfg(feature = "cli")]
 impl<'a> Quiet<'a> {
     pub fn new(inner: &'a mut dyn Host, quiet: bool) -> Self {
-        Quiet { inner, quiet, shown: false, captured: None, captured_err: String::new() }
+        Quiet {
+            inner,
+            quiet,
+            shown: false,
+            captured: None,
+            captured_err: String::new(),
+            shown_out: String::new(),
+            record_errors: false,
+        }
+    }
+
+    /// A host that shows everything, and keeps the stderr text in [`Quiet::captured_err`].
+    pub fn recording_errors(inner: &'a mut dyn Host) -> Self {
+        Quiet { record_errors: true, ..Quiet::new(inner, false) }
     }
 
     /// A host that keeps all stdout text in [`Quiet::captured`].
     pub fn capturing(inner: &'a mut dyn Host) -> Self {
-        Quiet { inner, quiet: true, shown: false, captured: Some(String::new()), captured_err: String::new() }
+        Quiet { captured: Some(String::new()), record_errors: true, ..Quiet::new(inner, true) }
     }
 }
 
 #[cfg(feature = "cli")]
 impl Host for Quiet<'_> {
     fn write(&mut self, stream: Stream, text: &str, color: Option<Color>) {
-        if let Some(c) = self.captured.as_mut() {
-            if stream == Stream::Out {
-                return c.push_str(text);
-            }
+        if stream == Stream::Err && self.record_errors {
             self.captured_err.push_str(text);
+        }
+        if let Some(c) = self.captured.as_mut().filter(|_| stream == Stream::Out) {
+            return c.push_str(text);
+        }
+        if stream == Stream::Out && self.record_errors {
+            self.shown_out.push_str(text);
         }
         if stream == Stream::Err || !self.quiet {
             return self.inner.write(stream, text, color);

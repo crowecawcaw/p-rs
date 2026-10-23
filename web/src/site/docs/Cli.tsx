@@ -42,7 +42,6 @@ const CHECK_OTHER: Option[] = [
   ["--timed", "Time-aware scheduling: never run a step that is certainly later than another."],
   ["--timeline <R>", "For the feedback strategies: pairwise (default), kgram[:<N>], causal, hybrid[:<N>]."],
   ["-o, --out <DIR>", "Output folder. Default PCheckerOutput."],
-  ["--coverage-file <FILE>", "Write every statement, branch and event handler no test case ran to FILE."],
   ["-v, --verbose", "Show progress and statistics, and log every schedule."],
 ];
 
@@ -55,8 +54,12 @@ const OBSERVE: Option[] = [
   ["--key <KEY>", "Check only this key; repeat for several."],
   ["--check-hot", "Report a key whose spec is still in a hot state after its last event."],
   ["--strict", "Fail a spec that checked no relevant event."],
-  ["--coverage", "Report the monitor states and handlers observed."],
-  ["--json-report <FILE>", "Write the result as JSON."],
+];
+
+const OUTPUT: Option[] = [
+  ["--format text|json", "Text or the JSON result. Default: text on a terminal or in CI (CI set), JSON otherwise."],
+  ["--json", "The same as --format json."],
+  ["--json-report <FILE>", "Also write the JSON result to FILE."],
 ];
 
 export function Cli({ root }: { root: string }) {
@@ -197,6 +200,13 @@ FAIL  tcCheckThenReserve (bug found after 3 schedules, 4 workers, 0.00s)
           </tbody>
         </table>
         <p>This makes every command usable as a CI step or a pre-commit hook as it is.</p>
+        <h3 id="output">Text and JSON</h3>
+        <p>
+          Every command prints text for people on a terminal or in CI, and a JSON result for agents and scripts
+          otherwise. <code>SNAPPEA_FORMAT=text</code> or <code>json</code> sets the default; these options choose per
+          run:
+        </p>
+        <Options rows={OUTPUT} />
       </section>
 
       <section>
@@ -251,8 +261,9 @@ snappea observe [SOURCE...] [LOG...] --spec <NAME> [options]
 `}</Code>
         <p>
           Checks logs of a running system against P spec monitors. A <code>LOG</code> is a file, a folder of logs, or a
-          quoted glob (<code>"logs/**/*.jsonl"</code>). By default each line is one JSON event. The <a href={`${BLOB}/docs/observe.md`}>observe guide</a> covers log formats and live
-          streams.
+          quoted glob (<code>"logs/**/*.jsonl"</code>). By default each line is one JSON event. It prints one line per
+          spec with its coverage (the spec's handlers, statements and branches the events ran), and lists the spec code
+          no event ran. The <a href={`${BLOB}/docs/observe.md`}>observe guide</a> covers log formats and live streams.
         </p>
         <Options rows={OBSERVE} />
       </section>
@@ -261,11 +272,12 @@ snappea observe [SOURCE...] [LOG...] --spec <NAME> [options]
         <h2 id="coverage">snappea coverage</h2>
         <Code lang="text">{`
 snappea coverage merge [DIR]
-snappea coverage merge-observe [REPORT.json ...] [--json-report OUT]
+snappea coverage merge-observe [RESULT.json ...] [--stdin]
 `}</Code>
         <p>
           <code>merge</code> combines the scenario coverage reports under a folder (for example, from several CI jobs)
-          into one. <code>merge-observe</code> combines <code>observe --coverage</code> JSON reports.
+          into one. <code>merge-observe</code> merges the coverage of <code>snappea observe</code> JSON results, without
+          the P sources.
         </p>
       </section>
 

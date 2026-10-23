@@ -25,20 +25,30 @@ It prints one line per spec, and each error under it:
 $ snappea observe inventory.p logs/ --spec InventoryCorrect
 FAIL  InventoryCorrect (1 error; 2 events, 1 key)
       key c: Assertion failure: inventory.p:27:7 reservation exceeds available stock
+      Coverage: 8/12 statements, 0/0 branches, 2/3 event handlers
+Not covered by the events:
+  inventory.p:30  InventoryCorrect.Ready, on eReleased: never handled
 ```
+
+Each spec's coverage says which of its event handlers, statements and `if` outcomes
+the events ran ([below](#coverage)).
 
 Exit status: 0 no violation, 1 a violation (a spec assertion, or a hot state with
 `--check-hot`), 2 any other error (command line, P type errors, log parser errors,
 `--unknown-events error`, `--strict`, I/O). Command-line errors go to stderr as
-`error: <message>`. Supervisors should check the exit status and read the
-`--json-report` file for detail.
+`error: <message>`.
+
+On a terminal or in CI (`CI` set) the output is text; otherwise (agents, scripts,
+supervisors) it is the JSON result below. `--format text|json` or `--json` chooses,
+as does `SNAPPEA_FORMAT=text|json`, and `--json-report FILE` also writes the JSON to
+`FILE`, for a run whose text people read.
 
 `snappea-compat observe` takes PObserve's options instead (`-pf`, `-pp`, `-l A B ...`,
 `-ik`, `-pc`, `--keys`, `--replaySize`, `-o`, ...), writes PObserve's console output
 and report folder (`PObserve-<date>/` with `replayEvents_*.log` and
 `PObserveMetrics.txt`) and uses PObserve's exit codes (0 ok, 1 command line, 2 spec
 violation, 3 internal error, 4 parser errors only). It also takes the checks below
-that PObserve doesn't have (`--all-specs`, `--check-hot`, `--strict`, `--coverage`,
+that PObserve doesn't have (`--all-specs`, `--check-hot`, `--strict`,
 `--unknown-events`, `--json-report`, live input).
 
 ## Options
@@ -63,18 +73,16 @@ that PObserve doesn't have (`--all-specs`, `--check-hot`, `--strict`, `--coverag
 | `--check-hot` | Also report a key whose spec is in a hot state after its last event, with the message `snappea check` uses for liveness bugs at the end of an execution. |
 | `--strict` | Require at least one successfully checked relevant event per selected spec, after key filtering. |
 | `--unknown-events ignore\|warn\|error` | What to do with event names no loaded P source declares (default `ignore`, as PObserve). See [Unknown event names](#unknown-event-names). |
-| `--coverage` | Report observed monitor state and handler coverage, including in JSON when requested. |
-| `--json-report FILE` | Write the result as JSON (below). |
+| `--format text\|json`, `--json` | Print text or the JSON result (default: text on a terminal or in CI, else JSON). |
+| `--json-report FILE` | Also write the JSON result to `FILE`. |
 | `-v`, `--verbose` | Show progress, logged messages and each error's events. |
 
-`snappea observe` writes no report folder; the JSON report is its machine-readable output.
-The report has the same format in `snappea` and `snappea-compat`, and its `exit_code` keeps PObserve's
-values (0 success, 2 violation, 3 validation, ordering, internal or unknown-event
-error, 4 parser errors only):
+`snappea observe` writes no report folder; the JSON result is its machine-readable
+output. Its `exit_code` is the exit status:
 
 ```json
 {
-  "exit_code": 2,
+  "exit_code": 1,
   "specs": [
     {
       "spec": "MutualExclusion",
@@ -92,11 +100,27 @@ error, 4 parser errors only):
             {"key": "L1", "timestamp": "2026-10-18T00:00:00.000000002Z", "event": "eEnter", "log_line": "{...}"}
           ]
         }
-      ]
+      ],
+      "coverage": {
+        "statements": {"covered": 3, "total": 4},
+        "branches": {"covered": 0, "total": 0},
+        "handlers": {"covered": 1, "total": 2},
+        "uncovered": [
+          {"file": "specs/lock.p", "line": 24, "end_line": 24, "context": "MutualExclusion.Locked, on eExit", "what": "never handled"}
+        ],
+        "source_fingerprint": "sha256:...",
+        "points": ["..."],
+        "hit": ["..."]
+      }
     }
   ]
 }
 ```
+
+A run that fails before checking (bad sources, unreadable logs) prints
+`{"exit_code": 2, "error": "..."}`. `snappea-compat observe --json-report` writes the
+same result with PObserve's exit code (0 success, 2 violation, 3 validation, ordering,
+internal or unknown-event error, 4 parser errors only).
 
 `kind` is `spec_violation`, `out_of_order`, `parser`, `validation` (`--strict`),
 `unknown_event` (`--unknown-events error`) or `unknown`. `events` are the
@@ -190,39 +214,25 @@ option. Logs without timestamps keep the parser's existing default of epoch zero
 provide timestamps to check meaningful budgets. `PTrace` currently has no time
 entries, so its observations also use zero.
 
-## Observed monitor coverage
+## Coverage
 
-Add `--coverage` to print state and handler coverage to standard output, including
-unvisited states and uncovered handlers. With `--json-report report.json`, each
-selected spec also gets a `coverage` object:
+Every observation reports, per spec, which of its `do` and `goto` event handlers,
+statements and `if` outcomes (true and false) the events ran, as `snappea check` does
+for a model. Code that starts with `assert false` must never run, so it is not
+counted. The text output lists what never ran: for each piece of code, the outermost
+part that did not run (a handler never triggered rather than each of its statements),
+with its file and line; `--json` lists all of it under `coverage.uncovered`.
 
-```sh
-snappea observe PSpec/Bank.p app.log --spec BankBalanceCorrect \
-  --coverage --json-report report.json
-```
+Code a spec never ran is a part of the property no event exercised. The application
+may not emit an event (or emit it with a misspelled name: see
+[unknown event names](#unknown-event-names)), the tests may not reach that situation,
+or the spec may have code that cannot run.
 
-This measures monitor executions over the selected log entries, not P model paths,
-branches, schedules or whether the application emits the right events.
-
-- The denominator is every state and every explicit do, goto or ignore handler in the
-  selected monitor, reachable or not. Deferred events are excluded (the Java monitor
-  semantics generate no handlers for them).
-- The initial state counts only when a partition starts its monitor, so an empty log
-  has no hits. A failing event's handler and the states entered before the failure
-  count.
-- The JSON object has `scope: "observed_monitor"`. `states` and `handlers` each hold
-  `total`, `covered`, `declared` and `visited`; states are `Spec.State`, handlers are
-  `{state, event}`. `transitions` lists the `{source, target}` transitions taken,
-  including jumps from action bodies, with no denominator. Arrays are sorted and
-  deduplicated.
-- Combine runs by taking the union of hit sets, never by summing counts, and only for
-  the same spec version ([merging](#combining-coverage-across-tests-and-processes)).
-  Without `--coverage`, output is unchanged.
-
-Rust callers can set `ObserveOptions.coverage = true` and read `Report.coverage`.
-`snappea::checker::observe_coverage::ObserveCoverage` exposes the declaration and hit
-sets, `merge(&other)` for test-suite unions, `render_text()` for human output, and
-`to_json()` for the same structured coverage object as the CLI.
+`coverage.points` and `coverage.hit` hold what could run and what did, so results
+merge without the P sources ([below](#combining-coverage-across-tests-and-processes)).
+Rust callers read `Report.coverage`, a
+`snappea::checker::code_coverage::CodeCoverage` with `summary()`, `uncovered()`,
+`merge(&other)` and `to_json(points)`.
 
 ## Live checks for external tests
 
@@ -304,38 +314,37 @@ to the sessions.
 
 ## Combining coverage across tests and processes
 
-Save each observation with `--coverage --json-report`, then merge them (set union of
-declared and visited states, handlers and transitions; nothing is re-executed):
+Save each observation's JSON result, then merge them; nothing is re-executed and the
+P sources are not needed:
 
 ```sh
 snappea coverage merge-observe reports/*.json --json-report suite-coverage.json
 ```
 
-It prints a human-readable summary with uncovered declarations; `--json` prints JSON
-instead, and `--json-report` writes JSON to a file. `snappea coverage merge` is the
-separate command for scenario coverage from `snappea check`.
+```
+Coverage (some observations failed):
+  InventoryCorrect: 12/12 statements, 0/0 branches, 3/3 event handlers
+```
 
-Test helpers can skip the per-test subprocess by passing a JSON array of observation
-reports once at suite end:
+It prints each spec's coverage and what no observation ran, or the merged JSON.
+`snappea coverage merge` is the separate command for scenario coverage from
+`snappea check`. Test helpers pass a JSON array of results once at suite end:
 
 ```sh
 snappea coverage merge-observe --stdin --json-report suite-coverage.json < observations.json
 ```
 
-- An empty array gives empty coverage. Inputs without valid coverage (missing,
-  malformed, unsupported version or inconsistent) are rejected. Merged reports can be
-  merged again.
-- Output has `scope: "observed_monitor_suite"`, `schema_version: 1`, a `specs` array
-  (each spec's union) and an `observations` array of distinct source metadata (exit
-  status, errors, input completion when known). Failed and partial observations still
-  contribute coverage. Identical metadata is deduplicated, so this is not a test count.
-- Each spec's coverage carries a SHA-256 fingerprint of its compilation sources'
-  contents (not paths, so different checkouts merge). Reports for one spec must have
-  the same fingerprint and declarations, or the merge fails without changing the
-  output. Regenerate older reports with `observe --coverage`.
+- An empty array gives empty coverage. Merged results can be merged again.
+- The merged JSON has `scope: "observed_monitor_suite"`, `schema_version: 1`, a
+  `specs` array (each spec's merged coverage) and an `observations` array of distinct
+  results without their coverage (exit code, errors, input completion when known).
+  Failed and partial observations still contribute coverage.
+- Results merge only for the same spec sources (a SHA-256 fingerprint of their
+  contents, so different checkouts merge) and the same snappea version; otherwise the
+  merge fails without changing the output.
 - Rust: `snappea::checker::observe_report::ObserveCoverageReport` with `from_observation`
-  (an in-process `Report`), `from_json` / `from_json_str`, `merge` (validated, atomic),
-  `render_text` and `to_json`.
+  (an in-process `Report`), `from_json` / `from_json_str`, `merge`, `render_text` and
+  `to_json`.
 
 ## Strict observation
 

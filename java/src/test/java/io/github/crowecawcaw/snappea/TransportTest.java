@@ -68,6 +68,16 @@ class TransportTest {
         missing.emit("event", "key");
         failure = assertThrows(SetupError.class, missing::close);
         assertTrue(failure.getMessage().contains("A spec in [Spec] is not declared"), failure.getMessage());
+
+        // snappea writes {"exit_code": 2} when it fails before checking; the console says why.
+        var early = recording(executable("report=''\nwhile [ \"$#\" -gt 0 ]; do\n"
+                + "  if [ \"$1\" = '--json-report' ]; then shift; report=$1; fi\n  shift\ndone\n"
+                + "echo 'error: cannot read spec.p' >&2\nprintf '{\"exit_code\": 2}' > \"$report\"\nexit 2\n"));
+        early.emit("event", "key");
+        failure = assertThrows(SetupError.class, early::close);
+        assertEquals(SetupError.CONFIG, failure.kind());
+        assertTrue(failure.getMessage().contains("error: cannot read spec.p"), failure.getMessage());
+        assertFalse(failure.getMessage().contains("unusable report"), failure.getMessage());
     }
 
     @Test @EnabledOnOs(OS.LINUX)

@@ -39,6 +39,13 @@ the previous run's: `bug.txt` (the buggy schedule's log), `bug.schedule` and
 upstream's progress and statistics. It exits with 0 when no bug is found, 1 when one
 is, and 2 on any other error. `snappea <command> --help` lists the options.
 
+On a terminal or in CI (`CI` set) the output is the text above; otherwise (agents,
+scripts) it is JSON: per test case its result, schedules, bug report and `replay`
+command, and coverage; then the coverage of all test cases with every uncovered entry.
+`--format text|json` or `--json` chooses, as does `SNAPPEA_FORMAT=text|json`, and
+`--json-report FILE` also writes the JSON to `FILE`. Every `snappea` command takes
+these options.
+
 `snappea check` explores schedules on one worker thread per CPU core (`-j N` sets the
 number). The schedule count is split between the workers, each with its own seed; the
 first bug stops them all, and its `bug.schedule` file replays it as usual. The `random`,
@@ -65,7 +72,7 @@ not counted. A bug stops a test case early, so its coverage is partial.
 
 The list after the test cases names, for each piece of code that never ran, the
 outermost one: a handler that was never triggered rather than each of its statements.
-It shows the first 20 entries; `--coverage-file <FILE>` writes them all.
+It shows the first 20 entries; the JSON result has them all.
 
 Code that never runs is code the model was not checked on. Usually a test case is
 missing (no test sends the event, or none reaches the state), or a test driver never

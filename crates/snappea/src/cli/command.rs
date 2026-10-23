@@ -323,19 +323,20 @@ pub(super) fn with_output(
         Ok(f) => f,
         Err(m) => return usage_error(host, &m, Some(cmd)),
     };
-    let (code, mut result) = match format {
-        Format::Text => body(host).unwrap_or_else(|_| (ERROR, json!({}))),
-        Format::Json => {
-            let mut capture = Quiet::capturing(host);
-            let outcome = body(&mut capture);
-            let out = capture.captured.take().unwrap_or_default();
-            // what the command reported: its errors, else what it printed
-            let err = std::mem::take(&mut capture.captured_err);
-            let text = if err.trim().is_empty() { out } else { err };
-            let text = text.trim().strip_prefix("error: ").unwrap_or(text.trim()).to_string();
-            outcome.unwrap_or_else(|_| (ERROR, json!({"error": text})))
-        }
+    let mut capture = match format {
+        Format::Text => Quiet::recording_errors(host),
+        Format::Json => Quiet::capturing(host),
     };
+    let outcome = body(&mut capture);
+    let (code, mut result) = outcome.unwrap_or_else(|_| {
+        // what the command reported: its errors, else what it printed
+        let err = std::mem::take(&mut capture.captured_err);
+        let out = capture.captured.take().unwrap_or_else(|| std::mem::take(&mut capture.shown_out));
+        let text = if err.trim().is_empty() { out } else { err };
+        let text = text.trim();
+        (ERROR, json!({"error": text.strip_prefix("error: ").unwrap_or(text)}))
+    });
+    drop(capture);
     if !result.is_object() {
         result = json!({"result": result});
     }

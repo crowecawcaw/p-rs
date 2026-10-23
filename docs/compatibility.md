@@ -8,8 +8,9 @@ to:
 * Console: one line per test case, the bug's report and its `snappea replay` command, and a
   summary with time and peak memory. Upstream's progress only with `-v`.
 * Output folder: `PCheckerOutput/<test>/` with fixed names (`bug.txt`, `bug.schedule`,
-  `bug.trace.json`, `coverage.txt`, `summary.txt`, `scenario_coverage.json`), replaced by
-  each run. No `BugFinding/` folder, history folders or `.sci` file.
+  `bug.trace.json`, `scenario_coverage.json`), replaced by each run. No `BugFinding/`
+  folder, history folders, `.sci`, coverage or summary file: coverage and the summary go
+  to the console (or the JSON result).
 * `<IncludeProject>` paths in a `.pproj` are resolved against the including project
   file's folder first, then the current folder (upstream: only the current folder).
 * `observe`: sources and logs are positional arguments, live input stops at the first
@@ -45,7 +46,7 @@ to:
   named `--help`).
 * `observe` reports a null dereference with its own message.
 * `observe` extensions: several names after `--spec`, `--all-specs`,
-  `--exclude-specs`, `--json-report`, `--coverage`, `--strict`, `--unknown-events`,
+  `--exclude-specs`, `--json-report`, `--strict`, `--unknown-events`,
   `--check-hot`, several `-l` values and glob patterns, and live input (`--stdin`,
   `--live`, `--sequence`, `--record`). Runs that use none of them are unchanged.
 * Foreign functions and log parsers are written in Rust, not C# or Java.

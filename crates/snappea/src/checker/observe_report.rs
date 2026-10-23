@@ -107,18 +107,18 @@ impl ObserveCoverageReport {
 
     /// The coverage of each spec, and what no observation ran.
     pub fn render_text(&self) -> String {
-        let n = self.observations.len();
+        // identical results are kept once, so they are not counted
         let failed = self.observations.iter().filter(|v| v["exit_code"] != 0).count();
         let incomplete = self.observations.iter().filter(|v| v["input_complete"] == false).count();
         let mut notes = Vec::new();
         if failed > 0 {
-            notes.push(format!("{failed} failed"));
+            notes.push("some observations failed");
         }
         if incomplete > 0 {
-            notes.push(format!("{incomplete} incomplete"));
+            notes.push("some were incomplete");
         }
-        let notes = if notes.is_empty() { String::new() } else { format!(" ({})", notes.join(", ")) };
-        let mut out = format!("Coverage of {} observation{}{}:\n", n, if n == 1 { "" } else { "s" }, notes);
+        let notes = if notes.is_empty() { String::new() } else { format!(" ({})", notes.join("; ")) };
+        let mut out = format!("Coverage{}:\n", notes);
         let mut uncovered = Vec::new();
         for (spec, c) in &self.specs {
             out.push_str(&format!("  {}: {}\n", spec, c.summary()));
@@ -194,7 +194,7 @@ mod tests {
         let roundtrip = ObserveCoverageReport::from_json(&suite.to_json()).unwrap();
         suite.merge(&roundtrip).unwrap();
         assert_eq!(suite, roundtrip);
-        assert!(suite.render_text().starts_with("Coverage of 2 observations (1 failed, 1 incomplete):\n"));
+        assert!(suite.render_text().starts_with("Coverage (some observations failed; some were incomplete):\n"));
     }
 
     #[test]

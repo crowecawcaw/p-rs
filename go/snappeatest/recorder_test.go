@@ -73,6 +73,8 @@ func init() {
 				data = []byte(`{"exit_code":0,"specs":[{"spec":"S","events_read":1,"partition_keys":0,"verified_keys":0,"errors":[]}]}`)
 			case "keys-without-events":
 				data = []byte(`{"exit_code":0,"specs":[{"spec":"S","events_read":0,"partition_keys":1,"verified_keys":1,"errors":[]}]}`)
+			case "not-checked": // stopped before checking, as with --format text
+				data = []byte(`{"exit_code":2}`)
 			case "bad-envelope":
 				data = []byte(`{"scope":"observed_monitor_suite","schema_version":1,"specs":[],"observations":null}`)
 			}
@@ -81,6 +83,10 @@ func init() {
 				os.Exit(2)
 			}
 		}
+	}
+	if mode == "not-checked" {
+		fmt.Fprintln(os.Stderr, "error: The P specification does not type-check.")
+		os.Exit(2)
 	}
 	fmt.Println("fixture diagnostics")
 	os.Exit(0)
@@ -224,6 +230,16 @@ func TestMalformedAndMismatchedToolReports(t *testing.T) {
 				t.Fatalf("lost malformed tool diagnostics: %v %+v", err, result)
 			}
 		})
+	}
+}
+
+func TestFailureBeforeChecking(t *testing.T) {
+	t.Setenv("SNAPPEATEST_CHILD", "not-checked")
+	r := New(t, fixtureConfig(t))
+	r.Emit("e", "k", nil)
+	_, err := r.Verify(context.Background())
+	if se := setupKind(t, err, "config"); !strings.Contains(se.Message, "does not type-check") || strings.Contains(se.Message, "unexpected report") {
+		t.Fatalf("lost snappea's reason: %v", se)
 	}
 }
 
@@ -432,6 +448,22 @@ func TestReportValidation(t *testing.T) {
 	}
 	if err := validateReport([]byte(strings.Replace(valid, `"S"`, `"other"`, 1)), nil, true, true); err != nil {
 		t.Fatalf("all specs: %v", err)
+	}
+	failed := func(exit int, kind string) string {
+		return fmt.Sprintf(`{"exit_code":%d,"specs":[{"spec":"S","events_read":1,"partition_keys":1,"verified_keys":1,"errors":[{"kind":%q,"message":"m"}]}]}`, exit, kind)
+	}
+	for _, ok := range []string{failed(1, "spec_violation"), failed(2, "validation"), failed(2, "parser")} {
+		if err := validateReport([]byte(ok), []string{"S"}, false, true); err != nil {
+			t.Fatalf("rejected %s: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{failed(1, "validation"), failed(3, "validation"), failed(0, "spec_violation")} {
+		if err := validateReport([]byte(bad), []string{"S"}, false, true); err == nil {
+			t.Fatalf("accepted invalid report: %s", bad)
+		}
+	}
+	if err := validateReport([]byte(failed(1, "spec_violation")), []string{"S"}, true, true); err == nil {
+		t.Fatal("accepted a failed report from a successful process")
 	}
 	for _, bad := range []string{strings.Replace(valid, `"S"`, `"other"`, 1), strings.Replace(valid, `"verified_keys":1`, `"verified_keys":2`, 1), strings.Replace(valid, `"errors":[]`, `"errors":null`, 1), strings.Replace(valid, `"exit_code":0`, `"exit_code":2`, 1), `{"specs":[]}`, `{"exit_code":0,"specs":[{"spec":"S"}]}`} {
 		if err := validateReport([]byte(bad), []string{"S"}, true, true); err == nil {

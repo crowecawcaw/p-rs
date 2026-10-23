@@ -35,6 +35,13 @@ type counts struct {
 	Total   *int `json:"total"`
 }
 
+// coverageCounts is the part of a spec's coverage a case can expect.
+type coverageCounts struct {
+	Statements counts `json:"statements"`
+	Branches   counts `json:"branches"`
+	Handlers   counts `json:"handlers"`
+}
+
 type conformanceCase struct {
 	Description string   `json:"description"`
 	Requires    []string `json:"requires"`
@@ -46,16 +53,13 @@ type conformanceCase struct {
 		UnknownEvents string   `json:"unknown_events"`
 	} `json:"options"`
 	Expect struct {
-		Outcome  string `json:"outcome"`
-		Spec     string `json:"spec"`
-		Key      string `json:"key"`
-		Message  string `json:"message"`
-		Liveness bool   `json:"liveness"`
-		Kind     string `json:"kind"`
-		Coverage map[string]struct {
-			States   counts `json:"states"`
-			Handlers counts `json:"handlers"`
-		} `json:"coverage"`
+		Outcome  string                    `json:"outcome"`
+		Spec     string                    `json:"spec"`
+		Key      string                    `json:"key"`
+		Message  string                    `json:"message"`
+		Liveness bool                      `json:"liveness"`
+		Kind     string                    `json:"kind"`
+		Coverage map[string]coverageCounts `json:"coverage"`
 	} `json:"expect"`
 }
 
@@ -84,9 +88,6 @@ func replayCase(t *testing.T, binary, dir string) {
 		Strict:        c.Options.Strict,
 		CheckHot:      c.Options.CheckHot,
 		UnknownEvents: c.Options.UnknownEvents,
-	}
-	if c.Expect.Coverage != nil {
-		cfg.Coverage = filepath.Join(t.TempDir(), "monitor.json")
 	}
 	r := New(t, cfg)
 
@@ -157,11 +158,8 @@ func replayCase(t *testing.T, binary, dir string) {
 	}
 	var report struct {
 		Specs []struct {
-			Spec     string `json:"spec"`
-			Coverage struct {
-				States   counts `json:"states"`
-				Handlers counts `json:"handlers"`
-			} `json:"coverage"`
+			Spec     string         `json:"spec"`
+			Coverage coverageCounts `json:"coverage"`
 		} `json:"specs"`
 	}
 	if err := json.Unmarshal(result.Report, &report); err != nil {
@@ -174,7 +172,7 @@ func replayCase(t *testing.T, binary, dir string) {
 				continue
 			}
 			found = true
-			for _, pair := range [][2]counts{{w.States, s.Coverage.States}, {w.Handlers, s.Coverage.Handlers}} {
+			for _, pair := range [][2]counts{{w.Statements, s.Coverage.Statements}, {w.Branches, s.Coverage.Branches}, {w.Handlers, s.Coverage.Handlers}} {
 				if !sameCount(pair[0].Covered, pair[1].Covered) || !sameCount(pair[0].Total, pair[1].Total) {
 					t.Fatalf("%s coverage: want %+v, got %s", spec, w, result.Report)
 				}

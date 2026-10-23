@@ -68,7 +68,7 @@ const SETTINGS: Setting[] = [
     default: "a temp folder",
   },
   {
-    meaning: "Suite coverage JSON: the spec states and handlers the tests reached",
+    meaning: "Suite coverage JSON: the spec handlers, statements and branches the tests reached",
     name: { python: "env or --snappea-coverage", rust: c("coverage"), go: c("Coverage"), java: c("coverage") },
     default: "off",
   },

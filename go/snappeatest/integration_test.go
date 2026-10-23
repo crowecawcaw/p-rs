@@ -229,7 +229,7 @@ func TestIntegrationSuiteAndFailedCoverage(t *testing.T) {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(path)
-	if !bytes.Contains(data, []byte("negative count")) || !strings.Contains(human.String(), "Observed monitor coverage") {
+	if !bytes.Contains(data, []byte("negative count")) || !strings.Contains(human.String(), "(some observations failed)") {
 		t.Fatalf("missing failed-prefix or human report: %s\n%s", data, human.String())
 	}
 	if err = suite.WriteCoverage(context.Background(), t.TempDir(), io.Discard); err == nil {
@@ -305,7 +305,7 @@ func TestIntegrationCoverageWithMain(t *testing.T) {
 	if err := flushCoverage(context.Background(), &human); err != nil {
 		t.Fatal(err)
 	}
-	if got := handlersCovered(t, cfg.Coverage); got != 3 || !strings.Contains(human.String(), "Handlers: 3/4") {
+	if got := handlersCovered(t, cfg.Coverage); got != 3 || !strings.Contains(human.String(), "3/4 event handlers") {
 		t.Fatalf("handlers covered = %d, want 3; summary:\n%s", got, human.String())
 	}
 }

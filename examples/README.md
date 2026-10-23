@@ -54,12 +54,12 @@ Each fixture stocks coffee=3 and tea=2.
 
 ## Coverage
 
-Each language's every-test fixture reports monitor coverage (states and event handlers
-of the spec, not application lines) on stdout and as a JSON file that CI uploads. The
-suite report is the union across tests and keys, merged by
-`snappea coverage merge-observe`, and includes coverage from failing checks. Unreached
-declarations may stay uncovered: coverage shows what ran, not that the code is safe.
-See [observed monitor coverage](../docs/observe.md#observed-monitor-coverage).
+Each language's every-test fixture reports spec coverage (the spec's event handlers,
+statements and `if` outcomes the application's events ran, not application lines) on
+stdout and as a JSON file that CI uploads. The suite report is the union across tests
+and keys, merged by `snappea coverage merge-observe`, and includes coverage from
+failing checks. It lists the spec code no test ran: usually a situation the tests
+never reach. See [coverage](../docs/observe.md#coverage).
 
 ## Across processes
 

@@ -65,8 +65,8 @@ snappea observe specs/inventory.p '/var/log/app/events/*.jsonl' \
 ```
 
 Quote the glob: `snappea` expands it, including `**`. Exit status 0 is clean, 1 a spec
-violation, 2 a tool or input error; read details from `--json-report`
-([format](observe.md#options)). A file still being written may end in a
+violation, 2 a tool or input error; read details from the JSON result (`--json` or
+`--json-report`, [format](observe.md#options)). A file still being written may end in a
 partial line, which is a `parser` error (exit 2), so check rotated files, or check
 live:
 

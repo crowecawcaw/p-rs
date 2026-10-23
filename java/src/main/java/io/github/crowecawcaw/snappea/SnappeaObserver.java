@@ -226,7 +226,7 @@ public final class SnappeaObserver {
         return binary + "\n" + timeout + "\n" + artifacts;
     }
 
-    List<String> command(String executable, List<Path> logs, Path report, boolean withCoverage) {
+    List<String> command(String executable, List<Path> logs, Path report) {
         var args = new ArrayList<>(List.of(executable, "observe"));
         files.forEach(p -> args.add(p.toString())); // positional .p sources (absolute paths)
         if (!specs.isEmpty()) {
@@ -237,10 +237,12 @@ public final class SnappeaObserver {
         }
         // One -l per log, so a log path is never taken for a source (.p/.pproj) or an option.
         logs.forEach(p -> args.addAll(List.of("-l", p.toString())));
-        args.addAll(List.of("--json-report", report.toString(), "--unknown-events", unknownEvents.option()));
+        // Text on the console (kept in console.txt for people), whatever CI or SNAPPEA_FORMAT say;
+        // the result is read from the JSON report.
+        args.addAll(List.of("--format", "text", "--json-report", report.toString(),
+                "--unknown-events", unknownEvents.option()));
         if (strict) args.add("--strict");
         if (checkHot) args.add("--check-hot");
-        if (withCoverage) args.add("--coverage");
         return args;
     }
 

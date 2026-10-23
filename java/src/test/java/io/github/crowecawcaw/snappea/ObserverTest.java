@@ -253,7 +253,7 @@ class ObserverTest {
         try (var events = first.recording("first", coverage)) { events.emit("eAdd", "sku", 1); }
         try (var events = changed.recording("changed", coverage)) { events.emit("eAdd", "sku", 1); }
         var failure = assertThrows(SetupError.class, coverage::close);
-        assertTrue(failure.getMessage().contains("fingerprint"), failure.getMessage());
+        assertTrue(failure.getMessage().contains("different P sources"), failure.getMessage());
         assertFalse(Files.exists(target));
     }
 }

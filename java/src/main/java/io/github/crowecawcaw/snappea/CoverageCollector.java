@@ -94,7 +94,7 @@ public final class CoverageCollector implements AutoCloseable {
                     }
                     temporary = Files.createTempFile(destination.getParent(), "snappea-coverage-", ".json");
                     int exit = Processes.run(List.of(observer.executable(), "coverage", "merge-observe", "--stdin",
-                            "--json-report", temporary.toString()), input, console, observer.timeout());
+                            "--format", "text", "--json-report", temporary.toString()), input, console, observer.timeout());
                     if (exit != 0) throw new IOException("Coverage merge exit " + exit);
                     var merged = Json.read(temporary);
                     if (!"observed_monitor_suite".equals(Json.get(merged, "scope"))
@@ -110,7 +110,7 @@ public final class CoverageCollector implements AutoCloseable {
                 }
             }
             System.out.print(Processes.tail(console));
-            System.out.println("Observed monitor coverage JSON: " + destination);
+            System.out.println("Spec coverage JSON: " + destination);
             Recording.deleteTree(directory);
         } catch (SetupError error) {
             throw error;

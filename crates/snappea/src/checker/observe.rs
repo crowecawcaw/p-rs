@@ -609,6 +609,8 @@ impl Metrics {
 pub struct Report {
     /// Which handlers, statements and branches of the spec the events ran.
     pub coverage: CodeCoverage,
+    /// What the keys checked so far ran, before it is added to `coverage` at the end.
+    pub(crate) collected: Option<CoverageInfo>,
     /// In the order upstream records them: parser errors, then errors per key.
     pub errors: Vec<ObserveError>,
     pub metrics: Metrics,
@@ -788,7 +790,7 @@ impl<'p> Spec<'p> {
             Setup {
                 java_semantics: Some(&self.java),
                 time: time.then(TimeOptions::default),
-                coverage: Some(Coverage::new(self.tables.clone(), CoverageInfo::default())),
+                coverage: Some(Coverage::new(self.tables.clone(), report.collected.take().unwrap_or_default())),
                 ..Setup::default()
             },
         );
@@ -858,9 +860,7 @@ impl<'p> Spec<'p> {
             }
             KeyOutcome::Ok
         })();
-        if let Some(collected) = rt.coverage.take() {
-            self.record_coverage(&mut report.coverage, &collected.into_info());
-        }
+        report.collected = rt.coverage.take().map(|c| c.into_info());
         outcome
     }
 
@@ -984,6 +984,9 @@ impl<'p> Spec<'p> {
         }
         if opts.strict {
             report.require_events(self.name());
+        }
+        if let Some(collected) = report.collected.take() {
+            self.record_coverage(&mut report.coverage, &collected);
         }
         report.metrics.elapsed_ms = ((clock() - start) * 1000.0).round() as i64;
         report

@@ -190,8 +190,8 @@ $ snappea observe --spec BankBalanceCorrect logs/
           <div>
             <dt>More from observe</dt>
             <dd>
-              Several specs per run, <code>--all-specs</code>, <code>--check-hot</code>, <code>--json-report</code>,{" "}
-              <code>--coverage</code>, <code>--strict</code> and live input (<code>--live</code>). In{" "}
+              Several specs per run, <code>--all-specs</code>, <code>--check-hot</code>, <code>--json-report</code>,
+              spec coverage, <code>--strict</code> and live input (<code>--live</code>). In{" "}
               <code>snappea-compat observe</code>, runs that use none of them behave as upstream. See{" "}
               <a href={`${BLOB}/docs/observe.md`}>snappea observe</a>.
             </dd>
