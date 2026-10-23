@@ -30,8 +30,8 @@ without updating main history.
 
 Measurements compare code commit `63686f4` with the original feedback scheduler at
 `9983d8d`, using Rust 1.99.1 and suite version 1. The checked-in raw results are
-[baseline.json](baseline.json), [guided.json](guided.json), and
-[holdout.json](holdout.json). Each records an exact commit and `dirty: false`.
+[baseline.json.gz](baseline.json.gz), [guided.json.gz](guided.json.gz), and
+[holdout.json.gz](holdout.json.gz). Each records an exact commit and `dirty: false`.
 Random and both exhaustive strategies produced identical per-seed results before
 and after the change on seeds 0–19.
 
