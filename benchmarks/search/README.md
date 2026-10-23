@@ -39,7 +39,7 @@ On seeds 0–19, standalone feedback found all three bugs in **100/100 model run
 compared with **80/100** for original feedback and **83/100** for random. DFS and
 randomized DFS completed all 100. On the separate seeds 20–39, final feedback
 completed **100/100**, random **81/100**, and both exhaustive strategies **100/100**.
-The automatic portfolio completed 99/100 on seeds 0–19 and 98/100 on seeds 20–39;
+The earlier automatic portfolio completed 99/100 on seeds 0–19 and 98/100 on seeds 20–39;
 its initial exhaustive probe and work allocation mean it does not inherit the
 standalone feedback scheduler's full improvement.
 

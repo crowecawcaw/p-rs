@@ -281,7 +281,7 @@ fn guided_search_develops_rare_data_and_scheduling_prefixes_and_replays_them() {
 
 #[test]
 fn auto_completes_finite_search_and_replays_failures() {
-    let safe = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::Auto, 0));
+    let safe = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::Auto, 1000));
     assert_eq!(safe.report.num_bugs, 0);
     assert!(safe.exhaustive.unwrap().finished);
     let buggy = check(&clients("assert false, \"all clients delivered\";"), &opts(StrategyKind::Auto, 1000));
@@ -433,4 +433,56 @@ fn discovery_identity_ignores_instances_but_preserves_distinct_event_names() {
         failure_site("Assertion Failed: dir with spaces/x.p:3:2 value 12"),
         failure_site("Assertion Failed: dir with spaces/x.p:3:2 value 99")
     );
+}
+
+#[test]
+fn auto_depth_bound_hands_off_to_fair_feedback_and_replays_the_bug() {
+    let src = "machine Main { start state S { entry { if ($) { if ($) { if ($) { assert false; } } } } } } test tcMain [main=Main]: { Main };";
+    let options = CheckerOptions { max_unfair_steps: 2, max_fair_steps: 100, ..opts(StrategyKind::Auto, 100) };
+    let result = check(src, &options);
+    assert_eq!(result.report.num_bugs, 1);
+    assert_eq!(result.report.explored_unfair_schedules, 1);
+    assert!(result.report.explored_fair_schedules > 0);
+    let stats = result.exhaustive.unwrap();
+    assert!(!stats.finished);
+    assert_eq!(stats.depth_bound_hits, 1);
+    let replay = check(
+        src,
+        &CheckerOptions {
+            strategy: StrategyKind::Replay,
+            replay: Some(ScheduleTrace::parse(result.schedule_trace.as_ref().unwrap()).unwrap()),
+            ..options
+        },
+    );
+    assert_eq!(replay.report.bug_reports, result.report.bug_reports);
+    assert!(replay.replay_error.is_none());
+}
+
+#[test]
+fn auto_keeps_coverage_from_both_sides_of_the_feedback_handoff() {
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("model.p", "machine Main { start state S { entry { var n: int; var i: int; if ($) { print \"left\"; } else { print \"right\"; } while (i < 200) { n = choose(10000); i = i + 1; } print \"done\"; } } } test tcMain [main=Main]: { Main };");
+    let a = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let tc = a.program.test_cases().remove(0);
+    let checker = Checker::with_code_coverage(&a.program);
+    for seed in 0..20 {
+        let options = CheckerOptions { seed, activity_coverage: true, ..opts(StrategyKind::Auto, 1) };
+        let dfs = checker.check(&tc, &options, &mut Quiet).unwrap().coverage.unwrap();
+        let feedback = checker
+            .check(&tc, &CheckerOptions { strategy: StrategyKind::Feedback, ..options.clone() }, &mut Quiet)
+            .unwrap()
+            .coverage
+            .unwrap();
+        let mut expected = feedback.probes.clone();
+        expected.union(&dfs.probes);
+        if expected == feedback.probes {
+            continue;
+        }
+        let both = checker.check(&tc, &CheckerOptions { iterations: 2, ..options }, &mut Quiet).unwrap();
+        assert_eq!(both.report.explored_unfair_schedules, 1);
+        assert_eq!(both.report.explored_fair_schedules, 1);
+        assert_eq!(both.coverage.unwrap().probes, expected, "DFS-only hits must survive the fresh feedback history");
+        return;
+    }
+    panic!("fixture did not exercise distinct DFS/feedback coverage");
 }

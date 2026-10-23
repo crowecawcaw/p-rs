@@ -306,7 +306,7 @@ fn percent(v: f64) -> String {
 /// preserving event/type names such as `e1` and `e2` as distinct issues.
 pub fn failure_site(bug: &str) -> String {
     if bug.starts_with("Assertion Failed: ") {
-        return crate::checker::auto::failure_class(bug);
+        return crate::checker::feedback::failure_class(bug);
     }
     let mut key = String::new();
     for part in bug.split_inclusive(')') {
@@ -773,6 +773,8 @@ impl<'p> Checker<'p> {
         let coverage_tables = (opts.activity_coverage || guided).then(|| self.coverage_tables());
         let mut verbose_json = (opts.verbose && opts.json_trace && !is_replay).then(Vec::new);
         let mut depth_bound_hits = 0usize;
+        let mut coverage_epoch = strategy.coverage_epoch();
+        let mut earlier_coverage: Option<crate::checker::coverage::CoverageInfo> = None;
         while !idle && (max_iterations == 0 || i < max_iterations) {
             if out.borrow_mut().cancelled() {
                 result.cancelled = true;
@@ -780,6 +782,12 @@ impl<'p> Checker<'p> {
             }
             if pool.stopped() {
                 break;
+            }
+            if coverage_epoch != strategy.coverage_epoch() {
+                if let Some(info) = result.coverage.take() {
+                    earlier_coverage.get_or_insert_with(Default::default).merge(info);
+                }
+                coverage_epoch = strategy.coverage_epoch();
             }
             // the schedule's number among those of all workers
             let schedule = pool.started.fetch_add(1, Ordering::Relaxed) + 1;
@@ -937,6 +945,12 @@ impl<'p> Checker<'p> {
                 rng.borrow_mut().set_seed(s);
             }
             i += 1;
+        }
+        if let Some(mut earlier) = earlier_coverage {
+            if let Some(current) = result.coverage.take() {
+                earlier.merge(current);
+            }
+            result.coverage = Some(earlier);
         }
         result.exhaustive = strategy.exhaustive_stats().map(|s| {
             if opts.strategy == StrategyKind::Auto {
