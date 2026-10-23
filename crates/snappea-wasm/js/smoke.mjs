@@ -12,8 +12,23 @@ machine Main {
 }
 machine Echo { var m: machine; start state S { entry (x: machine) { m = x; } on Ping do { send m, Pong; } } }
 `;
-const r = p.run(["check", "pingpong.p", "-n", "10"], { "/work/pingpong.p": model }, { seed: 1 });
+const r = p.run(["check", "pingpong.p", "--timeout", "1s"], { "/work/pingpong.p": model }, { seed: 1 });
 process.stdout.write(r.stdout);
 const trace = r.files["/work/PCheckerOutput/DefaultImpl/bug.txt"] ?? "";
 if (r.exitCode !== 1 || !trace.includes("<ErrorLog> Assertion Failed")) throw new Error("expected a bug");
+// A finite safe model should finish its exhaustive search before the deadline.
+const safe = p.run(["check", "safe.p", "--timeout", "1s"], {
+  "/work/safe.p": "machine Main { start state Init { entry { assert true; } } }",
+}, { seed: 1 });
+if (safe.exitCode !== 0 || !/\(all \d+ schedules?/.test(safe.stdout)) {
+  throw new Error(`expected exhaustive completion: ${safe.stdout}${safe.stderr}`);
+}
+// Timed models use sampling, so a safe run must stop at the deadline as incomplete.
+const started = performance.now();
+const busy = p.run(["check", "busy.p", "--timed", "--timeout", "1s"], {
+  "/work/busy.p": "machine Main { start state Init { entry { assert true; } } }",
+}, { seed: 1 });
+if (busy.exitCode !== 0 || !busy.stdout.includes("Search incomplete") || performance.now() - started > 5000) {
+  throw new Error(`expected bounded incomplete search: ${busy.stdout}${busy.stderr}`);
+}
 console.log("smoke test OK");

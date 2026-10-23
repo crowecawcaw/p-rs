@@ -2,7 +2,7 @@
 //
 //   import { loadP } from "./snappea.mjs";
 //   const p = await loadP(wasmBytesOrResponse);
-//   const r = p.run(["check", "model.p", "tcMain", "-n", "1000"], { "/work/model.p": source }, { seed: 42 });
+//   const r = p.run(["check", "model.p", "tcMain", "--timeout", "10s"], { "/work/model.p": source }, { seed: 42 });
 //   console.log(r.stdout, r.exitCode);
 
 export async function loadP(source) {

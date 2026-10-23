@@ -35,12 +35,15 @@ jobs:
           done
       - name: The atomic design keeps the spec in every behaviour
         working-directory: examples/model
-        run: ../../target/debug/snappea check tcAtomicReserve --exhaustive
+        run: |
+          output=$(../../target/debug/snappea check tcAtomicReserve --timeout 2m)
+          printf '%s\n' "$output"
+          grep -Eq '\(all [0-9]+ schedules?' <<< "$output"
       - name: The check-then-reserve design oversells
         working-directory: examples/model
         run: |
           status=0
-          ../../target/debug/snappea check tcCheckThenReserve -n 1000 || status=$?
+          ../../target/debug/snappea check tcCheckThenReserve --timeout 10s || status=$?
           test "$status" -eq 1 || { echo "expected a bug (exit 1), got exit $status"; exit 1; }
           grep -q "reservation exceeds available stock" PCheckerOutput/tcCheckThenReserve/bug.txt
       - uses: actions/upload-artifact@v7

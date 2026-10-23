@@ -10,7 +10,7 @@ export interface Shared {
   files: Files;
   open: string;
   testCase?: string;
-  schedules?: number;
+  timeout?: number;
   extraArgs?: string;
 }
 
@@ -46,7 +46,8 @@ export function decodeShared(encoded: string): Shared {
     files,
     open: typeof s.open === "string" ? s.open : "",
     testCase: typeof s.testCase === "string" ? s.testCase : undefined,
-    schedules: typeof s.schedules === "number" ? s.schedules : undefined,
+    timeout: typeof s.timeout === "number" && Number.isFinite(s.timeout)
+      ? Math.min(3600, Math.max(1, Math.trunc(s.timeout))) : undefined,
     extraArgs: typeof s.extraArgs === "string" ? s.extraArgs : undefined,
   };
 }

@@ -35,7 +35,7 @@ jobs:
 
       # Exit status 1 (a bug) or 2 (an error) fails the job.
       - name: Check the model
-        run: snappea check tcAtomicReserve --exhaustive
+        run: snappea check tcAtomicReserve
 
       # The failing schedule, its log and a replay file, to download from the run page.
       - uses: actions/upload-artifact@v7
