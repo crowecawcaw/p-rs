@@ -1709,6 +1709,11 @@ impl<'p> Runtime<'p> {
     }
 
     fn enter_state(&mut self, m: usize, e: Event) {
+        if self.strategy.wants_state_frontiers() {
+            if let Some(state) = self.machines[m].state {
+                self.strategy.observe_frontier(self.machines[m].decl.0, state.0, u32::MAX);
+            }
+        }
         self.cov_machine_enter(m);
         let name = self.machines[m].name.clone();
         let state = self.log_state_name(m);

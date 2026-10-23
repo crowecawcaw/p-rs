@@ -170,7 +170,15 @@ def main():
     parser.add_argument('--jobs', type=int, default=2)
     parser.add_argument('--choice-guidance', action='store_true', help='also measure experimental next-choice feedback')
     parser.add_argument('--frontier-guidance', action='store_true', help='also measure event-count prefix checkpoints')
+    parser.add_argument('--state-frontiers', action='store_true', help='also measure state-entry prefix checkpoints')
+    parser.add_argument('--strategies', nargs='+', help='explicit strategies to compare instead of the default set')
+    parser.add_argument('--strategy-bound', type=int, default=0, help='priority-change bound for PCT strategies')
+    parser.add_argument('--pos-percent', type=int, default=25, help='POS share of fresh generators in race-frontier trials')
     opts = parser.parse_args()
+    if opts.strategies:
+        STRATEGIES[:] = opts.strategies
+    if opts.state_frontiers:
+        STRATEGIES.insert(2, 'feedback-state-frontier')
     if opts.frontier_guidance:
         STRATEGIES.insert(2, 'feedback-frontier')
     if opts.choice_guidance:
@@ -181,13 +189,15 @@ def main():
         parser.error('budgets, bounds, seeds, timeouts and jobs must be positive')
     if opts.seed_start < 0 or opts.seed_start + opts.seeds > 2**32:
         parser.error('seed range must fit unsigned 32-bit seeds')
+    if not 0 <= opts.pos_percent <= 100 or opts.strategy_bound < 0:
+        parser.error('pos-percent must be 0..100 and strategy-bound must be nonnegative')
     def git(*args):
         return subprocess.check_output(['git', *args], cwd=ROOT, text=True).strip()
     commit, dirty = git('rev-parse', 'HEAD'), bool(git('status', '--porcelain', '--untracked-files=no'))
     subprocess.run(['cargo', 'build', '--release', '--locked', '-p', 'snappea', '--example', 'corpus_bench'], cwd=ROOT, check=True)
     projects, files = inventory(opts.scope)
     projects = [p for p in projects if opts.filter in p['id']]
-    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'choice_guidance', 'frontier_guidance']}
+    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'choice_guidance', 'frontier_guidance', 'state_frontiers', 'strategy_bound', 'pos_percent']}
     manifest = dict(settings, root=str(ROOT), strategies=STRATEGIES, projects=projects, files=files)
     results = [None]*len(projects)
     with tempfile.TemporaryDirectory(prefix='snappea-corpus-') as temp:

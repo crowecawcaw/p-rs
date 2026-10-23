@@ -193,6 +193,10 @@ pub trait Strategy {
     }
     /// A delivery about to be handled, grouped by declaration rather than instance.
     fn observe_frontier(&mut self, _machine: u32, _state: u32, _event: u32) {}
+    /// Experimental checkpoints before entering a machine state's entry action.
+    fn wants_state_frontiers(&self) -> bool {
+        false
+    }
     /// Validated exhaustive completion, including liveness requirements.
     fn search_complete(&self) -> bool {
         false

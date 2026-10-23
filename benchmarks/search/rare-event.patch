@@ -1,0 +1,282 @@
+diff --git a/crates/snappea/examples/corpus_bench.rs b/crates/snappea/examples/corpus_bench.rs
+index 03a600e..6373fe0 100644
+--- a/crates/snappea/examples/corpus_bench.rs
++++ b/crates/snappea/examples/corpus_bench.rs
+@@ -93,7 +93,10 @@ fn main() {
+         for name in manifest["strategies"].as_array().unwrap() {
+             let label = name.as_str().unwrap();
+             let choice_guidance = matches!(label, "feedback-choice" | "feedback-frontier-choice");
+-            let frontier_guidance = matches!(label, "feedback-frontier" | "feedback-frontier-choice");
++            let frontier_guidance = matches!(
++                label,
++                "feedback-frontier" | "feedback-frontier-choice" | "feedback-state-frontier" | "feedback-race-frontier"
++            );
+             let strategy: StrategyKind =
+                 if choice_guidance || frontier_guidance { StrategyKind::Feedback } else { label.parse().unwrap() };
+             let seed_start = manifest["seed_start"].as_u64().unwrap_or(0);
+@@ -108,6 +111,13 @@ fn main() {
+                         strategy,
+                         feedback_choice_guidance: choice_guidance,
+                         feedback_frontier_guidance: frontier_guidance,
++                        feedback_state_frontiers: label == "feedback-state-frontier",
++                        feedback_pos_percent: if label == "feedback-race-frontier" {
++                            manifest["pos_percent"].as_u64().unwrap_or(25) as u8
++                        } else {
++                            0
++                        },
++                        strategy_bound: manifest["strategy_bound"].as_u64().unwrap_or(0) as usize,
+                         seed,
+                         iterations: budget,
+                         max_fair_steps: steps,
+diff --git a/crates/snappea/src/checker/engine.rs b/crates/snappea/src/checker/engine.rs
+index f26b7b3..b39f019 100644
+--- a/crates/snappea/src/checker/engine.rs
++++ b/crates/snappea/src/checker/engine.rs
+@@ -44,6 +44,10 @@ pub struct CheckerOptions {
+     /// Preserve prefixes at increasing event counts in native feedback and auto's
+     /// feedback phase. Enabled by default; ignored by upstream compatibility mode.
+     pub feedback_frontier_guidance: bool,
++    /// Experimental state-entry checkpoints in addition to event-count checkpoints.
++    pub feedback_state_frontiers: bool,
++    /// Experimental share of fresh generators using partial-order sampling.
++    pub feedback_pos_percent: u8,
+     /// Keep exploring after the first bug (`--explore`).
+     pub full_exploration: bool,
+     pub incremental_seed: bool,
+@@ -99,6 +103,8 @@ impl Default for CheckerOptions {
+             upstream_feedback: false,
+             feedback_choice_guidance: false,
+             feedback_frontier_guidance: true,
++            feedback_state_frontiers: false,
++            feedback_pos_percent: 0,
+             full_exploration: false,
+             incremental_seed: false,
+             replay: None,
+@@ -411,6 +417,12 @@ fn build_strategy(
+             .with_fresh_exploration(if opts.upstream_feedback { 0 } else { 25 });
+         if opts.feedback_frontier_guidance && !opts.upstream_feedback && opts.strategy == StrategyKind::Feedback {
+             strategy = strategy.with_frontier_guidance();
++            if opts.feedback_state_frontiers {
++                strategy = strategy.with_state_frontiers();
++            }
++            if opts.feedback_pos_percent > 0 {
++                strategy = strategy.with_pos_exploration(opts.feedback_pos_percent);
++            }
+         }
+         Box::new(
+             if opts.feedback_choice_guidance && !opts.upstream_feedback && opts.strategy == StrategyKind::Feedback {
+diff --git a/crates/snappea/src/checker/feedback.rs b/crates/snappea/src/checker/feedback.rs
+index e672348..4bb345a 100644
+--- a/crates/snappea/src/checker/feedback.rs
++++ b/crates/snappea/src/checker/feedback.rs
+@@ -310,6 +310,9 @@ pub trait Scheduler {
+     fn checkpoint(&self, _rewind: bool) -> Option<(Box<dyn Scheduler>, usize)> {
+         None
+     }
++    fn fresh_with_pos(&self, _pos: bool) -> Box<dyn Scheduler> {
++        self.new_like()
++    }
+ }
+ 
+ fn highest_priority(prioritized: &[u64], choices: &[&OpInfo]) -> Option<u64> {
+@@ -351,6 +354,13 @@ impl Scheduler for RandomScheduler {
+         let count = prefix.choice_count();
+         Some((Box::new(RandomScheduler::new(Source::Controlled(prefix))), count))
+     }
++    fn fresh_with_pos(&self, pos: bool) -> Box<dyn Scheduler> {
++        if pos {
++            Box::new(PosScheduler::new(self.rng.new_like()))
++        } else {
++            self.new_like()
++        }
++    }
+ }
+ 
+ /// `POSScheduler`: partial order sampling; sends to the same receiver race, everything
+@@ -417,6 +427,19 @@ impl Scheduler for PosScheduler {
+     fn new_like(&self) -> Box<dyn Scheduler> {
+         Box::new(PosScheduler::new(self.rng.new_like()))
+     }
++    fn checkpoint(&self, rewind: bool) -> Option<(Box<dyn Scheduler>, usize)> {
++        let Source::Controlled(random) = &self.rng else { return None };
++        let prefix = random.prefix(rewind);
++        let count = prefix.choice_count();
++        Some((Box::new(PosScheduler::new(Source::Controlled(prefix))), count))
++    }
++    fn fresh_with_pos(&self, pos: bool) -> Box<dyn Scheduler> {
++        if pos {
++            self.new_like()
++        } else {
++            Box::new(RandomScheduler::new(self.rng.new_like()))
++        }
++    }
+ }
+ 
+ /// `PCTScheduler` (the feedback variant of PCT).
+@@ -621,6 +644,8 @@ pub struct FeedbackGuidedStrategy {
+     failure_seeds: Vec<Generator>,
+     choice_guide: Option<Rc<RefCell<ChoiceGuide>>>,
+     frontiers: Option<Frontiers>,
++    state_frontiers: bool,
++    pos_percent: u8,
+ }
+ 
+ impl FeedbackGuidedStrategy {
+@@ -649,6 +674,8 @@ impl FeedbackGuidedStrategy {
+             failure_seeds: Vec::new(),
+             choice_guide: None,
+             frontiers: None,
++            state_frontiers: false,
++            pos_percent: 0,
+         }
+     }
+ 
+@@ -693,6 +720,14 @@ impl FeedbackGuidedStrategy {
+         self.frontiers = Some(Frontiers::default());
+         self
+     }
++    pub fn with_state_frontiers(mut self) -> Self {
++        self.state_frontiers = true;
++        self
++    }
++    pub fn with_pos_exploration(mut self, percent: u8) -> Self {
++        self.pos_percent = percent.min(100);
++        self
++    }
+ 
+     fn compute_diversity(&mut self, timeline: &str, hash: &[i32]) -> f64 {
+         if !self.visited_timelines.insert(timeline.to_string()) {
+@@ -709,9 +744,14 @@ impl FeedbackGuidedStrategy {
+         1.0 - max_sim as f64 / hash.len() as f64
+     }
+ 
+-    fn new_generator(&self) -> Generator {
++    fn new_generator(&mut self) -> Generator {
+         let g = self.generator.borrow();
+-        Rc::new(RefCell::new(GeneratorState { input: g.input.new_like(), scheduler: g.scheduler.new_like() }))
++        let scheduler = if self.pos_percent > 0 {
++            g.scheduler.fresh_with_pos(self.rnd.next_below(100) < i32::from(self.pos_percent))
++        } else {
++            g.scheduler.new_like()
++        };
++        Rc::new(RefCell::new(GeneratorState { input: g.input.new_like(), scheduler }))
+     }
+ 
+     fn mutate_generator(prev: &Generator) -> Generator {
+@@ -813,6 +853,9 @@ impl FeedbackGuidedStrategy {
+ }
+ 
+ impl Strategy for FeedbackGuidedStrategy {
++    fn wants_state_frontiers(&self) -> bool {
++        self.frontiers.is_some() && self.state_frontiers
++    }
+     fn wants_frontiers(&self) -> bool {
+         self.frontiers.is_some()
+     }
+@@ -1017,6 +1060,19 @@ pub fn stable_hash(token: &str) -> i32 {
+ mod mutation_tests {
+     use super::*;
+ 
++    #[test]
++    fn pos_checkpoints_reconstruct_priorities_by_replaying_consumed_random_choices() {
++        let mut scheduler = PosScheduler::new(Source::Controlled(ControlledRandom::new(7)));
++        let ops: Vec<_> =
++            (1..=3).map(|id| OpInfo { id, enabled: true, kind: SchedKind::Send, receiver: Some(9) }).collect();
++        let expected: Vec<_> = (0..8).map(|_| scheduler.next_operation(99, &ops)).collect();
++        let (saved, count) = scheduler.checkpoint(false).unwrap();
++        assert!(count > 0);
++        let (mut replay, replay_count) = saved.checkpoint(true).unwrap();
++        assert_eq!(replay_count, count);
++        assert_eq!((0..8).map(|_| replay.next_operation(99, &ops)).collect::<Vec<_>>(), expected);
++    }
++
+     #[test]
+     fn checkpoints_drop_unconsumed_mutation_suffixes_and_rewind_only_for_replay() {
+         let mut random = ControlledRandom::new(7);
+diff --git a/crates/snappea/src/checker/runtime.rs b/crates/snappea/src/checker/runtime.rs
+index 4ca637a..b891827 100644
+--- a/crates/snappea/src/checker/runtime.rs
++++ b/crates/snappea/src/checker/runtime.rs
+@@ -1709,6 +1709,11 @@ impl<'p> Runtime<'p> {
+     }
+ 
+     fn enter_state(&mut self, m: usize, e: Event) {
++        if self.strategy.wants_state_frontiers() {
++            if let Some(state) = self.machines[m].state {
++                self.strategy.observe_frontier(self.machines[m].decl.0, state.0, u32::MAX);
++            }
++        }
+         self.cov_machine_enter(m);
+         let name = self.machines[m].name.clone();
+         let state = self.log_state_name(m);
+diff --git a/crates/snappea/src/checker/strategy.rs b/crates/snappea/src/checker/strategy.rs
+index 74d6583..c575872 100644
+--- a/crates/snappea/src/checker/strategy.rs
++++ b/crates/snappea/src/checker/strategy.rs
+@@ -193,6 +193,10 @@ pub trait Strategy {
+     }
+     /// A delivery about to be handled, grouped by declaration rather than instance.
+     fn observe_frontier(&mut self, _machine: u32, _state: u32, _event: u32) {}
++    /// Experimental checkpoints before entering a machine state's entry action.
++    fn wants_state_frontiers(&self) -> bool {
++        false
++    }
+     /// Validated exhaustive completion, including liveness requirements.
+     fn search_complete(&self) -> bool {
+         false
+diff --git a/crates/snappea/tests/checker_search.rs b/crates/snappea/tests/checker_search.rs
+index 5170516..e6b0806 100644
+--- a/crates/snappea/tests/checker_search.rs
++++ b/crates/snappea/tests/checker_search.rs
+@@ -35,12 +35,13 @@ fn frontier_feedback_reaches_repeated_data_and_delivery_stages_and_replays() {
+     let compiled = snappea::sema::compile(&sm, &Default::default()).unwrap();
+     let checker = Checker::new(&compiled.program);
+     for case in compiled.program.test_cases() {
+-        for seed in 0..3 {
++        for (seed, pos_percent) in (0..3).flat_map(|seed| [0, 100].map(move |percent| (seed, percent))) {
+             let options = CheckerOptions {
+                 strategy: StrategyKind::Feedback,
+                 seed,
+                 iterations: 200,
+                 max_fair_steps: 1000,
++                feedback_pos_percent: pos_percent,
+                 ..Default::default()
+             };
+             let result = checker.check(&case, &options, &mut Quiet).unwrap();
+diff --git a/scripts/bench-corpus.py b/scripts/bench-corpus.py
+index f840299..2b480d5 100644
+--- a/scripts/bench-corpus.py
++++ b/scripts/bench-corpus.py
+@@ -170,7 +170,15 @@ def main():
+     parser.add_argument('--jobs', type=int, default=2)
+     parser.add_argument('--choice-guidance', action='store_true', help='also measure experimental next-choice feedback')
+     parser.add_argument('--frontier-guidance', action='store_true', help='also measure event-count prefix checkpoints')
++    parser.add_argument('--state-frontiers', action='store_true', help='also measure state-entry prefix checkpoints')
++    parser.add_argument('--strategies', nargs='+', help='explicit strategies to compare instead of the default set')
++    parser.add_argument('--strategy-bound', type=int, default=0, help='priority-change bound for PCT strategies')
++    parser.add_argument('--pos-percent', type=int, default=25, help='POS share of fresh generators in race-frontier trials')
+     opts = parser.parse_args()
++    if opts.strategies:
++        STRATEGIES[:] = opts.strategies
++    if opts.state_frontiers:
++        STRATEGIES.insert(2, 'feedback-state-frontier')
+     if opts.frontier_guidance:
+         STRATEGIES.insert(2, 'feedback-frontier')
+     if opts.choice_guidance:
+@@ -181,13 +189,15 @@ def main():
+         parser.error('budgets, bounds, seeds, timeouts and jobs must be positive')
+     if opts.seed_start < 0 or opts.seed_start + opts.seeds > 2**32:
+         parser.error('seed range must fit unsigned 32-bit seeds')
++    if not 0 <= opts.pos_percent <= 100 or opts.strategy_bound < 0:
++        parser.error('pos-percent must be 0..100 and strategy-bound must be nonnegative')
+     def git(*args):
+         return subprocess.check_output(['git', *args], cwd=ROOT, text=True).strip()
+     commit, dirty = git('rev-parse', 'HEAD'), bool(git('status', '--porcelain', '--untracked-files=no'))
+     subprocess.run(['cargo', 'build', '--release', '--locked', '-p', 'snappea', '--example', 'corpus_bench'], cwd=ROOT, check=True)
+     projects, files = inventory(opts.scope)
+     projects = [p for p in projects if opts.filter in p['id']]
+-    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'choice_guidance', 'frontier_guidance']}
++    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'choice_guidance', 'frontier_guidance', 'state_frontiers', 'strategy_bound', 'pos_percent']}
+     manifest = dict(settings, root=str(ROOT), strategies=STRATEGIES, projects=projects, files=files)
+     results = [None]*len(projects)
+     with tempfile.TemporaryDirectory(prefix='snappea-corpus-') as temp:

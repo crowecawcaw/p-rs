@@ -93,7 +93,10 @@ fn main() {
         for name in manifest["strategies"].as_array().unwrap() {
             let label = name.as_str().unwrap();
             let choice_guidance = matches!(label, "feedback-choice" | "feedback-frontier-choice");
-            let frontier_guidance = matches!(label, "feedback-frontier" | "feedback-frontier-choice");
+            let frontier_guidance = matches!(
+                label,
+                "feedback-frontier" | "feedback-frontier-choice" | "feedback-state-frontier" | "feedback-race-frontier"
+            );
             let strategy: StrategyKind =
                 if choice_guidance || frontier_guidance { StrategyKind::Feedback } else { label.parse().unwrap() };
             let seed_start = manifest["seed_start"].as_u64().unwrap_or(0);
@@ -108,6 +111,13 @@ fn main() {
                         strategy,
                         feedback_choice_guidance: choice_guidance,
                         feedback_frontier_guidance: frontier_guidance,
+                        feedback_state_frontiers: label == "feedback-state-frontier",
+                        feedback_pos_percent: if label == "feedback-race-frontier" {
+                            manifest["pos_percent"].as_u64().unwrap_or(25) as u8
+                        } else {
+                            0
+                        },
+                        strategy_bound: manifest["strategy_bound"].as_u64().unwrap_or(0) as usize,
                         seed,
                         iterations: budget,
                         max_fair_steps: steps,

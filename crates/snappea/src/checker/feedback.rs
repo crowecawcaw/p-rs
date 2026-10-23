@@ -310,6 +310,9 @@ pub trait Scheduler {
     fn checkpoint(&self, _rewind: bool) -> Option<(Box<dyn Scheduler>, usize)> {
         None
     }
+    fn fresh_with_pos(&self, _pos: bool) -> Box<dyn Scheduler> {
+        self.new_like()
+    }
 }
 
 fn highest_priority(prioritized: &[u64], choices: &[&OpInfo]) -> Option<u64> {
@@ -350,6 +353,13 @@ impl Scheduler for RandomScheduler {
         let prefix = random.prefix(rewind);
         let count = prefix.choice_count();
         Some((Box::new(RandomScheduler::new(Source::Controlled(prefix))), count))
+    }
+    fn fresh_with_pos(&self, pos: bool) -> Box<dyn Scheduler> {
+        if pos {
+            Box::new(PosScheduler::new(self.rng.new_like()))
+        } else {
+            self.new_like()
+        }
     }
 }
 
@@ -416,6 +426,19 @@ impl Scheduler for PosScheduler {
     }
     fn new_like(&self) -> Box<dyn Scheduler> {
         Box::new(PosScheduler::new(self.rng.new_like()))
+    }
+    fn checkpoint(&self, rewind: bool) -> Option<(Box<dyn Scheduler>, usize)> {
+        let Source::Controlled(random) = &self.rng else { return None };
+        let prefix = random.prefix(rewind);
+        let count = prefix.choice_count();
+        Some((Box::new(PosScheduler::new(Source::Controlled(prefix))), count))
+    }
+    fn fresh_with_pos(&self, pos: bool) -> Box<dyn Scheduler> {
+        if pos {
+            self.new_like()
+        } else {
+            Box::new(RandomScheduler::new(self.rng.new_like()))
+        }
     }
 }
 
@@ -621,6 +644,8 @@ pub struct FeedbackGuidedStrategy {
     failure_seeds: Vec<Generator>,
     choice_guide: Option<Rc<RefCell<ChoiceGuide>>>,
     frontiers: Option<Frontiers>,
+    state_frontiers: bool,
+    pos_percent: u8,
 }
 
 impl FeedbackGuidedStrategy {
@@ -649,6 +674,8 @@ impl FeedbackGuidedStrategy {
             failure_seeds: Vec::new(),
             choice_guide: None,
             frontiers: None,
+            state_frontiers: false,
+            pos_percent: 0,
         }
     }
 
@@ -693,6 +720,14 @@ impl FeedbackGuidedStrategy {
         self.frontiers = Some(Frontiers::default());
         self
     }
+    pub fn with_state_frontiers(mut self) -> Self {
+        self.state_frontiers = true;
+        self
+    }
+    pub fn with_pos_exploration(mut self, percent: u8) -> Self {
+        self.pos_percent = percent.min(100);
+        self
+    }
 
     fn compute_diversity(&mut self, timeline: &str, hash: &[i32]) -> f64 {
         if !self.visited_timelines.insert(timeline.to_string()) {
@@ -709,9 +744,14 @@ impl FeedbackGuidedStrategy {
         1.0 - max_sim as f64 / hash.len() as f64
     }
 
-    fn new_generator(&self) -> Generator {
+    fn new_generator(&mut self) -> Generator {
         let g = self.generator.borrow();
-        Rc::new(RefCell::new(GeneratorState { input: g.input.new_like(), scheduler: g.scheduler.new_like() }))
+        let scheduler = if self.pos_percent > 0 {
+            g.scheduler.fresh_with_pos(self.rnd.next_below(100) < i32::from(self.pos_percent))
+        } else {
+            g.scheduler.new_like()
+        };
+        Rc::new(RefCell::new(GeneratorState { input: g.input.new_like(), scheduler }))
     }
 
     fn mutate_generator(prev: &Generator) -> Generator {
@@ -813,6 +853,9 @@ impl FeedbackGuidedStrategy {
 }
 
 impl Strategy for FeedbackGuidedStrategy {
+    fn wants_state_frontiers(&self) -> bool {
+        self.frontiers.is_some() && self.state_frontiers
+    }
     fn wants_frontiers(&self) -> bool {
         self.frontiers.is_some()
     }
@@ -1016,6 +1059,19 @@ pub fn stable_hash(token: &str) -> i32 {
 #[cfg(test)]
 mod mutation_tests {
     use super::*;
+
+    #[test]
+    fn pos_checkpoints_reconstruct_priorities_by_replaying_consumed_random_choices() {
+        let mut scheduler = PosScheduler::new(Source::Controlled(ControlledRandom::new(7)));
+        let ops: Vec<_> =
+            (1..=3).map(|id| OpInfo { id, enabled: true, kind: SchedKind::Send, receiver: Some(9) }).collect();
+        let expected: Vec<_> = (0..8).map(|_| scheduler.next_operation(99, &ops)).collect();
+        let (saved, count) = scheduler.checkpoint(false).unwrap();
+        assert!(count > 0);
+        let (mut replay, replay_count) = saved.checkpoint(true).unwrap();
+        assert_eq!(replay_count, count);
+        assert_eq!((0..8).map(|_| replay.next_operation(99, &ops)).collect::<Vec<_>>(), expected);
+    }
 
     #[test]
     fn checkpoints_drop_unconsumed_mutation_suffixes_and_rewind_only_for_replay() {

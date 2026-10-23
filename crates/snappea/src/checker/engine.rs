@@ -44,6 +44,10 @@ pub struct CheckerOptions {
     /// Preserve prefixes at increasing event counts in native feedback and auto's
     /// feedback phase. Enabled by default; ignored by upstream compatibility mode.
     pub feedback_frontier_guidance: bool,
+    /// Experimental state-entry checkpoints in addition to event-count checkpoints.
+    pub feedback_state_frontiers: bool,
+    /// Experimental share of fresh generators using partial-order sampling.
+    pub feedback_pos_percent: u8,
     /// Keep exploring after the first bug (`--explore`).
     pub full_exploration: bool,
     pub incremental_seed: bool,
@@ -99,6 +103,8 @@ impl Default for CheckerOptions {
             upstream_feedback: false,
             feedback_choice_guidance: false,
             feedback_frontier_guidance: true,
+            feedback_state_frontiers: false,
+            feedback_pos_percent: 0,
             full_exploration: false,
             incremental_seed: false,
             replay: None,
@@ -411,6 +417,12 @@ fn build_strategy(
             .with_fresh_exploration(if opts.upstream_feedback { 0 } else { 25 });
         if opts.feedback_frontier_guidance && !opts.upstream_feedback && opts.strategy == StrategyKind::Feedback {
             strategy = strategy.with_frontier_guidance();
+            if opts.feedback_state_frontiers {
+                strategy = strategy.with_state_frontiers();
+            }
+            if opts.feedback_pos_percent > 0 {
+                strategy = strategy.with_pos_exploration(opts.feedback_pos_percent);
+            }
         }
         Box::new(
             if opts.feedback_choice_guidance && !opts.upstream_feedback && opts.strategy == StrategyKind::Feedback {

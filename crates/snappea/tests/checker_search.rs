@@ -35,12 +35,13 @@ fn frontier_feedback_reaches_repeated_data_and_delivery_stages_and_replays() {
     let compiled = snappea::sema::compile(&sm, &Default::default()).unwrap();
     let checker = Checker::new(&compiled.program);
     for case in compiled.program.test_cases() {
-        for seed in 0..3 {
+        for (seed, pos_percent) in (0..3).flat_map(|seed| [0, 100].map(move |percent| (seed, percent))) {
             let options = CheckerOptions {
                 strategy: StrategyKind::Feedback,
                 seed,
                 iterations: 200,
                 max_fair_steps: 1000,
+                feedback_pos_percent: pos_percent,
                 ..Default::default()
             };
             let result = checker.check(&case, &options, &mut Quiet).unwrap();
