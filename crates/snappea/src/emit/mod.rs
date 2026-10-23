@@ -25,9 +25,11 @@ const QUEUE_CAPACITY: usize = 16_384;
 pub struct Time(i64);
 
 impl Time {
+    /// Nanoseconds since the Unix epoch, or any increasing counter.
     pub fn from_nanos(nanos: i64) -> Time {
         Time(nanos)
     }
+    /// Milliseconds since the Unix epoch; saturates on overflow.
     pub fn from_millis(millis: i64) -> Time {
         Time(millis.saturating_mul(1_000_000))
     }
@@ -35,6 +37,7 @@ impl Time {
     pub fn now() -> Time {
         SystemTime::now().into()
     }
+    /// Nanoseconds since the Unix epoch.
     pub fn as_nanos(self) -> i64 {
         self.0
     }
@@ -94,6 +97,7 @@ pub struct Event {
     pub key: String,
     /// JSON payload: an object for a named tuple, a single value, or `null`.
     pub payload: Value,
+    /// When the event happened. Orders a key's events in a check.
     pub time: Time,
     /// The caller set `time` ([`Emitter::emit_at`]) instead of the wall clock.
     pub at: bool,
@@ -101,6 +105,7 @@ pub struct Event {
     pub src: Option<String>,
     /// Emission order within the process.
     pub seq: u64,
+    /// ID of the emitting process.
     pub pid: u32,
 }
 

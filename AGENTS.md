@@ -25,3 +25,8 @@ Make P easier for developers to incorporate into application design and developm
    incorporate P effectively into development for design and implementation validation.
 
 For compatibility details, see [Compatibility](docs/compatibility.md).
+
+## Writing
+
+CLI help and doc strings say what a thing does, when to use it, and give an example.
+Plain and short.

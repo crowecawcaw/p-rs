@@ -33,7 +33,9 @@ pub struct SpecViolation {
 /// Anything that stops a check other than a violation.
 #[derive(Debug, Clone)]
 pub struct SetupError {
+    /// The category; match on it to handle errors.
     pub kind: ErrorKind,
+    /// What went wrong, for people.
     pub message: String,
     /// Folder holding the recording's events, kept because the check failed.
     pub artifacts: Option<PathBuf>,
@@ -78,17 +80,21 @@ impl fmt::Display for ErrorKind {
 /// A failed check: a violation, or a setup error.
 #[derive(Debug, Clone)]
 pub enum CheckError {
+    /// The events broke a spec: the application, or the spec, has a bug.
     Violation(Box<SpecViolation>),
+    /// The check could not run: fix the configuration, specs or event output.
     Setup(SetupError),
 }
 
 impl CheckError {
+    /// The violation, if this is one.
     pub fn violation(&self) -> Option<&SpecViolation> {
         match self {
             CheckError::Violation(v) => Some(v),
             CheckError::Setup(_) => None,
         }
     }
+    /// The setup error, if this is one.
     pub fn setup(&self) -> Option<&SetupError> {
         match self {
             CheckError::Setup(e) => Some(e),
