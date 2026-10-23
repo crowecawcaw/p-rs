@@ -116,6 +116,7 @@ def report(data):
     cases = data['cases']
     positive = [c for c in cases if c['known_issues']]
     lines = [f"Measured {len(cases)} cases across {len(data['projects'])} project inputs; {len(positive)} cases have observed issues.",
+             f"Revision: `{data['commit']}`; working tree dirty: {data['dirty']}.",
              f"Budget: {data['budget']} schedules, {data['steps']} steps, {data['seeds']} seed(s), {data['seconds_per_run']}s safety cap per run.",
              f"Completed exhaustive catalogs: {sum(c['catalog_complete'] for c in cases)}; expected DynamicError cases with no common issue observed: {sum(c.get('expected') == 'DynamicError' and not c['known_issues'] for c in cases)}.",
              '', '**All issues means the union observed across every strategy and seed in this run.**',
@@ -197,7 +198,7 @@ def main():
     markdown = report(data)
     destination = Path(opts.report) if opts.report else Path(opts.out).with_suffix('.md')
     destination.write_text(markdown)
-    print('\n'.join(markdown.splitlines()[:14]))
+    print('\n'.join(markdown.splitlines()[:18]))
     print(f'Per-case report: {destination}; raw results: {opts.out}')
 
 if __name__ == '__main__':
