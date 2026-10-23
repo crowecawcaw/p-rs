@@ -1,0 +1,26 @@
+name: Search effectiveness
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: search-bench
+      - name: Measure schedules to all known bugs
+        run: python3 scripts/bench-search.py --out search.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Record every main commit
+        if: github.ref == 'refs/heads/main'
+        run: .github/scripts/push-bench-data.sh append search.json search.jsonl "Search effectiveness ${GITHUB_SHA::7}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: search-effectiveness
+          path: search.json

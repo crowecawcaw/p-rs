@@ -307,6 +307,9 @@ pub trait Output {
     fn line(&mut self, s: &str);
     /// A bug report (`ErrorReporter.WriteErrorLine`).
     fn error(&mut self, s: &str);
+    /// A completed exploration schedule (one-based across workers), including its bug.
+    /// Replays used to render traces do not emit this callback.
+    fn schedule_finished(&mut self, _schedule: usize, _bug: Option<&str>) {}
     /// Polled before every schedule; returning true stops exploration (timeouts).
     fn cancelled(&mut self) -> bool {
         false
@@ -774,6 +777,9 @@ impl<'p> Checker<'p> {
                     rt.coverage.as_ref().map_or(0, |c| c.feature_count()).saturating_sub(previous_coverage);
                 rt.strategy.observe_progress(new_coverage, rt.bug.as_deref());
                 bug_found = rt.bug.is_some();
+                if !is_replay {
+                    out.borrow_mut().schedule_finished(schedule, rt.bug.as_deref());
+                }
                 let test_task_id = tasks_used + 1;
                 tasks_used += 1 + rt.handler_starts;
                 if let (Some(all), Some(j)) = (verbose_json.as_mut(), rt.json.take()) {
