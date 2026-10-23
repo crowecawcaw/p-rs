@@ -58,7 +58,7 @@ def run_scenario(backend, snappea_bin, artifacts, scenario):
                 live += ["--live", "/dev/fd/%d" % read_end]
             observer = subprocess.Popen([
                 str(snappea_bin), "observe", str(SPEC), "--spec", "InventoryCorrect",
-                *live, "--sequence", "seq", "--strict", "--coverage",
+                *live, "--sequence", "seq", "--strict", "--format", "text",
                 "--record", str(artifacts / "events.jsonl"),
                 "--json-report", str(artifacts / "report.json"),
             ], stdout=output, stderr=errors, pass_fds=[r for r, _ in pipes.values()])
@@ -155,8 +155,13 @@ def run_scenario(backend, snappea_bin, artifacts, scenario):
             if len(report["specs"]) != 1 or spec["spec"] != "InventoryCorrect":
                 raise AssertionError("unexpected spec report")
             coverage = spec["coverage"]
-            if coverage["scope"] != "observed_monitor" or coverage["states"]["covered"] != 2:
-                raise AssertionError("missing observed monitor coverage")
+            expected_coverage = {
+                "statements": {"covered": 12 if scenario == "healthy" else 8, "total": 12},
+                "branches": {"covered": 0, "total": 0},
+                "handlers": {"covered": 3 if scenario == "healthy" else 2, "total": 3},
+            }
+            if any(coverage[metric] != expected for metric, expected in expected_coverage.items()):
+                raise AssertionError("unexpected observed monitor coverage: " + str(coverage))
             recorded = [json.loads(line) for line in (artifacts / "events.jsonl").read_text().splitlines()]
             emitters = {event["src"] for event in recorded}
             if emitters != set(workers):
@@ -168,7 +173,7 @@ def run_scenario(backend, snappea_bin, artifacts, scenario):
                     raise AssertionError("healthy scenario missed operations")
             else:
                 violations = spec["errors"]
-                if observer_code != 1 or report["exit_code"] != 2 or report["input_complete"] or report["stop_reason"] != "error":
+                if observer_code != 1 or report["exit_code"] != 1 or report["input_complete"] or report["stop_reason"] != "error":
                     raise AssertionError("expected native snappea failure before EOF: " + str(report))
                 if len(violations) != 1 or violations[0]["kind"] != "spec_violation" or "reservation exceeds available stock" not in str(violations[0]) or violations[0]["key"] != "coffee":
                     raise AssertionError("unexpected violation: " + str(violations))

@@ -68,7 +68,7 @@ harness creates; the observer reads every pipe:
 ```sh
 snappea observe specs/inventory.p --spec InventoryCorrect \
   --live /dev/fd/5 --live /dev/fd/7 --sequence seq \
-  --strict --coverage --record events.jsonl --json-report report.json
+  --strict --format text --record events.jsonl --json-report report.json
 ```
 
 With `--live`, the observer stops at the first violation. `--strict` fails a completed stream in which no event was relevant to the spec.
@@ -111,13 +111,13 @@ Each scenario preserves:
 | `inventory.sqlite` | Committed service state and outbox |
 | `worker-*.stdout`, `worker-*.stderr` | Worker replies and diagnostics |
 
-`report.json` includes each spec's `coverage` with `scope: "observed_monitor"`,
-declared and visited states and handlers, and observed transitions. Healthy runs
-cover both declared states and three of six declared handlers; the remaining
-handlers reject malformed histories. Faulty runs report
-coverage of the consumed prefix with `input_complete: false` and
-`stop_reason: "error"`. This measures executed P monitor states/handlers rather
-than exhaustive P model paths. See [the coverage format](../../../docs/observe.md#observed-monitor-coverage).
+`report.json` includes each spec's statement, branch, and event-handler coverage,
+plus portable coverage points and the points that ran. Healthy runs cover 12/12
+statements and 3/3 handlers; there are no conditional branches. Handlers starting
+with `assert false` are excluded because they must never run. Faulty runs cover
+8/12 statements and 2/3 handlers in the consumed prefix, with
+`input_complete: false` and `stop_reason: "error"`. This measures executed P
+monitor code rather than exhaustive P model paths. See [the coverage format](../../../docs/observe.md#observed-monitor-coverage).
 
 The [native workflow](../../../.github/workflows/native-multiprocess.yml) builds
 this checkout's checker, executes both scenarios, and uploads reports even on a
