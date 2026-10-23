@@ -422,3 +422,15 @@ fn short_circuit_conditions_supply_native_guidance_without_changing_reported_cov
     let legacy = check(source, &CheckerOptions { upstream_feedback: true, ..options }).coverage.unwrap();
     assert!(legacy.condition_edges.is_empty(), "compatibility runs retain upstream feedback");
 }
+
+#[test]
+fn discovery_identity_ignores_instances_but_preserves_distinct_event_names() {
+    use snappea::checker::engine::failure_site;
+    assert_eq!(failure_site("Worker(12) received event e1"), failure_site("Worker(42) received event e1"));
+    assert_ne!(failure_site("Worker(12) received event e1"), failure_site("Worker(12) received event e2"));
+    assert_ne!(failure_site("Worker(12) received event e1"), failure_site("Worker2(12) received event e1"));
+    assert_eq!(
+        failure_site("Assertion Failed: dir with spaces/x.p:3:2 value 12"),
+        failure_site("Assertion Failed: dir with spaces/x.p:3:2 value 99")
+    );
+}

@@ -301,10 +301,26 @@ fn percent(v: f64) -> String {
     format!("{:.2}%", v)
 }
 
-/// A stable failure site for discovery metrics, independent of formatted values and
-/// machine instance numbers. Assertion sites retain their source file, line and column.
+/// A stable failure identity for discovery metrics. Assertions use their source site
+/// without formatted values. Other errors ignore numeric machine instance suffixes,
+/// preserving event/type names such as `e1` and `e2` as distinct issues.
 pub fn failure_site(bug: &str) -> String {
-    crate::checker::auto::failure_class(bug)
+    if bug.starts_with("Assertion Failed: ") {
+        return crate::checker::auto::failure_class(bug);
+    }
+    let mut key = String::new();
+    for part in bug.split_inclusive(')') {
+        if let Some(start) = part.rfind('(').filter(|_| part.ends_with(')')) {
+            let id = &part[start + 1..part.len() - 1];
+            if !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()) {
+                key.push_str(&part[..start]);
+                key.push_str("(#)");
+                continue;
+            }
+        }
+        key.push_str(part);
+    }
+    key
 }
 
 /// Receives the console output of a run as it is produced.
