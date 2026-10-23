@@ -6,7 +6,7 @@ every package at one version:
 
 | Package | Where |
 | --- | --- |
-| crate `snappea` | crates.io |
+| crates `snappea-syntax`, `snappea-lint`, and `snappea` | crates.io |
 | `pysnappea` wheels (with `snappea`) and sdist | PyPI, and the GitHub release |
 | `io.github.crowecawcaw:snappea` and its `natives-<os>-<arch>` jars | Maven Central |
 | module `github.com/crowecawcaw/snappea` | the `vX.Y.Z` tag (Go needs nothing else) |
@@ -48,7 +48,7 @@ The workflow:
    atomically. If `main` moved since the run started, the push fails and nothing is
    published.
 5. In parallel, from the tag:
-   - **crates.io**: publishes `snappea`.
+   - **crates.io**: publishes `snappea-syntax`, `snappea-lint`, and `snappea` in dependency order.
    - **GitHub release**: created at once with the archives and `SHA256SUMS` (Go's
      `snappeatest` downloads them, verified against the checksums in the module), then
      Claude replaces GitHub's generated notes with notes written from the merged PRs,
@@ -96,14 +96,17 @@ Claude and replaces them on the release. Tick *dry run* to only print them.
 
 - The `github-actions[bot]` must be able to push to `main`. If `main` gets branch
   protection, allow GitHub Actions to bypass it (or the commit step will fail).
-- crates.io trusted publishing for `snappea` trusts:
+- crates.io trusted publishing for each Rust crate (`snappea-syntax`, `snappea-lint`,
+  and `snappea`) must trust:
   - Repository: `crowecawcaw/snappea`
   - Workflow: `release.yml`
   - Environment: `release`
 
   The `release` environment must allow the `main` branch. No crates.io token is
   stored in GitHub; the auth action gets a short-lived token and revokes it after.
-  The crate requires trusted publishing for new versions, so API tokens are rejected.
+  Configure publishers for the new crates before their first release, including any
+  initial crate registration required by crates.io. The existing `snappea` crate
+  requires trusted publishing for new versions, so API tokens are rejected.
 - PyPI trusted publishing for `pysnappea` (set up once on pypi.org, as a pending
   publisher before the first release) trusts:
   - Repository: `crowecawcaw/snappea`

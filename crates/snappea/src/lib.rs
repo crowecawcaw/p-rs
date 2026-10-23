@@ -32,7 +32,7 @@ pub mod emit;
 pub mod test;
 
 #[cfg(any(feature = "test", feature = "cli"))]
-pub mod syntax;
+pub use snappea_syntax as syntax;
 
 #[cfg(any(feature = "test", feature = "cli"))]
 pub mod sema;

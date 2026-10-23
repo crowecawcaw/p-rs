@@ -1,7 +1,7 @@
 //! Hand written lexer mirroring `PLexer.g4`.
 
-use crate::syntax::span::{FileId, Span};
-use crate::syntax::token::{Token, TokenKind};
+use crate::span::{FileId, Span};
+use crate::token::{Token, TokenKind};
 
 /// A lexical error, reported with the upstream ANTLR-like message shape.
 #[derive(Debug, Clone, PartialEq, Eq)]

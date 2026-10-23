@@ -4,8 +4,14 @@ The commands to build, test and lint are in [AGENTS.md](../AGENTS.md).
 
 ## Crates
 
-Everything published is one crate, `crates/snappea` (library `snappea`, on crates.io as
-`snappea`), split into modules:
+The published workspace crates share one release version:
+
+- `snappea-syntax`: lexer, parser, AST, and source locations, with no I/O.
+- `snappea-lint`: extensible [model-quality rules](linting.md), depending only on syntax.
+- `snappea`: the checker, language helpers, and CLI. Its `snappea::syntax` module
+  re-exports `snappea-syntax` to preserve the existing API.
+
+The `snappea` library is split into modules:
 
 | Module | Purpose |
 |---|---|

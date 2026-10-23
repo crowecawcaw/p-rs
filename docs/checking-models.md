@@ -11,7 +11,9 @@ snappea check model.p tcMyTest                  # explicit sources
 snappea replay PCheckerOutput/tcMyTest/bug.schedule
 ```
 
-`snappea check` type-checks the sources and selects search strategies automatically.
+`snappea check` type-checks and [lints](linting.md) the sources before exploring
+schedules. Unsuppressed lint findings stop the check with exit status 2; run
+`snappea lint` to inspect them without exploration. It selects search strategies automatically.
 Each worker retains an exhaustive frontier, fresh random exploration, a guided
 corpus, and a priority scheduler (PCT). A short probe measured in controlled choices
 lets small exhaustive searches finish immediately. After the probe, work credits
