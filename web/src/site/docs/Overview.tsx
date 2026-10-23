@@ -150,8 +150,8 @@ FAIL  tcTwoClients (bug found after 9 schedules, 8 workers, 0.00s)
         <Island name="trace"><Trace /></Island>
         <p>
           <b>The fix is a design change:</b> replace the read and write with one <code>eIncrement</code> event that
-          the Counter applies itself. With that change, <code>snappea check --exhaustive</code> covers every possible
-          ordering (191 schedules) and finds no bug.
+          the Counter applies itself. With that change, <code>snappea check</code> covers every possible
+          ordering through automatic exhaustive exploration and finds no bug.
         </p>
         <Code lang="p">{`
 on eIncrement do { value = value + 1; }

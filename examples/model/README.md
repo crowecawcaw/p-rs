@@ -25,7 +25,7 @@ From the repository root:
 ```sh
 cargo build -p snappea --bin snappea
 cd examples/model
-../../target/debug/snappea check tcAtomicReserve --exhaustive
+../../target/debug/snappea check tcAtomicReserve
 ../../target/debug/snappea check tcCheckThenReserve
 ```
 

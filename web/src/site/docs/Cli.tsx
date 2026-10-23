@@ -26,21 +26,14 @@ function Options({ rows }: { rows: Option[] }) {
 }
 
 const CHECK_EXPLORATION: Option[] = [
-  ["-n, --schedules <N>", "Schedules per test case. Default 10000; no limit with --time or --exhaustive."],
-  ["--time <DURATION>", "Time limit per test case: seconds, or with a unit (90s, 5m, 1h)."],
-  ["--exhaustive", "Explore every scheduling and data choice, depth first. For small models, this proves there is no bug."],
-  ["-j, --workers <N>", "Workers exploring schedules in parallel. Default: one per CPU core."],
-  ["--seed <N>", "Random seed, to repeat a run."],
-  ["--strategy <S>", "random (default), pct:<N>, fairpct:<N>, pos, prob:<N>, feedback, feedback-pct:<N>, feedback-pos, rl."],
-  ["--max-steps <N>", "Steps per schedule. Default 10000."],
-  ["--fair-max-steps <N>", "Steps per fair schedule. Default 10 × --max-steps."],
-  ["--fail-on-max-steps", "Report a schedule that reaches the step limit as a bug."],
+  ["--timeout <DURATION>", "Time limit per test case. Default 10s; accepts seconds or units (90s, 5m, 1h)."],
+  ["-j, --workers <N>", "Worker limit. Default: one per CPU core."],
+  ["--seed <N>", "Seed for the workers. Recorded bug schedules replay independently of allocation."],
 ];
 
 const CHECK_OTHER: Option[] = [
   ["--latency <FILE>[:<PROFILE>]", "Latency profiles (TOML), and the profile to use."],
   ["--timed", "Time-aware scheduling: never run a step that is certainly later than another."],
-  ["--timeline <R>", "For the feedback strategies: pairwise (default), kgram[:<N>], causal, hybrid[:<N>]."],
   ["-o, --out <DIR>", "Output folder. Default PCheckerOutput."],
   ["-v, --verbose", "Show progress and statistics, and log every schedule."],
 ];
@@ -140,7 +133,7 @@ curl -fsSL ${INSTALL_SH} | sh -s -- --version 0.1.0 --to /usr/local/bin
 git clone https://github.com/crowecawcaw/snappea
 cd snappea/examples/model
 snappea tests
-snappea check tcAtomicReserve --exhaustive
+snappea check tcAtomicReserve
 snappea check tcCheckThenReserve
 `}</Code>
         <p>
@@ -208,6 +201,13 @@ snappea check [SOURCE...] [TEST...] [options]
           leaves open. A <code>TEST</code> is a test case name or a glob (<code>tc*</code>); with none, every test
           case is checked. It prints one line per test case and, for a bug, the failing assertion and a{" "}
           <code>snappea replay</code> command.
+        </p>
+        <p>
+          Search is automatic: exhaustive, random, guided, and priority scheduling retain their state between
+          executions. Recent behavioral novelty per controlled choice changes their work shares; every enabled
+          strategy retains a minimum share. Small exhaustive searches end early. A timeout or coverage plateau
+          does not establish that the model is correct. The default timeout is fixed at ten seconds per test.
+          <code> --time</code> remains an alias for <code>--timeout</code>.
         </p>
         <h3>How much to explore</h3>
         <Options rows={CHECK_EXPLORATION} />

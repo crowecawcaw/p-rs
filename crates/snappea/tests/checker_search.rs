@@ -61,6 +61,7 @@ fn dfs_explores_everything_of_a_correct_test() {
     assert_eq!(r.report.num_bugs, 0);
     let x = r.exhaustive.expect("search stats");
     assert!(x.finished && x.depth_bound_hits == 0, "{:?}", x);
+    assert_eq!(x.cycle_prunes, 0, "joining another path is not an ancestor cycle");
     assert!(r.report.explored_unfair_schedules > 6, "{:?}", r.report.explored_unfair_schedules);
     // caching: far fewer schedules than interleavings (every pruned one ends early)
     assert!(x.pruned_schedules > 0, "{:?}", x);
@@ -125,6 +126,35 @@ fn dfs_reports_a_hot_monitor_at_the_end() {
 }
 
 #[test]
+fn dfs_distinguishes_ancestor_cycles_from_acyclic_monitor_progress() {
+    let cycle = "event eTick;
+        machine Main { start state Running {
+            entry { send this, eTick; }
+            on eTick do { send this, eTick; }
+        } }
+        test tcMain [main=Main]: { Main };";
+    for strategy in [StrategyKind::Dfs, StrategyKind::RandomDfs] {
+        let result = check(cycle, &opts(strategy, 0));
+        let stats = result.exhaustive.unwrap();
+        assert!(stats.finished && stats.depth_bound_hits == 0);
+        assert!(stats.cycle_prunes > 0);
+        let finite = "event eBegin; event eEnd;
+            spec Live observes eBegin, eEnd {
+                start cold state Idle { on eBegin goto Waiting; }
+                hot state Waiting { on eEnd goto Finished; }
+                cold state Finished { }
+            }
+            machine Main { start state Init { entry { announce eBegin; announce eEnd; } } }
+            test tcMain [main=Main]: assert Live in { Main };";
+        let result = check(finite, &opts(strategy, 0));
+        assert_eq!(result.report.num_bugs, 0);
+        let stats = result.exhaustive.unwrap();
+        assert!(stats.finished && stats.depth_bound_hits == 0);
+        assert_eq!(stats.cycle_prunes, 0);
+    }
+}
+
+#[test]
 fn dfs_reports_when_the_depth_bound_cut_the_search() {
     let src = "event eTick;
                machine Main {
@@ -169,4 +199,148 @@ fn rl_is_reproducible_finds_bugs_and_replays() {
     let ok = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::Rl, 200));
     assert_eq!(ok.report.num_bugs, 0);
     assert_eq!(ok.report.explored_fair_schedules, 200);
+}
+
+#[test]
+fn native_feedback_uses_the_fair_bound_and_detects_hot_cycles() {
+    let src = "event eTick;
+        spec Live observes eTick { start hot state Waiting { on eTick do {} } }
+        machine Main { start state Running {
+            entry { send this, eTick; }
+            on eTick do { announce eTick; send this, eTick; }
+        } }
+        test tcMain [main=Main]: assert Live in { Main };";
+    for strategy in [StrategyKind::Feedback, StrategyKind::FeedbackPct, StrategyKind::FeedbackPos] {
+        let options = CheckerOptions {
+            max_unfair_steps: 100,
+            max_fair_steps: 1000,
+            liveness_temperature_threshold: Some(500),
+            strategy_bound: 10,
+            ..opts(strategy, 1)
+        };
+        let corrected = check(src, &options);
+        assert_eq!(corrected.report.num_bugs, 1, "{strategy}");
+        assert!(corrected.report.bug_reports[0].contains("potential liveness bug"));
+        let trace = ScheduleTrace::parse(corrected.schedule_trace.as_ref().unwrap()).unwrap();
+        let replay =
+            check(src, &CheckerOptions { strategy: StrategyKind::Replay, replay: Some(trace), ..options.clone() });
+        assert_eq!(replay.report.bug_reports, corrected.report.bug_reports);
+        // The compatibility CLI preserves upstream's shorter bound and random stream.
+        let upstream = check(src, &CheckerOptions { upstream_feedback: true, ..options });
+        assert_eq!(upstream.report.num_bugs, 0);
+        assert_eq!(upstream.report.max_fair_steps, Some(100));
+    }
+}
+
+#[test]
+fn corrected_feedback_is_reproducible_with_fresh_exploration_and_replays() {
+    let src = clients("assert !(got[0] == 3 && got[1] == 2 && got[2] == 1), \"reversed\";");
+    let options = opts(StrategyKind::Feedback, 1000);
+    let a = check(&src, &options);
+    let b = check(&src, &options);
+    assert_eq!(a.report.num_bugs, 1);
+    assert_eq!(a.schedule_trace, b.schedule_trace);
+    let trace = ScheduleTrace::parse(a.schedule_trace.as_ref().unwrap()).unwrap();
+    let replay = check(&src, &CheckerOptions { strategy: StrategyKind::Replay, replay: Some(trace), ..options });
+    assert_eq!(replay.report.bug_reports, a.report.bug_reports);
+    assert!(replay.replay_error.is_none());
+}
+
+#[test]
+fn guided_search_develops_rare_data_and_scheduling_prefixes_and_replays_them() {
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("prefix.p", include_str!("models/guided_prefix.p").to_string());
+    let analysis = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let checker = Checker::new(&analysis.program);
+    for name in ["tcDataPrefix___depth_20", "tcSchedulePrefix___depth_12"] {
+        let tc = analysis.program.test_cases().into_iter().find(|tc| tc.name == name).unwrap();
+        let options = CheckerOptions { seed: 1, ..opts(StrategyKind::Feedback, 100_000) };
+        let guided = checker.check(&tc, &options, &mut Quiet).unwrap();
+        assert_eq!(guided.report.num_bugs, 1, "{name}");
+        let schedules = guided.report.explored_fair_schedules + guided.report.explored_unfair_schedules;
+        assert!(schedules < options.iterations, "{name}: {schedules}");
+
+        // Equal attempt budget as well as a fixed seed: this is actual bug discovery,
+        // not a comparison of incomparable timeline counts or wall-clock thresholds.
+        let random = checker
+            .check(
+                &tc,
+                &CheckerOptions { strategy: StrategyKind::Random, iterations: schedules, ..options.clone() },
+                &mut Quiet,
+            )
+            .unwrap();
+        assert_eq!(random.report.num_bugs, 0, "{name}");
+        let trace = ScheduleTrace::parse(guided.schedule_trace.as_ref().unwrap()).unwrap();
+        let replay = checker
+            .check(&tc, &CheckerOptions { strategy: StrategyKind::Replay, replay: Some(trace), ..options }, &mut Quiet)
+            .unwrap();
+        assert_eq!(replay.report.bug_reports, guided.report.bug_reports);
+        assert!(replay.replay_error.is_none());
+    }
+}
+
+#[test]
+fn auto_completes_finite_search_and_replays_failures() {
+    let safe = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::Auto, 0));
+    assert_eq!(safe.report.num_bugs, 0);
+    assert!(safe.exhaustive.unwrap().finished);
+    let buggy = check(&clients("assert false, \"all clients delivered\";"), &opts(StrategyKind::Auto, 1000));
+    assert!(buggy.report.num_bugs > 0);
+    let replay = check(
+        &clients("assert false, \"all clients delivered\";"),
+        &CheckerOptions {
+            strategy: StrategyKind::Replay,
+            replay: Some(ScheduleTrace::parse(buggy.schedule_trace.as_ref().unwrap()).unwrap()),
+            ..Default::default()
+        },
+    );
+    assert_eq!(replay.report.bug_reports, buggy.report.bug_reports);
+    assert!(replay.replay_error.is_none());
+}
+
+#[test]
+fn auto_does_not_claim_cyclic_hot_monitors_are_exhausted() {
+    let src = "event Tick; spec Progress observes Tick { start hot state Waiting { on Tick do {} } }
+        machine Main { start state S { entry { send this, Tick; } on Tick do { announce Tick; send this, Tick; } } }
+        test tcMain [main=Main]: assert Progress in { Main };";
+    let result =
+        check(src, &CheckerOptions { liveness_temperature_threshold: Some(50), ..opts(StrategyKind::Auto, 1000) });
+    assert_eq!(result.report.num_bugs, 1);
+    assert!(result.report.bug_reports[0].contains("potential liveness bug"));
+    assert!(!result.exhaustive.unwrap().finished);
+}
+
+#[test]
+fn auto_resource_limit_falls_back_without_claiming_exhaustion() {
+    let src = "machine Main { start state S { entry { var i: int; var n: int; while (i < 200) { n = choose(10000); i = i + 1; } } } }
+        test tcMain [main=Main]: { Main };";
+    let result = check(src, &opts(StrategyKind::Auto, 30));
+    assert_eq!(result.report.num_bugs, 0);
+    assert!(!result.exhaustive.unwrap().finished);
+    assert!(result.report.explored_fair_schedules > 0);
+}
+
+#[test]
+fn auto_cancellation_interrupts_handlers_without_fabricating_completion_or_bugs() {
+    struct Cancel {
+        polls: usize,
+    }
+    impl Output for Cancel {
+        fn line(&mut self, _: &str) {}
+        fn error(&mut self, _: &str) {}
+        fn cancelled(&mut self) -> bool {
+            self.polls += 1;
+            self.polls > 3
+        }
+    }
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("loop.p", "machine Main { fun Increment(n: int): int { return n + 1; } start state S { entry { var n: int; while (true) { n = Increment(n); } } } } test tcMain [main=Main]: { Main };");
+    let analysis = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let tc = analysis.program.test_cases().into_iter().next().unwrap();
+    let result = Checker::new(&analysis.program)
+        .check(&tc, &CheckerOptions { max_work_per_step: 0, ..opts(StrategyKind::Auto, 0) }, &mut Cancel { polls: 0 })
+        .unwrap();
+    assert!(result.cancelled);
+    assert_eq!(result.report.num_bugs, 0);
+    assert!(!result.exhaustive.unwrap().finished);
 }

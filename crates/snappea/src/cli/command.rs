@@ -1,7 +1,7 @@
 //! The `snappea` command line.
 //!
 //! `snappea` runs the commands of [`crate::driver`] with its own options (test cases and
-//! sources as arguments, one `--strategy` option, durations with units, parallel workers,
+//! sources as arguments, automatic scheduling, durations with units, parallel workers,
 //! time tracking) and its own output: a line per test case, the bug's report and replay
 //! command, and a folder per test case ([`Style::Snappea`]). The upstream-style progress shows
 //! with `--verbose`. Exit status: 0 when no bug is found, 1 when one is, 2 on any other
@@ -10,8 +10,7 @@
 use std::path::Path;
 
 use crate::checker::strategy::StrategyKind;
-use crate::checker::timeline::TimelineRepr;
-use crate::driver::check::{self, CheckConfig, Mode, Style};
+use crate::driver::check::{self, CheckConfig, Style};
 use crate::driver::scenario;
 use crate::host::{full_path, Buffered, Color, Exit, Host, HostExt, Quiet, Stream};
 use crate::project::pproj::Includes;
@@ -48,28 +47,12 @@ Checks test cases by exploring schedules. A SOURCE is a .pproj or .p file, a TES
 a test case name or a glob (`*`, `?`). Without tests, all test cases are checked.
 
 Exploration:
-  -n, --schedules <N>       Schedules per test case (default: 10000; no limit with
-                            --time or --exhaustive)
-      --time <DURATION>     Time limit per test case: seconds, or with a unit (90s,
-                            5m, 1h)
-  -j, --workers <N>         Workers exploring schedules in parallel (default: one per
-                            CPU core). The feedback strategies, rl, --exhaustive and
-                            --verbose use one.
-      --seed <N>            Random seed. With one worker, the schedules are those
-                            upstream P explores for the seed.
-      --strategy <S>        random (default), pct:<N>, fairpct:<N>, pos, prob:<N>,
-                            feedback, feedback-pct:<N>, feedback-pos, rl. <N> is the
-                            number of priority switch points for pct, or the
-                            probability 0.5^<N> of switching for prob.
-      --exhaustive          Explore every scheduling and data choice, depth first
-      --max-steps <N>       Steps per schedule (default: 10000)
-      --fair-max-steps <N>  Steps per fair schedule (default: 10 x --max-steps)
-      --fail-on-max-steps   Report a schedule reaching the step limit as a bug
+      --timeout <DURATION>  Time limit per test case (default: 10s; accepts 90s, 5m, 1h)
+  -j, --workers <N>         Worker limit (default: one per CPU core)
+      --seed <N>            Seed for reproducible choices; recorded bugs always replay
 
-Feedback strategies:
-      --timeline <R>        Timeline representation: pairwise (default), kgram[:<N>],
-                            causal, hybrid[:<N>] (<N>: gram length, default 3)
-      --timeline-payload    Add event payload hashes to timeline labels
+Search strategies and their work shares are selected automatically. A completed
+exhaustive search ends early; a timeout leaves the search incomplete.
 
 Time:
       --latency <FILE>[:<PROFILE>]
@@ -266,60 +249,6 @@ fn parse_duration(s: &str) -> Option<u32> {
     n.checked_mul(scale).filter(|&t| t > 0)
 }
 
-/// `--strategy`: the strategy and its bound.
-fn parse_strategy(s: &str) -> Result<(StrategyKind, usize), String> {
-    let (name, bound) = match s.split_once(':') {
-        Some((n, b)) => {
-            let b = b.parse::<usize>().map_err(|_| format!("bad number in strategy '{}'", s))?;
-            (n, Some(b))
-        }
-        None => (s, None),
-    };
-    let (kind, needs_bound) = match name {
-        "random" => (StrategyKind::Random, false),
-        "pct" => (StrategyKind::Pct, true),
-        "fairpct" => (StrategyKind::FairPct, true),
-        "pos" => (StrategyKind::Pos, false),
-        "prob" => (StrategyKind::Probabilistic, true),
-        "feedback" => (StrategyKind::Feedback, false),
-        "feedback-pct" => (StrategyKind::FeedbackPct, true),
-        "feedback-pos" => (StrategyKind::FeedbackPos, false),
-        "rl" => (StrategyKind::Rl, false),
-        _ => return Err(format!("unknown strategy '{}'", s)),
-    };
-    match (needs_bound, bound) {
-        (true, Some(b)) => Ok((kind, b)),
-        (true, None) => Err(format!("strategy '{}' needs a number, e.g. '{}:10'", name, name)),
-        (false, None) => Ok((kind, 0)),
-        (false, Some(_)) => Err(format!("strategy '{}' takes no number", name)),
-    }
-}
-
-/// `--timeline`: the representation and gram length.
-fn parse_timeline(s: &str, cfg: &mut crate::checker::timeline::TimelineConfig) -> Result<(), String> {
-    let (name, k) = match s.split_once(':') {
-        Some((n, k)) => (n, Some(k.parse::<usize>().map_err(|_| format!("bad gram length in '{}'", s))?)),
-        None => (s, None),
-    };
-    cfg.repr = match name {
-        "pairwise" => TimelineRepr::Pairwise,
-        "kgram" => TimelineRepr::KGram,
-        "causal" => TimelineRepr::Causal,
-        "hybrid" => TimelineRepr::Hybrid,
-        _ => return Err(format!("unknown timeline representation '{}'", s)),
-    };
-    match k {
-        Some(_) if !matches!(cfg.repr, TimelineRepr::KGram | TimelineRepr::Hybrid) => {
-            Err(format!("timeline '{}' takes no gram length", name))
-        }
-        Some(k) => {
-            cfg.kgram = k;
-            Ok(())
-        }
-        None => Ok(()),
-    }
-}
-
 /// `--latency FILE[:PROFILE]`. The profile follows the last `:`, unless that `:` belongs to
 /// the path (as in `C:\x.toml`).
 fn split_latency(s: &str) -> (&str, Option<&str>) {
@@ -395,17 +324,10 @@ fn select_tests(names: &[String], patterns: &[String]) -> Result<Vec<String>, St
 // ---- commands -----------------------------------------------------------------------------
 
 const CHECK_OPTS: &[Opt] = &[
-    value("schedules", Some('n')),
-    value("time", None),
+    value("timeout", None),
+    value("time", None), // Existing spelling remains an unadvertised alias.
     value("workers", Some('j')),
     value("seed", None),
-    value("strategy", None),
-    flag("exhaustive", None),
-    value("max-steps", None),
-    value("fair-max-steps", None),
-    flag("fail-on-max-steps", None),
-    value("timeline", None),
-    flag("timeline-payload", None),
     value("latency", None),
     flag("timed", None),
     value("out", Some('o')),
@@ -435,14 +357,16 @@ fn check(args: &[String], host: &mut dyn Host) -> i32 {
 /// Fills `cfg` from the `check` options; returns the test patterns.
 fn check_config(a: &Args, cfg: &mut CheckConfig) -> Result<Vec<String>, String> {
     let patterns = sources(cfg, &a.positional)?;
-    let schedules = uint(a, "schedules")?;
-    cfg.user_set_iterations = schedules.is_some();
-    if let Some(t) = a.get("time") {
+    cfg.strategy = StrategyKind::Auto;
+    cfg.iterations = 0;
+    cfg.user_set_iterations = false;
+    if a.get("timeout").is_some() && a.get("time").is_some() {
+        return Err("use only '--timeout' ('--time' is an alias)".into());
+    }
+    if let Some(t) = a.get("timeout").or_else(|| a.get("time")) {
         cfg.timeout =
             Some(parse_duration(t).ok_or_else(|| format!("bad duration '{}' (examples: 90, 90s, 5m, 1h)", t))?);
     }
-    let unbounded = cfg.timeout.is_some() || a.has("exhaustive");
-    cfg.iterations = schedules.unwrap_or(if unbounded { 0 } else { 10000 });
     cfg.workers = match uint(a, "workers")? {
         Some(0) => return Err("'--workers' needs at least 1 worker".into()),
         n => n,
@@ -450,20 +374,6 @@ fn check_config(a: &Args, cfg: &mut CheckConfig) -> Result<Vec<String>, String> 
     if let Some(s) = a.get("seed") {
         cfg.seed = Some(s.parse().map_err(|_| format!("bad seed '{}'", s))?);
     }
-    if let Some(s) = a.get("strategy") {
-        if a.has("exhaustive") {
-            return Err("'--strategy' and '--exhaustive' cannot be combined".into());
-        }
-        (cfg.strategy, cfg.strategy_bound) = parse_strategy(s)?;
-    }
-    if a.has("exhaustive") {
-        cfg.mode = Mode::PEx;
-    }
-    step_options(a, cfg)?;
-    if let Some(t) = a.get("timeline") {
-        parse_timeline(t, &mut cfg.timeline)?;
-    }
-    cfg.timeline.payload = a.has("timeline-payload");
     if let Some(l) = a.get("latency") {
         cfg.latency_profile = split_latency(l).1.map(str::to_string);
     }
@@ -513,7 +423,13 @@ fn step_args(cfg: &CheckConfig) -> Vec<String> {
 /// A [`CheckConfig`] for snappea: its output folder layout, and `<IncludeProject>` paths
 /// resolved against the including project file.
 fn snappea_config() -> CheckConfig {
-    let mut cfg = CheckConfig { style: Style::Snappea, ..CheckConfig::default() };
+    let mut cfg = CheckConfig {
+        style: Style::Snappea,
+        strategy: StrategyKind::Auto,
+        iterations: 0,
+        timeout: Some(10),
+        ..CheckConfig::default()
+    };
     cfg.input.includes = Includes::FromProject;
     cfg
 }
@@ -544,12 +460,15 @@ fn run_check(
     let n = selected.len();
     con.inner.out_line(&format!("Checking {}: {} test case{}", cfg.project_name, n, plural(n)));
     let mut failed = 0;
+    let mut incomplete = 0;
     for name in selected {
         cfg.test_case_name = name;
         check::set_output_directory(&mut con, &mut cfg)?;
         let case = check::testing_process(&mut con, &loaded, &cfg)?;
         if case.bugs > 0 {
             failed += 1;
+        } else if case.exhaustive_finished != Some(true) {
+            incomplete += 1;
         }
         print_case(con.inner, &case, &cfg);
     }
@@ -559,7 +478,16 @@ fn run_check(
         "" if cfg.output_path.is_empty() => ".",
         o => o,
     };
-    con.inner.out_line(&if failed == 0 && n == 1 {
+    con.inner.out_line(&if failed == 0 && incomplete > 0 {
+        format!(
+            "🫛 No bugs found in {}{}. Search incomplete for {} test case{}. Output: {}/",
+            elapsed,
+            memory,
+            incomplete,
+            plural(incomplete),
+            out
+        )
+    } else if failed == 0 && n == 1 {
         format!("🫛 The test case passed in {}{}. Output: {}/", elapsed, memory, out)
     } else if failed == 0 {
         format!("🫛 All {} test cases passed in {}{}. Output: {}/", n, elapsed, memory, out)
@@ -668,6 +596,7 @@ fn replay(args: &[String], host: &mut dyn Host) -> i32 {
         return OK;
     }
     let mut cfg = snappea_config();
+    cfg.timeout = None;
     let rest = match sources(&mut cfg, &a.positional) {
         Ok(r) => r,
         Err(m) => return usage_error(host, &m, Some("replay")),
@@ -890,13 +819,14 @@ mod tests {
     }
 
     #[test]
-    fn strategies() {
-        assert_eq!(parse_strategy("pct:3"), Ok((StrategyKind::Pct, 3)));
-        assert_eq!(parse_strategy("feedback-pct:10"), Ok((StrategyKind::FeedbackPct, 10)));
-        assert_eq!(parse_strategy("pos"), Ok((StrategyKind::Pos, 0)));
-        assert!(parse_strategy("pct").is_err());
-        assert!(parse_strategy("pos:2").is_err());
-        assert!(parse_strategy("dfs").is_err());
+    fn automatic_defaults_and_timeout() {
+        let mut cfg = snappea_config();
+        assert_eq!(cfg.strategy, StrategyKind::Auto);
+        assert_eq!(cfg.timeout, Some(10));
+        assert_eq!(cfg.iterations, 0);
+        let args = parse_args(&["--timeout".into(), "30s".into()], CHECK_OPTS).unwrap();
+        check_config(&args, &mut cfg).unwrap();
+        assert_eq!(cfg.timeout, Some(30));
     }
 
     #[test]
