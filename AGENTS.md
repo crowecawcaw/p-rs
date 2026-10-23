@@ -30,3 +30,30 @@ For compatibility details, see [Compatibility](docs/compatibility.md).
 
 CLI help and doc strings say what a thing does, when to use it, and give an example.
 Plain and short.
+
+## Error messages
+
+Every error says what went wrong, where, and what to do next.
+
+* **What**: one plain sentence. Name the thing (`could not find event 'eB'`), not the
+  internals.
+* **Where**: `file:line:col`, and for source errors the lines around it with the span
+  underlined. Use `sema::diag::render_snippet`.
+* **Next step**: a concrete fix or command, as a `help:`/`hint:` line. Give the likely
+  fix first (`did you mean 'eA'?`), then the general one.
+* **Compat**: `snappea-compat` prints upstream's exact text. Put hints in
+  `Diagnostic::help` or `report_and_exit_hint`, which only `snappea` shows; never edit
+  an upstream message.
+
+```text
+error: could not find name 'eB'
+  --> a.p:7:18
+  |
+5 |     entry {
+6 |       x = 1;
+7 |       send this, eB;
+  |                  ^^
+8 |     }
+  |
+  = help: did you mean 'eA'? Otherwise declare the name before using it
+```

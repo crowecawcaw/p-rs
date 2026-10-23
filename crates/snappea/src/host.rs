@@ -71,6 +71,11 @@ pub trait Host {
     fn env_var(&self, _name: &str) -> Option<String> {
         None
     }
+    /// Whether errors get a `hint:` line with a suggested next step. Only `snappea`
+    /// commands turn it on; upstream-compatible output keeps upstream's exact text.
+    fn shows_hints(&self) -> bool {
+        false
+    }
     /// Opens live observation inputs (`--live`). The default reads them one after another,
     /// stdin through [`Host::read_stdin_line`] and files to their current end; hosts that
     /// can wait on several streams at once override it.
@@ -151,6 +156,15 @@ pub(crate) fn report_and_exit(host: &mut dyn Host, msg: &str) -> Exit {
     host.write(Stream::Err, msg, Some(Color::Yellow));
     host.write(Stream::Err, "\n", None);
     Exit(1)
+}
+
+/// [`report_and_exit`], followed by `hint: {hint}` when the host [shows hints](Host::shows_hints).
+pub(crate) fn report_and_exit_hint(host: &mut dyn Host, msg: &str, hint: &str) -> Exit {
+    let exit = report_and_exit(host, msg);
+    if host.shows_hints() {
+        host.write(Stream::Err, &format!("hint: {}\n", hint), None);
+    }
+    exit
 }
 
 /// Writes an output file the command has announced (`..... Writing {path}`), `path` being
@@ -250,6 +264,9 @@ impl Host for Buffered<'_> {
     }
     fn env_var(&self, name: &str) -> Option<String> {
         self.inner.env_var(name)
+    }
+    fn shows_hints(&self) -> bool {
+        self.inner.shows_hints()
     }
 }
 
@@ -371,6 +388,10 @@ impl Host for Quiet<'_> {
     }
     fn env_var(&self, name: &str) -> Option<String> {
         self.inner.env_var(name)
+    }
+    /// `Quiet` wraps the host of every `snappea` command, so its errors carry hints.
+    fn shows_hints(&self) -> bool {
+        true
     }
     fn open_live(&self, inputs: &[LiveInput]) -> Box<dyn LiveSource + '_> {
         self.inner.open_live(inputs)

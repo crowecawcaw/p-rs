@@ -5,6 +5,8 @@ and writes the same trace formats, but does not imitate upstream where it doesn'
 to:
 
 * Options: its own, shorter ones (`snappea <command> --help`).
+* Errors: parse, type and lint errors show the source around them and a suggested fix;
+  other errors add a `hint:` line. The messages themselves are upstream's.
 * Console: one line per test case, the bug's report and its `snappea replay` command, and a
   summary with time and peak memory. Upstream's progress only with `-v`.
 * Output folder: `PCheckerOutput/<test>/` with fixed names (`bug.txt`, `bug.schedule`,

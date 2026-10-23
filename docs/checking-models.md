@@ -63,8 +63,23 @@ feedback mutation behavior. Existing compatibility traces still replay; the nati
 Time tracking (`--latency <file>[:<profile>]`, `--timed`) checks timeouts and latency
 budgets; see [design/time](../design/time/RetryBudget/README.md).
 
-`snappea check` type-checks the sources itself and reports errors as `p compile` does.
-It prints one line per test case with its coverage and, for a bug, its report and the
+`snappea check` type-checks the sources itself. Each error shows its location, the
+source lines around it and a suggested fix:
+
+```
+error: got type: string, expected: int
+  --> a.p:6:11
+  |
+4 |   start state Init {
+5 |     entry {
+6 |       x = "hello";
+  |           ^^^^^^^
+7 |     }
+  |
+  = help: give it a value of the expected type, convert it (e.g. `x as int`), or change the declared type
+```
+
+`snappea-compat` prints them as `p compile` does. `snappea check` prints one line per test case with its coverage and, for a bug, its report and the
 `snappea replay` command that reproduces it. Then it lists the code no test case ran:
 
 ```

@@ -51,7 +51,7 @@ fn lint_and_check_fail_with_same_findings_before_any_output_is_written() {
     h.add_file("model.p", MODEL);
     assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 2);
     let lint = h.stderr.clone();
-    assert!(lint.contains("model.p:2:6: error[permissive-monitor]"), "{lint}");
+    assert!(lint.contains("error[permissive-monitor]: ") && lint.contains(" --> model.p:2:6\n"), "{lint}");
     assert_eq!(run(&mut h, &["check", "model.p"]), 2);
     assert_eq!(h.stderr, lint);
     assert!(!h.stdout.contains("Checking "), "{}", h.stdout);
