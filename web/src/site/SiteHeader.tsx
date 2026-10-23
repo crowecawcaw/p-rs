@@ -10,6 +10,7 @@ export const links = (root: string) => ({
   home: root,
   overview: `${root}docs/overview.html`,
   comingFromP: `${root}docs/coming-from-p.html`,
+  parity: `${root}docs/parity.html`,
   cli: `${root}docs/cli.html`,
   githubActions: `${root}docs/github-actions.html`,
   python: `${root}docs/python.html`,

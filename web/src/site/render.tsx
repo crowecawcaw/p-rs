@@ -9,8 +9,9 @@ import { Go } from "./docs/languages/Go";
 import { Java } from "./docs/languages/Java";
 import { Python } from "./docs/languages/Python";
 import { Rust } from "./docs/languages/Rust";
+import { Parity } from "./docs/Parity";
 
-const PAGES = { overview: Overview, "coming-from-p": ComingFromP, cli: Cli, "github-actions": GitHubActions, python: Python, rust: Rust, go: Go, java: Java };
+const PAGES = { overview: Overview, parity: Parity, "coming-from-p": ComingFromP, cli: Cli, "github-actions": GitHubActions, python: Python, rust: Rust, go: Go, java: Java };
 
 /** Render the same content in development and in every published HTML entry. */
 export function render(page: string) {

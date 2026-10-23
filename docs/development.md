@@ -69,8 +69,10 @@ Upstream's test suites are vendored in `tests/upstream`.
   `snappea-compat observe` on all 96 logs of upstream's regression suite, with and without
   `--assumeInputsAreSorted`. All 192 runs give the same exit code; 186 give identical
   output, and the other 6 differ only in the null-dereference message. The small logs
-  and upstream's outputs are vendored in `tests/upstream/PObserve` and checked in
-  `crates/snappea/tests/compat_observe_upstream.rs`.
+  and upstream's outputs are vendored in `tests/upstream/PObserve`: CI checks 96 runs,
+  94 with full normalized console/file comparisons and two with exit codes only, in
+  `crates/snappea/tests/compat_observe_upstream.rs`. The 192-run figures describe the
+  separate manual comparison, not CI. See the [upstream parity page](https://snappea.dev/docs/parity.html).
 
 ## Benchmarks
 
