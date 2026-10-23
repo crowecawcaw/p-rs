@@ -540,6 +540,14 @@ impl<'p> Checker<'p> {
         Checker { prog, code: compile_program(prog), foreign: None, coverage_tables: std::cell::OnceCell::new() }
     }
 
+    /// A checker whose code records which statements and branches run: activity coverage
+    /// (`activity_coverage`) then also holds code coverage (see
+    /// [`crate::checker::code_coverage`]).
+    pub fn with_code_coverage(prog: &'p Program) -> Checker<'p> {
+        let code = crate::checker::compile::compile_program_with_probes(prog);
+        Checker { prog, code, foreign: None, coverage_tables: std::cell::OnceCell::new() }
+    }
+
     /// Node/event tables for activity coverage (built on first use).
     pub fn coverage_tables(&self) -> Rc<crate::checker::coverage::CoverageTables> {
         self.coverage_tables.get_or_init(|| Rc::new(crate::checker::coverage::CoverageTables::new(self.prog))).clone()

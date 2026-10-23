@@ -39,6 +39,10 @@ public final class ObservationReport {
         return value == null ? null : value instanceof String s ? s : Json.write(value);
     }
 
+    /**
+     * snappea's exit status: 0 no error, 1 a spec violation, 2 another error. Classify errors by
+     * {@link Error#kind()}, not by this.
+     */
     public int exitCode() { return exitCode; }
     public List<Error> errors() { return errors; }
     public String json() { return json; }

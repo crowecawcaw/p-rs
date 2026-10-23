@@ -89,8 +89,8 @@ fn run_case(case: &Path, expect: &Value) -> Result<(), String> {
             let Some(coverage) = want["coverage"].as_object() else { return Ok(()) };
             let got = report.coverage().map_err(|e| e.to_string())?;
             for (spec, w) in coverage {
-                let g = got.specs.get(spec).ok_or(format!("no coverage for {spec}"))?.to_json();
-                for part in ["states", "handlers"] {
+                let g = got.specs.get(spec).ok_or(format!("no coverage for {spec}"))?.to_json(false);
+                for part in ["statements", "branches", "handlers"] {
                     for count in ["covered", "total"] {
                         if w[part].get(count).is_some() && w[part][count] != g[part][count] {
                             return Err(format!(

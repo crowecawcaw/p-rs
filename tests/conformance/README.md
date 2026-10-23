@@ -54,7 +54,8 @@ Do not skip anything else.
     "liveness": false,
     "coverage": {
       "InventoryCorrect": {
-        "states": { "covered": 1, "total": 1 },
+        "statements": { "covered": 4, "total": 4 },
+        "branches": { "covered": 0, "total": 0 },
         "handlers": { "covered": 2, "total": 2 }
       }
     }
@@ -77,7 +78,7 @@ Do not skip anything else.
 | `expect.message` | violation: yes; setup_error: no | Substring of the error message. |
 | `expect.liveness` | no | `true` for a hot-state (`check_hot`) violation. Default: `false`. |
 | `expect.kind` | setup_error | `validation` (strict), `unknown_event`, `parser`, or another kind from the spec. |
-| `expect.coverage` | no | Per spec, any of `states` / `handlers` `covered` / `total` counts. The check enables coverage when present. |
+| `expect.coverage` | no | Per spec, any of the `statements` / `branches` / `handlers` `covered` / `total` counts of its coverage. |
 
 Unknown keys are errors, so a misspelled field fails the CLI runner instead of being
 ignored.

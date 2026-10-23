@@ -157,7 +157,6 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         spec_files=settings["files"] if settings else [],
         exclude=settings["exclude"] if settings else (),
         check_hot=settings["check_hot"] if settings else None,
-        coverage=item.config.stash[_COVERAGE_PATH] is not None,
         strict=True if item.config.getoption("snappea_strict") else None,
     )
     rec._cfg = settings["config"] if settings else None
@@ -186,8 +185,8 @@ def pytest_runtest_call(item: pytest.Item) -> Generator[None, Any, Any]:
             try:
                 rec.check()
             finally:
-                if rec.coverage_report is not None:
-                    item.config.stash[_COVERAGE].append(rec.coverage_report)
+                if rec.report is not None and "specs" in rec.report and item.config.stash[_COVERAGE_PATH] is not None:
+                    item.config.stash[_COVERAGE].append(rec.report)
         else:
             rec._cleanup_owned()
     return result
@@ -259,7 +258,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
                 except ValueError as e:
                     raise SetupError(f"{path} is not a coverage JSON file ({e}); delete it to start over") from None
             result = subprocess.run(
-                [find_snappea(), "coverage", "merge-observe", "--stdin", "--json-report", str(path)],
+                [find_snappea(), "coverage", "merge-observe", "--stdin", "--format", "text", "--json-report", str(path)],
                 input=json.dumps(reports), text=True,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60,
             )
@@ -276,10 +275,10 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: pyte
     if summary is None:
         return
     success, output, path = summary
-    terminalreporter.section("Monitor coverage (union of completed test checks)")
+    terminalreporter.section("Spec coverage (all completed checks)")
     for line in output.splitlines():
         terminalreporter.write_line(line)
     if success:
         terminalreporter.write_line(f"JSON: {path}")
     else:
-        terminalreporter.write_line("Monitor coverage reporting failed", red=True)
+        terminalreporter.write_line("Spec coverage reporting failed", red=True)

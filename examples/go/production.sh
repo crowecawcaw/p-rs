@@ -19,25 +19,22 @@ printf 'stock tea 2\nreserve tea order-1 2\n' |
 
 echo "== batch: every log, after the fact"
 "$snappea" observe specs/inventory.p "$work/log/app/events/*.jsonl" --spec InventoryCorrect --strict \
-	--json-report "$work/batch.json" >/dev/null
-cat "$work/batch.json"
+	--format text
 
 echo "== live: one stream, checked as it arrives"
 cat "$work"/log/app/events/*.jsonl |
-	"$snappea" observe specs/inventory.p --spec InventoryCorrect --stdin \
-		--json-report "$work/live.json" >/dev/null
-cat "$work/live.json"
+	"$snappea" observe specs/inventory.p --spec InventoryCorrect --stdin --format text
 
 echo "== negative control: a forged oversell must be a violation (exit 1)"
 echo '{"key":"coffee","timestamp":"2100-01-01T00:00:00Z","event":"eReserved","payload":{"order":"forged","units":5}}' \
 	>"$work/log/app/events/host-c.jsonl"
 status=0
 "$snappea" observe specs/inventory.p "$work/log/app/events/*.jsonl" --spec InventoryCorrect \
-	--json-report "$work/bad.json" >/dev/null || status=$?
+	--format text --json-report "$work/bad.json" >"$work/bad.txt" || status=$?
 if [ "$status" -ne 1 ] || ! grep -q '"spec_violation"' "$work/bad.json"; then
 	echo "expected a spec violation (exit 1), got exit $status" >&2
 	cat "$work/bad.json" >&2
 	exit 1
 fi
-grep -o '"message": *"[^"]*"' "$work/bad.json"
+cat "$work/bad.txt"
 echo "ok"

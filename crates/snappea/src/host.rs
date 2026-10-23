@@ -63,6 +63,14 @@ pub trait Host {
     fn threads(&self) -> Option<Threads> {
         None
     }
+    /// Whether stdout is a terminal: commands then print text rather than JSON by default.
+    fn stdout_is_terminal(&self) -> bool {
+        false
+    }
+    /// The value of environment variable `name`, if it is set.
+    fn env_var(&self, _name: &str) -> Option<String> {
+        None
+    }
     /// Opens live observation inputs (`--live`). The default reads them one after another,
     /// stdin through [`Host::read_stdin_line`] and files to their current end; hosts that
     /// can wait on several streams at once override it.
@@ -237,6 +245,12 @@ impl Host for Buffered<'_> {
     fn threads(&self) -> Option<Threads> {
         self.inner.threads()
     }
+    fn stdout_is_terminal(&self) -> bool {
+        self.inner.stdout_is_terminal()
+    }
+    fn env_var(&self, name: &str) -> Option<String> {
+        self.inner.env_var(name)
+    }
 }
 
 /// A host that shows only warnings and errors: stderr, and the stdout text the commands
@@ -248,18 +262,52 @@ pub(crate) struct Quiet<'a> {
     pub quiet: bool,
     /// The last stdout text was shown, so the newline ending it is too.
     shown: bool,
+    /// When set, all stdout text goes here instead.
+    pub captured: Option<String>,
+    /// With `record_errors`, the stderr text so far (also written to stderr).
+    pub captured_err: String,
+    /// With `record_errors`, the stdout text shown so far.
+    pub shown_out: String,
+    record_errors: bool,
 }
 
 #[cfg(feature = "cli")]
 impl<'a> Quiet<'a> {
     pub fn new(inner: &'a mut dyn Host, quiet: bool) -> Self {
-        Quiet { inner, quiet, shown: false }
+        Quiet {
+            inner,
+            quiet,
+            shown: false,
+            captured: None,
+            captured_err: String::new(),
+            shown_out: String::new(),
+            record_errors: false,
+        }
+    }
+
+    /// A host that shows everything, and keeps the stderr text in [`Quiet::captured_err`].
+    pub fn recording_errors(inner: &'a mut dyn Host) -> Self {
+        Quiet { record_errors: true, ..Quiet::new(inner, false) }
+    }
+
+    /// A host that keeps all stdout text in [`Quiet::captured`].
+    pub fn capturing(inner: &'a mut dyn Host) -> Self {
+        Quiet { captured: Some(String::new()), record_errors: true, ..Quiet::new(inner, true) }
     }
 }
 
 #[cfg(feature = "cli")]
 impl Host for Quiet<'_> {
     fn write(&mut self, stream: Stream, text: &str, color: Option<Color>) {
+        if stream == Stream::Err && self.record_errors {
+            self.captured_err.push_str(text);
+        }
+        if let Some(c) = self.captured.as_mut().filter(|_| stream == Stream::Out) {
+            return c.push_str(text);
+        }
+        if stream == Stream::Out && self.record_errors {
+            self.shown_out.push_str(text);
+        }
         if stream == Stream::Err || !self.quiet {
             return self.inner.write(stream, text, color);
         }
@@ -317,6 +365,12 @@ impl Host for Quiet<'_> {
     }
     fn threads(&self) -> Option<Threads> {
         self.inner.threads()
+    }
+    fn stdout_is_terminal(&self) -> bool {
+        self.inner.stdout_is_terminal()
+    }
+    fn env_var(&self, name: &str) -> Option<String> {
+        self.inner.env_var(name)
     }
     fn open_live(&self, inputs: &[LiveInput]) -> Box<dyn LiveSource + '_> {
         self.inner.open_live(inputs)
@@ -411,6 +465,10 @@ pub struct MemHost {
     pub seed: u32,
     /// [`Host::threads`]; `None` by default.
     pub threads: Option<Threads>,
+    /// [`Host::stdout_is_terminal`]; true by default.
+    pub terminal: bool,
+    /// [`Host::env_var`]; empty by default.
+    pub env: BTreeMap<String, String>,
 }
 
 impl Default for MemHost {
@@ -429,6 +487,8 @@ impl MemHost {
             clock: || 0.0,
             seed: 0,
             threads: None,
+            terminal: true,
+            env: BTreeMap::new(),
         };
         h.create_dir_all(Path::new(cwd)).expect("an empty file system has no files in the way");
         h
@@ -474,6 +534,14 @@ fn not_a_directory(p: &Path) -> io::Error {
 }
 
 impl Host for MemHost {
+    fn stdout_is_terminal(&self) -> bool {
+        self.terminal
+    }
+
+    fn env_var(&self, name: &str) -> Option<String> {
+        self.env.get(name).cloned()
+    }
+
     fn write(&mut self, stream: Stream, text: &str, _color: Option<Color>) {
         match stream {
             Stream::Out => self.stdout.push_str(text),

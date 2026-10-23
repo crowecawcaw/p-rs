@@ -327,8 +327,8 @@ assert_eq!((v.spec.as_str(), v.key.as_str()), ("InventoryCorrect", "coffee"));
         <EnvTable lang="rust" />
         <h3>Suite coverage</h3>
         <p>
-          Set <code>coverage</code> (or <code>SNAPPEA_COVERAGE</code>) and every check merges the P spec states and
-          handlers it reached into that file, under a lock, so parallel tests and test binaries share it. The summary
+          Set <code>coverage</code> (or <code>SNAPPEA_COVERAGE</code>) and every check merges the P spec handlers, statements and
+          branches it reached into that file, under a lock, so parallel tests and test binaries share it. The summary
           prints when coverage changes (<code>cargo test -- --nocapture</code> shows it). Delete a stale file before a run.
         </p>
         <h3>API</h3>

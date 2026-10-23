@@ -270,8 +270,7 @@ public final class Recording implements AutoCloseable {
         } catch (SetupError error) {
             return new SetupError(error.kind(), error.getMessage() + "\n\n  snappea output: " + directory, directory, null, error);
         }
-        boolean withCoverage = coverage != null && coverage.enabled();
-        var command = observer.command(executable, inputs, reportPath, withCoverage);
+        var command = observer.command(executable, inputs, reportPath);
         int exit;
         try {
             Files.writeString(directory.resolve("command.txt"), String.join(" ", command) + "\n");
@@ -287,6 +286,10 @@ public final class Recording implements AutoCloseable {
         Map<String, Object> full;
         try {
             var value = Json.read(reportPath);
+            // snappea failed before checking (bad sources, unknown spec...): {"exit_code": 2} and
+            // no specs; the console has what it reported.
+            if (exit == 2 && value instanceof Map && !Json.has(value, "specs")
+                    && Integer.valueOf(2).equals(Json.get(value, "exit_code"))) return commandError(executable, console);
             validateReport(value, exit);
             @SuppressWarnings("unchecked") var object = (Map<String, Object>) value;
             full = object;
@@ -305,7 +308,7 @@ public final class Recording implements AutoCloseable {
         }
         report = new ObservationReport(full);
         ObservationFailure failure = Outcomes.of(report, Set.copyOf(ignored), directory);
-        if (withCoverage) {
+        if (coverage != null && coverage.enabled()) {
             try {
                 coverage.add(report);
             } catch (ObservationFailure error) {
@@ -391,7 +394,7 @@ public final class Recording implements AutoCloseable {
 
     private void validateReport(Object value, int processExit) throws IOException {
         if (!(value instanceof Map) || !(Json.get(value, "exit_code") instanceof Integer exitCode)
-                || !Set.of(0, 2, 3, 4).contains(exitCode)
+                || !Set.of(0, 1, 2).contains(exitCode)
                 || !(Json.get(value, "specs") instanceof List)) throw new IOException("Malformed observation report");
         boolean success = exitCode == 0;
         boolean hasErrors = false;
@@ -438,7 +441,9 @@ public final class Recording implements AutoCloseable {
             throw new IOException("Report spec set differs from requested specifications");
         if (observer.specs().isEmpty() && observer.exclude().stream().anyMatch(names::contains))
             throw new IOException("Report contains an excluded spec");
-        if (success == hasErrors || success != (processExit == 0))
+        // exit_code is snappea's process status (0 no error, 1 a spec violation, 2 another error);
+        // outcomes are classified by error kind, not by this code.
+        if (success == hasErrors || exitCode != processExit)
             throw new IOException("Inconsistent process status, report status and errors");
     }
 

@@ -8,6 +8,7 @@
 use std::rc::Rc;
 
 use crate::sema::{BinOp, EventId, FunId, InterfaceId, PType, StateId};
+use crate::syntax::Span;
 
 /// Where an l-value lives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,6 +201,10 @@ pub enum Op {
         nargs: u32,
         types: Rc<[PType]>,
     },
+    /// Records that code coverage probe `id` (an index into [`crate::checker::compile::Code::probes`])
+    /// ran. Emitted only when compiling for code coverage; counts no work, so a run explores
+    /// the same schedules with or without probes.
+    Probe(u32),
 }
 
 /// The right operand of an [`Op::IntBin`].
@@ -234,4 +239,32 @@ pub struct CodeBlock {
     /// Whether parameter `i` occupies slot `i`, so arguments can stay where the caller
     /// pushed them.
     pub params_in_order: bool,
+}
+
+/// What a code coverage probe marks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProbeKind {
+    /// The start of a function body (or receive case).
+    Entry,
+    /// A statement.
+    Stmt,
+    /// The `then` branch of the `if` at `span`.
+    Then,
+    /// The `else` branch (possibly empty) of the `if` at `span`.
+    Else,
+}
+
+/// A code coverage probe: a point in the source whose execution is recorded.
+#[derive(Debug, Clone, Copy)]
+pub struct Probe {
+    pub kind: ProbeKind,
+    /// The function the probe is in (a receive case's own function for its body).
+    pub fun: FunId,
+    /// The statement (or, for a branch, the `if` statement; for an entry, the function).
+    pub span: Span,
+    /// The probe of the enclosing `if` branch, or for top-level statements the function's
+    /// entry probe.
+    pub parent: Option<u32>,
+    /// The statement is `assert false, ...`: code that must never run.
+    pub asserts_false: bool,
 }

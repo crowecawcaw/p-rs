@@ -349,7 +349,7 @@ def server(tmp_path_factory):
         <h3>Suite coverage</h3>
         <p>
           <code>pytest --snappea-coverage=coverage/monitor.json</code> (or <code>SNAPPEA_COVERAGE</code>) reports the P
-          spec states and handlers the suite's checks reached, and writes them as JSON for CI. Runs merge into an
+          spec handlers, statements and branches the suite's checks reached, and writes them as JSON for CI. Runs merge into an
           existing file under a lock, so pytest-xdist workers can share one path; delete the file to start over.
         </p>
         <h3>How it works</h3>

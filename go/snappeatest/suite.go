@@ -199,7 +199,7 @@ func runMerge(ctx context.Context, binary, workDir string, timeout time.Duration
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binary, "coverage", "merge-observe", "--stdin", "--json-report", pendingPath)
+	cmd := exec.CommandContext(ctx, binary, "coverage", "merge-observe", "--stdin", "--format", "text", "--json-report", pendingPath)
 	cmd.Dir = workDir
 	cmd.Stdin = bytes.NewReader(data)
 	cmd.WaitDelay = time.Second

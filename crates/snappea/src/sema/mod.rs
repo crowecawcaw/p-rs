@@ -159,6 +159,7 @@ pub fn analyze(sm: &SourceMap, programs: &[ast::Program], opts: &Options) -> Res
     }
     let hex: String = digest.finalize().iter().map(|b| format!("{b:02x}")).collect();
     a.prog.source_fingerprint = Some(format!("sha256:{hex}"));
+    a.prog.sources = std::sync::Arc::new(sm.clone());
     Ok(Analysis { program: a.prog, warnings: a.diags.warnings })
 }
 

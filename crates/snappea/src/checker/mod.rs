@@ -10,6 +10,7 @@
 
 mod auto;
 pub mod bytecode;
+pub mod code_coverage;
 pub mod compile;
 pub mod coverage;
 pub mod engine;
@@ -20,7 +21,6 @@ pub mod interp;
 pub mod javafmt;
 pub mod jsonlog;
 pub mod observe;
-pub mod observe_coverage;
 pub mod observe_inputs;
 pub mod observe_json;
 pub mod observe_report;

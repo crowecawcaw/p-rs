@@ -2,11 +2,14 @@
 
 use std::path::{Path, PathBuf};
 
-use super::command::{error, flag, parse_args, plural, uint, usage_error, value, Args, Opt, BUG, ERROR, OK};
+use super::command::{
+    error, flag, parse_args, plural, uint, usage_error, value, with_output, Args, Opt, Outcome, ERROR, OK, OUTPUT_HELP,
+};
+use crate::checker::code_coverage::uncovered_lines;
 use crate::checker::observe::{ErrorKind, ObserveError, Report, Spec, UnknownEvents};
 use crate::checker::observe_inputs::add_log_paths;
 use crate::driver::check::Style;
-use crate::driver::observe::{self as driver, InputKind, ObserveConfig, EXIT_ASSERTION, EXIT_SUCCESS};
+use crate::driver::observe::{self as driver, InputKind, ObserveConfig};
 use crate::host::{write_output, Color, Exit, Host, HostExt, HostFiles, Quiet, Stream};
 use crate::project::{self, pproj::Includes, Input};
 
@@ -47,16 +50,17 @@ Checks:
       --strict                Fail a spec that checked no relevant event
       --unknown-events <P>    Events no P source declares: ignore (default), warn or
                               error
-      --coverage              Report the monitor states and handlers observed
 
 Output:
-      --json-report <FILE>    Write the result as JSON to FILE
   -v, --verbose               Show progress, logged messages and each error's events
+
+Prints one line per spec with its coverage, and its errors; then the handlers,
+statements and branches of the specs no event ran.
 
 Exit status: 0 no violation found, 1 violation found, 2 any other error.
 ";
 
-const OPTS: &[Opt] = &[
+pub(super) const OPTS: &[Opt] = &[
     value("spec", None),
     flag("all-specs", None),
     value("exclude-specs", None),
@@ -75,8 +79,6 @@ const OPTS: &[Opt] = &[
     flag("check-hot", None),
     flag("strict", None),
     value("unknown-events", None),
-    flag("coverage", None),
-    value("json-report", None),
     flag("verbose", Some('v')),
 ];
 
@@ -87,7 +89,6 @@ const SHOWN_ERRORS: usize = 10;
 struct Command {
     input: Input,
     cfg: ObserveConfig,
-    json_report: Option<String>,
     record: Option<String>,
     verbose: bool,
 }
@@ -98,14 +99,14 @@ pub(super) fn observe(args: &[String], host: &mut dyn Host) -> i32 {
         Err(m) => return usage_error(host, &m, Some("observe")),
     };
     if a.help {
-        host.write(Stream::Out, HELP, None);
+        host.write(Stream::Out, &format!("{}\n{}", HELP, OUTPUT_HELP), None);
         return OK;
     }
     let cmd = match command(&a, host) {
         Ok(c) => c,
         Err(m) => return usage_error(host, &m, Some("observe")),
     };
-    run(host, cmd).unwrap_or(ERROR)
+    with_output(host, &a, "observe", |host| run(host, cmd))
 }
 
 /// Names given to a repeatable option, also separated by commas.
@@ -149,7 +150,6 @@ fn command(a: &Args, host: &mut dyn Host) -> Result<Command, String> {
         all_specs: a.has("all-specs"),
         exclude_specs: names(a, "exclude-specs"),
         check_hot: a.has("check-hot"),
-        coverage: a.has("coverage"),
         strict: a.has("strict"),
         unknown_events: match a.get("unknown-events") {
             Some(v) => v.parse::<UnknownEvents>()?,
@@ -206,13 +206,7 @@ fn command(a: &Args, host: &mut dyn Host) -> Result<Command, String> {
     }
     cfg.logs = logs;
     cfg.live = live;
-    Ok(Command {
-        input,
-        cfg,
-        json_report: a.get("json-report").map(str::to_string),
-        record: a.get("record").map(str::to_string),
-        verbose: a.has("verbose"),
-    })
+    Ok(Command { input, cfg, record: a.get("record").map(str::to_string), verbose: a.has("verbose") })
 }
 
 /// Values of a repeatable option, each once.
@@ -236,8 +230,8 @@ fn fail(host: &mut dyn Host, msg: &str) -> Exit {
     Exit(ERROR)
 }
 
-fn run(host: &mut dyn Host, cmd: Command) -> Result<i32, Exit> {
-    let Command { input, cfg, json_report, record, verbose } = cmd;
+fn run(host: &mut dyn Host, cmd: Command) -> Outcome {
+    let Command { input, cfg, record, verbose } = cmd;
     let cwd = host.cwd();
     let mut con = Quiet::new(host, !verbose);
     let resolved = project::resolve(&mut con, &input)?;
@@ -253,18 +247,22 @@ fn run(host: &mut dyn Host, cmd: Command) -> Result<i32, Exit> {
     if let Some(path) = &record {
         write_output(host, path, &obs.recorded).map_err(|_| Exit(ERROR))?;
     }
-    if let Some(path) = &json_report {
-        write_output(host, path, &driver::json_report(&specs, &obs)).map_err(|_| Exit(ERROR))?;
-    }
     if let Some(why) = &obs.unreadable {
         return Err(fail(host, &format!("cannot read log {}", why)));
     }
     let mut failed = 0;
+    let mut uncovered = Vec::new();
     for (spec, report) in specs.iter().zip(&obs.reports) {
         if !report.errors.is_empty() {
             failed += 1;
         }
         print_spec(host, spec, report, verbose);
+        uncovered.extend(report.coverage.uncovered());
+    }
+    uncovered.sort();
+    uncovered.dedup();
+    for l in uncovered_lines("Not covered by the events:", &uncovered, " (--json lists all)") {
+        host.out_line(&l);
     }
     if obs.live && !obs.input_complete {
         host.out_line("Live input stopped at the first error; the results cover the lines checked.");
@@ -280,11 +278,8 @@ fn run(host: &mut dyn Host, cmd: Command) -> Result<i32, Exit> {
     for warning in obs.warnings() {
         host.write(Stream::Err, &format!("warning: {}\n", warning), Some(Color::Yellow));
     }
-    Ok(match obs.exit_status() {
-        EXIT_SUCCESS => OK,
-        EXIT_ASSERTION => BUG,
-        _ => ERROR,
-    })
+    let code = Report::snappea_exit_code(obs.exit_status());
+    Ok((code, driver::json_result(&specs, &obs)))
 }
 
 /// A spec's result line, and its errors.
@@ -321,11 +316,9 @@ fn print_spec(host: &mut dyn Host, spec: &Spec, r: &Report, verbose: bool) {
         }
     }
     if n > SHOWN_ERRORS {
-        host.out_line(&format!("      ... and {} more (--json-report has them all)", n - SHOWN_ERRORS));
+        host.out_line(&format!("      ... and {} more (--json lists all)", n - SHOWN_ERRORS));
     }
-    if let Some(coverage) = &r.coverage {
-        host.out_line(&coverage.render_text());
-    }
+    host.out_line(&format!("      Coverage: {}", r.coverage.summary()));
 }
 
 /// An error in one line or a few: what went wrong, and for which key.

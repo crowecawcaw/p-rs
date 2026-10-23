@@ -44,12 +44,13 @@ pub enum Style {
     #[default]
     Upstream,
     /// `snappea check`: `<out>/<test>/` with fixed names (`bug.schedule`, `bug.txt`,
-    /// `bug.trace.json`, `coverage.txt`, `summary.txt`, `scenario_coverage.json`), replaced
-    /// by each run, and no `.sci` file.
+    /// `bug.trace.json`, `scenario_coverage.json`), replaced by each run. Coverage and the
+    /// summary go to the console only (no `coverage.txt`, `summary.txt` or `.sci` file).
     Snappea,
 }
 
-/// The files a [`Style::Snappea`] run may write, removed before each run.
+/// The files a [`Style::Snappea`] run may write, removed before each run (with those
+/// earlier versions wrote).
 const SNAPPEA_FILES: &[&str] = &[
     "bug.txt",
     "bug.trace.json",
@@ -106,6 +107,8 @@ pub struct CheckConfig {
     pub latency_profile: Option<String>,
     /// Time-aware scheduling.
     pub timed: bool,
+    /// Record which statements, branches and handlers run ([`CaseOutcome::code_coverage`]).
+    pub code_coverage: bool,
 }
 
 impl Default for CheckConfig {
@@ -141,6 +144,7 @@ impl Default for CheckConfig {
             latency: None,
             latency_profile: None,
             timed: false,
+            code_coverage: false,
         }
     }
 }
@@ -317,7 +321,7 @@ pub fn replay(
     opts.replay = Some(trace);
     opts.replay_bound_at_end = cfg.style == Style::Snappea && cfg.fail_on_max_steps;
     let start = host.now();
-    let (res, _) = run_engine(host, loaded, tc, &opts, None, Some(1))?;
+    let (res, _) = run_engine(host, loaded, tc, &opts, None, Some(1), false)?;
     // `ReplayStrategy` reports a schedule it cannot follow with `Error.ReportAndExit`
     if let Some(e) = &res.replay_error {
         return Err(report_and_exit(host, e));
@@ -424,9 +428,10 @@ fn run_engine(
     opts: &CheckerOptions,
     deadline: Option<f64>,
     workers: Option<usize>,
+    code_coverage: bool,
 ) -> Result<(CheckResult, usize), Exit> {
     let prog = &loaded.analysis.program;
-    let checker = Checker::new(prog);
+    let checker = if code_coverage { Checker::with_code_coverage(prog) } else { Checker::new(prog) };
     let opts = &CheckerOptions { assembly_name: loaded.sources.project_name.clone(), ..opts.clone() };
     // a host without threads runs one worker
     let threads = host.threads();
@@ -476,7 +481,7 @@ fn run_workers(
 ) -> Result<CheckResult, String> {
     checker.announce(tc, opts, out)?;
     out.line(&format!("... Checker is using {} workers.", pool.count()));
-    let prog = checker.prog;
+    let (prog, code_coverage) = (checker.prog, !checker.code.probes.is_empty());
     let timed_out = AtomicBool::new(false);
     let (tx, rx) = mpsc::channel();
     let jobs: Vec<Job<'_>> = (0..pool.count())
@@ -484,7 +489,7 @@ fn run_workers(
             let tx = tx.clone();
             let timed_out = &timed_out;
             Box::new(move || {
-                let checker = Checker::new(prog);
+                let checker = if code_coverage { Checker::with_code_coverage(prog) } else { Checker::new(prog) };
                 let mut out = WorkerOut { tx, timed_out };
                 let part = checker.explore(tc, opts, pool, index, &mut out);
                 let _ = out.tx.send(Message::Done(index, Box::new(part)));
@@ -529,6 +534,10 @@ pub struct CaseOutcome {
     pub elapsed: f64,
     /// The `.schedule` file written for the bug (as `cfg.output_directory` names it).
     pub schedule_file: Option<String>,
+    /// What the schedules ran, and the code they could have run, with `cfg.code_coverage`.
+    pub code_coverage: Option<(crate::checker::code_coverage::Scope, crate::checker::code_coverage::Hits)>,
+    /// Scenario results, also written to the per-test artifact for cross-run merging.
+    pub scenario_coverage: crate::driver::scenario::Artifact,
 }
 
 impl CaseOutcome {
@@ -549,7 +558,7 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
     let opts = engine_options(cfg, seed);
     let engine_start = host.now();
     let deadline = cfg.timeout.map(|t| engine_start + f64::from(t));
-    let (res, workers) = run_engine(host, loaded, &tc, &opts, deadline, cfg.workers)?;
+    let (res, workers) = run_engine(host, loaded, &tc, &opts, deadline, cfg.workers, cfg.code_coverage)?;
     let engine_elapsed = host.now() - engine_start;
     if res.cancelled {
         host.out_line("... Checker timed out.");
@@ -575,7 +584,14 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
     if cfg.verbose {
         host.out_line("... ### Process 0 is terminating");
     }
-    if let Some(cov) = &res.coverage {
+    let prog = &loaded.analysis.program;
+    let code_coverage = res.coverage.as_ref().filter(|_| cfg.code_coverage).map(|cov| {
+        use crate::checker::code_coverage::{Hits, Scope};
+        let tables = crate::checker::coverage::CoverageTables::new(prog);
+        (Scope::test_case(prog, &tc), Hits::from_info(prog, &tables, cov))
+    });
+    // snappea reports coverage on the console
+    if let Some(cov) = res.coverage.as_ref().filter(|_| !snappea) {
         // ReportActivityCoverage (on by default upstream)
         host.out_line("... Emitting coverage report:");
         let checker = Checker::new(&loaded.analysis.program);
@@ -583,12 +599,10 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
         let txt = path(format!("{}.coverage.txt", file), "coverage.txt");
         host.out_line(&format!("..... Writing {}", txt));
         write_output(host, &txt, &text)?;
-        if !snappea {
-            let sci = path(format!("{}.sci", file), "");
-            host.out_line(&format!("..... Writing {}", sci));
-            let xml = crate::driver::sci::coverage_xml(&loaded.analysis.program, &checker.coverage_tables(), cov);
-            write_output(host, &sci, &xml)?;
-        }
+        let sci = path(format!("{}.sci", file), "");
+        host.out_line(&format!("..... Writing {}", sci));
+        let xml = crate::driver::sci::coverage_xml(prog, &checker.coverage_tables(), cov);
+        write_output(host, &sci, &xml)?;
     }
     let process_elapsed = host.now() - process_start;
     host.out_line(&res.report.text(&opts, "..."));
@@ -596,17 +610,19 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
         let schedules = res.report.explored_fair_schedules + res.report.explored_unfair_schedules;
         host.out_line(&x.text(schedules, opts.max_unfair_steps, "....."));
     }
-    let summary_path = path(format!("{}_pchecker_summary.txt", file), "summary.txt");
-    host.out_line(&format!("..... Writing {}", summary_path));
-    let summary = format!(
-        "bugs:{}\nschedules:{}\nmax_depth:{}\ntime_seconds:{}\nmemory_max_mb:{}",
-        res.report.num_bugs,
-        res.report.explored_fair_schedules + res.report.explored_unfair_schedules,
-        res.report.max_fair_steps.unwrap_or(0),
-        format_0_00(process_elapsed),
-        format_0_00(host.max_memory_gb())
-    );
-    write_output(host, &summary_path, &summary)?;
+    if !snappea {
+        let summary_path = path(format!("{}_pchecker_summary.txt", file), "summary.txt");
+        host.out_line(&format!("..... Writing {}", summary_path));
+        let summary = format!(
+            "bugs:{}\nschedules:{}\nmax_depth:{}\ntime_seconds:{}\nmemory_max_mb:{}",
+            res.report.num_bugs,
+            res.report.explored_fair_schedules + res.report.explored_unfair_schedules,
+            res.report.max_fair_steps.unwrap_or(0),
+            format_0_00(process_elapsed),
+            format_0_00(host.max_memory_gb())
+        );
+        write_output(host, &summary_path, &summary)?;
+    }
     if !res.report.scenarios.is_empty() {
         let suffix = if cfg.test_case_name.is_empty() { String::new() } else { format!("_{}", cfg.test_case_name) };
         let path = path(
@@ -632,6 +648,8 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
         exhaustive_finished: res.exhaustive.as_ref().map(|x| x.finished),
         elapsed: process_elapsed,
         schedule_file,
+        code_coverage,
+        scenario_coverage: crate::driver::scenario::from_report(&res.report, &cfg.test_case_name),
     })
 }
 

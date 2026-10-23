@@ -81,8 +81,8 @@ fn check_finds_a_bug_that_replays() {
     );
     assert!(h.stdout.ends_with("\n1 of 1 test case failed in 0.00s. Output: PCheckerOutput/\n"), "{}", h.stdout);
     assert!(!h.stdout.contains("Checker found a bug."), "{}", h.stdout);
-    // the test case's folder, with fixed names and no .sci file
-    assert_eq!(names(&h, OUT), ["bug.schedule", "bug.trace.json", "bug.txt", "coverage.txt", "summary.txt"]);
+    // the test case's folder, with fixed names; coverage and the summary go to the console
+    assert_eq!(names(&h, OUT), ["bug.schedule", "bug.trace.json", "bug.txt"]);
     assert!(read(&h, &format!("{}/bug.txt", OUT)).contains("six heads"));
     let schedule = format!("{}/bug.schedule", OUT);
     assert!(read(&h, &schedule).contains("--test-method:tcCoins\n"));
@@ -94,7 +94,7 @@ fn check_finds_a_bug_that_replays() {
     // a run without a bug replaces the previous run's files
     h.add_file("coins.p", &COINS.replace("assert false", "assert true"));
     assert_eq!(snappea(&mut h, &["check", "coins.p", "tcCoins"]), 0, "{}", h.stdout);
-    assert_eq!(names(&h, OUT), ["coverage.txt", "summary.txt"]);
+    assert!(names(&h, OUT).is_empty());
     assert!(h.stdout.contains("\nok    tcCoins (all "), "{}", h.stdout);
     assert!(h.stdout.ends_with("\n🫛 The test case passed in 0.00s. Output: PCheckerOutput/\n"), "{}", h.stdout);
 }
@@ -268,8 +268,6 @@ fn workers_find_a_bug_that_replays() {
         let n = schedules(&h.stdout, "tcCoins");
         assert!(txt.contains(&format!("<StrategyLog> Explored {} schedules", n)), "{}\n{}", n, txt);
         assert!(n < 5000);
-        let summary = read(&h, &format!("{}/summary.txt", OUT));
-        assert!(summary.contains(&format!("\nschedules:{}\n", n)), "{}", summary);
         let schedule = format!("{}/bug.schedule", OUT);
         assert_eq!(snappea(&mut h, &["replay", &schedule]), 1, "{}", h.stdout);
         assert!(h.stdout.contains("Reproduced the bug"), "{}", h.stdout);
@@ -443,41 +441,87 @@ fn observe_prints_each_spec_and_its_errors() {
 }
 
 #[test]
-fn merge_observed_reports_without_models_and_reject_bad_input() {
-    use snappea::checker::observe_coverage::ObserveCoverage;
-    let mut h = MemHost::new("/w");
-    let mut coverage = ObserveCoverage {
-        source_fingerprint: Some(format!("sha256:{}", "a".repeat(64))),
-        ..ObserveCoverage::default()
+fn observe_reports_coverage_and_merges_it_without_the_sources() {
+    let mut h = host();
+    h.add_file("inventory.p", include_str!("../../../examples/python/specs/inventory.p"));
+    let stocked = "{\"event\":\"eStocked\",\"key\":\"c\",\"payload\":{\"units\":3},\"timestamp\":1}\n";
+    let reserved =
+        "{\"event\":\"eReserved\",\"key\":\"c\",\"payload\":{\"order\":\"o\",\"units\":2},\"timestamp\":2}\n";
+    let released =
+        "{\"event\":\"eReleased\",\"key\":\"c\",\"payload\":{\"order\":\"o\",\"units\":2},\"timestamp\":3}\n";
+    h.add_file("a.jsonl", &format!("{stocked}{reserved}"));
+    h.add_file("b.jsonl", &format!("{stocked}{reserved}{released}"));
+    let observe = |h: &mut MemHost, log: &str, report: &str| {
+        snappea(h, &["observe", "inventory.p", log, "--spec", "InventoryCorrect", "--json-report", report])
     };
-    coverage.declared_states.insert("Inventory.Ready".into());
-    let report = |coverage: &ObserveCoverage, code: i32| {
-        serde_json::json!({"exit_code": code,
-        "input_complete": code == 0, "specs":[{"spec":"Inventory", "errors":[], "coverage":coverage.to_json()}]})
-        .to_string()
-    };
-    h.add_file("first.json", &report(&coverage, 0));
-    coverage.visited_states.insert("Inventory.Ready".into());
-    h.add_file("second.json", &report(&coverage, 1));
+    assert_eq!(observe(&mut h, "a.jsonl", "a.json"), 0, "{}", h.stderr);
+    // `assert false` handlers must never run, so they are not counted
+    assert!(h.stdout.contains("\n      Coverage: 8/12 statements, 0/0 branches, 2/3 event handlers\n"), "{}", h.stdout);
+    assert!(
+        h.stdout.contains(
+            "Not covered by the events:\n  inventory.p:30  InventoryCorrect.Ready, on eReleased: never handled\n"
+        ),
+        "{}",
+        h.stdout
+    );
+    assert_eq!(observe(&mut h, "b.jsonl", "b.json"), 0, "{}", h.stderr);
+    assert!(!h.stdout.contains("Not covered"), "{}", h.stdout);
+    // merged without the sources: the union of what ran
+    h.add_file("inventory.p", "");
     assert_eq!(
-        snappea(&mut h, &["coverage", "merge-observe", "first.json", "second.json", "--json-report", "suite.json"]),
+        snappea(&mut h, &["coverage", "merge-observe", "a.json", "--json-report", "suite.json"]),
         0,
         "{}",
         h.stderr
     );
-    assert!(h.stdout.contains("States: 1/1"));
-    assert!(h.stdout.contains("failed: 1; incomplete: 1"));
-    assert!(!h.stdout.contains("schema_version"));
-    let output = read(&h, "/w/suite.json");
-    h.add_file("again.json", &output);
+    assert!(h.stdout.contains("InventoryCorrect: 8/12 statements"), "{}", h.stdout);
+    assert_eq!(snappea(&mut h, &["coverage", "merge-observe", "suite.json", "b.json", "--format", "text"]), 0);
+    assert_eq!(h.stdout, "Coverage:\n  InventoryCorrect: 12/12 statements, 0/0 branches, 3/3 event handlers\n");
+    // merging again changes nothing
+    let merged = read(&h, "suite.json");
+    h.add_file("again.json", &merged);
     assert_eq!(snappea(&mut h, &["coverage", "merge-observe", "suite.json", "again.json", "--json"]), 0);
-    assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&h.stdout).unwrap(),
-        serde_json::from_str::<serde_json::Value>(&output).unwrap()
-    );
+    let value = |t: &str| serde_json::from_str::<serde_json::Value>(t).unwrap();
+    assert_eq!(value(&h.stdout), value(&merged));
     h.add_file("bad.json", "{}");
-    assert_eq!(snappea(&mut h, &["coverage", "merge-observe", "bad.json"]), 2);
-    assert!(h.stderr.contains("specs must be an array"));
+    assert_eq!(snappea(&mut h, &["coverage", "merge-observe", "bad.json", "--format", "text"]), 2);
+    assert!(h.stderr.contains("specs must be an array"), "{}", h.stderr);
+}
+
+#[test]
+fn output_is_json_for_programs_and_text_on_terminals_and_in_ci() {
+    let mut h = host();
+    h.terminal = false;
+    assert_eq!(snappea(&mut h, &["tests"]), 0);
+    let v: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(v, serde_json::json!({"exit_code": 0, "test_cases": ["tcCoins", "tcFine"]}));
+    assert_eq!(snappea(&mut h, &["tests", "--format", "text"]), 0);
+    assert_eq!(h.stdout, "tcCoins\ntcFine\n");
+    h.env.insert("CI".into(), "true".into());
+    assert_eq!(snappea(&mut h, &["tests"]), 0);
+    assert_eq!(h.stdout, "tcCoins\ntcFine\n");
+    h.env.insert("SNAPPEA_FORMAT".into(), "json".into());
+    assert_eq!(snappea(&mut h, &["tests"]), 0);
+    assert!(h.stdout.starts_with('{'), "{}", h.stdout);
+    h.terminal = true;
+    assert_eq!(snappea(&mut h, &["tests", "--json"]), 0);
+    assert!(h.stdout.starts_with('{'), "{}", h.stdout);
+    assert_eq!(snappea(&mut h, &["tests", "--json", "--format", "text"]), 2);
+    // a failure reports its error in the JSON
+    assert_eq!(snappea(&mut h, &["check", "tcNope", "--json"]), 2);
+    let v: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(v["exit_code"], 2);
+    assert!(v["error"].as_str().unwrap().starts_with("no test case matches 'tcNope'"), "{}", v);
+    // a check: each test case, and the code no test case ran
+    assert_eq!(snappea(&mut h, &["check", "tcCoins", "--seed", "2", "--json"]), 1);
+    let v: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(v["exit_code"], 1);
+    let case = &v["test_cases"][0];
+    assert_eq!(case["result"], "bug");
+    assert_eq!(case["bug"]["report"], "Assertion Failed: coins.p:8:1 six heads");
+    assert_eq!(case["bug"]["replay"], "snappea replay PCheckerOutput/tcCoins/bug.schedule");
+    assert_eq!(case["coverage"]["branches"], serde_json::json!({"covered": 2, "total": 2}));
+    assert!(v["coverage"]["uncovered"].is_array(), "{}", v);
 }
 
 /// Issue #47: a misspelled event name is silently dropped unless `--unknown-events` asks.
@@ -516,7 +560,7 @@ fn observe_reports_a_misspelled_event_name() {
     assert_eq!(snappea(&mut h, &args("error")), 2);
     assert!(h.stdout.contains("did you mean eReserved?"), "{}", h.stdout);
     let report: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
-    assert_eq!(report["exit_code"], 3);
+    assert_eq!(report["exit_code"], 2);
     let error = &report["specs"][0]["errors"][0];
     assert_eq!(error["kind"], "unknown_event");
     assert!(error["message"].as_str().unwrap().contains("'eReserverd'"));
@@ -524,4 +568,132 @@ fn observe_reports_a_misspelled_event_name() {
 
     assert_eq!(snappea(&mut h, &args("loud")), 2);
     assert!(h.stderr.contains("ignore, warn or error"), "{}", h.stderr);
+}
+
+const PING: &str = "event ePing: machine;\n\
+     event ePong;\n\
+     event eStop;\n\
+     machine Server {\n\
+       start state Ready {\n\
+         on ePing do (from: machine) {\n\
+           if (from == this) { print \"self\"; }\n\
+           send from, ePong;\n\
+         }\n\
+         on eStop goto Stopped;\n\
+         on ePong do { assert false, \"unexpected\"; }\n\
+       }\n\
+       state Stopped { entry { print \"stopped\"; } }\n\
+     }\n\
+     machine Client {\n\
+       start state Init {\n\
+         entry {\n\
+           var i: int;\n\
+           send new Server(), ePing, this;\n\
+           while (i > 0) {\n\
+             i = i - 1;\n\
+             print \"never\";\n\
+           }\n\
+         }\n\
+         ignore ePong;\n\
+       }\n\
+     }\n\
+     test tcPing [main=Client]: { Client, Server };\n";
+
+#[test]
+fn check_reports_what_never_ran() {
+    let mut h = host();
+    h.add_file("ping.p", PING);
+    assert_eq!(snappea(&mut h, &["check", "ping.p", "--json-report", "result.json"]), 0, "{}", h.stdout);
+    // `assert false` marks code that must never run: it is neither counted nor listed
+    assert!(h.stdout.contains("\n      Coverage: 4/8 statements, 1/2 branches, 1/2 event handlers\n"), "{}", h.stdout);
+    let expected = "Not covered by the test case:\n  \
+         ping.p:7      Server.Ready, on ePing: if (from == this) never true\n  \
+         ping.p:10     Server.Ready, on eStop: goto Stopped never taken\n  \
+         ping.p:13     Server.Stopped entry: never ran\n  \
+         ping.p:21-22  Client.Init entry: not reached: i = i - 1;\n";
+    assert!(h.stdout.contains(expected), "{}", h.stdout);
+    // the JSON result has the same, and all of it
+    let result: serde_json::Value = serde_json::from_str(&read(&h, "result.json")).unwrap();
+    assert_eq!(
+        result["coverage"]["uncovered"][3],
+        serde_json::json!({"file": "ping.p", "line": 21, "end_line": 22, "context": "Client.Init entry",
+            "what": "not reached: i = i - 1;"})
+    );
+    // no coverage files
+    assert!(names(&h, "PCheckerOutput/tcPing").is_empty());
+}
+
+#[test]
+fn output_options_work_before_commands_and_usage_errors_write_reports() {
+    let mut h = host();
+    for args in
+        [vec!["--json", "tests"], vec!["--format=json", "tests"], vec!["--json-report", "r.json", "tests", "--json"]]
+    {
+        assert_eq!(snappea(&mut h, &args), 0, "{}", h.stderr);
+        let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+        assert_eq!(result["test_cases"], serde_json::json!(["tcCoins", "tcFine"]));
+    }
+    // Options also work between the command and subcommand.
+    assert_eq!(snappea(&mut h, &["coverage", "--json", "merge-observe", "--stdin"]), 2);
+    assert!(!h.stderr.contains("unknown subcommand"));
+    for args in [
+        vec!["check", "--bogus", "--json-report", "r.json", "--json"],
+        vec!["tests", "--workers", "--json-report=r.json", "--json"],
+        vec!["--json-report=r.json", "--json", "check", "--workers"],
+        vec!["check", "--workers", "0", "--json-report", "r.json", "--json"],
+        vec!["observe", "--bogus", "--json-report", "r.json", "--json"],
+        vec!["--json", "--json-report=r.json", "typo"],
+        vec!["tests", "--format=invalid", "--json-report=r.json", "--json"],
+    ] {
+        assert_eq!(snappea(&mut h, &args), 2, "{:?}: {}", args, h.stderr);
+        let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+        assert_eq!(result["exit_code"], 2);
+        assert!(result["error"].is_string());
+        assert_eq!(h.stdout, read(&h, "r.json"));
+    }
+    assert_eq!(snappea(&mut h, &["--json-report=r.json", "check", "--bogus", "--format=text"]), 2);
+    assert!(h.stdout.is_empty());
+    assert!(read(&h, "r.json").contains("unknown option"));
+    // A command option's value and everything after `--` stay positional.
+    assert_eq!(snappea(&mut h, &["check", "--out", "--json", "tcFine"]), 0);
+    assert!(h.stdout.starts_with("Checking"));
+    assert_eq!(snappea(&mut h, &["tests", "--", "--json"]), 2);
+    assert!(!h.stdout.starts_with('{'));
+}
+
+#[test]
+fn json_keeps_insertion_order() {
+    let mut h = host();
+    assert_eq!(snappea(&mut h, &["--json", "version"]), 0);
+    assert!(h.stdout.find("\"version\"").unwrap() < h.stdout.find("\"exit_code\"").unwrap());
+}
+
+#[test]
+fn failed_case_coverage_is_marked_partial_in_case_and_suite() {
+    let mut h = host();
+    assert_eq!(snappea(&mut h, &["check", "--seed=2", "--json"]), 1);
+    let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(result["coverage"]["partial"], true);
+    assert_eq!(result["test_cases"][0]["coverage"]["partial"], true);
+    assert_eq!(result["test_cases"][1]["coverage"]["partial"], false);
+    assert_eq!(snappea(&mut h, &["check", "tcFine", "--json"]), 0);
+    let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(result["coverage"]["partial"], false);
+}
+
+#[test]
+fn check_includes_scenario_coverage_in_console_and_json() {
+    let mut h = host();
+    h.add_file("scenario.p", concat!(
+        include_str!("../../../tests/upstream/RegressionTests/Feature1SMLevelDecls/Correct/ScenarioCoverageBasic/ScenarioCoverageBasic.p"),
+        "\ntest tcScenario [main=Main]: { Main, Server };"
+    ));
+    assert_eq!(snappea(&mut h, &["check", "scenario.p", "--json-report=r.json"]), 0, "{}", h.stderr);
+    assert!(h.stdout.contains("1/2 scenarios covered"), "{}", h.stdout);
+    assert!(h.stdout.contains("[  GAP  ] NeverCovered"));
+    let result: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    let artifact: serde_json::Value =
+        serde_json::from_str(&read(&h, "PCheckerOutput/tcScenario/scenario_coverage.json")).unwrap();
+    assert_eq!(result["scenarios"], serde_json::json!([artifact]));
+    assert_eq!(result["test_cases"][0]["scenarios"], result["scenarios"][0]);
 }

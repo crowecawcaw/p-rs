@@ -119,7 +119,6 @@ fn run_case(case: &Path, expect: &Value) -> Result<(), String> {
     let strict = options.get("strict").and_then(Value::as_bool).unwrap_or(!specs.is_empty());
     let check_hot = options.get("check_hot").and_then(Value::as_bool).unwrap_or(false);
     let unknown_events = options.get("unknown_events").and_then(Value::as_str).unwrap_or("error");
-    let coverage = expected.get("coverage").is_some();
 
     let mut args: Vec<String> = vec!["observe".into(), "spec.p".into(), "events".into()];
     if specs.is_empty() {
@@ -138,9 +137,6 @@ fn run_case(case: &Path, expect: &Value) -> Result<(), String> {
     }
     if check_hot {
         args.push("--check-hot".into());
-    }
-    if coverage {
-        args.push("--coverage".into());
     }
     args.extend(["--unknown-events".into(), unknown_events.into()]);
     let output = Command::new(env!("CARGO_BIN_EXE_snappea")).current_dir(&work).args(&args).output().unwrap();
@@ -168,7 +164,7 @@ fn run_case(case: &Path, expect: &Value) -> Result<(), String> {
                 .find(|s| s["spec"] == spec.as_str())
                 .map(|s| &s["coverage"])
                 .ok_or_else(|| format!("no coverage for {spec}{}", context()))?;
-            for part in ["states", "handlers"] {
+            for part in ["statements", "branches", "handlers"] {
                 for count in ["covered", "total"] {
                     if want[part].get(count).is_some() && want[part][count] != got[part][count] {
                         return Err(format!(

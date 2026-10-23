@@ -154,8 +154,8 @@ names it.
 
 ## Coverage
 
-Set `coverage` (or `SNAPPEA_COVERAGE`) and every check merges its observed monitor coverage
-into that file, under a file lock, so parallel tests and test binaries share it. It
+Set `coverage` (or `SNAPPEA_COVERAGE`) and every check merges its spec coverage (the
+handlers, statements and branches of the specs the events ran) into that file, under a file lock, so parallel tests and test binaries share it. It
 prints the summary when the coverage changes (`cargo test -- --nocapture` shows it). The JSON is
 `snappea coverage merge-observe`'s format. Delete a stale file before a run; CI starts
 clean. `CheckReport::coverage()` returns one check's coverage.

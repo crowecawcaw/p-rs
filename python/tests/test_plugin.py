@@ -179,11 +179,22 @@ def test_opt_in_coverage_summary_and_json(project):
     import json
     result = run(project, "-k", "test_correct or test_fixture", "--snappea-coverage=coverage/monitor.json")
     result.assert_outcomes(passed=2, deselected=8)
-    result.stdout.fnmatch_lines(["*Monitor coverage (union of completed test checks)*", "*MutualExclusion*", "*States:*", "*JSON:*monitor.json*"])
+    result.stdout.fnmatch_lines([
+        "*Spec coverage (all completed checks)*",
+        "Coverage:",
+        "  MutualExclusion: */* statements, */* branches, */* event handlers",
+        "Not covered by any observation:",
+        "  specs/lock.p:*  RequestsGranted.*",
+        "JSON:*monitor.json",
+    ])
     report = json.loads((project.path / "coverage" / "monitor.json").read_text())
     assert report["scope"] == "observed_monitor_suite"
     assert report["specs"]
-    assert all(spec["coverage"]["states"]["covered"] > 0 for spec in report["specs"])
+    mutual = next(s for s in report["specs"] if s["spec"] == "MutualExclusion")
+    assert mutual["coverage"]["statements"]["covered"] > 0
+    assert mutual["coverage"]["handlers"]["covered"] > 0
+    # P source paths are relative to the project, not to each check's temp folder
+    assert all(u["file"] == "specs/lock.p" for s in report["specs"] for u in s["coverage"]["uncovered"])
 
 
 def test_coverage_union_via_core_cli(project):
@@ -202,7 +213,7 @@ def test_coverage_union_via_core_cli(project):
     report = json.loads((project.path / "monitor.json").read_text())
     mutual = next(s for s in report["specs"] if s["spec"] == "MutualExclusion")
     handlers = mutual["coverage"]["handlers"]
-    assert handlers["covered"] == len(handlers["visited"]) == 2
+    assert handlers == {"covered": 2, "total": 2}
     assert report["observations"]
 
 
@@ -222,7 +233,7 @@ def test_coverage_reporting_error_fails_process(project):
     result = run(project, "-k", "test_correct", "--snappea-coverage=directory.json")
     result.assert_outcomes(passed=1, deselected=9)
     assert result.ret != 0
-    assert "Monitor coverage reporting failed" in result.stdout.str()
+    assert "Spec coverage reporting failed" in result.stdout.str()
 
 
 def test_coverage_empty_suite(project):
@@ -329,4 +340,4 @@ def test_coverage_with_xdist(project):
     result.assert_outcomes(passed=3)
     report = json.loads((project.path / "cov.json").read_text())
     assert len(report["observations"]) == 3
-    result.stdout.fnmatch_lines(["*Monitor coverage*", "*JSON:*cov.json*"])
+    result.stdout.fnmatch_lines(["*Spec coverage*", "*JSON:*cov.json*"])

@@ -63,7 +63,15 @@ jqwik prints its seed and smallest failing list, and keeps replay state in
 ## Coverage
 
 The extension and the jqwik collector both merge into `target/coverage/monitor.json`
-(from `snappea.properties`) and print a summary. Delete it before a fresh run.
+(from `snappea.properties`) and print a summary, with any spec code no test reached:
+
+```
+Coverage:
+  InventoryCorrect: 12/12 statements, 0/0 branches, 3/3 event handlers
+Spec coverage JSON: .../examples/java/target/coverage/monitor.json
+```
+
+Delete the file before a fresh run.
 
 ## Adapt to your project
 

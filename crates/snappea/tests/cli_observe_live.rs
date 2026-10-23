@@ -33,6 +33,7 @@ fn run(input: &str, eof: bool, extra: &[&str]) -> (i32, String, String) {
     command
         .current_dir(&root)
         .args(["observe", "inventory.p", "--spec", "Inventory", "--stdin", "--json-report", "report.json"])
+        .args(["--format", "text"])
         .args(extra)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -70,12 +71,12 @@ static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize:
 #[test]
 fn violation_exits_while_producer_keeps_stdin_open() {
     let (code, output, report) =
-        run("{\"event\":\"Stock\",\"payload\":1}\n{\"event\":\"Take\",\"payload\":2}\n", false, &["--coverage"]);
+        run("{\"event\":\"Stock\",\"payload\":1}\n{\"event\":\"Take\",\"payload\":2}\n", false, &[]);
     assert_eq!(code, 1, "{output}");
     assert!(output.contains("oversold"));
     assert!(report.contains("\"input_complete\": false"));
     assert!(report.contains("spec_violation"));
-    assert!(output.contains("Observed monitor coverage"), "{output}");
+    assert!(output.contains("      Coverage: "), "{output}");
     assert!(report.contains("\"coverage\""));
     assert!(report.contains("Inventory.Active"));
 }
@@ -130,7 +131,7 @@ fn partitions_have_fresh_state_and_bounded_replays() {
 
 #[test]
 fn strict_live_validates_at_eof_without_implying_hot_checks() {
-    let (code, output, report) = run("", true, &["--strict", "--coverage"]);
+    let (code, output, report) = run("", true, &["--strict"]);
     assert_eq!(code, 2, "{output}");
     assert!(report.contains("\"kind\": \"validation\""));
     assert!(report.contains("\"input_complete\": true"));

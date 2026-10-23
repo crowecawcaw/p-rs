@@ -51,19 +51,16 @@ fn observed_coverage_unions_real_monitor_runs() {
     sm.add("spec.p", "event eLeft; event eRight; spec Choice observes eLeft,eRight { start state Ready { on eLeft goto Left; on eRight do { goto Right; } } state Left {} state Right {} }");
     let analysis = snappea::sema::compile(&sm, &snappea::sema::Options::default()).expect("compiles");
     let spec = Spec::new(&analysis.program, "Choice").unwrap();
-    let options = ObserveOptions { coverage: true, ..Default::default() };
+    let options = ObserveOptions::default();
     let mut clock = || 0.0;
-    let mut left = spec.observe(&[vec!["eLeft".into()]], &Events, &options, &mut clock).coverage.unwrap();
-    let right = spec.observe(&[vec!["eRight".into()]], &Events, &options, &mut clock).coverage.unwrap();
-    assert_eq!(left.visited_states.len(), 2);
-    assert!(left.render_text().contains("Unvisited state: Choice.Right"));
-    left.merge(&right);
-    left.merge(&right);
-    assert_eq!(left.to_json()["states"]["covered"], 3);
-    assert_eq!(left.to_json()["handlers"]["covered"], 2);
-    assert_eq!(left.transitions.len(), 2);
-    assert!(!left.render_text().contains("Unvisited state:"));
-    assert!(!left.render_text().contains("Uncovered handler:"));
+    let mut left = spec.observe(&[vec!["eLeft".into()]], &Events, &options, &mut clock).coverage;
+    let right = spec.observe(&[vec!["eRight".into()]], &Events, &options, &mut clock).coverage;
+    let missed: Vec<String> = left.uncovered().iter().map(|u| format!("{}: {}", u.context, u.what)).collect();
+    assert_eq!(missed, ["Choice.Ready, on eRight: never handled"]);
+    left.merge(&right).unwrap();
+    left.merge(&right).unwrap();
+    assert_eq!(left.summary().to_string(), "1/1 statements, 0/0 branches, 2/2 event handlers");
+    assert!(left.uncovered().is_empty());
 }
 
 #[test]
@@ -73,7 +70,7 @@ fn strict_live_prefix_cannot_be_success_without_eof() {
     sm.add("spec.p", "event e; spec S observes e { start state Ready { on e do {} } }");
     let analysis = snappea::sema::compile(&sm, &snappea::sema::Options::default()).unwrap();
     let spec = Spec::new(&analysis.program, "S").unwrap();
-    let opts = ObserveOptions { strict: true, coverage: true, ..Default::default() };
+    let opts = ObserveOptions { strict: true, ..Default::default() };
     let mut strategy = NoScheduling;
     let session = ObserveSession::new(&spec, opts.clone(), &mut strategy, 0.0);
     let report = session.finish(false, 0.0);
@@ -82,7 +79,7 @@ fn strict_live_prefix_cannot_be_success_without_eof() {
     assert!(report.errors[0].message.contains("before EOF"));
     let suite = snappea::checker::observe_report::ObserveCoverageReport::from_observation("S", &report).unwrap();
     let metadata = &suite.to_json()["observations"][0];
-    assert_eq!(metadata["exit_code"], 3);
+    assert_eq!(metadata["exit_code"], 2);
     assert_eq!(metadata["specs"][0]["errors"][0]["kind"], "validation");
     assert!(metadata["specs"][0]["errors"][0]["message"].as_str().unwrap().contains("before EOF"));
     let roundtrip = snappea::checker::observe_report::ObserveCoverageReport::from_json(&suite.to_json()).unwrap();

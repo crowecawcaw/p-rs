@@ -48,9 +48,7 @@ class ConformanceTest {
         if (Json.has(options, "unknown_events"))
             builder.unknownEvents(UnknownEvents.valueOf(Json.text(Json.get(options, "unknown_events")).toUpperCase()));
         var observer = builder.build();
-        boolean wantsCoverage = Json.has(expect, "coverage");
-        var coverage = observer.coverage(wantsCoverage ? temporary.resolve("coverage.json") : null);
-        var recording = observer.recording(dir.getFileName().toString(), coverage);
+        var recording = observer.recording(dir.getFileName().toString());
         for (var line : Files.readAllLines(dir.resolve("events.jsonl"))) {
             if (line.isBlank()) continue;
             var event = Json.parse(line);
@@ -90,20 +88,19 @@ class ConformanceTest {
             }
             default -> fail("unknown outcome " + outcome);
         }
-        if (wantsCoverage) {
+        if (Json.has(expect, "coverage")) {
             var report = Json.parse(recording.report().orElseThrow().json());
             for (var spec : ((Map<?, ?>) Json.get(expect, "coverage")).entrySet()) {
                 Object got = null;
                 for (var each : Json.items(Json.get(report, "specs")))
                     if (spec.getKey().equals(Json.get(each, "spec"))) got = Json.get(each, "coverage");
                 assertNotNull(got, "no coverage for " + spec.getKey());
-                for (var part : List.of("states", "handlers"))
+                for (var part : List.of("statements", "branches", "handlers"))
                     for (var count : List.of("covered", "total"))
                         if (Json.has(Json.get(spec.getValue(), part), count))
                             assertEquals(Json.get(Json.get(spec.getValue(), part), count), Json.get(Json.get(got, part), count),
                                     spec.getKey() + " " + part + "." + count);
             }
-            coverage.close();
         }
     }
 

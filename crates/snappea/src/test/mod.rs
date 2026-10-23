@@ -645,7 +645,6 @@ impl Recording {
         let options = ObserveOptions {
             strict,
             check_hot: self.model.options.check_hot,
-            coverage: true,
             unknown_events: self.model.options.unknown_events,
             input_names: names,
             ..ObserveOptions::default()

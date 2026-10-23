@@ -85,13 +85,15 @@ Relative paths in environment variables resolve against the process working dire
   `snappea::checker::observe` (Rust, in-process). They MUST NOT parse P, check payloads,
   reorder events or interpret monitor semantics themselves.
 - CLI helpers MUST pass `--json-report` and read results from the report, never from
-  console output. Exit codes: 0 pass, 1 spec violation, 2 tool or input error. No report
-  file means a configuration or compile error; its console output is the message
-  (`error: ...` on stderr, type errors on stdout).
+  console output, and pass `--format text` when they show snappea's output to people
+  (a subprocess's stdout is not a terminal, so it defaults to JSON). The report's
+  `exit_code` is the exit status: 0 pass, 1 spec violation, 2 tool or input error; a
+  configuration or compile error gives `{"exit_code": 2, "error": "..."}`. Classify
+  errors by their `kind`.
 - Spec selection: `--spec <name>` for each name when `specs` is set, else `--all-specs`
   with `--exclude-specs <name>` for each excluded spec. `strict` → `--strict`;
-  `check_hot` → `--check-hot`; `unknown_events` → `--unknown-events` ([#47](https://github.com/crowecawcaw/snappea/issues/47));
-  coverage → `--coverage`.
+  `check_hot` → `--check-hot`; `unknown_events` → `--unknown-events` ([#47](https://github.com/crowecawcaw/snappea/issues/47)).
+  Every report has coverage.
 - Events go to the core in the [events folder format](observe.md#events-folder-format),
   with `-l <folder>`. Extra inputs (`add_events_dir`, `add_log`) are passed as further
   `-l` options (one path each), which the core merges into one input set
@@ -292,7 +294,7 @@ One project file per ecosystem, same keys as the [concepts](#concepts):
   "options": {"specs": [...], "exclude": [...], "strict": true, "check_hot": false, "unknown_events": "error"},
   "expect": {"outcome": "pass | violation | setup_error", "spec": "...", "key": "...",
              "message": "substring", "liveness": false, "kind": "validation",
-             "coverage": {"Spec": {"states": {"covered": 1, "total": 2}, "handlers": {...}}}}
+             "coverage": {"Spec": {"statements": {"covered": 4, "total": 6}, "branches": {...}, "handlers": {...}}}}
 }
 ```
 

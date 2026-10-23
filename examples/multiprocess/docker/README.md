@@ -91,13 +91,13 @@ The example invokes the equivalent of:
 ```sh
 snappea observe examples/multiprocess/specs/inventory.p \
   --spec InventoryCorrect --live /dev/fd/5 --live /dev/fd/7 --sequence seq \
-  --strict --coverage --record events.jsonl --json-report report.json
+  --strict --format text --record events.jsonl --json-report report.json
 ```
 
 `--strict` fails a completed stream in which no event was relevant to the spec.
 
-The native `snappea` process exits 1 for a spec violation. The JSON report preserves
-PObserve's `exit_code: 2` for that same violation; it additionally reports
+The native `snappea` process and JSON report both use exit code 1 for a spec
+violation. The report additionally includes
 `input_complete: false` and `stop_reason: "error"`. A healthy EOF reports 0,
 `input_complete: true`, and `stop_reason: "eof"`. A real supervisor must propagate
 failure to its test runner, as `run.py` does. Catching a violation in the test
@@ -145,11 +145,11 @@ then a concise JSON result. The artifacts directory retains:
 | `result.json` | Supervisor result, exit statuses, emitters, and cleanup evidence |
 | `inventory.sqlite` | Application state and transactional outbox |
 
-The healthy run reports 2/2 states, 3/6 handlers, and one observed transition.
-The three uncovered handlers reject invalid stock setup or operations before
-setup, so a passing application trace should not cover them. The faulty run
-reports a checked prefix with 2/2 states and 2/6 handlers. `report.json` contains
-coverage declarations and visited elements under `specs[0].coverage`, allowing CI
+The healthy run reports 12/12 statements, 0/0 branches, and 3/3 event handlers.
+Handlers starting with `assert false` reject invalid histories and are excluded
+because they must never run. The faulty run reports a checked prefix with 8/12
+statements and 2/3 handlers. `report.json` contains coverage points and the points
+that ran under `specs[0].coverage`, allowing CI
 to inspect what ran and what did not. This measures the P monitor exercised by
 the actual history; it does not measure application code coverage or all possible
 P paths, schedules, or distributed failures.

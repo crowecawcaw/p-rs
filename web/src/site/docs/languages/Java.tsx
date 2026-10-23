@@ -350,8 +350,8 @@ mode = auto                     # auto | marked | off
         <EnvTable lang="java" />
         <h3>Suite coverage</h3>
         <p>
-          Set <code>coverage</code> (or <code>SNAPPEA_COVERAGE</code>): the extension writes the P spec states and
-          handlers all checks reached once, when the run ends, and prints the summary. Outside JUnit,{" "}
+          Set <code>coverage</code> (or <code>SNAPPEA_COVERAGE</code>): the extension writes the P spec handlers, statements and
+          branches all checks reached once, when the run ends, and prints the summary. Outside JUnit,{" "}
           <code>observer.coverage()</code> gives a collector to pass to <code>observer.recording(label, collector)</code>.
           Collectors merge into an existing file under a lock, so forks share one path; delete it before a run.
         </p>

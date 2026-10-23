@@ -323,8 +323,8 @@ if errors.As(err, &v) && v.Key == "coffee" { ... }
         <h3>Suite coverage</h3>
         <p>
           Set <code>Config.Coverage</code> (or <code>SNAPPEA_COVERAGE</code>) and add{" "}
-          <code>{"func TestMain(m *testing.M) { snappeatest.Main(m) }"}</code>. <code>Main</code> merges the P spec states
-          and handlers every check reached into the file once, after the tests, and prints the summary. Without it, each
+          <code>{"func TestMain(m *testing.M) { snappeatest.Main(m) }"}</code>. <code>Main</code> merges the P spec handlers,
+          statements and branches every check reached into the file once, after the tests, and prints the summary. Without it, each
           check merges as it completes. The file is merged under a lock, so <code>go test ./...</code> packages can share
           it; delete a stale file before a run.
         </p>

@@ -66,8 +66,9 @@ snappea.SpecViolation: P spec InventoryCorrect was broken: reservation exceeds a
 
 The full report adds the emit location, the P assertion location, and a folder with
 the events and checker output. `--snappea-coverage=coverage/monitor.json` in the pytest
-options prints [coverage](../README.md#coverage) and merges it into the JSON report;
-delete the file to start over.
+options prints [coverage](../README.md#coverage) (the statements, branches and event
+handlers of each spec the suite's events ran, then the P lines none ran) and merges it
+into the JSON report; delete the file to start over.
 
 ## 3. Generated histories with Hypothesis
 

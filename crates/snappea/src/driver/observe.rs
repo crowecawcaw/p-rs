@@ -64,8 +64,6 @@ pub struct ObserveConfig {
     pub lookup: Lookup,
     /// Report a key whose spec is in a hot state after its last event.
     pub check_hot: bool,
-    /// Report observed monitor state and handler coverage.
-    pub coverage: bool,
     /// Require at least one checked relevant event per spec.
     pub strict: bool,
     /// Event names no P source declares.
@@ -99,7 +97,6 @@ impl Default for ObserveConfig {
             exclude_specs: Vec::new(),
             lookup: Lookup::Exact,
             check_hot: false,
-            coverage: false,
             strict: false,
             unknown_events: UnknownEvents::Ignore,
             logs: Vec::new(),
@@ -251,7 +248,6 @@ impl Observer {
             assume_sorted: cfg.assume_sorted,
             keys: cfg.keys.clone(),
             check_hot: cfg.check_hot,
-            coverage: cfg.coverage,
             strict: cfg.strict,
             unknown_events: cfg.unknown_events,
             input_names,
@@ -345,8 +341,9 @@ impl Observation {
 
 /// The machine-readable result (`--json-report`): PObserve's exit status (`exit_code`), and
 /// per spec the errors with the key and the log entries of the events leading up to each one.
-/// Live input adds whether it was read to its end (`input_complete`, `stop_reason`).
-pub fn json_report(specs: &[Spec], obs: &Observation) -> String {
+/// Live input adds whether it was read to its end (`input_complete`, `stop_reason`). Each
+/// spec has its code coverage, which `snappea coverage merge-observe` merges.
+pub fn json_result(specs: &[Spec], obs: &Observation) -> Json {
     let (reports, exit_code) = (&obs.reports, obs.exit_status());
     let specs: Vec<Json> = specs
         .iter()
@@ -356,14 +353,7 @@ pub fn json_report(specs: &[Spec], obs: &Observation) -> String {
                 .errors
                 .iter()
                 .map(|e| {
-                    let kind = match e.kind {
-                        ErrorKind::SpecViolation => "spec_violation",
-                        ErrorKind::OutOfOrder => "out_of_order",
-                        ErrorKind::Parser => "parser",
-                        ErrorKind::Unknown => "unknown",
-                        ErrorKind::Validation => "validation",
-                        ErrorKind::UnknownEvent => "unknown_event",
-                    };
+                    let kind = e.kind.name();
                     let (key, events) = match &e.replay {
                         Some(rp) => (
                             Json::from(rp.key.clone()),
@@ -397,9 +387,7 @@ pub fn json_report(specs: &[Spec], obs: &Observation) -> String {
                 "verified_keys": r.metrics.verified_keys,
                 "errors": errors,
             });
-            if let Some(c) = &r.coverage {
-                result["coverage"] = c.to_json();
-            }
+            result["coverage"] = r.coverage.to_json(true);
             if !r.unknown_events.is_empty() {
                 result["unknown_events"] = r
                     .unknown_events
@@ -425,7 +413,12 @@ pub fn json_report(specs: &[Spec], obs: &Observation) -> String {
         json["input_complete"] = Json::Bool(obs.input_complete);
         json["stop_reason"] = Json::from(if obs.input_complete { "eof" } else { "error" });
     }
-    let mut text = serde_json::to_string_pretty(&json).unwrap_or_default();
+    json
+}
+
+/// [`json_result`] as text.
+pub fn json_report(specs: &[Spec], obs: &Observation) -> String {
+    let mut text = serde_json::to_string_pretty(&json_result(specs, obs)).unwrap_or_default();
     text.push('\n');
     text
 }
