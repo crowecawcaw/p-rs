@@ -92,10 +92,12 @@ fn main() {
     for tc in cases {
         for name in manifest["strategies"].as_array().unwrap() {
             let label = name.as_str().unwrap();
-            let choice_guidance = matches!(label, "feedback-choice" | "feedback-frontier-choice");
-            let frontier_guidance = matches!(label, "feedback-frontier" | "feedback-frontier-choice");
+            // `feedback` and `auto` measure the defaults (checkpoints on); `feedback-plain`
+            // turns checkpoints off and `feedback-choice` adds next-choice guidance.
+            let choice_guidance = label == "feedback-choice";
+            let frontier_guidance = label != "feedback-plain";
             let strategy: StrategyKind =
-                if choice_guidance || frontier_guidance { StrategyKind::Feedback } else { label.parse().unwrap() };
+                if label.starts_with("feedback-") { StrategyKind::Feedback } else { label.parse().unwrap() };
             let seed_start = manifest["seed_start"].as_u64().unwrap_or(0);
             for seed in seed_start..seed_start + manifest["seeds"].as_u64().unwrap() {
                 let seed = seed as u32;

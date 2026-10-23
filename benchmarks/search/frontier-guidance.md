@@ -69,6 +69,11 @@ Base revision: `b33f3ad408073f046ee6ab1c3866cf45ae201bed`; Rust 1.99.1; dirty wo
 - Combined-policy negative trials: [OSR](frontier-osr-combined.json.gz), [Multi-Paxos](frontier-paxos-combined.json.gz).
 - [Explicit-monitor diagnostic](frontier-liveness-diagnostic.json.gz) and [diagnostic script](frontier-liveness-diagnostic.py).
 
+These commands ran at b33f3ad, where checkpoints were off by default and
+`--frontier-guidance` added a `feedback-frontier` arm. The scripts on main now
+measure the defaults: `feedback` and `auto` include checkpoints, and
+`--plain-feedback` adds a `feedback-plain` arm without them.
+
 ```sh
 python3 scripts/bench-corpus.py --frontier-guidance --seeds 3 --seconds-per-run 0.25 \
   --out /tmp/frontier-corpus.json --report /tmp/frontier-corpus.md

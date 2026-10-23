@@ -2,7 +2,7 @@
 # main.jsonl on the `benchmarks` branch. To fill in a commit that has no entry,
 # run it by hand on main with that commit's sha: main's bench script runs
 # against a build of that commit. The run summary compares the commit
-# with the previous one; the chart is at https://<owner>.github.io/<repo>/bench/.
+# with the previous one; the charts are at https://snappea.dev/bench/.
 #
 # Wall-clock times on shared runners vary by 10-20% between runs, so each result
 # also stores the instructions executed (cachegrind), which do not. A manual run

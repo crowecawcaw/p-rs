@@ -96,7 +96,7 @@ python3 scripts/bench.py report --current bench.json --history old.jsonl
 
 * Every commit on main: `.github/workflows/bench.yml` appends the result to
   `main.jsonl` on the `benchmarks` branch and reports the change in the run summary.
-  [Charts](https://crowecawcaw.github.io/snappea/bench/). Wall-clock times on shared
+  [Charts](https://snappea.dev/bench/). Wall-clock times on shared
   runners vary by about ±10%; instruction counts are stable to about 0.2% and are the
   better signal. GitHub also hands out runners with different CPUs, up to 40% apart in
   speed, so charts have one line per CPU model, and the run summary compares times
@@ -105,6 +105,14 @@ python3 scripts/bench.py report --current bench.json --history old.jsonl
 * Against upstream P: run the "Benchmark vs upstream P" workflow by hand. It installs P
   from NuGet, runs both tools on the same runner and appends the comparison to
   `upstream.jsonl` on the `benchmarks` branch.
+
+To see what each native strategy costs per schedule (the CI benchmark above runs
+`snappea-compat`'s random strategy only), run the same tutorial workloads through
+random, feedback with and without checkpoints, auto, PCT and DFS:
+
+```sh
+cargo run --release -p snappea --example strategy_bench -- tests/upstream/Tutorial
+```
 
 Search effectiveness is measured separately from throughput:
 
@@ -116,7 +124,7 @@ This compares random, feedback, DFS, randomized DFS and auto on a fixed multi-bu
 suite across 20 seeds, counting schedules to each bug and to all known bugs. Runs
 that miss bugs within 10,000 schedules remain explicitly incomplete. The
 `Search effectiveness` workflow records every main commit in `search.jsonl` on
-the `benchmarks` branch. See [methodology and recorded experiments](../benchmarks/search/README.md)
+the `benchmarks` branch; the latest result is on the [benchmarks page](https://snappea.dev/bench/#search). See [methodology and recorded experiments](../benchmarks/search/README.md)
 for the workloads, raw results and limits of the comparisons.
 
 For a quick pass across every runnable example/tutorial/regression model test

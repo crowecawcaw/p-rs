@@ -913,6 +913,11 @@ impl Strategy for FeedbackGuidedStrategy {
             return;
         }
         self.stalled = 0;
+        // Coverage and timeline novelty both report progress for the same schedule;
+        // save it once. Each schedule gets a new generator, so identity is the schedule.
+        if self.saved.last().is_some_and(|r| Rc::ptr_eq(&r.generator, &self.generator)) {
+            return;
+        }
         // Only productive seeds enter the corpus; cap memory for long checks.
         if self.saved.len() == 256 {
             self.saved.remove(0);

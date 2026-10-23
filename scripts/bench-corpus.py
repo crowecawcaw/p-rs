@@ -169,14 +169,12 @@ def main():
     parser.add_argument('--project-timeout', type=float, default=60)
     parser.add_argument('--jobs', type=int, default=2)
     parser.add_argument('--choice-guidance', action='store_true', help='also measure experimental next-choice feedback')
-    parser.add_argument('--frontier-guidance', action='store_true', help='also measure event-count prefix checkpoints')
+    parser.add_argument('--plain-feedback', action='store_true', help='also measure feedback without progress checkpoints (on by default)')
     opts = parser.parse_args()
-    if opts.frontier_guidance:
-        STRATEGIES.insert(2, 'feedback-frontier')
+    if opts.plain_feedback:
+        STRATEGIES.insert(2, 'feedback-plain')
     if opts.choice_guidance:
         STRATEGIES.insert(2, 'feedback-choice')
-    if opts.choice_guidance and opts.frontier_guidance:
-        STRATEGIES.insert(2, 'feedback-frontier-choice')
     if min(opts.budget, opts.steps, opts.seeds, opts.seconds_per_run, opts.project_timeout, opts.jobs) <= 0:
         parser.error('budgets, bounds, seeds, timeouts and jobs must be positive')
     if opts.seed_start < 0 or opts.seed_start + opts.seeds > 2**32:
@@ -187,7 +185,7 @@ def main():
     subprocess.run(['cargo', 'build', '--release', '--locked', '-p', 'snappea', '--example', 'corpus_bench'], cwd=ROOT, check=True)
     projects, files = inventory(opts.scope)
     projects = [p for p in projects if opts.filter in p['id']]
-    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'choice_guidance', 'frontier_guidance']}
+    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'choice_guidance', 'plain_feedback']}
     manifest = dict(settings, root=str(ROOT), strategies=STRATEGIES, projects=projects, files=files)
     results = [None]*len(projects)
     with tempfile.TemporaryDirectory(prefix='snappea-corpus-') as temp:

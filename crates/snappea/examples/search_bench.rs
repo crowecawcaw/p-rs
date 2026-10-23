@@ -101,8 +101,8 @@ fn main() {
         if std::env::var("SEARCH_CHOICE_GUIDANCE").as_deref() == Ok("1") {
             strategies.insert(2, ("feedback-choice", StrategyKind::Feedback, true));
         }
-        if std::env::var("SEARCH_FRONTIER_GUIDANCE").as_deref() == Ok("1") {
-            strategies.insert(2, ("feedback-frontier", StrategyKind::Feedback, false));
+        if std::env::var("SEARCH_PLAIN_FEEDBACK").as_deref() == Ok("1") {
+            strategies.insert(2, ("feedback-plain", StrategyKind::Feedback, false));
         }
         for (label, strategy, choice_guidance) in strategies {
             for seed in seed_start..seed_start.checked_add(seeds).expect("seed range overflow") {
@@ -114,7 +114,9 @@ fn main() {
                         &CheckerOptions {
                             strategy,
                             feedback_choice_guidance: choice_guidance,
-                            feedback_frontier_guidance: label == "feedback-frontier",
+                            // `feedback` and `auto` measure the defaults (checkpoints on);
+                            // `feedback-plain` turns them off for comparison.
+                            feedback_frontier_guidance: label != "feedback-plain",
                             seed,
                             iterations: budget,
                             max_fair_steps: 1000,

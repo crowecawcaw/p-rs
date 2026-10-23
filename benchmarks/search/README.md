@@ -23,7 +23,8 @@ per-seed raw results before drawing conclusions. Wall time is deliberately not
 the objective here (instrumentation and state hashing have different costs).
 
 `.github/workflows/bench-search.yml` measures every main commit and appends its
-raw result to `search.jsonl` on the existing `benchmarks` branch, using the same
+raw result to `search.jsonl` on the existing `benchmarks` branch (latest result:
+[snappea.dev/bench](https://snappea.dev/bench/#search)), using the same
 retrying append helper as the throughput benchmarks. Runs have no concurrency
 group so pending commits are not dropped. Manual branch runs upload artifacts
 without updating main history.

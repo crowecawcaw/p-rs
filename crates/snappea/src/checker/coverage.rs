@@ -177,8 +177,11 @@ struct CoverageRun {
     monitor_previous: FxHashMap<usize, StateId>,
     /// `ControlledRuntimeLogEventCoverage.Dequeued` (a single, global slot upstream).
     dequeued: Option<u32>,
-    /// Graph builder inboxes per machine/monitor type.
-    inbox: FxHashMap<MachineId, Vec<InboxEntry>>,
+    /// Graph builder inboxes per machine type, split by event: every lookup is for one
+    /// event, and a single inbox per type made each dequeue scan every pending entry.
+    inbox: FxHashMap<(MachineId, u32), Vec<InboxEntry>>,
+    /// Graph builder inboxes per monitor type.
+    monitor_inbox: FxHashMap<MachineId, Vec<InboxEntry>>,
     /// Graph builder `Dequeued`, per machine instance.
     graph_dequeued: FxHashMap<usize, InboxEntry>,
 }
@@ -255,26 +258,24 @@ impl Coverage {
     }
 
     fn add_event(&mut self, target: MachineId, entry: InboxEntry) {
-        self.run.inbox.entry(target).or_default().push(entry);
+        self.run.inbox.entry((target, entry.event)).or_default().push(entry);
+    }
+
+    fn add_monitor_event(&mut self, target: MachineId, entry: InboxEntry) {
+        self.run.monitor_inbox.entry(target).or_default().push(entry);
     }
 
     /// `PopEvent`: removes every matching entry, returns the earliest.
     fn pop_event(&mut self, target: MachineId, event: u32) -> Option<InboxEntry> {
-        let inbox = self.run.inbox.get_mut(&target)?;
-        let mut result = None;
-        let mut i = inbox.len();
-        while i > 0 {
-            i -= 1;
-            if inbox[i].event == event {
-                result = Some(inbox.remove(i));
-            }
-        }
-        result
+        let inbox = self.run.inbox.get_mut(&(target, event))?;
+        let first = inbox.first().copied();
+        inbox.clear();
+        first
     }
 
     /// Pops the latest entry of a monitor's inbox and links its state to `target`.
     fn link_popped(&mut self, decl: MachineId, target: u32) {
-        if let Some(e) = self.run.inbox.get_mut(&decl).and_then(|i| i.pop()) {
+        if let Some(e) = self.run.monitor_inbox.get_mut(&decl).and_then(|i| i.pop()) {
             self.link(e.state, target);
         }
     }
@@ -384,7 +385,7 @@ impl Runtime<'_> {
         let Some(cov) = self.coverage.as_mut() else { return };
         let run = &mut cov.run;
         run.dequeued = Some(e.0);
-        let found = run.inbox.get(&decl).and_then(|inbox| inbox.iter().rev().find(|i| i.event == e.0).copied());
+        let found = run.inbox.get(&(decl, e.0)).and_then(|inbox| inbox.last().copied());
         if let Some(info) = found {
             run.graph_dequeued.insert(m, info);
         }
@@ -410,10 +411,7 @@ impl Runtime<'_> {
         let decl = self.machines[m].decl;
         let Some((cov, state)) = self.cov_machine(m) else { return };
         cov.info.received.insert((state, e.0));
-        let found = cov.run.inbox.get_mut(&decl).and_then(|inbox| {
-            let i = inbox.iter().rposition(|i| i.event == e.0)?;
-            Some(inbox.remove(i))
-        });
+        let found = cov.run.inbox.get_mut(&(decl, e.0)).and_then(|inbox| inbox.pop());
         if let Some(info) = found {
             let target = cov.tables.receive_target[decl.idx()];
             cov.link(info.state, target);
@@ -426,7 +424,7 @@ impl Runtime<'_> {
         let Some((cov, s, decl)) = self.cov_monitor(mon) else { return };
         let state = cov.tables.plain(s);
         cov.info.received.insert((state, e.0));
-        cov.add_event(decl, InboxEntry { sender: Sender::Monitor(mon), state, event: e.0 });
+        cov.add_monitor_event(decl, InboxEntry { sender: Sender::Monitor(mon), state, event: e.0 });
         if let Some(src) = sender_state {
             let src = cov.tables.plain(src);
             cov.link(src, state);
@@ -445,7 +443,7 @@ impl Runtime<'_> {
         let Some((cov, s, decl)) = self.cov_monitor(mon) else { return };
         let state = cov.tables.plain(s);
         cov.info.sent.insert((state, e.0));
-        cov.add_event(decl, InboxEntry { sender: Sender::Monitor(mon), state, event: e.0 });
+        cov.add_monitor_event(decl, InboxEntry { sender: Sender::Monitor(mon), state, event: e.0 });
     }
 
     /// `OnMonitorStateTransition` on entry.
