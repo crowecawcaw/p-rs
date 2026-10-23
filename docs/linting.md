@@ -7,13 +7,13 @@ creates checker output. A model bug found during exploration still exits with 1.
 To run linting alone:
 
 ```sh
-snappea lint                         # discover local .pproj or .p sources
-snappea lint Model.pproj
-snappea lint events.p model.p tests.p
-snappea lint --list-rules
+snappea check lint                   # discover local .pproj or .p sources
+snappea check lint Model.pproj
+snappea check lint events.p model.p tests.p
+snappea check lint --list-rules
 ```
 
-`lint` loads and type-checks sources, prints every unsuppressed finding with its
+`check lint` loads and type-checks sources, prints every unsuppressed finding with its
 file, line, column, and rule ID, and exits with 0 when clean or 2 on findings or
 source errors. It does not explore schedules or write checker artifacts. Test-name
 filters are not accepted: selection checks need the complete loaded project.

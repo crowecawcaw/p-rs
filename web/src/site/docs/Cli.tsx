@@ -245,6 +245,12 @@ snappea check [SOURCE...] [TEST...] [options]
           list them under <code>mutation.undetected</code>. Changes share the time limit round robin, so a run cut
           short gives each about the same number of schedules.
         </p>
+        <p>
+          <code>snappea check lint [SOURCE...]</code> runs only the model lints, without exploring schedules.{" "}
+          <code>snappea check mutation [SOURCE...] [TEST...]</code> runs only mutation testing, with a 5 minute
+          limit by default, and exits with 1 when a change goes undetected, so CI can require every change to be
+          detected or suppressed.
+        </p>
         <h3>How much to explore</h3>
         <Options rows={CHECK_EXPLORATION} />
         <h3>Mutation testing</h3>

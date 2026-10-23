@@ -13,7 +13,7 @@ snappea replay PCheckerOutput/tcMyTest/bug.schedule
 
 `snappea check` type-checks and [lints](linting.md) the sources before exploring
 schedules. Unsuppressed lint findings stop the check with exit status 2; run
-`snappea lint` to inspect them without exploration. It selects search strategies automatically.
+`snappea check lint` to inspect them without exploration. It selects search strategies automatically.
 Each worker retains an exhaustive frontier, fresh random exploration, a guided
 corpus, and a priority scheduler (PCT). A short probe measured in controlled choices
 lets small exhaustive searches finish immediately. After the probe, work credits
@@ -170,7 +170,13 @@ because no test case reached the failing schedule within its schedules;
 schedules, so no test case can detect it as written. Some mutants cannot be detected by
 any test: `x < n` and `x <= n` behave the same if `x` never equals `n`.
 
-Mutation testing stops at its time limit, 30 seconds by default
+`snappea check mutation [SOURCE...] [TEST...]` runs mutation testing alone: it runs
+the test cases, then the mutants, and reports neither coverage nor scenarios. It has a
+5 minute time limit by default and exits with 1 when a mutant goes undetected (or a
+test case fails), so CI can require every mutant to be detected or suppressed. A test
+case named `lint` or `mutation` is selected with a glob (`snappea check 'mutation*'`).
+
+In `snappea check`, mutation testing stops at its time limit, 30 seconds by default
 (`--mutation-timeout 2m` changes it, `--no-mutation` skips it). Because the schedules
 go round robin, a run the time limit stops has given every mutant about the same share:
 on a large model, each may get only its first turn. Undetected mutants with fewer than

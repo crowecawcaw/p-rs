@@ -30,8 +30,8 @@ const HELP: &str = "\
 Usage: snappea [output options] <command> [options]
 
 Commands:
-  check      Check test cases by exploring schedules
-  lint       Check model quality without exploring schedules
+  check      Check test cases by exploring schedules (and `check lint`,
+             `check mutation`)
   replay     Replay a .schedule file
   tests      List the test cases
   observe    Check logs against spec monitors
@@ -55,8 +55,12 @@ Usage: snappea check [SOURCE...] [TEST...] [options]
 
 Checks test cases by exploring schedules. A SOURCE is a .pproj or .p file, a TEST
 a test case name or a glob (`*`, `?`). Without tests, all test cases are checked.
+       snappea check lint [SOURCE...] [--list-rules]
+       snappea check mutation [SOURCE...] [TEST...] [options]
+
 Sources are linted before exploration; findings fail the command with exit status 2.
-Run `snappea lint` for linting alone, or see docs/linting.md for suppression comments.
+`check lint` lints alone; `check mutation` runs only mutation testing. Run
+`snappea check lint --help` or `snappea check mutation --help` for theirs.
 
 Exploration:
       --timeout <DURATION>  Time limit per test case (default: 10s; accepts 90s, 5m, 1h)
@@ -95,7 +99,33 @@ code (a removed statement, a forced `if`, a swapped operator) that the test case
 are run against. A change no test case detects marks code whose effect no spec or
 assertion checks. Undetected changes are listed; they do not change the exit status.
 `// snappea-lint: allow mutation[:<kind>] -- reason` before a statement suppresses its
-changes (see docs/checking-models.md).
+changes (see docs/checking-models.md). `snappea check mutation` runs it alone.
+";
+
+const MUTATION_HELP: &str = "\
+Usage: snappea check mutation [SOURCE...] [TEST...] [options]
+
+Runs the test cases, then runs them against mutants: copies of the model with one
+small change (a removed statement, a forced `if`, a swapped operator). Lists every
+change no test case detects: code whose effect no spec or assertion checks. Unlike
+`snappea check`, it reports no coverage or scenarios, and fails when a change goes
+undetected.
+
+Options:
+      --mutation-timeout <DURATION>
+                            Time limit for mutation testing (default: 5m)
+      --timeout <DURATION>  Time limit per test case for the first run (default: 10s)
+  -j, --workers <N>         Worker limit (default: one per CPU core)
+      --seed <N>            Seed for reproducible choices
+      --latency <FILE>[:<PROFILE>], --timed
+                            As for `snappea check`
+  -o, --out <DIR>           Output folder (default: PCheckerOutput)
+  -v, --verbose             Show progress and statistics
+
+`// snappea-lint: allow mutation[:<kind>] -- reason` before a statement, handler,
+function or machine suppresses its changes. See docs/checking-models.md.
+Exit status: 0 every change detected, 1 a change undetected or a test case failed,
+2 error.
 ";
 
 const REPLAY_HELP: &str = "\
@@ -178,8 +208,10 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
         }
     }
     // Keep output options away from a trailing command option missing its value.
-    let at = if command.first().is_some_and(|c| c == "coverage") && command.get(1).is_some_and(|c| c == "merge-observe")
-    {
+    let nested = |c: &str, sub: &[&str]| {
+        command.first().is_some_and(|f| f == c) && command.get(1).is_some_and(|s| sub.contains(&s.as_str()))
+    };
+    let at = if nested("coverage", &["merge-observe"]) || nested("check", &["lint", "mutation"]) {
         2
     } else {
         usize::from(!command.is_empty())
@@ -233,6 +265,7 @@ fn dispatch(args: &[String], host: &mut dyn Host) -> i32 {
     };
     match cmd.as_str() {
         "check" => check(rest, host),
+        // an unadvertised alias of `check lint`
         "lint" => lint(rest, host),
         "replay" => replay(rest, host),
         "tests" => tests(rest, host),
@@ -253,7 +286,7 @@ fn dispatch(args: &[String], host: &mut dyn Host) -> i32 {
                 host.write(Stream::Out, HELP, None);
                 OK
             }
-            Some(c @ ("check" | "lint" | "replay" | "tests" | "observe" | "coverage")) => {
+            Some(c @ ("check" | "replay" | "tests" | "observe" | "coverage")) => {
                 dispatch(&[c.to_string(), "--help".into()], host)
             }
             Some(c) => usage_error(host, &format!("unknown command '{}'", c), None),
@@ -548,7 +581,7 @@ fn select_tests(names: &[String], patterns: &[String]) -> Result<Vec<String>, St
 // ---- commands -----------------------------------------------------------------------------
 
 const LINT_HELP: &str = "\
-Usage: snappea lint [SOURCE...] [--list-rules]
+Usage: snappea check lint [SOURCE...] [--list-rules]
 
 Type-checks and lints .p or .pproj sources without exploring schedules or writing
 checker output. The same lint rules run automatically before `snappea check`.
@@ -564,20 +597,20 @@ See docs/linting.md for rule details and suppression scope.
 fn lint(args: &[String], host: &mut dyn Host) -> i32 {
     let a = match parse_args(args, &[flag("list-rules", None)]) {
         Ok(a) => a,
-        Err(m) => return usage_error(host, &m, Some("lint")),
+        Err(m) => return usage_error(host, &m, Some("check lint")),
     };
     if a.help {
         host.write(Stream::Out, LINT_HELP, None);
         return OK;
     }
     if a.has("list-rules") && !a.positional.is_empty() {
-        return usage_error(host, "--list-rules does not take sources", Some("lint"));
+        return usage_error(host, "--list-rules does not take sources", Some("check lint"));
     }
     let mut cfg = snappea_config();
     match sources(&mut cfg, &a.positional) {
         Ok(rest) if rest.is_empty() => {}
-        Ok(_) => return usage_error(host, "lint accepts sources (.p or .pproj), not test names", Some("lint")),
-        Err(m) => return usage_error(host, &m, Some("lint")),
+        Ok(_) => return usage_error(host, "lint accepts sources (.p or .pproj), not test names", Some("check lint")),
+        Err(m) => return usage_error(host, &m, Some("check lint")),
     }
     with_output(host, &a, "lint", |host| {
         if a.has("list-rules") {
@@ -628,6 +661,12 @@ const CHECK_OPTS: &[Opt] = &[
 const MUTATION_TIMEOUT: u32 = 30;
 
 fn check(args: &[String], host: &mut dyn Host) -> i32 {
+    // a test case named `lint` or `mutation` is checked with a glob: `lint*`
+    match args.first().map(String::as_str) {
+        Some("lint") => return lint(&args[1..], host),
+        Some("mutation") => return mutation(&args[1..], host),
+        _ => {}
+    }
     let parsed = match parse_args(args, CHECK_OPTS) {
         Ok(a) => a,
         Err(m) => return usage_error(host, &m, Some("check")),
@@ -645,7 +684,49 @@ fn check(args: &[String], host: &mut dyn Host) -> i32 {
         Ok(t) => t,
         Err(m) => return usage_error(host, &m, Some("check")),
     };
-    with_output(host, &parsed, "check", |host| run_check(host, cfg, &patterns, parsed.get("latency"), mutation))
+    with_output(host, &parsed, "check", |host| {
+        run_check(host, cfg, &patterns, parsed.get("latency"), Mutation::After(mutation))
+    })
+}
+
+/// Default time limit of `check mutation`, in seconds.
+const MUTATION_ONLY_TIMEOUT: u32 = 300;
+
+fn mutation(args: &[String], host: &mut dyn Host) -> i32 {
+    const CMD: Option<&str> = Some("check mutation");
+    let parsed = match parse_args(args, CHECK_OPTS) {
+        Ok(a) => a,
+        Err(m) => return usage_error(host, &m, CMD),
+    };
+    if parsed.help {
+        host.write(Stream::Out, &format!("{}\n{}", MUTATION_HELP, OUTPUT_HELP), None);
+        return OK;
+    }
+    if parsed.has("no-mutation") {
+        return usage_error(host, "'--no-mutation' does not apply to `check mutation`", CMD);
+    }
+    let mut cfg = snappea_config();
+    let patterns = match check_config(&parsed, &mut cfg) {
+        Ok(p) => p,
+        Err(m) => return usage_error(host, &m, CMD),
+    };
+    let limit = match mutation_timeout(&parsed) {
+        Ok(Some(t)) if parsed.get("mutation-timeout").is_some() => t,
+        Ok(_) => MUTATION_ONLY_TIMEOUT,
+        Err(m) => return usage_error(host, &m, CMD),
+    };
+    with_output(host, &parsed, "check mutation", |host| {
+        run_check(host, cfg, &patterns, parsed.get("latency"), Mutation::Only(limit))
+    })
+}
+
+/// Whether and how a check runs mutation testing (time limits in seconds).
+#[derive(Debug, Clone, Copy)]
+enum Mutation {
+    /// After the check's report, unless `None` (`--no-mutation`).
+    After(Option<u32>),
+    /// `check mutation`: instead of the coverage and scenario reports.
+    Only(u32),
 }
 
 /// The time limit for mutation testing in seconds, `None` to skip it.
@@ -747,8 +828,9 @@ fn run_check(
     mut cfg: CheckConfig,
     patterns: &[String],
     latency: Option<&str>,
-    mutation_timeout: Option<u32>,
+    mutation: Mutation,
 ) -> Outcome {
+    let only = matches!(mutation, Mutation::Only(_));
     let start = host.now();
     // the upstream-style progress shows only with --verbose
     let mut con = Quiet::new(host, !cfg.verbose);
@@ -793,11 +875,13 @@ fn run_check(
         let mut result = case_json(&case, &cfg);
         if let Some((s, h)) = &case.code_coverage {
             let summary = CodeMap::new(prog, &probes, s).coverage(h).summary();
-            con.inner.out_line(&format!(
-                "      Coverage: {}{}",
-                summary,
-                if case.bugs > 0 { " (partial: stopped at first bug)" } else { "" }
-            ));
+            if !only {
+                con.inner.out_line(&format!(
+                    "      Coverage: {}{}",
+                    summary,
+                    if case.bugs > 0 { " (partial: stopped at first bug)" } else { "" }
+                ));
+            }
             result["coverage"] = summary.to_json();
             result["coverage"]["partial"] = json!(case.bugs > 0);
             scope.add(s);
@@ -815,32 +899,36 @@ fn run_check(
         cases.push(result);
     }
     let suite = CodeMap::new(prog, &probes, &scope).coverage(&hits);
-    if n > 1 {
-        con.inner.out_line(&format!("Coverage of all test cases: {}", suite.summary()));
+    if !only {
+        if n > 1 {
+            con.inner.out_line(&format!("Coverage of all test cases: {}", suite.summary()));
+        }
+        let heading = if n > 1 { "Not covered by any test case:" } else { "Not covered by the test case:" };
+        for l in uncovered_lines(heading, &suite.uncovered(), " (--json lists all)") {
+            con.inner.out_line(&l);
+        }
+        if failed > 0 {
+            con.inner.out_line("Coverage includes partial results from test cases stopped at their first bug.");
+        }
+        if !scenarios.is_empty() {
+            con.inner.write(Stream::Out, &scenario::merge(&scenarios), None);
+        }
     }
-    let heading = if n > 1 { "Not covered by any test case:" } else { "Not covered by the test case:" };
-    for l in uncovered_lines(heading, &suite.uncovered(), " (--json lists all)") {
-        con.inner.out_line(&l);
-    }
-    if failed > 0 {
-        con.inner.out_line("Coverage includes partial results from test cases stopped at their first bug.");
-    }
-    if !scenarios.is_empty() {
-        con.inner.write(Stream::Out, &scenario::merge(&scenarios), None);
-    }
-    let mutation = match mutation_timeout {
-        None => json!({"skipped": "--no-mutation"}),
-        Some(_) if failed > 0 => {
+    let mut undetected = 0;
+    let mutation = match mutation {
+        Mutation::After(None) => json!({"skipped": "--no-mutation"}),
+        _ if failed > 0 => {
             con.inner.out_line("Mutation testing skipped: a test case failed.");
             json!({"skipped": "a test case failed"})
         }
-        Some(limit) => {
+        Mutation::After(Some(limit)) | Mutation::Only(limit) => {
             // the sources parsed when they were loaded
             let suppressed = snappea_lint::mutation_suppressions(&loaded.sources.source_map()).unwrap_or_default();
             let report = crate::driver::mutation::run(con.inner, prog, &cfg, &passed, &suppressed, f64::from(limit));
             for l in report.lines(SHOWN_UNCOVERED) {
                 con.inner.out_line(&l);
             }
+            undetected = report.undetected().len();
             report.to_json()
         }
     };
@@ -850,7 +938,12 @@ fn run_check(
         "" if cfg.output_path.is_empty() => ".",
         o => o,
     };
-    con.inner.out_line(&if failed == 0 && incomplete > 0 {
+    con.inner.out_line(&if only && failed == 0 {
+        match undetected {
+            0 => format!("🫛 Every mutant was detected in {}{}.", elapsed, memory),
+            n => format!("{} mutant{} not detected in {}{}.", n, plural(n), elapsed, memory),
+        }
+    } else if failed == 0 && incomplete > 0 {
         format!(
             "🫛 No bugs found in {}{}. Search incomplete for {} test case{}. Output: {}/",
             elapsed,
@@ -866,6 +959,17 @@ fn run_check(
     } else {
         format!("{} of {} test case{} failed in {}{}. Output: {}/", failed, n, plural(n), elapsed, memory, out)
     });
+    if only {
+        let result = json!({
+            "project": cfg.project_name,
+            "test_cases": cases,
+            "failed": failed,
+            "seconds": round_ms(seconds),
+            "output": format!("{}/", out),
+            "mutation": mutation,
+        });
+        return Ok((if failed > 0 || undetected > 0 { BUG } else { OK }, result));
+    }
     let mut coverage = suite.to_json(false);
     coverage["partial"] = json!(failed > 0);
     let result = json!({

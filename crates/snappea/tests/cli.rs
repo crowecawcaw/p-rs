@@ -772,6 +772,21 @@ fn check_reports_mutants_no_test_case_detects() {
     assert_eq!(snappea(&mut h, &["check", "counter.p", "--format", "text"]), 2);
     assert!(h.stderr.contains("error[invalid-suppression]"), "{}", h.stderr);
     h.add_file("counter.p", COUNTER);
+    // `check mutation` runs it alone, without coverage, and fails on an undetected mutant
+    assert_eq!(snappea(&mut h, &["check", "mutation", "counter.p", "--json"]), 1);
+    let only: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(only["mutation"]["undetected"], m["undetected"]);
+    assert!(only.get("coverage").is_none(), "{}", only);
+    assert_eq!(snappea(&mut h, &["--format", "text", "check", "mutation", "counter.p"]), 1);
+    assert!(!h.stdout.contains("Coverage"), "{}", h.stdout);
+    assert!(h.stdout.contains("\n2 mutants not detected in "), "{}", h.stdout);
+    h.add_file("counter.p", &suppressed.replace("mutation:remove-statement", "mutation"));
+    assert_eq!(snappea(&mut h, &["check", "mutation", "counter.p", "--json"]), 1);
+    h.add_file("counter.p", COUNTER);
+    assert_eq!(snappea(&mut h, &["check", "mutation", "counter.p", "--no-mutation"]), 2);
+    assert_eq!(snappea(&mut h, &["check", "mutation", "coins.p", "--seed", "2", "--json"]), 1);
+    let v: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(v["mutation"]["skipped"], "a test case failed");
     // skipped on request, and when a test case fails
     assert_eq!(snappea(&mut h, &["check", "counter.p", "--no-mutation", "--json"]), 0);
     let v: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
