@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/GotoRecoveryErrors",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "GotoRecoveryErrors.p",
+        "-pn",
+        "GotoRecoveryErrors"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "GotoRecoveryErrors.p",
+        "-pn",
+        "GotoRecoveryErrors"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

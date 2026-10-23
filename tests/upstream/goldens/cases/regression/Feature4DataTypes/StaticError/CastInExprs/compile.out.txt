@@ -1,0 +1,68 @@
+[Error:] [CastInExprs.p:69:9] types bool and int are incomparable
+
+[Error:] [CastInExprs.p:73:9] types int and bool are incomparable
+
+[Error:] [CastInExprs.p:77:9] types event and int are incomparable
+
+[Error:] [CastInExprs.p:78:9] types event and int are incomparable
+
+[Error:] [CastInExprs.p:84:10] types int and event are incomparable
+
+[Error:] [CastInExprs.p:90:9] types event and bool are incomparable
+
+[Error:] [CastInExprs.p:91:9] types event and bool are incomparable
+
+[Error:] [CastInExprs.p:97:10] types bool and event are incomparable
+
+[Error:] [CastInExprs.p:130:10] types seq[int] and map[int,int] are incomparable
+
+[Error:] [CastInExprs.p:133:9] types map[int,int] and seq[int] are incomparable
+
+[Error:] [CastInExprs.p:137:5] got type: any, expected: sequence, map
+
+[Error:] [CastInExprs.p:138:5] got type: any, expected: sequence, map
+
+[Error:] [CastInExprs.p:151:5] got type: any, expected: sequence, map
+
+[Error:] [CastInExprs.p:158:5] got type: any, expected: namedtuple
+
+[Error:] [CastInExprs.p:165:5] got type: any, expected: tuple
+
+[Error:] [CastInExprs.p:170:10] types (a:int,b:int) and map[int,int] are incomparable
+
+[Error:] [CastInExprs.p:173:10] types (int,int) and map[int,int] are incomparable
+
+[Error:] [CastInExprs.p:176:10] types map[int,int] and (int,int) are incomparable
+
+[Error:] [CastInExprs.p:181:9] types (a:int,b:int) and seq[int] are incomparable
+
+[Error:] [CastInExprs.p:184:9] types (int,int) and seq[int] are incomparable
+
+[Error:] [CastInExprs.p:188:10] types seq[int] and (int,int) are incomparable
+
+[Error:] [CastInExprs.p:194:5] got type: bool, expected: int
+
+[Error:] [CastInExprs.p:195:20] types bool and int are incomparable
+
+[Error:] [CastInExprs.p:196:5] got type: event, expected: int
+
+[Error:] [CastInExprs.p:198:5] got type: machine, expected: int
+
+[Error:] [CastInExprs.p:199:20] types machine and int are incomparable
+
+[Error:] [CastInExprs.p:201:5] got type: any, expected: int
+
+[Error:] [CastInExprs.p:203:11] got type: any, expected: int
+
+[Error:] [CastInExprs.p:217:5] got type: seq[any], expected: seq[int]
+
+[Error:] [CastInExprs.p:228:5] got type: map[int,any], expected: map[int,int]
+
+[Error:] [CastInExprs.p:271:9] types int and bool are incomparable
+
+[Error:] [CastInExprs.p:294:10] types (a:int,b:bool) and (a:int,b:int) are incomparable
+
+[Error:] [CastInExprs.p:301:11] types (a:int,b:bool) and (a:int,b:int) are incomparable
+
+[Error:] [CastInExprs.p:347:9] types seq[int] and seq[bool] are incomparable
+~~ [PTool]: Thanks for using P! ~~

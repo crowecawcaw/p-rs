@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/Monitors.coverage.txt
+PCheckerOutput/BugFinding/Monitors.sci
+PCheckerOutput/BugFinding/Monitors_pchecker_summary.txt

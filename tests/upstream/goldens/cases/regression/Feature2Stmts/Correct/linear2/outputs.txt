@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/linear2.coverage.txt
+PCheckerOutput/BugFinding/linear2.sci
+PCheckerOutput/BugFinding/linear2_pchecker_summary.txt

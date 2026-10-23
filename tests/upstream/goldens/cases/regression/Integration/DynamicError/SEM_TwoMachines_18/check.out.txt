@@ -1,0 +1,25 @@
+.. Test case :: DefaultImpl
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/BugFinding/SEM_TwoMachines_18_0_0.txt
+..... Writing PCheckerOutput/BugFinding/SEM_TwoMachines_18_0_0.trace.json
+..... Writing PCheckerOutput/BugFinding/SEM_TwoMachines_18_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/BugFinding/SEM_TwoMachines_18.coverage.txt
+..... Writing PCheckerOutput/BugFinding/SEM_TwoMachines_18.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 3 schedules
+..... Explored 1 timeline
+..... Found 33.33% buggy schedules.
+..... Number of scheduling points in terminating schedules: 19 (min), 21 (avg), 25 (max).
+..... Writing PCheckerOutput/BugFinding/SEM_TwoMachines_18_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

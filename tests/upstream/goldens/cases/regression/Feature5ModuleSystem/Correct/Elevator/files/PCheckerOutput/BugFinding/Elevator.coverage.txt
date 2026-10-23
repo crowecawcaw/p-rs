@@ -1,0 +1,151 @@
+Total event coverage: 40.5%
+===========================
+StateMachine: Door
+==================
+Event coverage: 36.4%
+
+	State: _Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: Init
+
+	State: Init
+		State event coverage: 50.0%
+		Events received: eSendCommandToOpenDoor
+		Events not covered: eSendCommandToCloseDoor
+		Previous states: ResetDoor, _Init
+		Next states: OpenDoor
+
+	State: OpenDoor
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eDoorOpened, eUnit
+		Previous states: Init
+		Next states: ResetDoor
+
+	State: ConsiderClosingDoor is uncovered
+		Events not covered: eObjectEncountered, eSendCommandToStopDoor, eUnit
+
+	State: ObjectEncountered is uncovered
+		Events not covered: eUnit
+
+	State: CloseDoor is uncovered
+		Events not covered: eUnit
+
+	State: StopDoor is uncovered
+		Events not covered: eUnit
+
+	State: ResetDoor
+		State event coverage: 100.0%
+		Events received: eSendCommandToResetDoor
+		Previous states: OpenDoor
+		Next states: Init
+
+StateMachine: Elevator
+======================
+Event coverage: 27.8%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: DoorClosed
+
+	State: DoorClosed
+		State event coverage: 100.0%
+		Events received: eOpenDoor
+		Events sent: eSendCommandToResetDoor
+		Previous states: Init
+		Next states: DoorOpening
+
+	State: DoorOpening
+		State event coverage: 100.0%
+		Events received: eDoorOpened
+		Events sent: eSendCommandToOpenDoor
+		Previous states: DoorClosed
+		Next states: DoorOpened
+
+	State: DoorOpened
+		State event coverage: 33.3%
+		Events received: eOpenDoor
+		Events sent: eSendCommandToResetDoor, eStartDoorCloseTimer
+		Events not covered: eStopTimerReturned, eTimerFired
+		Previous states: DoorOpening
+		Next states: StoppingTimer
+
+	State: DoorOpenedOkToClose is uncovered
+		Events not covered: eCloseDoor, eStopTimerReturned, eTimerFired
+
+	State: DoorClosing is uncovered
+		Events not covered: eDoorClosed, eObjectDetected, eOpenDoor
+
+	State: StoppingDoor is uncovered
+		Events not covered: eDoorClosed, eDoorOpened, eDoorStopped
+
+	State: StoppingTimer
+		State event coverage: 50.0%
+		Events received: eOperationSuccess
+		Events sent: eStopDoorCloseTimer
+		Events not covered: eOperationFailure
+		Previous states: DoorOpened
+		Next states: ReturnState
+
+	State: WaitingForTimer is uncovered
+		Events not covered: eTimerFired
+
+	State: ReturnState
+		State has no expected events, so coverage is 100%
+		Events sent: eStopTimerReturned
+		Previous states: StoppingTimer
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: Loop
+
+	State: Loop
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eCloseDoor, eOpenDoor, eUnit
+		Previous states: Init, Loop
+		Next states: Loop
+
+StateMachine: Timer
+===================
+Event coverage: 66.7%
+
+	State: _Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: Init
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eStartDoorCloseTimer
+		Previous states: ConsiderStopping, _Init
+		Next states: TimerStarted
+
+	State: TimerStarted
+		State event coverage: 50.0%
+		Events received: eStopDoorCloseTimer
+		Events not covered: eUnit
+		Previous states: Init
+		Next states: ConsiderStopping
+
+	State: SendTimerFired is uncovered
+		Events not covered: eUnit
+
+	State: ConsiderStopping
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eOperationSuccess, eUnit
+		Previous states: TimerStarted
+		Next states: Init
+

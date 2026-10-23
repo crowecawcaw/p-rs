@@ -1,0 +1,32 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/Correct/EnumType",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "enumType.p",
+        "includedEnums.p",
+        "-pn",
+        "EnumType",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

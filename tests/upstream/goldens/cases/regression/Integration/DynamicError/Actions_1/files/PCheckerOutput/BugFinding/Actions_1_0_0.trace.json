@@ -1,0 +1,314 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Real_Init\u0027.",
+      "id": "Main(1)",
+      "state": "Real_Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Ghost(2) was created by Main(1).",
+      "id": "Ghost(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Ghost(2)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Ghost(2) enters state \u0027Ghost_Init\u0027.",
+      "id": "Ghost(2)",
+      "state": "Ghost_Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Ghost(2)": 2
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Real_Init\u0027 sent event \u0027E1\u0027 to \u0027Ghost(2)\u0027.",
+      "event": "E1",
+      "state": "Real_Init",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Ghost(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Ghost(2)\u0027 dequeued event \u0027E1\u0027 in state \u0027Ghost_Init\u0027.",
+      "id": "Ghost(2)",
+      "event": "E1",
+      "state": "Ghost_Init",
+      "payload": "null",
+      "clock": {
+        "Ghost(2)": 3,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Ghost(2) is transitioning from state \u0027Ghost_Init\u0027 to state \u0027Ghost_S1\u0027.",
+      "id": "Ghost(2)",
+      "startState": "Ghost_Init",
+      "endState": "Ghost_S1",
+      "payload": "null",
+      "clock": {
+        "Ghost(2)": 4,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Ghost(2) exits state \u0027Ghost_Init\u0027.",
+      "id": "Ghost(2)",
+      "state": "Ghost_Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Ghost(2)": 5,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Ghost(2) enters state \u0027Ghost_S1\u0027.",
+      "id": "Ghost(2)",
+      "state": "Ghost_S1",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Ghost(2)": 6,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Ghost(2)\u0027 in state \u0027Ghost_S1\u0027 sent event \u0027E4\u0027 to \u0027Main(1)\u0027.",
+      "event": "E4",
+      "state": "Ghost_S1",
+      "payload": "null",
+      "sender": "Ghost(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Ghost(2)": 7,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Ghost(2)\u0027 in state \u0027Ghost_S1\u0027 sent event \u0027E2\u0027 to \u0027Main(1)\u0027.",
+      "event": "E2",
+      "state": "Ghost_S1",
+      "payload": "null",
+      "sender": "Ghost(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Ghost(2)": 8,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027E4\u0027 in state \u0027Real_Init\u0027.",
+      "id": "Main(1)",
+      "event": "E4",
+      "state": "Real_Init",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 4,
+        "Ghost(2)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Real_Init\u0027 sent event \u0027E3\u0027 to \u0027Ghost(2)\u0027.",
+      "event": "E3",
+      "state": "Real_Init",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Ghost(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 5,
+        "Ghost(2)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027E2\u0027 in state \u0027Real_Init\u0027.",
+      "id": "Main(1)",
+      "event": "E2",
+      "state": "Real_Init",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 6,
+        "Ghost(2)": 8
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Real_Init\u0027 to state \u0027Real_S1\u0027.",
+      "id": "Main(1)",
+      "startState": "Real_Init",
+      "endState": "Real_S1",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 7,
+        "Ghost(2)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Real_Init\u0027.",
+      "id": "Main(1)",
+      "state": "Real_Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 8,
+        "Ghost(2)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Real_S1\u0027.",
+      "id": "Main(1)",
+      "state": "Real_S1",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 9,
+        "Ghost(2)": 8
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027unit\u0027 in state \u0027Real_S1\u0027.",
+      "id": "Main(1)",
+      "event": "unit",
+      "state": "Real_S1",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 10,
+        "Ghost(2)": 8
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Real_S1\u0027 to state \u0027Real_S2\u0027.",
+      "id": "Main(1)",
+      "startState": "Real_S1",
+      "endState": "Real_S2",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 11,
+        "Ghost(2)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Real_S1\u0027.",
+      "id": "Main(1)",
+      "state": "Real_S1",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 12,
+        "Ghost(2)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Real_S2\u0027.",
+      "id": "Main(1)",
+      "state": "Real_S2",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 13,
+        "Ghost(2)": 8
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: Actions_1.p:37:6",
+      "error": "Assertion Failed: Actions_1.p:37:6",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

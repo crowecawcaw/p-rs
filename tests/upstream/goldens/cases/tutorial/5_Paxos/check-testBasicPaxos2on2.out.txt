@@ -1,0 +1,37 @@
+.. Found P project file: <dir>/5_Paxos/SingleDecreePaxos.pproj
+.. Running test cases with prefix 'testBasicPaxos2on2':
+testBasicPaxos2on2
+.. Test case :: testBasicPaxos2on2
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+..... Schedule #5
+..... Schedule #6
+..... Schedule #7
+..... Schedule #8
+..... Schedule #9
+..... Schedule #10
+..... Schedule #20
+..... Schedule #30
+..... Schedule #40
+..... Schedule #50
+..... Schedule #60
+..... Schedule #70
+..... Schedule #80
+..... Schedule #90
+..... Schedule #100
+... Emitting coverage report:
+..... Writing PCheckerOutput/testBasicPaxos2on2/BugFinding/SingleDecreePaxos.coverage.txt
+..... Writing PCheckerOutput/testBasicPaxos2on2/BugFinding/SingleDecreePaxos.sci
+... Checking statistics:
+..... Found 0 bugs.
+... Scheduling statistics:
+..... Explored 100 schedules
+..... Explored 8 timelines
+..... Number of scheduling points in terminating schedules: 38 (min), 42 (avg), 52 (max).
+..... Writing PCheckerOutput/testBasicPaxos2on2/BugFinding/SingleDecreePaxos_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

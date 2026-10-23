@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/enum1.coverage.txt
+PCheckerOutput/BugFinding/enum1.sci
+PCheckerOutput/BugFinding/enum1_0_0.schedule
+PCheckerOutput/BugFinding/enum1_0_0.trace.json
+PCheckerOutput/BugFinding/enum1_0_0.txt
+PCheckerOutput/BugFinding/enum1_pchecker_summary.txt

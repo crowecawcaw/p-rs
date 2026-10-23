@@ -1,0 +1,233 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<CreateLog> Elevator(2) was created by Main(1).
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Init'.
+<GotoLog> Main(1) is transitioning from state 'Init' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Init'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eCloseDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<StateLog> Elevator(2) enters state 'Init'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<CreateLog> Timer(3) was created by Elevator(2).
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<StateLog> Timer(3) enters state '_Init'.
+<RaiseLog> 'Timer(3)' raised event 'eUnit' in state '_Init'.
+<GotoLog> Timer(3) is transitioning from state '_Init' to state 'PImplementation.Timer.Init'.
+<StateLog> Timer(3) exits state '_Init'.
+<StateLog> Timer(3) enters state 'Init'.
+<CreateLog> Door(4) was created by Elevator(2).
+<RaiseLog> 'Elevator(2)' raised event 'eUnit' in state 'Init'.
+<GotoLog> Elevator(2) is transitioning from state 'Init' to state 'PImplementation.Elevator.DoorClosed'.
+<StateLog> Elevator(2) exits state 'Init'.
+<StateLog> Elevator(2) enters state 'DoorClosed'.
+<SendLog> 'Elevator(2)' in state 'DoorClosed' sent event 'eSendCommandToResetDoor' to 'Door(4)'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eCloseDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<StateLog> Door(4) enters state '_Init'.
+<RaiseLog> 'Door(4)' raised event 'eUnit' in state '_Init'.
+<GotoLog> Door(4) is transitioning from state '_Init' to state 'PImplementation.Door.Init'.
+<StateLog> Door(4) exits state '_Init'.
+<StateLog> Door(4) enters state 'Init'.
+<DequeueLog> 'Elevator(2)' dequeued event 'eOpenDoor' in state 'DoorClosed'.
+<GotoLog> Elevator(2) is transitioning from state 'DoorClosed' to state 'PImplementation.Elevator.DoorOpening'.
+<StateLog> Elevator(2) exits state 'DoorClosed'.
+<StateLog> Elevator(2) enters state 'DoorOpening'.
+<SendLog> 'Elevator(2)' in state 'DoorOpening' sent event 'eSendCommandToOpenDoor' to 'Door(4)'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<DequeueLog> 'Door(4)' dequeued event 'eSendCommandToOpenDoor' in state 'Init'.
+<GotoLog> Door(4) is transitioning from state 'Init' to state 'PImplementation.Door.OpenDoor'.
+<StateLog> Door(4) exits state 'Init'.
+<StateLog> Door(4) enters state 'OpenDoor'.
+<SendLog> 'Door(4)' in state 'OpenDoor' sent event 'eDoorOpened' to 'Elevator(2)'.
+<RaiseLog> 'Door(4)' raised event 'eUnit' in state 'OpenDoor'.
+<GotoLog> Door(4) is transitioning from state 'OpenDoor' to state 'PImplementation.Door.ResetDoor'.
+<StateLog> Door(4) exits state 'OpenDoor'.
+<StateLog> Door(4) enters state 'ResetDoor'.
+<DequeueLog> 'Elevator(2)' dequeued event 'eDoorOpened' in state 'DoorOpening'.
+<GotoLog> Elevator(2) is transitioning from state 'DoorOpening' to state 'PImplementation.Elevator.DoorOpened'.
+<StateLog> Elevator(2) exits state 'DoorOpening'.
+<StateLog> Elevator(2) enters state 'DoorOpened'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eCloseDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Elevator(2)' in state 'DoorOpened' sent event 'eSendCommandToResetDoor' to 'Door(4)'.
+<DequeueLog> 'Door(4)' dequeued event 'eSendCommandToResetDoor' in state 'ResetDoor'.
+<GotoLog> Door(4) is transitioning from state 'ResetDoor' to state 'PImplementation.Door.Init'.
+<StateLog> Door(4) exits state 'ResetDoor'.
+<StateLog> Door(4) enters state 'Init'.
+<SendLog> 'Elevator(2)' in state 'DoorOpened' sent event 'eStartDoorCloseTimer' to 'Timer(3)'.
+<DequeueLog> 'Elevator(2)' dequeued event 'eOpenDoor' in state 'DoorOpened'.
+<GotoLog> Elevator(2) is transitioning from state 'DoorOpened' to state 'PImplementation.Elevator.StoppingTimer'.
+<StateLog> Elevator(2) exits state 'DoorOpened'.
+<StateLog> Elevator(2) enters state 'StoppingTimer'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Elevator(2)' in state 'StoppingTimer' sent event 'eStopDoorCloseTimer' to 'Timer(3)'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eCloseDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<DequeueLog> 'Timer(3)' dequeued event 'eStartDoorCloseTimer' in state 'Init'.
+<GotoLog> Timer(3) is transitioning from state 'Init' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(3) exits state 'Init'.
+<StateLog> Timer(3) enters state 'TimerStarted'.
+<RandomLog> Timer(3) nondeterministically chose 'False'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<DequeueLog> 'Timer(3)' dequeued event 'eStopDoorCloseTimer' in state 'TimerStarted'.
+<GotoLog> Timer(3) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.ConsiderStopping'.
+<StateLog> Timer(3) exits state 'TimerStarted'.
+<StateLog> Timer(3) enters state 'ConsiderStopping'.
+<RandomLog> Timer(3) nondeterministically chose 'False'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eCloseDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Timer(3)' in state 'ConsiderStopping' sent event 'eOperationSuccess' to 'Elevator(2)'.
+<RaiseLog> 'Timer(3)' raised event 'eUnit' in state 'ConsiderStopping'.
+<GotoLog> Timer(3) is transitioning from state 'ConsiderStopping' to state 'PImplementation.Timer.Init'.
+<StateLog> Timer(3) exits state 'ConsiderStopping'.
+<StateLog> Timer(3) enters state 'Init'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eOpenDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eCloseDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'False'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'Loop' sent event 'eCloseDoor' to 'Elevator(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'Loop'.
+<GotoLog> Main(1) is transitioning from state 'Loop' to state 'PImplementation.Main.Loop'.
+<StateLog> Main(1) exits state 'Loop'.
+<StateLog> Main(1) enters state 'Loop'.
+<RandomLog> Main(1) nondeterministically chose 'True'.
+<DequeueLog> 'Elevator(2)' dequeued event 'eOperationSuccess' in state 'StoppingTimer'.
+<GotoLog> Elevator(2) is transitioning from state 'StoppingTimer' to state 'PImplementation.Elevator.ReturnState'.
+<StateLog> Elevator(2) exits state 'StoppingTimer'.
+<StateLog> Elevator(2) enters state 'ReturnState'.
+<RaiseLog> 'Elevator(2)' raised event 'eStopTimerReturned' in state 'ReturnState'.
+<StateLog> Elevator(2) exits state 'ReturnState'.
+<PopLog> Elevator(2) popped state ReturnState due to unhandled event 'eStopTimerReturned'.
+<ExceptionLog> Elevator(2) running action '' in state 'ReturnState' threw exception 'UnhandledEventException'.
+<ErrorLog> Elevator(2) received event 'PImplementation.eStopTimerReturned' that cannot be handled.
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 79 (min), 79 (avg), 79 (max).

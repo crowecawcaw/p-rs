@@ -1,0 +1,17 @@
+Total event coverage: 50.0%
+===========================
+StateMachine: Main
+==================
+Event coverage: 50.0%
+
+	State: Init
+		State event coverage: 50.0%
+		Events received: E
+		Events sent: E
+		Events not covered: DefaultEvent
+		Next states: Call
+
+	State: Call
+		State has no expected events, so coverage is 100%
+		Previous states: Init
+

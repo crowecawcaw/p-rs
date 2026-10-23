@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/NonExistentExitFun",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "entryExit_2.p",
+        "-pn",
+        "NonExistentExitFun"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "entryExit_2.p",
+        "-pn",
+        "NonExistentExitFun"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

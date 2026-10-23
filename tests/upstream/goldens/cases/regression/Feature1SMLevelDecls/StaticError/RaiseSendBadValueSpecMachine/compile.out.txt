@@ -1,0 +1,2 @@
+[Error:] [monitors.p:10:4] got type: int, expected: bool
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,6 @@
+PCheckerOutput/tcBasicConsensus/BugFinding/BasicPaxos.coverage.txt
+PCheckerOutput/tcBasicConsensus/BugFinding/BasicPaxos.sci
+PCheckerOutput/tcBasicConsensus/BugFinding/BasicPaxos_pchecker_summary.txt
+PCheckerOutput/tcCompetingProposals/BugFinding/BasicPaxos.coverage.txt
+PCheckerOutput/tcCompetingProposals/BugFinding/BasicPaxos.sci
+PCheckerOutput/tcCompetingProposals/BugFinding/BasicPaxos_pchecker_summary.txt

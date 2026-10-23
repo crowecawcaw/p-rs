@@ -1,0 +1,42 @@
+[Error:] [sends.p:21:14] could not find interface 'Dummy'
+
+[Error:] [sends.p:28:11] got type: int, expected: seq[any]
+
+[Error:] [sends.p:29:12] types (int,any) and (any,int) are incomparable
+
+[Error:] [sends.p:31:4] got type: (int), expected: (int,int)
+
+[Error:] [sends.p:32:4] got type: (int,int,int), expected: (int,int)
+
+[Error:] [sends.p:33:4] got type: bool, expected: (int,int)
+
+[Error:] [sends.p:34:4] got type: (any,any), expected: (int,int)
+
+[Error:] [sends.p:35:4] got type: (int,any), expected: (int,int)
+
+[Error:] [sends.p:37:4] got type: (int,bool), expected: (bool,bool)
+
+[Error:] [sends.p:39:4] got type: int, expected: (bool,bool)
+
+[Error:] [sends.p:40:4] got type: (bool), expected: (bool,bool)
+
+[Error:] [sends.p:41:4] got type: (any,any), expected: (bool,bool)
+
+[Error:] [sends.p:42:4] got type: (any,bool), expected: (bool,bool)
+
+[Error:] [sends.p:45:4] got type: seq[any], expected: seq[int]
+
+[Error:] [sends.p:49:4] got type: any, expected: seq[any]
+
+[Error:] [sends.p:50:4] got type: int, expected: seq[any]
+
+[Error:] [sends.p:51:4] got type: (any,int), expected: (int,any)
+
+[Error:] [sends.p:54:9] got type: any, expected: machine
+
+[Error:] [sends.p:57:4] got type: (any,bool), expected: seq[any]
+
+[Error:] [sends.p:58:4] got type: (no value), expected: seq[any]
+
+[Error:] [sends.p:62:13] got type: any, expected: event
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,45 @@
+Total event coverage: 80.0%
+===========================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: eReadReq, eWriteReq
+
+Monitor: NeverCovered
+=====================
+Event coverage: 0.0%
+
+	State: Waiting is uncovered
+		Events not covered: eNever
+
+	State: Done
+		State has no expected events, so coverage is 100%
+
+Monitor: ReadAfterWrite
+=======================
+Event coverage: 100.0%
+
+	State: WaitWrite
+		State event coverage: 100.0%
+		Events received: eWriteReq
+		Next states: WaitRead[hot]
+
+	State: WaitRead
+		State event coverage: 100.0%
+		Events received: eReadReq
+		Next states: Satisfied[cold]
+
+	State: Satisfied
+		State has no expected events, so coverage is 100%
+
+StateMachine: Server
+====================
+Event coverage: 100.0%
+
+	State: Serving
+		State event coverage: 100.0%
+		Events received: eReadReq, eWriteReq
+

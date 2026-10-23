@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/raise1.coverage.txt
+PCheckerOutput/BugFinding/raise1.sci
+PCheckerOutput/BugFinding/raise1_0_0.schedule
+PCheckerOutput/BugFinding/raise1_0_0.trace.json
+PCheckerOutput/BugFinding/raise1_0_0.txt
+PCheckerOutput/BugFinding/raise1_pchecker_summary.txt

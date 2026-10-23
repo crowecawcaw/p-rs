@@ -1,0 +1,2 @@
+[Error:] [function.p:11:3] got type: bool, expected: int
+~~ [PTool]: Thanks for using P! ~~

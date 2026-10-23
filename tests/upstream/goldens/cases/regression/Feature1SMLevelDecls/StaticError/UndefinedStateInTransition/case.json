@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/UndefinedStateInTransition",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "TransDecl_DoDecl.p",
+        "-pn",
+        "UndefinedStateInTransition"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "TransDecl_DoDecl.p",
+        "-pn",
+        "UndefinedStateInTransition"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

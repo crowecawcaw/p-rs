@@ -1,0 +1,50 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027S\u0027.",
+      "id": "Main(1)",
+      "state": "S",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "y is 1255",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Incorrect use of choose by Machine Main(1) in state S. choose expects a parameter with at most 10000 choices, got 10001 choices instead.",
+      "error": "Incorrect use of choose by Machine Main(1) in state S. choose expects a parameter with at most 10000 choices, got 10001 choices instead.",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

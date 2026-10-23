@@ -1,0 +1,2 @@
+[Error:] [EventDeferredTransDoSameState.p:25:9] event handler in state 'SendPing' duplicates handler at EventDeferredTransDoSameState.p:24:12
+~~ [PTool]: Thanks for using P! ~~

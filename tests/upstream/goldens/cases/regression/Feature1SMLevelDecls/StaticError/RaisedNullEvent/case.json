@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/RaisedNullEvent",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "RaisedNullEvent.p",
+        "-pn",
+        "RaisedNullEvent"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "RaisedNullEvent.p",
+        "-pn",
+        "RaisedNullEvent"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

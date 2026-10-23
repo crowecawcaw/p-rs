@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/FunctionReturnsNothingInAssignment",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "function.p",
+        "-pn",
+        "FunctionReturnsNothingInAssignment"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "function.p",
+        "-pn",
+        "FunctionReturnsNothingInAssignment"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

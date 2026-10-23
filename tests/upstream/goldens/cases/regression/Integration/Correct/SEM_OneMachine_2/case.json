@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Integration/Correct/SEM_OneMachine_2",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "RaiseSendInEntry.p",
+        "-pn",
+        "SEM_OneMachine_2",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

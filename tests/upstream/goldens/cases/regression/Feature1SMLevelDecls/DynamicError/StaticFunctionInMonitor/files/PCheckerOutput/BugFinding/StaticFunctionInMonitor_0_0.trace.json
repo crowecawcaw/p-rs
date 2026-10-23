@@ -1,0 +1,43 @@
+[
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "M was created.",
+      "payload": "null",
+      "monitor": "M",
+      "clock": {
+        "M": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "M enters state \u0027Init\u0027.",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "M",
+      "clock": {
+        "M": 2
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: StaticFunctionInMonitor.p:3:2",
+      "error": "Assertion Failed: StaticFunctionInMonitor.p:3:2",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

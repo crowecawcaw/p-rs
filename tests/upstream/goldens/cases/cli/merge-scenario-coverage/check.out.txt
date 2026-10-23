@@ -1,0 +1,24 @@
+.. Test case :: DefaultImpl
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+..... Schedule #5
+... Emitting coverage report:
+..... Writing PCheckerOutput/BugFinding/S.coverage.txt
+..... Writing PCheckerOutput/BugFinding/S.sci
+... Checking statistics:
+..... Found 0 bugs.
+... Scheduling statistics:
+..... Explored 5 schedules
+..... Explored 1 timeline
+..... Scenario coverage: 1/2 scenarios covered (1 gap)
+.....   [covered] ReadAfterWrite: triggered in 5 schedules, 1 unique satisfying timeline
+.....   [  GAP  ] NeverCovered: not covered (best partial progress: 1/2 states)
+..... Number of scheduling points in terminating schedules: 8 (min), 8 (avg), 8 (max).
+..... Writing PCheckerOutput/BugFinding/S_pchecker_summary.txt
+..... Writing PCheckerOutput/BugFinding/S_scenario_coverage.json
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

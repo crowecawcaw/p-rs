@@ -1,0 +1,2 @@
+[Error:] [namedtype.p:5:25] named tuple has duplicate field 'a'
+~~ [PTool]: Thanks for using P! ~~

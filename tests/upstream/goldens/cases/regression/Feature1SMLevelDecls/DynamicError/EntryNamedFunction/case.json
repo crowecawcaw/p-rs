@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/DynamicError/EntryNamedFunction",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "EntryNamedFunction.p",
+        "-pn",
+        "EntryNamedFunction",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

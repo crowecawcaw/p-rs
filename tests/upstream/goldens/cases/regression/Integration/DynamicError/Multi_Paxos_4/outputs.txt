@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/Multi_Paxos_4.coverage.txt
+PCheckerOutput/BugFinding/Multi_Paxos_4.sci
+PCheckerOutput/BugFinding/Multi_Paxos_4_0_0.schedule
+PCheckerOutput/BugFinding/Multi_Paxos_4_0_0.trace.json
+PCheckerOutput/BugFinding/Multi_Paxos_4_0_0.txt
+PCheckerOutput/BugFinding/Multi_Paxos_4_pchecker_summary.txt

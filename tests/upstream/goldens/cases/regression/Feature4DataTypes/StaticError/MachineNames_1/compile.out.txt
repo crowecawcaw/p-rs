@@ -1,0 +1,2 @@
+[Error:] [MachineNames_1.p:27:11] illegal coerce: permissions of 'ES2' are not a superset of 'ES1' (e.g., event 'E1')
+~~ [PTool]: Thanks for using P! ~~

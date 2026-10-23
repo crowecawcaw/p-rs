@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/EntryNamedFunction2",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "EntryNamedFunction2.p",
+        "-pn",
+        "EntryNamedFunction2"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "EntryNamedFunction2.p",
+        "-pn",
+        "EntryNamedFunction2"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

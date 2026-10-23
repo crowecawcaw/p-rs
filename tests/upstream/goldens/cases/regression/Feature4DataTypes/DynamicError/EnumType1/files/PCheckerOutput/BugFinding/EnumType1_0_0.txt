@@ -1,0 +1,17 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'S'.
+<CreateLog> XYZ(2) was created by Main(1).
+<ExceptionLog> Main(1) running action 'Anon' in state 'S' threw exception 'InvalidCastException'.
+<ErrorLog> Exception 'System.InvalidCastException' was thrown in Main(1) (state 'S', action 'Anon'): Unable to cast object of type 'PChecker.Runtime.Values.PMap' to type 'PChecker.Runtime.Values.PInt'.
+from location 'EnumType1':
+The stack trace is:
+
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 3 (min), 3 (avg), 3 (max).

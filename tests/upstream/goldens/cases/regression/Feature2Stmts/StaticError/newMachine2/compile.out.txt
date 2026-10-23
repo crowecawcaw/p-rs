@@ -1,0 +1,2 @@
+[Error:] [newMachine2.p:4:7] got type: (n:string,s:int), expected: (no value)
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,4 @@
+[Error:] [SideEffectsInMonitor.p:9:3] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'M'
+
+[Error:] [SideEffectsInMonitor.p:11:3] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'M'
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,24 @@
+[Error:] [foreach1.p:19:13] could not find foreach iterator variable 'iter'
+
+[Error:] [foreach1.p:21:18] could not find name 'iter'
+
+[Error:] [foreach1.p:33:15] could not find foreach iterator variable 'iter'
+
+[Error:] [foreach1.p:35:23] could not find name 'iter'
+
+[Error:] [foreach1.p:42:15] could not find foreach iterator variable 'iter'
+
+[Error:] [foreach1.p:44:18] could not find name 'iter'
+
+[Error:] [foreach1.p:45:16] could not find name 'iter'
+
+[Error:] [foreach1.p:48:15] could not find foreach iterator variable 'iter'
+
+[Error:] [foreach1.p:50:18] could not find name 'iter'
+
+[Error:] [foreach1.p:56:15] could not find foreach iterator variable 'iter'
+
+[Error:] [foreach1.p:58:19] could not find name 'iter'
+
+[Error:] [foreach1.p:59:24] could not find name 'iter'
+~~ [PTool]: Thanks for using P! ~~

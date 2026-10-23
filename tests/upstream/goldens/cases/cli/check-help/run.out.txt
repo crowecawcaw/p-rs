@@ -1,0 +1,77 @@
+usage: p check path [--help] [--mode string] [--testcase string] [--list-tests] [--timeout uint] 
+               [--memout double] [--outdir string] [--verbose] [--schedules uint] [--max-steps uint] 
+               [--fail-on-maxsteps] [--sch-random] [--sch-feedback] [--sch-feedbackpct uint] 
+               [--sch-feedbackpos] [--sch-probabilistic uint] [--sch-pct uint] [--sch-pos] 
+               [--sch-fairpct uint] [--sch-pex string] [--timeline-repr string] 
+               [--timeline-kgram uint] [--timeline-payload] [--replay string] [--explore] 
+               [--seed uint] [--graph-bug] [--graph] [--xml-trace] 
+
+The P checker enables systematic exploration of a specified P test case, it generates a reproducible 
+bug-trace if a bug is found, and also allows replaying a bug-trace. 
+
+Basic options:
+--------------
+  path                        : Path to the compiled file to check for correctness (*.dll). If this 
+                                option is not passed, the compiler searches for a *.dll file in the 
+                                current folder 
+  -md, --mode string          : Checker mode to use. Can be bugfinding or pex. If this option is not 
+                                passed, bugfinding mode is used as default 
+  -tc, --testcase string      : Test case to explore 
+  --list-tests                : List all test cases and exit. 
+  -t, --timeout uint          : Timeout in seconds (disabled by default) 
+  -m, --memout double         : Memory limit in Giga bytes (disabled by default) 
+  -o, --outdir string         : Dump output to directory (absolute or relative path) 
+  -v, --verbose               : Enable verbose log output during exploration 
+
+Systematic exploration options:
+-------------------------------
+  -s, --schedules uint        : Number of schedules to explore 
+  -ms, --max-steps uint       : Max scheduling steps to be explored during systematic exploration 
+                                (by default 10,000 unfair and 100,000 fair steps). You can provide 
+                                one or two unsigned integer values 
+  --fail-on-maxsteps          : Consider it a bug if the test hits the specified max-steps 
+
+Search prioritization options:
+------------------------------
+  --sch-random                : Choose the random scheduling strategy (this is the default) 
+  --sch-feedback              : Choose the random scheduling strategy with feedback mutation 
+  --sch-feedbackpct uint      : Choose the PCT scheduling strategy with feedback mutation 
+                                (recommended feedback strategy: best rare-behavior coverage; takes 
+                                the max number of priority switch points, e.g. --sch-feedbackpct 10) 
+  --sch-feedbackpos           : Choose the POS scheduling strategy with feedback mutation 
+  -sp, --sch-probabilistic uint 
+                              : Choose the probabilistic scheduling strategy with given probability 
+                                for each scheduling decision where the probability is specified as 
+                                the integer N in the equation 0.5 to the power of N.  So for N=1, 
+                                the probability is 0.5, for N=2 the probability is 0.25, N=3 you get 
+                                0.125, etc. 
+  --sch-pct uint              : Choose the PCT scheduling strategy with given maximum number of 
+                                priority switch points 
+  --sch-pos                   : Choose the POS scheduling strategy 
+  --sch-fairpct uint          : Choose the fair PCT scheduling strategy with given maximum number of 
+                                priority switch points 
+  --sch-pex string            : Choose the scheduling strategy for PEx mode (options: random, dfs). 
+                                (default: random) 
+  --timeline-repr string      : How the feedback-guided search represents a schedule's timeline (the 
+                                diversity signal): pairwise (default), kgram, causal, hybrid 
+  --timeline-kgram uint       : Gram length for the kgram/hybrid timeline representation (default: 
+                                3) 
+  --timeline-payload          : Enrich timeline event labels with a stable hash of the event payload 
+
+Replay and debug options:
+-------------------------
+  -r, --replay string         : Schedule file to replay 
+
+Advanced options:
+-----------------
+  --explore                   : Keep testing until the bound (e.g. schedule or time) is reached 
+  --seed uint                 : Specify the random value generator seed 
+  --graph-bug                 : Output a DGML graph of the schedule that found a bug 
+  --graph                     : Output a DGML graph of all test schedules whether a bug was found or 
+                                not 
+  --xml-trace                 : Specify a filename for XML runtime log output to be written to 
+
+Optional Arguments:
+-------------------
+  -h, --help                  Show this help menu 
+~~ [PTool]: Thanks for using P! ~~

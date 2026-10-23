@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/namedTuple1",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "namedTuple1.p",
+        "-pn",
+        "namedTuple1"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "namedTuple1.p",
+        "-pn",
+        "namedTuple1"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

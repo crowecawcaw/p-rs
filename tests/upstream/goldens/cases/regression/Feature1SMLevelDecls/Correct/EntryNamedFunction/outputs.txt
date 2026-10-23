@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/EntryNamedFunction.coverage.txt
+PCheckerOutput/BugFinding/EntryNamedFunction.sci
+PCheckerOutput/BugFinding/EntryNamedFunction_pchecker_summary.txt

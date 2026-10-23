@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/typedef2.coverage.txt
+PCheckerOutput/BugFinding/typedef2.sci
+PCheckerOutput/BugFinding/typedef2_pchecker_summary.txt

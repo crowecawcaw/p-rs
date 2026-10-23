@@ -1,0 +1,41 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/DynamicError/bug2",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "bug2.p",
+        "-pn",
+        "bug2",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "replay",
+      "p": [
+        "check",
+        "--replay",
+        "PCheckerOutput/BugFinding/bug2_0_0.schedule"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "bug2.p",
+        "-pn",
+        "bug2",
+        "--replay",
+        "PCheckerOutput/BugFinding/bug2_0_0.schedule"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

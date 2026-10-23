@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/typedef",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "typedef.p",
+        "-pn",
+        "typedef"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "typedef.p",
+        "-pn",
+        "typedef"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

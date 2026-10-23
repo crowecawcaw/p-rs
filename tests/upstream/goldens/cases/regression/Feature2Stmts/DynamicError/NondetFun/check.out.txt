@@ -1,0 +1,26 @@
+.. Test case :: DefaultImpl
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/BugFinding/NondetFun_0_0.txt
+..... Writing PCheckerOutput/BugFinding/NondetFun_0_0.trace.json
+..... Writing PCheckerOutput/BugFinding/NondetFun_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/BugFinding/NondetFun.coverage.txt
+..... Writing PCheckerOutput/BugFinding/NondetFun.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 4 schedules
+..... Explored 1 timeline
+..... Found 25.00% buggy schedules.
+..... Number of scheduling points in terminating schedules: 4 (min), 5 (avg), 7 (max).
+..... Writing PCheckerOutput/BugFinding/NondetFun_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

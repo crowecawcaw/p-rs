@@ -1,0 +1,4 @@
+[Error:] [SendInMonitor.p:6:3] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'Main'
+
+[Error:] [SendInMonitor.p:12:4] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'Main'
+~~ [PTool]: Thanks for using P! ~~

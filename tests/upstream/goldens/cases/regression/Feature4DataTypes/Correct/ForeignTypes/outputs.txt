@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/ForeignTypes.coverage.txt
+PCheckerOutput/BugFinding/ForeignTypes.sci
+PCheckerOutput/BugFinding/ForeignTypes_pchecker_summary.txt

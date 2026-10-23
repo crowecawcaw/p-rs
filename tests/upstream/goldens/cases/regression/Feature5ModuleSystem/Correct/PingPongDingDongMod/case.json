@@ -1,0 +1,34 @@
+{
+  "source": "RegressionTests/Feature5ModuleSystem/Correct/PingPongDingDongMod",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "Header.p",
+        "Link.p",
+        "Ping.p",
+        "Pong.p",
+        "-pn",
+        "PingPongDingDongMod",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

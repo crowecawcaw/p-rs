@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature2Stmts/StaticError/goto2",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "goto2.p",
+        "-pn",
+        "goto2"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "goto2.p",
+        "-pn",
+        "goto2"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

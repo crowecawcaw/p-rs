@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Combined/StaticError/FunctionNotDefined",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "ControlImpureInEntry.p",
+        "-pn",
+        "FunctionNotDefined"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ControlImpureInEntry.p",
+        "-pn",
+        "FunctionNotDefined"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

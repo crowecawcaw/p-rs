@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/ForeignTypes.coverage.txt
+PCheckerOutput/BugFinding/ForeignTypes.sci
+PCheckerOutput/BugFinding/ForeignTypes_0_0.schedule
+PCheckerOutput/BugFinding/ForeignTypes_0_0.trace.json
+PCheckerOutput/BugFinding/ForeignTypes_0_0.txt
+PCheckerOutput/BugFinding/ForeignTypes_pchecker_summary.txt

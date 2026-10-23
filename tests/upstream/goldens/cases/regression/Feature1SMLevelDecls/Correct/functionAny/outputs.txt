@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/functionAny.coverage.txt
+PCheckerOutput/BugFinding/functionAny.sci
+PCheckerOutput/BugFinding/functionAny_pchecker_summary.txt

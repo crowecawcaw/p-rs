@@ -1,0 +1,4 @@
+[Error:] [ForeachBodyErrors.p:27:21] could not find name 'undeclaredVar'
+
+[Error:] [ForeachBodyErrors.p:28:21] got type: string, expected: bool
+~~ [PTool]: Thanks for using P! ~~

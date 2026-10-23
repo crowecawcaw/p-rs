@@ -1,0 +1,1357 @@
+[
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect was created.",
+      "payload": "null",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect enters state \u0027Init\u0027.",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 2
+      }
+    }
+  },
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "GuaranteedWithDrawProgress was created.",
+      "payload": "null",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress enters state \u0027NopendingRequests\u0027.",
+      "state": "NopendingRequests",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "TestWithSingleClient(1) was created by task \u0027<n>\u0027.",
+      "id": "TestWithSingleClient(1)",
+      "payload": "null",
+      "clock": {
+        "TestWithSingleClient(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "TestWithSingleClient(1) enters state \u0027Init\u0027.",
+      "id": "TestWithSingleClient(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "TestWithSingleClient(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "BankServer(2) was created by TestWithSingleClient(1).",
+      "id": "BankServer(2)",
+      "creatorName": "TestWithSingleClient(1)",
+      "creatorType": "TestWithSingleClient",
+      "payload": "null",
+      "clock": {
+        "BankServer(2)": 1
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "TestWithSingleClient(1) announced event eSpec_BankBalanceIsAlwaysCorrect_Init with payload (\u003C0-\u003E19\u003E).",
+      "id": "TestWithSingleClient(1)",
+      "event": "eSpec_BankBalanceIsAlwaysCorrect_Init",
+      "payload": {
+        "0": 19
+      },
+      "clock": {
+        "TestWithSingleClient(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eSpec_BankBalanceIsAlwaysCorrect_Init with payload ((\u003C0-\u003E19\u003E))\u0027 in state \u0027Init\u0027.",
+      "event": "eSpec_BankBalanceIsAlwaysCorrect_Init",
+      "state": "Init",
+      "payload": {
+        "0": 19
+      },
+      "sender": "TestWithSingleClient(1)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 3,
+        "TestWithSingleClient(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect exits state \u0027Init\u0027.",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 4,
+        "TestWithSingleClient(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect enters state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 5,
+        "TestWithSingleClient(1)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "BankServer(2) enters state \u0027Init\u0027.",
+      "id": "BankServer(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "BankServer(2)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Database(3) was created by BankServer(2).",
+      "id": "Database(3)",
+      "creatorName": "BankServer(2)",
+      "creatorType": "BankServer",
+      "payload": "null",
+      "clock": {
+        "Database(3)": 1
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "BankServer(2) is transitioning from state \u0027Init\u0027 to state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "startState": "Init",
+      "endState": "WaitForWithdrawRequests",
+      "payload": "null",
+      "clock": {
+        "BankServer(2)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "BankServer(2) exits state \u0027Init\u0027.",
+      "id": "BankServer(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "BankServer(2)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "BankServer(2) enters state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "state": "WaitForWithdrawRequests",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "BankServer(2)": 5
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Client(4) was created by TestWithSingleClient(1).",
+      "id": "Client(4)",
+      "creatorName": "TestWithSingleClient(1)",
+      "creatorType": "TestWithSingleClient",
+      "payload": "null",
+      "clock": {
+        "Client(4)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) enters state \u0027Init\u0027.",
+      "id": "Client(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(4)": 2
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(4) is transitioning from state \u0027Init\u0027 to state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "startState": "Init",
+      "endState": "WithdrawMoney",
+      "payload": "null",
+      "clock": {
+        "Client(4)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) exits state \u0027Init\u0027.",
+      "id": "Client(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(4)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) enters state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "state": "WithdrawMoney",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(4)": 5
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:3, rId:1, \u003E)\u0027 in state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "event": "eWithDrawReq",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 3,
+        "rId": 1
+      },
+      "sender": "Client(4)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 6,
+        "TestWithSingleClient(1)": 3,
+        "Client(4)": 5
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "GuaranteedWithDrawProgress is processing event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:3, rId:1, \u003E)\u0027 in state \u0027NopendingRequests\u0027.",
+      "event": "eWithDrawReq",
+      "state": "NopendingRequests",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 3,
+        "rId": 1
+      },
+      "sender": "Client(4)",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 3,
+        "Client(4)": 5
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress exits state \u0027NopendingRequests\u0027.",
+      "state": "NopendingRequests",
+      "payload": "null",
+      "isEntry": false,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 4,
+        "Client(4)": 5
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress enters hot state \u0027PendingReqs\u0027.",
+      "state": "PendingReqs",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 5,
+        "Client(4)": 5
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Client(4)\u0027 in state \u0027WithdrawMoney\u0027 sent event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:3, rId:1, \u003E)\u0027 to \u0027BankServer(2)\u0027.",
+      "event": "eWithDrawReq",
+      "state": "WithdrawMoney",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 3,
+        "rId": 1
+      },
+      "sender": "Client(4)",
+      "target": "BankServer(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Client(4)": 6
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Database(3) enters state \u0027Init\u0027.",
+      "id": "Database(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Database(3)": 2
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 dequeued event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:3, rId:1, \u003E)\u0027 in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "event": "eWithDrawReq",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 3,
+        "rId": 1
+      },
+      "clock": {
+        "BankServer(2)": 6,
+        "Client(4)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 in state \u0027WaitForWithdrawRequests\u0027 sent event \u0027eReadQuery with payload (\u003CaccountId:0, \u003E)\u0027 to \u0027Database(3)\u0027.",
+      "event": "eReadQuery",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "accountId": 0
+      },
+      "sender": "BankServer(2)",
+      "target": "Database(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "BankServer(2)": 7,
+        "Client(4)": 6
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "BankServer(2) is waiting to dequeue an event of type \u0027eReadQueryResp\u0027 or \u0027PHalt\u0027 in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "payload": "null",
+      "eventTypes": [
+        "eReadQueryResp",
+        "PHalt"
+      ],
+      "clock": {
+        "BankServer(2)": 8,
+        "Client(4)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Database(3)\u0027 dequeued event \u0027eReadQuery with payload (\u003CaccountId:0, \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "Database(3)",
+      "event": "eReadQuery",
+      "state": "Init",
+      "payload": {
+        "accountId": 0
+      },
+      "clock": {
+        "Database(3)": 3,
+        "BankServer(2)": 7,
+        "Client(4)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Database(3)\u0027 in state \u0027Init\u0027 sent event \u0027eReadQueryResp with payload (\u003CaccountId:0, balance:19, \u003E)\u0027 to \u0027BankServer(2)\u0027.",
+      "event": "eReadQueryResp",
+      "state": "Init",
+      "payload": {
+        "accountId": 0,
+        "balance": 19
+      },
+      "sender": "Database(3)",
+      "target": "BankServer(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Database(3)": 4,
+        "BankServer(2)": 7,
+        "Client(4)": 6
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 dequeued event \u0027eReadQueryResp with payload (\u003CaccountId:0, balance:19, \u003E)\u0027 and unblocked in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "event": "eReadQueryResp",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "accountId": 0,
+        "balance": 19
+      },
+      "wasBlocked": true,
+      "clock": {
+        "BankServer(2)": 9,
+        "Client(4)": 6,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 in state \u0027WaitForWithdrawRequests\u0027 sent event \u0027eUpdateQuery with payload (\u003CaccountId:0, balance:16, \u003E)\u0027 to \u0027Database(3)\u0027.",
+      "event": "eUpdateQuery",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "accountId": 0,
+        "balance": 16
+      },
+      "sender": "BankServer(2)",
+      "target": "Database(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "BankServer(2)": 10,
+        "Client(4)": 6,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eWithDrawResp with payload (\u003Cstatus:0, accountId:0, balance:16, rId:1, \u003E)\u0027 in state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "event": "eWithDrawResp",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": {
+        "status": 0,
+        "accountId": 0,
+        "balance": 16,
+        "rId": 1
+      },
+      "sender": "BankServer(2)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 7,
+        "TestWithSingleClient(1)": 3,
+        "Client(4)": 6,
+        "BankServer(2)": 10,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "GuaranteedWithDrawProgress is processing event \u0027eWithDrawResp with payload (\u003Cstatus:0, accountId:0, balance:16, rId:1, \u003E)\u0027 in state \u0027PendingReqs\u0027.",
+      "event": "eWithDrawResp",
+      "state": "PendingReqs",
+      "payload": {
+        "status": 0,
+        "accountId": 0,
+        "balance": 16,
+        "rId": 1
+      },
+      "sender": "BankServer(2)",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 6,
+        "Client(4)": 6,
+        "BankServer(2)": 10,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorRaiseEvent",
+    "details": {
+      "log": "Monitor \u0027GuaranteedWithDrawProgress\u0027 raised event \u0027GotoStateEvent\u0027 in state \u0027PendingReqs\u0027.",
+      "event": "GotoStateEvent",
+      "state": "PendingReqs",
+      "payload": "null",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 7,
+        "Client(4)": 6,
+        "BankServer(2)": 10,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress exits hot state \u0027PendingReqs\u0027.",
+      "state": "PendingReqs",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 8,
+        "Client(4)": 6,
+        "BankServer(2)": 10,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress enters state \u0027NopendingRequests\u0027.",
+      "state": "NopendingRequests",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 9,
+        "Client(4)": 6,
+        "BankServer(2)": 10,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 in state \u0027WaitForWithdrawRequests\u0027 sent event \u0027eWithDrawResp with payload (\u003Cstatus:0, accountId:0, balance:16, rId:1, \u003E)\u0027 to \u0027Client(4)\u0027.",
+      "event": "eWithDrawResp",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "status": 0,
+        "accountId": 0,
+        "balance": 16,
+        "rId": 1
+      },
+      "sender": "BankServer(2)",
+      "target": "Client(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "BankServer(2)": 11,
+        "Client(4)": 6,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Client(4)\u0027 dequeued event \u0027eWithDrawResp with payload (\u003Cstatus:0, accountId:0, balance:16, rId:1, \u003E)\u0027 in state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "event": "eWithDrawResp",
+      "state": "WithdrawMoney",
+      "payload": {
+        "status": 0,
+        "accountId": 0,
+        "balance": 16,
+        "rId": 1
+      },
+      "clock": {
+        "Client(4)": 7,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "Withdrawal with rId = 1 succeeded, new account balance = 16",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "Still have account balance = 16, lets try and withdraw more",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(4) is transitioning from state \u0027WithdrawMoney\u0027 to state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "startState": "WithdrawMoney",
+      "endState": "WithdrawMoney",
+      "payload": "null",
+      "clock": {
+        "Client(4)": 8,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) exits state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "state": "WithdrawMoney",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(4)": 9,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) enters state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "state": "WithdrawMoney",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(4)": 10,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:13, rId:2, \u003E)\u0027 in state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "event": "eWithDrawReq",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 13,
+        "rId": 2
+      },
+      "sender": "Client(4)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 8,
+        "TestWithSingleClient(1)": 3,
+        "Client(4)": 10,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "GuaranteedWithDrawProgress is processing event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:13, rId:2, \u003E)\u0027 in state \u0027NopendingRequests\u0027.",
+      "event": "eWithDrawReq",
+      "state": "NopendingRequests",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 13,
+        "rId": 2
+      },
+      "sender": "Client(4)",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 10,
+        "Client(4)": 10,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress exits state \u0027NopendingRequests\u0027.",
+      "state": "NopendingRequests",
+      "payload": "null",
+      "isEntry": false,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 11,
+        "Client(4)": 10,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress enters hot state \u0027PendingReqs\u0027.",
+      "state": "PendingReqs",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 12,
+        "Client(4)": 10,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Client(4)\u0027 in state \u0027WithdrawMoney\u0027 sent event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:13, rId:2, \u003E)\u0027 to \u0027BankServer(2)\u0027.",
+      "event": "eWithDrawReq",
+      "state": "WithdrawMoney",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 13,
+        "rId": 2
+      },
+      "sender": "Client(4)",
+      "target": "BankServer(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Client(4)": 11,
+        "BankServer(2)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 dequeued event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:13, rId:2, \u003E)\u0027 in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "event": "eWithDrawReq",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 13,
+        "rId": 2
+      },
+      "clock": {
+        "BankServer(2)": 12,
+        "Client(4)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 in state \u0027WaitForWithdrawRequests\u0027 sent event \u0027eReadQuery with payload (\u003CaccountId:0, \u003E)\u0027 to \u0027Database(3)\u0027.",
+      "event": "eReadQuery",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "accountId": 0
+      },
+      "sender": "BankServer(2)",
+      "target": "Database(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "BankServer(2)": 13,
+        "Client(4)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "BankServer(2) is waiting to dequeue an event of type \u0027eReadQueryResp\u0027 or \u0027PHalt\u0027 in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "payload": "null",
+      "eventTypes": [
+        "eReadQueryResp",
+        "PHalt"
+      ],
+      "clock": {
+        "BankServer(2)": 14,
+        "Client(4)": 11,
+        "Database(3)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Database(3)\u0027 dequeued event \u0027eUpdateQuery with payload (\u003CaccountId:0, balance:16, \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "Database(3)",
+      "event": "eUpdateQuery",
+      "state": "Init",
+      "payload": {
+        "accountId": 0,
+        "balance": 16
+      },
+      "clock": {
+        "Database(3)": 5,
+        "BankServer(2)": 10,
+        "Client(4)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Database(3)\u0027 dequeued event \u0027eReadQuery with payload (\u003CaccountId:0, \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "Database(3)",
+      "event": "eReadQuery",
+      "state": "Init",
+      "payload": {
+        "accountId": 0
+      },
+      "clock": {
+        "Database(3)": 6,
+        "BankServer(2)": 13,
+        "Client(4)": 11
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Database(3)\u0027 in state \u0027Init\u0027 sent event \u0027eReadQueryResp with payload (\u003CaccountId:0, balance:16, \u003E)\u0027 to \u0027BankServer(2)\u0027.",
+      "event": "eReadQueryResp",
+      "state": "Init",
+      "payload": {
+        "accountId": 0,
+        "balance": 16
+      },
+      "sender": "Database(3)",
+      "target": "BankServer(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Database(3)": 7,
+        "BankServer(2)": 13,
+        "Client(4)": 11
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 dequeued event \u0027eReadQueryResp with payload (\u003CaccountId:0, balance:16, \u003E)\u0027 and unblocked in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "event": "eReadQueryResp",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "accountId": 0,
+        "balance": 16
+      },
+      "wasBlocked": true,
+      "clock": {
+        "BankServer(2)": 15,
+        "Client(4)": 11,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eWithDrawResp with payload (\u003Cstatus:1, accountId:0, balance:16, rId:2, \u003E)\u0027 in state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "event": "eWithDrawResp",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": {
+        "status": 1,
+        "accountId": 0,
+        "balance": 16,
+        "rId": 2
+      },
+      "sender": "BankServer(2)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 9,
+        "TestWithSingleClient(1)": 3,
+        "Client(4)": 11,
+        "BankServer(2)": 15,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "GuaranteedWithDrawProgress is processing event \u0027eWithDrawResp with payload (\u003Cstatus:1, accountId:0, balance:16, rId:2, \u003E)\u0027 in state \u0027PendingReqs\u0027.",
+      "event": "eWithDrawResp",
+      "state": "PendingReqs",
+      "payload": {
+        "status": 1,
+        "accountId": 0,
+        "balance": 16,
+        "rId": 2
+      },
+      "sender": "BankServer(2)",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 13,
+        "Client(4)": 11,
+        "BankServer(2)": 15,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorRaiseEvent",
+    "details": {
+      "log": "Monitor \u0027GuaranteedWithDrawProgress\u0027 raised event \u0027GotoStateEvent\u0027 in state \u0027PendingReqs\u0027.",
+      "event": "GotoStateEvent",
+      "state": "PendingReqs",
+      "payload": "null",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 14,
+        "Client(4)": 11,
+        "BankServer(2)": 15,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress exits hot state \u0027PendingReqs\u0027.",
+      "state": "PendingReqs",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 15,
+        "Client(4)": 11,
+        "BankServer(2)": 15,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress enters state \u0027NopendingRequests\u0027.",
+      "state": "NopendingRequests",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 16,
+        "Client(4)": 11,
+        "BankServer(2)": 15,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 in state \u0027WaitForWithdrawRequests\u0027 sent event \u0027eWithDrawResp with payload (\u003Cstatus:1, accountId:0, balance:16, rId:2, \u003E)\u0027 to \u0027Client(4)\u0027.",
+      "event": "eWithDrawResp",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "status": 1,
+        "accountId": 0,
+        "balance": 16,
+        "rId": 2
+      },
+      "sender": "BankServer(2)",
+      "target": "Client(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "BankServer(2)": 16,
+        "Client(4)": 11,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Client(4)\u0027 dequeued event \u0027eWithDrawResp with payload (\u003Cstatus:1, accountId:0, balance:16, rId:2, \u003E)\u0027 in state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "event": "eWithDrawResp",
+      "state": "WithdrawMoney",
+      "payload": {
+        "status": 1,
+        "accountId": 0,
+        "balance": 16,
+        "rId": 2
+      },
+      "clock": {
+        "Client(4)": 12,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "Withdrawal with rId = 2 failed, account balance = 16",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "Still have account balance = 16, lets try and withdraw more",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(4) is transitioning from state \u0027WithdrawMoney\u0027 to state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "startState": "WithdrawMoney",
+      "endState": "WithdrawMoney",
+      "payload": "null",
+      "clock": {
+        "Client(4)": 13,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) exits state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "state": "WithdrawMoney",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(4)": 14,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) enters state \u0027WithdrawMoney\u0027.",
+      "id": "Client(4)",
+      "state": "WithdrawMoney",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(4)": 15,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:13, rId:3, \u003E)\u0027 in state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "event": "eWithDrawReq",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 13,
+        "rId": 3
+      },
+      "sender": "Client(4)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 10,
+        "TestWithSingleClient(1)": 3,
+        "Client(4)": 15,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "GuaranteedWithDrawProgress is processing event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:13, rId:3, \u003E)\u0027 in state \u0027NopendingRequests\u0027.",
+      "event": "eWithDrawReq",
+      "state": "NopendingRequests",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 13,
+        "rId": 3
+      },
+      "sender": "Client(4)",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 17,
+        "Client(4)": 15,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress exits state \u0027NopendingRequests\u0027.",
+      "state": "NopendingRequests",
+      "payload": "null",
+      "isEntry": false,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 18,
+        "Client(4)": 15,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress enters hot state \u0027PendingReqs\u0027.",
+      "state": "PendingReqs",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 19,
+        "Client(4)": 15,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Client(4)\u0027 in state \u0027WithdrawMoney\u0027 sent event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:13, rId:3, \u003E)\u0027 to \u0027BankServer(2)\u0027.",
+      "event": "eWithDrawReq",
+      "state": "WithdrawMoney",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 13,
+        "rId": 3
+      },
+      "sender": "Client(4)",
+      "target": "BankServer(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Client(4)": 16,
+        "BankServer(2)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 dequeued event \u0027eWithDrawReq with payload (\u003Csource:Client(4), accountId:0, amount:13, rId:3, \u003E)\u0027 in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "event": "eWithDrawReq",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "source": "Client(4)",
+        "accountId": 0,
+        "amount": 13,
+        "rId": 3
+      },
+      "clock": {
+        "BankServer(2)": 17,
+        "Client(4)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 in state \u0027WaitForWithdrawRequests\u0027 sent event \u0027eReadQuery with payload (\u003CaccountId:0, \u003E)\u0027 to \u0027Database(3)\u0027.",
+      "event": "eReadQuery",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "accountId": 0
+      },
+      "sender": "BankServer(2)",
+      "target": "Database(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "BankServer(2)": 18,
+        "Client(4)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "BankServer(2) is waiting to dequeue an event of type \u0027eReadQueryResp\u0027 or \u0027PHalt\u0027 in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "payload": "null",
+      "eventTypes": [
+        "eReadQueryResp",
+        "PHalt"
+      ],
+      "clock": {
+        "BankServer(2)": 19,
+        "Client(4)": 16,
+        "Database(3)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Database(3)\u0027 dequeued event \u0027eReadQuery with payload (\u003CaccountId:0, \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "Database(3)",
+      "event": "eReadQuery",
+      "state": "Init",
+      "payload": {
+        "accountId": 0
+      },
+      "clock": {
+        "Database(3)": 8,
+        "BankServer(2)": 18,
+        "Client(4)": 16
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Database(3)\u0027 in state \u0027Init\u0027 sent event \u0027eReadQueryResp with payload (\u003CaccountId:0, balance:16, \u003E)\u0027 to \u0027BankServer(2)\u0027.",
+      "event": "eReadQueryResp",
+      "state": "Init",
+      "payload": {
+        "accountId": 0,
+        "balance": 16
+      },
+      "sender": "Database(3)",
+      "target": "BankServer(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Database(3)": 9,
+        "BankServer(2)": 18,
+        "Client(4)": 16
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 dequeued event \u0027eReadQueryResp with payload (\u003CaccountId:0, balance:16, \u003E)\u0027 and unblocked in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "event": "eReadQueryResp",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "accountId": 0,
+        "balance": 16
+      },
+      "wasBlocked": true,
+      "clock": {
+        "BankServer(2)": 20,
+        "Client(4)": 16,
+        "Database(3)": 9
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "PImplementation.GuaranteedWithDrawProgress detected potential liveness bug in hot state \u0027PendingReqs\u0027.",
+      "error": "PImplementation.GuaranteedWithDrawProgress detected potential liveness bug in hot state \u0027PendingReqs\u0027.",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

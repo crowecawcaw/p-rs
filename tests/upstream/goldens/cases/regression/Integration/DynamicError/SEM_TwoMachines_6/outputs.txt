@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/SEM_TwoMachines_6.coverage.txt
+PCheckerOutput/BugFinding/SEM_TwoMachines_6.sci
+PCheckerOutput/BugFinding/SEM_TwoMachines_6_0_0.schedule
+PCheckerOutput/BugFinding/SEM_TwoMachines_6_0_0.trace.json
+PCheckerOutput/BugFinding/SEM_TwoMachines_6_0_0.txt
+PCheckerOutput/BugFinding/SEM_TwoMachines_6_pchecker_summary.txt

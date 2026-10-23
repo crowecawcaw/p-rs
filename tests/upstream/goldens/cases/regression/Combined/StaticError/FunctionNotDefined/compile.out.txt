@@ -1,0 +1,4 @@
+[Error:] [ControlImpureInEntry.p:26:6] could not find function 'Actions6'
+
+[Error:] [ControlImpureInEntry.p:46:3] 'raise' is only allowed in functions that do not return a value
+~~ [PTool]: Thanks for using P! ~~

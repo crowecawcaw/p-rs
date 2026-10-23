@@ -1,0 +1,16 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> PImplementation.M was created.
+<MonitorLog> PImplementation.M enters state 'Init'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<MonitorLog> M is processing event 'E1' in state 'Init'.
+<MonitorLog> Monitor 'M' raised event 'E2 with payload (1000)' in state 'Init'.
+<ErrorLog> Assertion Failed: raise3.p:24:7 Expected payload to be 1000, actual payload is 1000
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 2 (min), 2 (avg), 2 (max).

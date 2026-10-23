@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/FunctionReturnsWrongType",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "function.p",
+        "-pn",
+        "FunctionReturnsWrongType"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "function.p",
+        "-pn",
+        "FunctionReturnsWrongType"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

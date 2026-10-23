@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/StartMachineNullParam",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "StartMachineNullParam.p",
+        "-pn",
+        "StartMachineNullParam"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "StartMachineNullParam.p",
+        "-pn",
+        "StartMachineNullParam"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

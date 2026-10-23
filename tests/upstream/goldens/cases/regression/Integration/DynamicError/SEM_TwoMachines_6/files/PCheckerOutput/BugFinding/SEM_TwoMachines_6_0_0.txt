@@ -1,0 +1,47 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Ping_Init'.
+<CreateLog> PONG(2) was created by Main(1).
+<RaiseLog> 'Main(1)' raised event 'Success' in state 'Ping_Init'.
+<GotoLog> Main(1) is transitioning from state 'Ping_Init' to state 'PImplementation.Main.Ping_SendPing'.
+<StateLog> Main(1) exits state 'Ping_Init'.
+<StateLog> Main(1) enters state 'Ping_SendPing'.
+<StateLog> PONG(2) enters state 'Pong_WaitPing'.
+<SendLog> 'Main(1)' in state 'Ping_SendPing' sent event 'Ping with payload (Main(1))' to 'PONG(2)'.
+<RaiseLog> 'Main(1)' raised event 'Success' in state 'Ping_SendPing'.
+<GotoLog> Main(1) is transitioning from state 'Ping_SendPing' to state 'PImplementation.Main.Ping_WaitPong'.
+<StateLog> Main(1) exits state 'Ping_SendPing'.
+<StateLog> Main(1) enters state 'Ping_WaitPong'.
+<DequeueLog> 'PONG(2)' dequeued event 'Ping with payload (Main(1))' in state 'Pong_WaitPing'.
+<GotoLog> PONG(2) is transitioning from state 'Pong_WaitPing' to state 'PImplementation.PONG.Pong_SendPong'.
+<StateLog> PONG(2) exits state 'Pong_WaitPing'.
+<StateLog> PONG(2) enters state 'Pong_SendPong'.
+<SendLog> 'PONG(2)' in state 'Pong_SendPong' sent event 'Pong' to 'Main(1)'.
+<RaiseLog> 'PONG(2)' raised event 'Success' in state 'Pong_SendPong'.
+<GotoLog> PONG(2) is transitioning from state 'Pong_SendPong' to state 'PImplementation.PONG.Pong_WaitPing'.
+<StateLog> PONG(2) exits state 'Pong_SendPong'.
+<StateLog> PONG(2) enters state 'Pong_WaitPing'.
+<DequeueLog> 'Main(1)' dequeued event 'Pong' in state 'Ping_WaitPong'.
+<GotoLog> Main(1) is transitioning from state 'Ping_WaitPong' to state 'PImplementation.Main.Ping_SendPing'.
+<StateLog> Main(1) exits state 'Ping_WaitPong'.
+<StateLog> Main(1) enters state 'Ping_SendPing'.
+<SendLog> 'Main(1)' in state 'Ping_SendPing' sent event 'Ping with payload (Main(1))' to 'PONG(2)'.
+<RaiseLog> 'Main(1)' raised event 'Success' in state 'Ping_SendPing'.
+<GotoLog> Main(1) is transitioning from state 'Ping_SendPing' to state 'PImplementation.Main.Ping_WaitPong'.
+<StateLog> Main(1) exits state 'Ping_SendPing'.
+<StateLog> Main(1) enters state 'Ping_WaitPong'.
+<DequeueLog> 'PONG(2)' dequeued event 'Ping with payload (Main(1))' in state 'Pong_WaitPing'.
+<GotoLog> PONG(2) is transitioning from state 'Pong_WaitPing' to state 'PImplementation.PONG.Pong_SendPong'.
+<StateLog> PONG(2) exits state 'Pong_WaitPing'.
+<StateLog> PONG(2) enters state 'Pong_SendPong'.
+<SendLog> 'PONG(2)' in state 'Pong_SendPong' sent event 'Pong' to 'Main(1)'.
+<RaiseLog> 'PONG(2)' raised event 'PHalt' in state 'Pong_SendPong'.
+<ErrorLog> Assertion Failed: RaisedHaltHandled.p:56:15
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 11 (min), 11 (avg), 11 (max).

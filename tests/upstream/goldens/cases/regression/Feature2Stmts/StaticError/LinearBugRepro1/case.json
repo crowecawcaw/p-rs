@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature2Stmts/StaticError/LinearBugRepro1",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "LinearBugRepro1.p",
+        "-pn",
+        "LinearBugRepro1"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "LinearBugRepro1.p",
+        "-pn",
+        "LinearBugRepro1"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

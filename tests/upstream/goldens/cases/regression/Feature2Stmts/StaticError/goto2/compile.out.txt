@@ -1,0 +1,2 @@
+[Error:] [goto2.p:8:7] goto, function or constructor call expected 1 arguments, got 0
+~~ [PTool]: Thanks for using P! ~~

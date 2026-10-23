@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/tooManyChoicesSet.coverage.txt
+PCheckerOutput/BugFinding/tooManyChoicesSet.sci
+PCheckerOutput/BugFinding/tooManyChoicesSet_0_0.schedule
+PCheckerOutput/BugFinding/tooManyChoicesSet_0_0.trace.json
+PCheckerOutput/BugFinding/tooManyChoicesSet_0_0.txt
+PCheckerOutput/BugFinding/tooManyChoicesSet_pchecker_summary.txt

@@ -1,0 +1,35 @@
+.. Found P project file: <dir>/2_TwoPhaseCommit/TwoPhaseCommit.pproj
+.. Running test cases with prefix 'tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1':
+tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1
+.. Test case :: tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+..... Schedule #5
+..... Schedule #6
+..... Schedule #7
+..... Schedule #8
+..... Schedule #9
+..... Schedule #10
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1/BugFinding/TwoPhaseCommit_0_0.txt
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1/BugFinding/TwoPhaseCommit_0_0.trace.json
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1/BugFinding/TwoPhaseCommit_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1/BugFinding/TwoPhaseCommit.coverage.txt
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1/BugFinding/TwoPhaseCommit.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 12 schedules
+..... Explored 12 timelines
+..... Found 8.33% buggy schedules.
+..... Number of scheduling points in terminating schedules: 344 (min), 389 (avg), 430 (max).
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1/BugFinding/TwoPhaseCommit_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

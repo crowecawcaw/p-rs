@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [nonAtomicDataTypes.p] parse error: line 193:10 no viable alternative at input 's3+=1'
+~~ [PTool]: Thanks for using P! ~~

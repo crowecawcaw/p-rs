@@ -1,0 +1,30 @@
+.. Found P project file: <dir>/2_TwoPhaseCommit/TwoPhaseCommit.pproj
+.. Running test cases with prefix 'tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1':
+tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1
+.. Test case :: tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+..... Schedule #5
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1/BugFinding/TwoPhaseCommit_0_0.txt
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1/BugFinding/TwoPhaseCommit_0_0.trace.json
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1/BugFinding/TwoPhaseCommit_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1/BugFinding/TwoPhaseCommit.coverage.txt
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1/BugFinding/TwoPhaseCommit.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 5 schedules
+..... Explored 5 timelines
+..... Found 20.00% buggy schedules.
+..... Number of scheduling points in terminating schedules: 282 (min), 359 (avg), 419 (max).
+..... Writing PCheckerOutput/tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1/BugFinding/TwoPhaseCommit_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

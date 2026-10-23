@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [ControlImpureInExit.p] parse error: line 29:16 no viable alternative at input 'pop;'
+~~ [PTool]: Thanks for using P! ~~

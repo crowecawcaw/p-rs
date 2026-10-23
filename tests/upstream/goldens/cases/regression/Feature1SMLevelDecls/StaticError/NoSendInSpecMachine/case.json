@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/NoSendInSpecMachine",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "NoSendInSpecMachine"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "NoSendInSpecMachine"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/function_Typos",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "function_Typos.p",
+        "-pn",
+        "function_Typos"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "function_Typos.p",
+        "-pn",
+        "function_Typos"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

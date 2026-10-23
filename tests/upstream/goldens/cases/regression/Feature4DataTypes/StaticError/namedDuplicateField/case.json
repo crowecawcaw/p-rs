@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/namedDuplicateField",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "namedtype.p",
+        "-pn",
+        "namedDuplicateField"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "namedtype.p",
+        "-pn",
+        "namedDuplicateField"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

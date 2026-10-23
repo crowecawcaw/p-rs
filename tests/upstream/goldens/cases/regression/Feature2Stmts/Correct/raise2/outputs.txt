@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/raise2.coverage.txt
+PCheckerOutput/BugFinding/raise2.sci
+PCheckerOutput/BugFinding/raise2_pchecker_summary.txt

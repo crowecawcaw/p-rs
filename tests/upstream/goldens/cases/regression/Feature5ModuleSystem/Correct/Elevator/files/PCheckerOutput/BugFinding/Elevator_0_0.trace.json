@@ -1,0 +1,2619 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Elevator(2) was created by Main(1).",
+      "id": "Elevator(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 1
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Init\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Init",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eCloseDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eCloseDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 7
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 9
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 10
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 11
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 12
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 13
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 14
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 15
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) enters state \u0027Init\u0027.",
+      "id": "Elevator(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Elevator(2)": 2
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 17
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 18
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 19
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 20
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Timer(3) was created by Elevator(2).",
+      "id": "Timer(3)",
+      "creatorName": "Elevator(2)",
+      "creatorType": "Elevator",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 1
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 21
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 22
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 23
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 24
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 25
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 26
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 27
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 28
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 29
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 30
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) enters state \u0027_Init\u0027.",
+      "id": "Timer(3)",
+      "state": "_Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(3)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 raised event \u0027eUnit\u0027 in state \u0027_Init\u0027.",
+      "id": "Timer(3)",
+      "event": "eUnit",
+      "state": "_Init",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(3) is transitioning from state \u0027_Init\u0027 to state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "startState": "_Init",
+      "endState": "Init",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) exits state \u0027_Init\u0027.",
+      "id": "Timer(3)",
+      "state": "_Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(3)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) enters state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(3)": 6
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Door(4) was created by Elevator(2).",
+      "id": "Door(4)",
+      "creatorName": "Elevator(2)",
+      "creatorType": "Elevator",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 1
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 raised event \u0027eUnit\u0027 in state \u0027Init\u0027.",
+      "id": "Elevator(2)",
+      "event": "eUnit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Elevator(2) is transitioning from state \u0027Init\u0027 to state \u0027DoorClosed\u0027.",
+      "id": "Elevator(2)",
+      "startState": "Init",
+      "endState": "DoorClosed",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) exits state \u0027Init\u0027.",
+      "id": "Elevator(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Elevator(2)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) enters state \u0027DoorClosed\u0027.",
+      "id": "Elevator(2)",
+      "state": "DoorClosed",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Elevator(2)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 in state \u0027DoorClosed\u0027 sent event \u0027eSendCommandToResetDoor\u0027 to \u0027Door(4)\u0027.",
+      "event": "eSendCommandToResetDoor",
+      "state": "DoorClosed",
+      "payload": "null",
+      "sender": "Elevator(2)",
+      "target": "Door(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "Elevator(2)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eCloseDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eCloseDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 31
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 32
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 33
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 34
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 35
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) enters state \u0027_Init\u0027.",
+      "id": "Door(4)",
+      "state": "_Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Door(4)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Door(4)\u0027 raised event \u0027eUnit\u0027 in state \u0027_Init\u0027.",
+      "id": "Door(4)",
+      "event": "eUnit",
+      "state": "_Init",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Door(4) is transitioning from state \u0027_Init\u0027 to state \u0027Init\u0027.",
+      "id": "Door(4)",
+      "startState": "_Init",
+      "endState": "Init",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) exits state \u0027_Init\u0027.",
+      "id": "Door(4)",
+      "state": "_Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Door(4)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) enters state \u0027Init\u0027.",
+      "id": "Door(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Door(4)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 dequeued event \u0027eOpenDoor\u0027 in state \u0027DoorClosed\u0027.",
+      "id": "Elevator(2)",
+      "event": "eOpenDoor",
+      "state": "DoorClosed",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 8,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Elevator(2) is transitioning from state \u0027DoorClosed\u0027 to state \u0027DoorOpening\u0027.",
+      "id": "Elevator(2)",
+      "startState": "DoorClosed",
+      "endState": "DoorOpening",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 9,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) exits state \u0027DoorClosed\u0027.",
+      "id": "Elevator(2)",
+      "state": "DoorClosed",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Elevator(2)": 10,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) enters state \u0027DoorOpening\u0027.",
+      "id": "Elevator(2)",
+      "state": "DoorOpening",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Elevator(2)": 11,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 in state \u0027DoorOpening\u0027 sent event \u0027eSendCommandToOpenDoor\u0027 to \u0027Door(4)\u0027.",
+      "event": "eSendCommandToOpenDoor",
+      "state": "DoorOpening",
+      "payload": "null",
+      "sender": "Elevator(2)",
+      "target": "Door(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 36
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 37
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 38
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 39
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 40
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Door(4)\u0027 dequeued event \u0027eSendCommandToOpenDoor\u0027 in state \u0027Init\u0027.",
+      "id": "Door(4)",
+      "event": "eSendCommandToOpenDoor",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 7,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Door(4) is transitioning from state \u0027Init\u0027 to state \u0027OpenDoor\u0027.",
+      "id": "Door(4)",
+      "startState": "Init",
+      "endState": "OpenDoor",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 8,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) exits state \u0027Init\u0027.",
+      "id": "Door(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Door(4)": 9,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) enters state \u0027OpenDoor\u0027.",
+      "id": "Door(4)",
+      "state": "OpenDoor",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Door(4)": 10,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Door(4)\u0027 in state \u0027OpenDoor\u0027 sent event \u0027eDoorOpened\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eDoorOpened",
+      "state": "OpenDoor",
+      "payload": "null",
+      "sender": "Door(4)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Door(4)": 11,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Door(4)\u0027 raised event \u0027eUnit\u0027 in state \u0027OpenDoor\u0027.",
+      "id": "Door(4)",
+      "event": "eUnit",
+      "state": "OpenDoor",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 12,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Door(4) is transitioning from state \u0027OpenDoor\u0027 to state \u0027ResetDoor\u0027.",
+      "id": "Door(4)",
+      "startState": "OpenDoor",
+      "endState": "ResetDoor",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 13,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) exits state \u0027OpenDoor\u0027.",
+      "id": "Door(4)",
+      "state": "OpenDoor",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Door(4)": 14,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) enters state \u0027ResetDoor\u0027.",
+      "id": "Door(4)",
+      "state": "ResetDoor",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Door(4)": 15,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 dequeued event \u0027eDoorOpened\u0027 in state \u0027DoorOpening\u0027.",
+      "id": "Elevator(2)",
+      "event": "eDoorOpened",
+      "state": "DoorOpening",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 13,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Elevator(2) is transitioning from state \u0027DoorOpening\u0027 to state \u0027DoorOpened\u0027.",
+      "id": "Elevator(2)",
+      "startState": "DoorOpening",
+      "endState": "DoorOpened",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 14,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) exits state \u0027DoorOpening\u0027.",
+      "id": "Elevator(2)",
+      "state": "DoorOpening",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Elevator(2)": 15,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) enters state \u0027DoorOpened\u0027.",
+      "id": "Elevator(2)",
+      "state": "DoorOpened",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Elevator(2)": 16,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eCloseDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eCloseDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 41
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 42
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 43
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 44
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 45
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 46
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 47
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 48
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 49
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 50
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 51
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 52
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 53
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 54
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 in state \u0027DoorOpened\u0027 sent event \u0027eSendCommandToResetDoor\u0027 to \u0027Door(4)\u0027.",
+      "event": "eSendCommandToResetDoor",
+      "state": "DoorOpened",
+      "payload": "null",
+      "sender": "Elevator(2)",
+      "target": "Door(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "Elevator(2)": 17,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Door(4)\u0027 dequeued event \u0027eSendCommandToResetDoor\u0027 in state \u0027ResetDoor\u0027.",
+      "id": "Door(4)",
+      "event": "eSendCommandToResetDoor",
+      "state": "ResetDoor",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 16,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Door(4) is transitioning from state \u0027ResetDoor\u0027 to state \u0027Init\u0027.",
+      "id": "Door(4)",
+      "startState": "ResetDoor",
+      "endState": "Init",
+      "payload": "null",
+      "clock": {
+        "Door(4)": 17,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) exits state \u0027ResetDoor\u0027.",
+      "id": "Door(4)",
+      "state": "ResetDoor",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Door(4)": 18,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Door(4) enters state \u0027Init\u0027.",
+      "id": "Door(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Door(4)": 19,
+        "Elevator(2)": 12,
+        "Main(1)": 16
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 in state \u0027DoorOpened\u0027 sent event \u0027eStartDoorCloseTimer\u0027 to \u0027Timer(3)\u0027.",
+      "event": "eStartDoorCloseTimer",
+      "state": "DoorOpened",
+      "payload": "null",
+      "sender": "Elevator(2)",
+      "target": "Timer(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "Elevator(2)": 18,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 dequeued event \u0027eOpenDoor\u0027 in state \u0027DoorOpened\u0027.",
+      "id": "Elevator(2)",
+      "event": "eOpenDoor",
+      "state": "DoorOpened",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 19,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Elevator(2) is transitioning from state \u0027DoorOpened\u0027 to state \u0027StoppingTimer\u0027.",
+      "id": "Elevator(2)",
+      "startState": "DoorOpened",
+      "endState": "StoppingTimer",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 20,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) exits state \u0027DoorOpened\u0027.",
+      "id": "Elevator(2)",
+      "state": "DoorOpened",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Elevator(2)": 21,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) enters state \u0027StoppingTimer\u0027.",
+      "id": "Elevator(2)",
+      "state": "StoppingTimer",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Elevator(2)": 22,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 55
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 56
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 57
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 58
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 59
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 60
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 61
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 62
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 63
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 64
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 65
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 66
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 67
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 68
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 69
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 70
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 71
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 72
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 73
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 in state \u0027StoppingTimer\u0027 sent event \u0027eStopDoorCloseTimer\u0027 to \u0027Timer(3)\u0027.",
+      "event": "eStopDoorCloseTimer",
+      "state": "StoppingTimer",
+      "payload": "null",
+      "sender": "Elevator(2)",
+      "target": "Timer(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eCloseDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eCloseDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 74
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 75
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 76
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 77
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 78
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 dequeued event \u0027eStartDoorCloseTimer\u0027 in state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "event": "eStartDoorCloseTimer",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 7,
+        "Elevator(2)": 18,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(3) is transitioning from state \u0027Init\u0027 to state \u0027TimerStarted\u0027.",
+      "id": "Timer(3)",
+      "startState": "Init",
+      "endState": "TimerStarted",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 8,
+        "Elevator(2)": 18,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) exits state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(3)": 9,
+        "Elevator(2)": 18,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) enters state \u0027TimerStarted\u0027.",
+      "id": "Timer(3)",
+      "state": "TimerStarted",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(3)": 10,
+        "Elevator(2)": 18,
+        "Main(1)": 16,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 79
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 80
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 81
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 82
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 83
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 dequeued event \u0027eStopDoorCloseTimer\u0027 in state \u0027TimerStarted\u0027.",
+      "id": "Timer(3)",
+      "event": "eStopDoorCloseTimer",
+      "state": "TimerStarted",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 11,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(3) is transitioning from state \u0027TimerStarted\u0027 to state \u0027ConsiderStopping\u0027.",
+      "id": "Timer(3)",
+      "startState": "TimerStarted",
+      "endState": "ConsiderStopping",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 12,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) exits state \u0027TimerStarted\u0027.",
+      "id": "Timer(3)",
+      "state": "TimerStarted",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(3)": 13,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) enters state \u0027ConsiderStopping\u0027.",
+      "id": "Timer(3)",
+      "state": "ConsiderStopping",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(3)": 14,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 84
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 85
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 86
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 87
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 88
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 89
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 90
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 91
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 92
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 93
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 94
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 95
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 96
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 97
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 98
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eCloseDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eCloseDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 99
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 100
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 101
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 102
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 103
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 in state \u0027ConsiderStopping\u0027 sent event \u0027eOperationSuccess\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOperationSuccess",
+      "state": "ConsiderStopping",
+      "payload": "null",
+      "sender": "Timer(3)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Timer(3)": 15,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 raised event \u0027eUnit\u0027 in state \u0027ConsiderStopping\u0027.",
+      "id": "Timer(3)",
+      "event": "eUnit",
+      "state": "ConsiderStopping",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 16,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(3) is transitioning from state \u0027ConsiderStopping\u0027 to state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "startState": "ConsiderStopping",
+      "endState": "Init",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 17,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) exits state \u0027ConsiderStopping\u0027.",
+      "id": "Timer(3)",
+      "state": "ConsiderStopping",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(3)": 18,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) enters state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(3)": 19,
+        "Elevator(2)": 23,
+        "Main(1)": 21,
+        "Door(4)": 11
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eOpenDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eOpenDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 104
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 105
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 106
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 107
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 108
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eCloseDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eCloseDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 109
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 110
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 111
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 112
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 113
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Loop\u0027 sent event \u0027eCloseDoor\u0027 to \u0027Elevator(2)\u0027.",
+      "event": "eCloseDoor",
+      "state": "Loop",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Elevator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 114
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 raised event \u0027eUnit\u0027 in state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "event": "eUnit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 115
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Main(1) is transitioning from state \u0027Loop\u0027 to state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "startState": "Loop",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 116
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) exits state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Main(1)": 117
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Loop\u0027.",
+      "id": "Main(1)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 118
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 dequeued event \u0027eOperationSuccess\u0027 in state \u0027StoppingTimer\u0027.",
+      "id": "Elevator(2)",
+      "event": "eOperationSuccess",
+      "state": "StoppingTimer",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 24,
+        "Main(1)": 21,
+        "Door(4)": 11,
+        "Timer(3)": 15
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Elevator(2) is transitioning from state \u0027StoppingTimer\u0027 to state \u0027ReturnState\u0027.",
+      "id": "Elevator(2)",
+      "startState": "StoppingTimer",
+      "endState": "ReturnState",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 25,
+        "Main(1)": 21,
+        "Door(4)": 11,
+        "Timer(3)": 15
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) exits state \u0027StoppingTimer\u0027.",
+      "id": "Elevator(2)",
+      "state": "StoppingTimer",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Elevator(2)": 26,
+        "Main(1)": 21,
+        "Door(4)": 11,
+        "Timer(3)": 15
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) enters state \u0027ReturnState\u0027.",
+      "id": "Elevator(2)",
+      "state": "ReturnState",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Elevator(2)": 27,
+        "Main(1)": 21,
+        "Door(4)": 11,
+        "Timer(3)": 15
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Elevator(2)\u0027 raised event \u0027eStopTimerReturned\u0027 in state \u0027ReturnState\u0027.",
+      "id": "Elevator(2)",
+      "event": "eStopTimerReturned",
+      "state": "ReturnState",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 28,
+        "Main(1)": 21,
+        "Door(4)": 11,
+        "Timer(3)": 15
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Elevator(2) exits state \u0027ReturnState\u0027.",
+      "id": "Elevator(2)",
+      "state": "ReturnState",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Elevator(2)": 29,
+        "Main(1)": 21,
+        "Door(4)": 11,
+        "Timer(3)": 15
+      }
+    }
+  },
+  {
+    "type": "PopStateUnhandledEvent",
+    "details": {
+      "log": "Elevator(2) popped state ReturnState due to unhandled event \u0027eStopTimerReturned\u0027.",
+      "id": "Elevator(2)",
+      "event": "eStopTimerReturned",
+      "state": "ReturnState",
+      "payload": "null",
+      "clock": {
+        "Elevator(2)": 30,
+        "Main(1)": 21,
+        "Door(4)": 11,
+        "Timer(3)": 15
+      }
+    }
+  },
+  {
+    "type": "ExceptionThrown",
+    "details": {
+      "log": "Elevator(2) running action \u0027\u0027 in state \u0027ReturnState\u0027 threw exception \u0027UnhandledEventException\u0027.",
+      "id": "Elevator(2)",
+      "state": "ReturnState",
+      "payload": "null",
+      "action": "",
+      "exception": "UnhandledEventException",
+      "clock": {
+        "Elevator(2)": 31,
+        "Main(1)": 21,
+        "Door(4)": 11,
+        "Timer(3)": 15
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Elevator(2) received event \u0027PImplementation.eStopTimerReturned\u0027 that cannot be handled.",
+      "error": "Elevator(2) received event \u0027PImplementation.eStopTimerReturned\u0027 that cannot be handled.",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

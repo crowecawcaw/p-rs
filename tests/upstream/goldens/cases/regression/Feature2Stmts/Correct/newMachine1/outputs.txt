@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/newMachine1.coverage.txt
+PCheckerOutput/BugFinding/newMachine1.sci
+PCheckerOutput/BugFinding/newMachine1_pchecker_summary.txt

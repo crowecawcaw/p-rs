@@ -1,0 +1,6 @@
+out/BugFinding/bug2.coverage.txt
+out/BugFinding/bug2.sci
+out/BugFinding/bug2_0_0.schedule
+out/BugFinding/bug2_0_0.trace.json
+out/BugFinding/bug2_0_0.txt
+out/BugFinding/bug2_pchecker_summary.txt

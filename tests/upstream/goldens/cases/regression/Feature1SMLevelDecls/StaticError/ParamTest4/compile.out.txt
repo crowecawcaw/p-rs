@@ -1,0 +1,2 @@
+[Error:] [ParamTest4.p:13:27] invalid twise number at ParamTest4.p:13:1: twise number 0 is less than 1.
+~~ [PTool]: Thanks for using P! ~~

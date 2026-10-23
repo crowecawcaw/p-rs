@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/TokenRing.coverage.txt
+PCheckerOutput/BugFinding/TokenRing.sci
+PCheckerOutput/BugFinding/TokenRing_pchecker_summary.txt

@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Feature2Stmts/Correct/SEM_OneMachine_35",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "bubblesort.p",
+        "-pn",
+        "SEM_OneMachine_35",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

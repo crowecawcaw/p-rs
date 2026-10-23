@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/SingleNamedTuple1.coverage.txt
+PCheckerOutput/BugFinding/SingleNamedTuple1.sci
+PCheckerOutput/BugFinding/SingleNamedTuple1_pchecker_summary.txt

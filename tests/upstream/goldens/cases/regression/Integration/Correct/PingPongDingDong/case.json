@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Integration/Correct/PingPongDingDong",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "PingPongDingDong.p",
+        "-pn",
+        "PingPongDingDong",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

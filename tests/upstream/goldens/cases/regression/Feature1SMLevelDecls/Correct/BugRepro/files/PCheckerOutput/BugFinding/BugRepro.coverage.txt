@@ -1,0 +1,72 @@
+Total event coverage: 45.5%
+===========================
+StateMachine: FailureDetector
+=============================
+Event coverage: 37.5%
+
+	State: Init is uncovered
+		Events received: PHalt
+		Events not covered: REGISTER_CLIENT, UNREGISTER_CLIENT
+		Next states: SendPing
+
+	State: SendPing
+		State event coverage: 71.4%
+		Events received: PONG, REGISTER_CLIENT, ROUND_DONE, TIMEOUT, UNIT
+		Events sent: NODE_DOWN, PING, ROUND_DONE, START, UNIT
+		Events not covered: TIMER_CANCELED, UNREGISTER_CLIENT
+		Previous states: Init, Reset, SendPing
+		Next states: Reset, SendPing
+
+	State: WaitForCancelResponse is uncovered
+		Events not covered: CANCEL_FAILURE, CANCEL_SUCCESS, REGISTER_CLIENT, UNREGISTER_CLIENT
+
+	State: Reset
+		State event coverage: 33.3%
+		Events received: TIMEOUT
+		Events sent: START
+		Events not covered: REGISTER_CLIENT, UNREGISTER_CLIENT
+		Previous states: SendPing
+		Next states: SendPing
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: PHalt, REGISTER_CLIENT
+
+StateMachine: Node
+==================
+Event coverage: 100.0%
+
+	State: WaitPing
+		State event coverage: 100.0%
+		Events received: PING
+		Events sent: PONG
+
+StateMachine: Timer
+===================
+Event coverage: 60.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: PHalt, UNIT
+		Events sent: UNIT
+		Next states: WaitForReq
+
+	State: WaitForReq
+		State event coverage: 50.0%
+		Events received: START
+		Events not covered: CANCEL
+		Previous states: Init, WaitForCancel
+		Next states: WaitForCancel
+
+	State: WaitForCancel
+		State event coverage: 50.0%
+		Events received: PHalt
+		Events sent: TIMEOUT
+		Events not covered: CANCEL
+		Previous states: WaitForReq
+		Next states: WaitForReq
+

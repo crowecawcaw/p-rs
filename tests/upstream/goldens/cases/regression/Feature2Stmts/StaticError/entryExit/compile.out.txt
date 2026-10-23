@@ -1,0 +1,6 @@
+[Error:] [entryExit.p:84:7] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'announceMe'
+
+[Error:] [entryExit.p:92:6] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'announceMe'
+
+[Error:] [entryExit.p:98:6] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'announceMe'
+~~ [PTool]: Thanks for using P! ~~

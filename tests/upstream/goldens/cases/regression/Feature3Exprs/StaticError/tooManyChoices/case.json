@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/tooManyChoices",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "tooManyChoices.p",
+        "-pn",
+        "tooManyChoices"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "tooManyChoices.p",
+        "-pn",
+        "tooManyChoices"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

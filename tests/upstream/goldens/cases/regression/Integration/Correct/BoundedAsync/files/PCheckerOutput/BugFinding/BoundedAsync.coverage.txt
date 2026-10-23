@@ -1,0 +1,47 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: inits
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: init, unit
+		Next states: Sync
+
+	State: Sync
+		State event coverage: 100.0%
+		Events received: Req, Resp
+		Events sent: Resp
+		Previous states: Sync, inits
+		Next states: Sync
+
+StateMachine: Process
+=====================
+Event coverage: 100.0%
+
+	State: _init
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: unit
+		Next states: inits
+
+	State: inits
+		State event coverage: 100.0%
+		Events received: Resp, init, myCount
+		Events sent: Req
+		Previous states: SendCount, _init, inits
+		Next states: SendCount, inits
+
+	State: SendCount
+		State event coverage: 100.0%
+		Events received: Resp, myCount, unit
+		Events sent: Req, myCount, unit
+		Previous states: SendCount, inits
+		Next states: SendCount, done, inits
+
+	State: done
+		State has no expected events, so coverage is 100%
+		Previous states: SendCount
+

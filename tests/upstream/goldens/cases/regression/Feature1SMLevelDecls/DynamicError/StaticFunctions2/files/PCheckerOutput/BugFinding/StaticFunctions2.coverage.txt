@@ -1,0 +1,19 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: S
+		State event coverage: 100.0%
+		Events received: a
+		Events sent: a, b
+		Next states: S1, StateMachine
+
+	State: S1
+		State event coverage: 100.0%
+		Events received: a, b
+		Events sent: a, b
+		Previous states: S
+		Next states: StateMachine
+

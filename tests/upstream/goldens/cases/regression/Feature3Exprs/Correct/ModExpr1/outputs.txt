@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/ModExpr1.coverage.txt
+PCheckerOutput/BugFinding/ModExpr1.sci
+PCheckerOutput/BugFinding/ModExpr1_pchecker_summary.txt

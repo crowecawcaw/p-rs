@@ -1,0 +1,25 @@
+Total event coverage: 100.0%
+============================
+Monitor: M
+==========
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: E1
+		Previous states: Init
+		Next states: Init, S
+
+	State: S
+		State has no expected events, so coverage is 100%
+		Previous states: Init
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: E1
+		Events sent: E1
+

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/CastInExprs",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "CastInExprs.p",
+        "-pn",
+        "CastInExprs"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "CastInExprs.p",
+        "-pn",
+        "CastInExprs"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

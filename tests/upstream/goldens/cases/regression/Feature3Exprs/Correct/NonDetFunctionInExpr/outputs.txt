@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/NonDetFunctionInExpr.coverage.txt
+PCheckerOutput/BugFinding/NonDetFunctionInExpr.sci
+PCheckerOutput/BugFinding/NonDetFunctionInExpr_pchecker_summary.txt

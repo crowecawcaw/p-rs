@@ -1,0 +1,2 @@
+[Error:] [function.p:9:32] not all paths in function 'foo2' return a value
+~~ [PTool]: Thanks for using P! ~~

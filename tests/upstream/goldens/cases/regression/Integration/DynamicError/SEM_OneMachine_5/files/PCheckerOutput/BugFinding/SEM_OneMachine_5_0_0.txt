@@ -1,0 +1,22 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Real1_Init'.
+<SendLog> 'Main(1)' in state 'Real1_Init' sent event 'E1' to 'Main(1)'.
+<DequeueLog> 'Main(1)' dequeued event 'E1' in state 'Real1_Init'.
+<GotoLog> Main(1) is transitioning from state 'Real1_Init' to state 'PImplementation.Main.Real1_S1'.
+<StateLog> Main(1) exits state 'Real1_Init'.
+<SendLog> 'Main(1)' in state 'Real1_Init' sent event 'E2' to 'Main(1)'.
+<StateLog> Main(1) enters state 'Real1_S1'.
+<DequeueLog> 'Main(1)' dequeued event 'E2' in state 'Real1_S1'.
+<StateLog> Main(1) exits state 'Real1_S1'.
+<PopLog> Main(1) popped state Real1_S1 due to unhandled event 'E2'.
+<ExceptionLog> Main(1) running action '' in state 'Real1_S1' threw exception 'UnhandledEventException'.
+<ErrorLog> Main(1) received event 'PImplementation.E2' that cannot be handled.
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 6 (min), 6 (avg), 6 (max).

@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/ParamTest2.coverage.txt
+PCheckerOutput/BugFinding/ParamTest2.sci
+PCheckerOutput/BugFinding/ParamTest2_0_0.schedule
+PCheckerOutput/BugFinding/ParamTest2_0_0.trace.json
+PCheckerOutput/BugFinding/ParamTest2_0_0.txt
+PCheckerOutput/BugFinding/ParamTest2_pchecker_summary.txt

@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/receive9.coverage.txt
+PCheckerOutput/BugFinding/receive9.sci
+PCheckerOutput/BugFinding/receive9_0_0.schedule
+PCheckerOutput/BugFinding/receive9_0_0.trace.json
+PCheckerOutput/BugFinding/receive9_0_0.txt
+PCheckerOutput/BugFinding/receive9_pchecker_summary.txt

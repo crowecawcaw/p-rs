@@ -1,0 +1,32 @@
+{
+  "source": "Tutorial",
+  "cwd": "1_ClientServer",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-tc",
+        "tcAbstractServerMultipleClients",
+        "-s",
+        "20",
+        "--seed",
+        "42",
+        "--sch-probabilistic",
+        "2"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcAbstractServerMultipleClients",
+        "-s",
+        "20",
+        "--seed",
+        "42",
+        "--sch-probabilistic",
+        "2"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+.. Found P project file: <dir>/4_FailureDetector/FailureDetector.pproj
+.. List of test cases (total 9)
+tcTest_FailureDetector
+tcTest_BalancedLoad___numNodes_3__numClients_2
+tcTest_BalancedLoad___numNodes_4__numClients_2
+tcTest_BalancedLoad___numNodes_5__numClients_2
+tcTest_BalancedLoad___numNodes_3__numClients_3
+tcTest_BalancedLoad___numNodes_4__numClients_3
+tcTest_BalancedLoad___numNodes_5__numClients_3
+tcTest_BalancedLoad___numNodes_4__numClients_4
+tcTest_BalancedLoad___numNodes_5__numClients_4
+. Done
+~~ [PTool]: Thanks for using P! ~~

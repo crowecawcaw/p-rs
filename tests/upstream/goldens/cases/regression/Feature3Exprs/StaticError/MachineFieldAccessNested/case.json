@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/MachineFieldAccessNested",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "MachineFieldAccessNested.p",
+        "-pn",
+        "MachineFieldAccessNested"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "MachineFieldAccessNested.p",
+        "-pn",
+        "MachineFieldAccessNested"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

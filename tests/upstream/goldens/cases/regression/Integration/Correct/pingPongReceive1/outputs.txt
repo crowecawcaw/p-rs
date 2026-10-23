@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/pingPongReceive1.coverage.txt
+PCheckerOutput/BugFinding/pingPongReceive1.sci
+PCheckerOutput/BugFinding/pingPongReceive1_pchecker_summary.txt

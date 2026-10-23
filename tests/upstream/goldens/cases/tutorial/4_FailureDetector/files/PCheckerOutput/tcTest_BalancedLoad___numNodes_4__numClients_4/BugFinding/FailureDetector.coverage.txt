@@ -1,0 +1,101 @@
+Total event coverage: 92.9%
+===========================
+StateMachine: Client
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: PHalt, eNotifyNodesDown
+
+StateMachine: FailureDetector
+=============================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: SendPingsToAllNodes
+
+	State: SendPingsToAllNodes
+		State event coverage: 100.0%
+		Events received: ePong, eTimeOut
+		Events sent: PHalt, eCancelTimer, eNotifyNodesDown, ePing, eStartTimer
+		Previous states: Init, ResetAndStartAgain, SendPingsToAllNodes
+		Next states: ResetAndStartAgain, SendPingsToAllNodes
+
+	State: ResetAndStartAgain
+		State event coverage: 100.0%
+		Events received: eTimeOut
+		Events sent: eStartTimer
+		Previous states: SendPingsToAllNodes
+		Next states: SendPingsToAllNodes
+
+StateMachine: FailureInjector
+=============================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: FailOneNode
+
+	State: FailOneNode
+		State event coverage: 100.0%
+		Events received: eDelayNodeFailure
+		Events sent: eDelayNodeFailure, eShutDown
+		Previous states: FailOneNode, Init
+		Next states: FailOneNode
+
+StateMachine: Node
+==================
+Event coverage: 100.0%
+
+	State: WaitForPing
+		State event coverage: 100.0%
+		Events received: ePing, eShutDown
+		Events sent: PHalt, ePong
+
+Monitor: ReliableFailureDetector
+================================
+Event coverage: 75.0%
+
+	State: AllShutdownNodesAreDetected
+		State event coverage: 100.0%
+		Events received: eNotifyNodesDown, eShutDown
+		Previous states: AllShutdownNodesAreDetected, NodesShutDownButNotDetected
+		Next states: AllShutdownNodesAreDetected, NodesShutDownButNotDetected[hot]
+
+	State: NodesShutDownButNotDetected
+		State event coverage: 50.0%
+		Events received: eNotifyNodesDown
+		Events not covered: eShutDown
+		Next states: AllShutdownNodesAreDetected, NodesShutDownButNotDetected[hot]
+
+StateMachine: TestWithConfig
+============================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Timer
+===================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events received: PHalt
+		Next states: WaitForTimerRequests
+
+	State: WaitForTimerRequests
+		State event coverage: 100.0%
+		Events received: eStartTimer
+		Previous states: Init, TimerStarted
+		Next states: TimerStarted
+
+	State: TimerStarted
+		State event coverage: 100.0%
+		Events received: eCancelTimer, eDelayedTimeOut
+		Events sent: eDelayedTimeOut, eTimeOut
+		Previous states: TimerStarted, WaitForTimerRequests
+		Next states: TimerStarted, WaitForTimerRequests
+

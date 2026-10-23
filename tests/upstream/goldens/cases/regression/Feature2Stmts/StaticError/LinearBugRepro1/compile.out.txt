@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [LinearBugRepro1.p] parse error: line 10:29 mismatched input ',' expecting ';'
+~~ [PTool]: Thanks for using P! ~~

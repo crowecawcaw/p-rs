@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Integration/StaticError/TokenRing_Typos",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "TokenRing_Typos.p",
+        "-pn",
+        "TokenRing_Typos"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "TokenRing_Typos.p",
+        "-pn",
+        "TokenRing_Typos"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

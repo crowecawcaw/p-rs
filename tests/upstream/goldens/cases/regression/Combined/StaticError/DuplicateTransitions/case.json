@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Combined/StaticError/DuplicateTransitions",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "Duplicates-1.p",
+        "-pn",
+        "DuplicateTransitions"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "Duplicates-1.p",
+        "-pn",
+        "DuplicateTransitions"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

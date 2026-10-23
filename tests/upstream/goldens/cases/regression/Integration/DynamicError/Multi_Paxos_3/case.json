@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Integration/DynamicError/Multi_Paxos_3",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "Multi_Paxos_3.p",
+        "-pn",
+        "Multi_Paxos_3",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

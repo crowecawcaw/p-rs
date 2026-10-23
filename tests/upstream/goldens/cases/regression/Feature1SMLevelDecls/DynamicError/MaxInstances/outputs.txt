@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/MaxInstances.coverage.txt
+PCheckerOutput/BugFinding/MaxInstances.sci
+PCheckerOutput/BugFinding/MaxInstances_0_0.schedule
+PCheckerOutput/BugFinding/MaxInstances_0_0.trace.json
+PCheckerOutput/BugFinding/MaxInstances_0_0.txt
+PCheckerOutput/BugFinding/MaxInstances_pchecker_summary.txt

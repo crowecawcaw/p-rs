@@ -1,0 +1,23 @@
+.. Test case :: DefaultImpl
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/BugFinding/nonAtomicDataTypes6_0_0.txt
+..... Writing PCheckerOutput/BugFinding/nonAtomicDataTypes6_0_0.trace.json
+..... Writing PCheckerOutput/BugFinding/nonAtomicDataTypes6_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/BugFinding/nonAtomicDataTypes6.coverage.txt
+..... Writing PCheckerOutput/BugFinding/nonAtomicDataTypes6.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 1 schedule
+..... Explored 1 timeline
+..... Found 100.00% buggy schedules.
+..... Number of scheduling points in terminating schedules: 2 (min), 2 (avg), 2 (max).
+..... Writing PCheckerOutput/BugFinding/nonAtomicDataTypes6_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

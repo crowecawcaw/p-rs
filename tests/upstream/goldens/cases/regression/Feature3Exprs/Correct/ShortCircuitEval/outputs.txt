@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/ShortCircuitEval.coverage.txt
+PCheckerOutput/BugFinding/ShortCircuitEval.sci
+PCheckerOutput/BugFinding/ShortCircuitEval_pchecker_summary.txt

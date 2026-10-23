@@ -1,0 +1,21 @@
+Total event coverage: 50.0%
+===========================
+StateMachine: Follower
+======================
+Event coverage: 50.0%
+
+	State: Init
+		State event coverage: 50.0%
+		Events received: ping0
+		Events sent: pong0
+		Events not covered: ping1
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events received: pong0
+		Events sent: ping0
+

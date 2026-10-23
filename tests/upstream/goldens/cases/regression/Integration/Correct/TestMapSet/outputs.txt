@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/TestMapSet.coverage.txt
+PCheckerOutput/BugFinding/TestMapSet.sci
+PCheckerOutput/BugFinding/TestMapSet_pchecker_summary.txt

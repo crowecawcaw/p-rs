@@ -1,0 +1,17 @@
+Total event coverage: 100.0%
+============================
+StateMachine: M
+===============
+Event coverage: 100.0%
+
+	State: _
+		State has no expected events, so coverage is 100%
+		Events sent: E
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: _
+		State has no expected events, so coverage is 100%
+

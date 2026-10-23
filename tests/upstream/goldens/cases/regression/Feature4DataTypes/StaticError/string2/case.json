@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/string2",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "string2.p",
+        "-pn",
+        "string2"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "string2.p",
+        "-pn",
+        "string2"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

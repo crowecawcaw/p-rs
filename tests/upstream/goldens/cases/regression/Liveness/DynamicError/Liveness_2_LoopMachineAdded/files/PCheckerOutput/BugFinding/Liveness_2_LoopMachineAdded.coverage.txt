@@ -1,0 +1,27 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Loop
+==================
+Event coverage: 100.0%
+
+	State: Looping
+		State event coverage: 100.0%
+		Events received: Done
+		Events sent: Done
+		Previous states: Looping
+		Next states: Looping
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: WaitForUser
+		State event coverage: 100.0%
+		Events received: UserEvent
+		Events sent: UserEvent
+		Next states: HandleEvent
+
+	State: HandleEvent
+		State has no expected events, so coverage is 100%
+		Previous states: WaitForUser
+

@@ -1,0 +1,2 @@
+[Error:] [monitors.p:18:6] cannot transition on null event in spec monitor 'M'
+~~ [PTool]: Thanks for using P! ~~

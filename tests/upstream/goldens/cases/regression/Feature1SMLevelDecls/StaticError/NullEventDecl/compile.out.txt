@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [NullEventDecl.p] parse error: line 3:6 mismatched input 'null' expecting Iden
+~~ [PTool]: Thanks for using P! ~~

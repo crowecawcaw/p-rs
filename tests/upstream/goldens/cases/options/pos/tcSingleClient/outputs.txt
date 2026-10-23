@@ -1,0 +1,3 @@
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer.coverage.txt
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer.sci
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer_pchecker_summary.txt

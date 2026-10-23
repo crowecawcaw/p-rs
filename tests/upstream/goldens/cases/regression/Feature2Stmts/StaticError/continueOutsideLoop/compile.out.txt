@@ -1,0 +1,2 @@
+[Error:] [continueOutsideLoop.p:10:13] 'continue' cannot appear outside a loop body
+~~ [PTool]: Thanks for using P! ~~

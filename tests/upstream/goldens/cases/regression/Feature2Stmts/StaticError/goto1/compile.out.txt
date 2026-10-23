@@ -1,0 +1,8 @@
+[Error:] [goto1.p:21:7] could not find state 'UndefState'
+
+[Error:] [goto1.p:27:5] got type: bool, expected: int
+
+[Error:] [goto1.p:29:5] got type: int, expected: (no value)
+
+[Error:] [goto1.p:31:20] could not find state 'UndefState'
+~~ [PTool]: Thanks for using P! ~~

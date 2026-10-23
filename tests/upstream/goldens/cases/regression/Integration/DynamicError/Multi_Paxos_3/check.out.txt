@@ -1,0 +1,25 @@
+[Warning:] [Multi_Paxos_3.p:342:6] event 'local' is not in the observes list of spec monitor 'BasicPaxosInvariant_P2b'; the handler will never be triggered
+[Warning:] [Multi_Paxos_3.p:408:6] event 'local' is not in the observes list of spec monitor 'ValmachineityCheck'; the handler will never be triggered
+.. Test case :: DefaultImpl
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/BugFinding/Multi_Paxos_3_0_0.txt
+..... Writing PCheckerOutput/BugFinding/Multi_Paxos_3_0_0.trace.json
+..... Writing PCheckerOutput/BugFinding/Multi_Paxos_3_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/BugFinding/Multi_Paxos_3.coverage.txt
+..... Writing PCheckerOutput/BugFinding/Multi_Paxos_3.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 1 schedule
+..... Explored 1 timeline
+..... Found 100.00% buggy schedules.
+..... Number of scheduling points in terminating schedules: 44 (min), 44 (avg), 44 (max).
+..... Writing PCheckerOutput/BugFinding/Multi_Paxos_3_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

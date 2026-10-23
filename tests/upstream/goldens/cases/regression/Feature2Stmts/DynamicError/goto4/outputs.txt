@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/goto4.coverage.txt
+PCheckerOutput/BugFinding/goto4.sci
+PCheckerOutput/BugFinding/goto4_0_0.schedule
+PCheckerOutput/BugFinding/goto4_0_0.trace.json
+PCheckerOutput/BugFinding/goto4_0_0.txt
+PCheckerOutput/BugFinding/goto4_pchecker_summary.txt

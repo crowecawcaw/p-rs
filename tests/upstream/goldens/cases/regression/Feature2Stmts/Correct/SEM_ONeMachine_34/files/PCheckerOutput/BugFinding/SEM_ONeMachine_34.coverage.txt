@@ -1,0 +1,12 @@
+Total event coverage: 60.0%
+===========================
+StateMachine: Main
+==================
+Event coverage: 60.0%
+
+	State: Init
+		State event coverage: 60.0%
+		Events received: myMapSeq, myNmTuple, myTuple
+		Events sent: myMapSeq, myNmTuple, myTuple
+		Events not covered: PHalt, mySeq
+

@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/OSR.coverage.txt
+PCheckerOutput/BugFinding/OSR.sci
+PCheckerOutput/BugFinding/OSR_0_0.schedule
+PCheckerOutput/BugFinding/OSR_0_0.trace.json
+PCheckerOutput/BugFinding/OSR_0_0.txt
+PCheckerOutput/BugFinding/OSR_pchecker_summary.txt

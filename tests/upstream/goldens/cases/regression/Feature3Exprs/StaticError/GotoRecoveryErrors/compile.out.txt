@@ -1,0 +1,8 @@
+[Error:] [GotoRecoveryErrors.p:21:18] could not find state 'MissingState'
+
+[Error:] [GotoRecoveryErrors.p:21:32] could not find name 'undeclaredA'
+
+[Error:] [GotoRecoveryErrors.p:22:13] goto, function or constructor call expected 0 arguments, got 1
+
+[Error:] [GotoRecoveryErrors.p:22:21] could not find name 'undeclaredB'
+~~ [PTool]: Thanks for using P! ~~

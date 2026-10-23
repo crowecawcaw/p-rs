@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/Liveness_1_WarmState.coverage.txt
+PCheckerOutput/BugFinding/Liveness_1_WarmState.sci
+PCheckerOutput/BugFinding/Liveness_1_WarmState_pchecker_summary.txt

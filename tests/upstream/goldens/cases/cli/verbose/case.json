@@ -1,0 +1,25 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/DynamicError/bug2",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-v",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "bug2.p",
+        "-pn",
+        "bug2",
+        "-v",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

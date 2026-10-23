@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/typedef1.coverage.txt
+PCheckerOutput/BugFinding/typedef1.sci
+PCheckerOutput/BugFinding/typedef1_0_0.schedule
+PCheckerOutput/BugFinding/typedef1_0_0.trace.json
+PCheckerOutput/BugFinding/typedef1_0_0.txt
+PCheckerOutput/BugFinding/typedef1_pchecker_summary.txt

@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/BoundedAsync.coverage.txt
+PCheckerOutput/BugFinding/BoundedAsync.sci
+PCheckerOutput/BugFinding/BoundedAsync_pchecker_summary.txt

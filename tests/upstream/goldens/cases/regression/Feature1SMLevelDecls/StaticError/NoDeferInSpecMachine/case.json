@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/NoDeferInSpecMachine",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "NoDeferInSpecMachine"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "NoDeferInSpecMachine"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

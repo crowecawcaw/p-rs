@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/IgnoredNullEvent",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "IgnoredNullEvent.p",
+        "-pn",
+        "IgnoredNullEvent"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "IgnoredNullEvent.p",
+        "-pn",
+        "IgnoredNullEvent"
+      ],
+      "exit_code": 1
+    }
+  ]
+}
