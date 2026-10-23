@@ -535,8 +535,9 @@ pub struct CaseOutcome {
     /// The `.schedule` file written for the bug (as `cfg.output_directory` names it).
     pub schedule_file: Option<String>,
     /// What the schedules ran, and the code they could have run, with `cfg.code_coverage`.
-    pub scenario_coverage: crate::driver::scenario::Artifact,
     pub code_coverage: Option<(crate::checker::code_coverage::Scope, crate::checker::code_coverage::Hits)>,
+    /// Scenario results, also written to the per-test artifact for cross-run merging.
+    pub scenario_coverage: crate::driver::scenario::Artifact,
 }
 
 impl CaseOutcome {
