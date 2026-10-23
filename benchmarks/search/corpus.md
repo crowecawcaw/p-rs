@@ -1,5 +1,5 @@
 Measured 495 cases across 459 project inputs; 145 cases have observed issues.
-Revision: `befd956c66cd50299034764bbc3f8bdfed119146`; working tree dirty: False.
+Revision: `594f7ffbf18a6d6642a52aa08c20e08d64fbf4a4`; working tree dirty: False.
 Budget: 200 schedules, 1000 steps, 3 seed(s), 0.1s safety cap per run.
 Completed exhaustive catalogs: 404; expected DynamicError cases with no common issue observed: 13.
 
@@ -13,29 +13,29 @@ Temperature-based potential liveness warnings are recorded separately and exclud
 | random | 415/435 |
 | feedback | 421/435 |
 | dfs | 408/435 |
-| auto | 421/435 |
+| auto | 420/435 |
 
 | Case | Known issues | Potential liveness | Catalog complete | random | feedback | dfs | auto |
 |---|---:|---:|---|---:|---:|---:|---:|
 | examples/model/Inventory.pproj::tcAtomicReserve | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | examples/model/Inventory.pproj::tcCheckThenReserve | 1 | 0 | no | 1 (3/3) | 2 (3/3) | miss 0/1 (600 tested) | 1 (1/3) |
 | tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcAbstractServer | 1 | 0 | no | 1 (3/3) | 1 (3/3) | 4 (3/3) | 1 (3/3) |
-| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcMultipleClients | 0 | 1 | no | — (600 tested) | — (391 tested) | — (600 tested) | — (396 tested) |
-| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcParameterizedMultipleClients___nClients_2 | 0 | 1 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (439 tested) |
-| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcParameterizedMultipleClients___nClients_3 | 0 | 1 | no | — (600 tested) | — (393 tested) | — (600 tested) | — (321 tested) |
-| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcParameterizedMultipleClients___nClients_4 | 0 | 1 | no | — (435 tested) | — (386 tested) | — (600 tested) | — (262 tested) |
-| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcSingleClient | 0 | 1 | no | — (600 tested) | — (600 tested) | — (596 tested) | — (600 tested) |
+| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcMultipleClients | 0 | 1 | no | — (278 tested) | — (223 tested) | — (549 tested) | — (214 tested) |
+| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcParameterizedMultipleClients___nClients_2 | 0 | 1 | no | — (312 tested) | — (272 tested) | — (563 tested) | — (305 tested) |
+| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcParameterizedMultipleClients___nClients_3 | 0 | 1 | no | — (296 tested) | — (233 tested) | — (600 tested) | — (209 tested) |
+| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcParameterizedMultipleClients___nClients_4 | 0 | 1 | no | — (243 tested) | — (236 tested) | — (600 tested) | — (218 tested) |
+| tests/upstream/Tutorial/1_ClientServer/ClientServer.pproj::tcSingleClient | 0 | 1 | no | — (600 tested) | — (575 tested) | — (459 tested) | — (593 tested) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcBooleanConfigs___enableSteamer_false__cleaningMode_false | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (333 tested) | — (291 tested) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcBooleanConfigs___enableSteamer_false__cleaningMode_true | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcBooleanConfigs___enableSteamer_true__cleaningMode_false | 2 | 0 | no | 2 (3/3) | 3 (3/3) | 3 (3/3) | 2 (3/3) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcBooleanConfigs___enableSteamer_true__cleaningMode_true | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcCrazyUserParamOps___nOps_4 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcCrazyUserParamOps___nOps_5 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
-| tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcCrazyUserParamOps___nOps_6 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (558 tested) |
+| tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcCrazyUserParamOps___nOps_6 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcCrazyUserUsingCoffeeMachine | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcMultiUserOperations___nUsers_1__nOps_3 | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (333 tested) | — (291 tested) |
-| tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcMultiUserOperations___nUsers_1__nOps_5 | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (333 tested) | — (291 tested) |
-| tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcMultiUserOperations___nUsers_1__nOps_7 | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (333 tested) | — (291 tested) |
+| tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcMultiUserOperations___nUsers_1__nOps_5 | 0 | 0 | yes | — (590 tested) | — (600 tested) | — (333 tested) | — (291 tested) |
+| tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcMultiUserOperations___nUsers_1__nOps_7 | 0 | 0 | yes | — (600 tested) | — (474 tested) | — (333 tested) | — (291 tested) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcMultiUserOperations___nUsers_2__nOps_3 | 1 | 0 | no | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcMultiUserOperations___nUsers_2__nOps_5 | 1 | 0 | no | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
 | tests/upstream/Tutorial/3_EspressoMachine/EspressoMachine.pproj::tcMultiUserOperations___nUsers_2__nOps_7 | 1 | 0 | no | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
@@ -61,14 +61,14 @@ Temperature-based potential liveness warnings are recorded separately and exclud
 | tests/upstream/Tutorial/5_Paxos/SingleDecreePaxos.pproj::testBasicPaxos3on1 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/5_Paxos/SingleDecreePaxos.pproj::testBasicPaxos3on3 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/5_Paxos/SingleDecreePaxos.pproj::testBasicPaxos3on5 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
-| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientFiveServersReliable | 0 | 1 | no | — (76 tested) | — (61 tested) | — (72 tested) | — (40 tested) |
-| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientFiveServersUnreliable | 0 | 1 | no | — (204 tested) | — (203 tested) | — (86 tested) | — (53 tested) |
-| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientOneServerReliable | 0 | 0 | no | — (435 tested) | — (564 tested) | — (480 tested) | — (470 tested) |
-| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientThreeServersReliable | 0 | 1 | no | — (148 tested) | — (159 tested) | — (200 tested) | — (190 tested) |
-| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientThreeServersUnreliable | 0 | 1 | no | — (247 tested) | — (188 tested) | — (139 tested) | — (182 tested) |
-| tests/upstream/Tutorial/6_Raft/Raft.pproj::threeClientsOneServerReliable | 0 | 1 | no | — (263 tested) | — (264 tested) | — (302 tested) | — (230 tested) |
-| tests/upstream/Tutorial/6_Raft/Raft.pproj::twoClientsThreeServersReliable | 0 | 1 | no | — (180 tested) | — (152 tested) | — (157 tested) | — (84 tested) |
-| tests/upstream/Tutorial/6_Raft/Raft.pproj::twoClientsThreeServersUnreliable | 0 | 1 | no | — (183 tested) | — (171 tested) | — (108 tested) | — (57 tested) |
+| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientFiveServersReliable | 0 | 1 | no | — (231 tested) | — (189 tested) | — (122 tested) | — (141 tested) |
+| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientFiveServersUnreliable | 0 | 1 | no | — (187 tested) | — (161 tested) | — (90 tested) | — (71 tested) |
+| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientOneServerReliable | 0 | 0 | no | — (505 tested) | — (542 tested) | — (519 tested) | — (543 tested) |
+| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientThreeServersReliable | 0 | 1 | no | — (170 tested) | — (152 tested) | — (157 tested) | — (131 tested) |
+| tests/upstream/Tutorial/6_Raft/Raft.pproj::oneClientThreeServersUnreliable | 0 | 1 | no | — (92 tested) | — (88 tested) | — (109 tested) | — (109 tested) |
+| tests/upstream/Tutorial/6_Raft/Raft.pproj::threeClientsOneServerReliable | 0 | 1 | no | — (292 tested) | — (249 tested) | — (332 tested) | — (268 tested) |
+| tests/upstream/Tutorial/6_Raft/Raft.pproj::twoClientsThreeServersReliable | 0 | 1 | no | — (202 tested) | — (204 tested) | — (159 tested) | — (157 tested) |
+| tests/upstream/Tutorial/6_Raft/Raft.pproj::twoClientsThreeServersUnreliable | 0 | 1 | no | — (195 tested) | — (204 tested) | — (117 tested) | — (150 tested) |
 | tests/upstream/Tutorial/BasicPaxos/BasicPaxos_2026_02_23_19_03_15/BasicPaxos.pproj::testBasicConsensus | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/BasicPaxos/BasicPaxos_2026_02_23_19_03_15/BasicPaxos.pproj::testMultipleProposers | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/BasicPaxos/BasicPaxos_2026_02_23_19_03_15/BasicPaxos.pproj::testThreeProposers | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
@@ -77,16 +77,16 @@ Temperature-based potential liveness warnings are recorded separately and exclud
 | tests/upstream/Tutorial/Common/SharedMemory/SharedMemory.pproj::testLB_1 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/Common/SharedMemory/SharedMemory.pproj::testRWLB_1 | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/Tutorial/PriorityQueue/PriorityQueue.pproj::tcCheck_PriorityQueue | 0 | 0 | no | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
-| design/time/RetryBudget/RetryBudget.pproj::tcRetry | 1 | 0 | no | 2 (3/3) | 1 (3/3) | miss 0/1 (0 tested) | 2 (3/3) |
+| design/time/RetryBudget/RetryBudget.pproj::tcRetry | 1 | 0 | no | 2 (3/3) | 1 (3/3) | miss 0/1 (0 tested) | 1 (3/3) |
 | crates/snappea/tests/models/guided_prefix.p::tcDataPrefix___depth_12 | 1 | 0 | yes | miss 0/1 (600 tested) | 42 (3/3) | 13 (3/3) | 5 (3/3) |
 | crates/snappea/tests/models/guided_prefix.p::tcDataPrefix___depth_20 | 1 | 0 | yes | miss 0/1 (600 tested) | 136 (2/3) | 21 (3/3) | 11 (3/3) |
-| crates/snappea/tests/models/guided_prefix.p::tcDataPrefix___depth_24 | 1 | 0 | yes | miss 0/1 (600 tested) | 162 (1/3) | 25 (3/3) | 12 (3/3) |
+| crates/snappea/tests/models/guided_prefix.p::tcDataPrefix___depth_24 | 1 | 0 | yes | miss 0/1 (592 tested) | 162 (1/3) | 25 (3/3) | 12 (3/3) |
 | crates/snappea/tests/models/guided_prefix.p::tcSchedulePrefix___depth_12 | 1 | 0 | no | miss 0/1 (600 tested) | 179 (1/3) | 49 (3/3) | 37 (3/3) |
 | crates/snappea/tests/models/guided_prefix.p::tcSchedulePrefix___depth_20 | 1 | 0 | no | miss 0/1 (600 tested) | miss 0/1 (600 tested) | 81 (3/3) | 60 (3/3) |
 | crates/snappea/tests/models/guided_prefix.p::tcSchedulePrefix___depth_24 | 1 | 0 | no | miss 0/1 (600 tested) | miss 0/1 (600 tested) | 97 (3/3) | 73 (3/3) |
 | tests/upstream/RegressionTests/Combined/Correct/nullPayload::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
 | tests/upstream/RegressionTests/Combined/Correct/variableType::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
-| tests/upstream/RegressionTests/Feature1SMLevelDecls/Correct/BugRepro::DefaultImpl | 0 | 0 | no | — (155 tested) | — (116 tested) | — (600 tested) | — (600 tested) |
+| tests/upstream/RegressionTests/Feature1SMLevelDecls/Correct/BugRepro::DefaultImpl | 0 | 0 | no | — (246 tested) | — (205 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/RegressionTests/Feature1SMLevelDecls/Correct/BugRepro1::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
 | tests/upstream/RegressionTests/Feature1SMLevelDecls/Correct/BugReproManyEvents::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
 | tests/upstream/RegressionTests/Feature1SMLevelDecls/Correct/EntryNamedFunction::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
@@ -409,18 +409,18 @@ Temperature-based potential liveness warnings are recorded separately and exclud
 | tests/upstream/RegressionTests/Feature4DataTypes/DynamicError/string1::DefaultImpl | 1 | 0 | yes | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
 | tests/upstream/RegressionTests/Feature4DataTypes/DynamicError/typedef1::DefaultImpl | 1 | 0 | yes | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
 | tests/upstream/RegressionTests/Feature4DataTypes/DynamicError/typedef2::DefaultImpl | 1 | 0 | yes | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
-| tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/Elevator::DefaultImpl | 2 | 0 | no | 3 (3/3) | 6 (3/3) | miss 0/2 (600 tested) | 66 (3/3) |
-| tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/ElevatorMod::impl | 2 | 0 | no | 3 (3/3) | 6 (3/3) | miss 0/2 (600 tested) | 66 (3/3) |
-| tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/ElevatorMod::testcase1 | 2 | 0 | no | 3 (3/3) | 6 (3/3) | miss 0/2 (600 tested) | 66 (3/3) |
+| tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/Elevator::DefaultImpl | 2 | 0 | no | 3 (3/3) | 6 (3/3) | miss 0/2 (278 tested) | 42 (3/3) |
+| tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/ElevatorMod::impl | 2 | 0 | no | 3 (3/3) | 6 (3/3) | miss 0/2 (289 tested) | 42 (3/3) |
+| tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/ElevatorMod::testcase1 | 2 | 0 | no | 3 (3/3) | 6 (3/3) | miss 0/2 (319 tested) | 42 (3/3) |
 | tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/InterfaceTest::impl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (9 tested) | — (9 tested) |
-| tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/OSR::DefaultImpl | 3 | 0 | no | 132 (1/3) | miss 2/3 (600 tested) | miss 0/3 (276 tested) | 161 (1/3) |
+| tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/OSR::DefaultImpl | 3 | 0 | no | 132 (1/3) | miss 2/3 (600 tested) | miss 0/3 (119 tested) | miss 2/3 (600 tested) |
 | tests/upstream/RegressionTests/Feature5ModuleSystem/Correct/PingPongDingDongMod::impl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (6 tested) | — (6 tested) |
-| tests/upstream/RegressionTests/Integration/Correct/BoundedAsync::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
+| tests/upstream/RegressionTests/Integration/Correct/BoundedAsync::DefaultImpl | 0 | 0 | no | — (582 tested) | — (409 tested) | — (600 tested) | — (600 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/German::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
-| tests/upstream/RegressionTests/Integration/Correct/PingPong::DefaultImpl | 0 | 0 | yes | — (339 tested) | — (339 tested) | — (6 tested) | — (6 tested) |
-| tests/upstream/RegressionTests/Integration/Correct/PingPongDefer::DefaultImpl | 0 | 0 | yes | — (496 tested) | — (524 tested) | — (48 tested) | — (47 tested) |
-| tests/upstream/RegressionTests/Integration/Correct/PingPongDingDong::DefaultImpl | 0 | 0 | yes | — (359 tested) | — (381 tested) | — (21 tested) | — (20 tested) |
-| tests/upstream/RegressionTests/Integration/Correct/PingPongMonitor::DefaultImpl | 0 | 0 | no | — (305 tested) | — (311 tested) | — (6 tested) | — (270 tested) |
+| tests/upstream/RegressionTests/Integration/Correct/PingPong::DefaultImpl | 0 | 0 | yes | — (55 tested) | — (117 tested) | — (6 tested) | — (6 tested) |
+| tests/upstream/RegressionTests/Integration/Correct/PingPongDefer::DefaultImpl | 0 | 0 | yes | — (195 tested) | — (424 tested) | — (48 tested) | — (47 tested) |
+| tests/upstream/RegressionTests/Integration/Correct/PingPongDingDong::DefaultImpl | 0 | 0 | yes | — (83 tested) | — (75 tested) | — (21 tested) | — (20 tested) |
+| tests/upstream/RegressionTests/Integration/Correct/PingPongMonitor::DefaultImpl | 0 | 0 | no | — (243 tested) | — (319 tested) | — (6 tested) | — (288 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/PingPongNonDet::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (12 tested) | — (12 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/SEM_OneMachine_18::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/SEM_OneMachine_19::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
@@ -436,7 +436,7 @@ Temperature-based potential liveness warnings are recorded separately and exclud
 | tests/upstream/RegressionTests/Integration/Correct/SEM_TwoMachines_8::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (9 tested) | — (9 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/TestMapSet::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/TokenRing::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (600 tested) | — (600 tested) |
-| tests/upstream/RegressionTests/Integration/Correct/openwsn1::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (460 tested) | — (600 tested) |
+| tests/upstream/RegressionTests/Integration/Correct/openwsn1::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (175 tested) | — (600 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/pingPongExp::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (165 tested) | — (165 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/pingPongForeach::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (165 tested) | — (165 tested) |
 | tests/upstream/RegressionTests/Integration/Correct/pingPongNew::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (210 tested) | — (210 tested) |
@@ -491,27 +491,27 @@ Temperature-based potential liveness warnings are recorded separately and exclud
 | tests/upstream/RegressionTests/Integration/DynamicError/SEM_TwoMachines_6::DefaultImpl | 1 | 0 | yes | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
 | tests/upstream/RegressionTests/Integration/DynamicError/SEM_TwoMachines_9::DefaultImpl | 1 | 0 | yes | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
 | tests/upstream/RegressionTests/Integration/DynamicError/two-phase-commit_1::DefaultImpl | 2 | 0 | no | 3 (3/3) | 3 (3/3) | miss 1/2 (600 tested) | 23.5 (2/3) |
-| tests/upstream/RegressionTests/Liveness/Correct/Liveness_1::DefaultImpl | 0 | 0 | no | — (495 tested) | — (250 tested) | — (3 tested) | — (221 tested) |
-| tests/upstream/RegressionTests/Liveness/Correct/Liveness_1_falsePass::DefaultImpl | 0 | 0 | no | — (283 tested) | — (495 tested) | — (3 tested) | — (432 tested) |
-| tests/upstream/RegressionTests/Liveness/Correct/Liveness_FAIRNONDET::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (9 tested) | — (600 tested) |
-| tests/upstream/RegressionTests/Liveness/Correct/Liveness_FAIRNONDET2::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (9 tested) | — (600 tested) |
+| tests/upstream/RegressionTests/Liveness/Correct/Liveness_1::DefaultImpl | 0 | 0 | no | — (244 tested) | — (267 tested) | — (3 tested) | — (213 tested) |
+| tests/upstream/RegressionTests/Liveness/Correct/Liveness_1_falsePass::DefaultImpl | 0 | 0 | no | — (243 tested) | — (228 tested) | — (3 tested) | — (225 tested) |
+| tests/upstream/RegressionTests/Liveness/Correct/Liveness_FAIRNONDET::DefaultImpl | 0 | 0 | no | — (236 tested) | — (184 tested) | — (9 tested) | — (14 tested) |
+| tests/upstream/RegressionTests/Liveness/Correct/Liveness_FAIRNONDET2::DefaultImpl | 0 | 0 | no | — (179 tested) | — (39 tested) | — (7 tested) | — (208 tested) |
 | tests/upstream/RegressionTests/Liveness/Correct/WarmState_1::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
 | tests/upstream/RegressionTests/Liveness/DynamicError/InfiniteLoopInAtomicBlock::DefaultImpl | 1 | 0 | no | 1 (3/3) | 1 (3/3) | 1 (3/3) | miss 0/1 (3 tested) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_10::tcLiveness | 0 | 1 | no | — (409 tested) | — (421 tested) | — (3 tested) | — (351 tested) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_1_WarmState::DefaultImpl | 0 | 0 | no | — (569 tested) | — (564 tested) | — (3 tested) | — (479 tested) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_2::DefaultImpl | 0 | 0 | no | — (305 tested) | — (295 tested) | — (3 tested) | — (288 tested) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_2_LoopMachineAdded::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (27 tested) | — (600 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_10::tcLiveness | 0 | 1 | no | — (155 tested) | — (160 tested) | — (3 tested) | — (153 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_1_WarmState::DefaultImpl | 0 | 0 | no | — (108 tested) | — (105 tested) | — (3 tested) | — (114 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_2::DefaultImpl | 0 | 0 | no | — (108 tested) | — (116 tested) | — (3 tested) | — (115 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_2_LoopMachineAdded::DefaultImpl | 0 | 0 | no | — (93 tested) | — (119 tested) | — (27 tested) | — (149 tested) |
 | tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_2_bugFound::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_3::DefaultImpl | 0 | 0 | no | — (600 tested) | — (600 tested) | — (27 tested) | — (600 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_3::DefaultImpl | 0 | 0 | no | — (138 tested) | — (124 tested) | — (27 tested) | — (123 tested) |
 | tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_4::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (6 tested) | — (6 tested) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_5::DefaultImpl | 0 | 0 | no | — (332 tested) | — (273 tested) | — (3 tested) | — (239 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_5::DefaultImpl | 0 | 0 | no | — (59 tested) | — (69 tested) | — (3 tested) | — (239 tested) |
 | tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_5_deadlock::DefaultImpl | 0 | 0 | yes | — (600 tested) | — (600 tested) | — (3 tested) | — (3 tested) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_6::DefaultImpl | 0 | 0 | no | — (391 tested) | — (387 tested) | — (3 tested) | — (388 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_6::DefaultImpl | 0 | 0 | no | — (349 tested) | — (336 tested) | — (3 tested) | — (346 tested) |
 | tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_6_deadlock::DefaultImpl | 1 | 0 | yes | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_7::DefaultImpl | 0 | 0 | no | — (348 tested) | — (211 tested) | — (81 tested) | — (255 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_7::DefaultImpl | 0 | 0 | no | — (414 tested) | — (347 tested) | — (81 tested) | — (305 tested) |
 | tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_9::tcLiveness | 1 | 0 | yes | 1 (3/3) | 1 (3/3) | 1 (3/3) | 1 (3/3) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_NONDET::DefaultImpl | 0 | 0 | no | — (578 tested) | — (600 tested) | — (9 tested) | — (600 tested) |
-| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_NONDET2::DefaultImpl | 0 | 0 | no | — (435 tested) | — (335 tested) | — (9 tested) | — (554 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_NONDET::DefaultImpl | 0 | 0 | no | — (367 tested) | — (348 tested) | — (9 tested) | — (335 tested) |
+| tests/upstream/RegressionTests/Liveness/DynamicError/Liveness_NONDET2::DefaultImpl | 0 | 0 | no | — (317 tested) | — (349 tested) | — (9 tested) | — (339 tested) |
 
 170 project inputs excluded, unsupported, or interrupted:
 
