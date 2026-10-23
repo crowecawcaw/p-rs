@@ -770,6 +770,16 @@ impl<'p> Checker<'p> {
         } else {
             &self.code
         };
+        let guidance_probes = guided.then(|| {
+            use crate::checker::bytecode::ProbeKind;
+            let mut mask = crate::checker::coverage::ProbeSet::default();
+            for (id, probe) in code.probes.iter().enumerate() {
+                if !matches!(probe.kind, ProbeKind::ConditionTrue | ProbeKind::ConditionFalse) {
+                    mask.insert(id as u32);
+                }
+            }
+            Rc::new(mask)
+        });
         let coverage_tables = (opts.activity_coverage || guided).then(|| self.coverage_tables());
         let mut verbose_json = (opts.verbose && opts.json_trace && !is_replay).then(Vec::new);
         let mut depth_bound_hits = 0usize;
@@ -802,9 +812,14 @@ impl<'p> Checker<'p> {
                     foreign: self.foreign.clone(),
                     time: time.clone(),
                     json_trace: verbose_json.is_some(),
-                    coverage: coverage_tables
-                        .as_ref()
-                        .map(|t| Coverage::new(t.clone(), result.coverage.take().unwrap_or_default())),
+                    coverage: coverage_tables.as_ref().map(|t| {
+                        let cov = Coverage::new(t.clone(), result.coverage.take().unwrap_or_default())
+                            .with_condition_guidance(guided);
+                        match &guidance_probes {
+                            Some(mask) => cov.with_guidance_probes(mask.clone()),
+                            None => cov,
+                        }
+                    }),
                     ..Setup::default()
                 };
                 let mut rt = Runtime::new(prog, code, module, &config, &mut *strategy, setup);

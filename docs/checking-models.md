@@ -29,9 +29,13 @@ still includes every schedule from both phases. Work budgets count controlled
 scheduling and data choices, including replayed DFS prefixes, rather than elapsed
 time or schedule counts.
 
-The guided corpus keeps schedules that add statement/branch coverage, atomic
-condition outcomes, consecutive transition pairs, event-order features, scenario
-progress, or a distinct failure site.
+The guided corpus keeps schedules that add statement/branch coverage, Boolean
+expression outcomes, consecutive transition pairs, event-order features, scenario
+progress, or a distinct failure site. Boolean expression edges also guide assignments
+and returns outside the reported condition coverage of `if`/`while` guards. Reported
+atomic condition outcomes overlap these expression and branch features; feedback
+retains them in coverage reports without treating them as a second source of seed
+novelty.
 It mutates productive seeds immediately, mixing small input changes with resampled
 continuations. Seeds of distinct failure sites remain available when searching for
 other bugs. Stalled guidance increases fresh sampling while retaining a share for

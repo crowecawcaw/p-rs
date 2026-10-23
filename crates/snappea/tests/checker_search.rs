@@ -412,7 +412,7 @@ fn schedule_observer_counts_every_exploration_and_can_stop_at_all_bugs() {
 }
 
 #[test]
-fn native_feedback_uses_atomic_condition_probes_and_compat_does_not_enable_them() {
+fn native_feedback_records_atomic_condition_probes_and_compat_does_not_enable_them() {
     use snappea::checker::bytecode::ProbeKind;
     let mut sm = snappea::syntax::SourceMap::new();
     sm.add(
@@ -525,4 +525,12 @@ fn auto_keeps_small_recovery_models_in_exhaustive_search() {
             "{name}: a small recovery model should stay exhaustive long enough to reach its deep bug"
         );
     }
+}
+
+#[test]
+fn feedback_keeps_boolean_assignment_prefixes_in_addition_to_reported_conditions() {
+    let condition = std::iter::repeat_n("$", 20).collect::<Vec<_>>().join(" && ");
+    let src = format!("machine Main {{ start state S {{ entry {{ var ready: bool; ready = {condition}; if (ready) {{ assert false, \"rare Boolean assignment\"; }} }} }} }} test tcMain [main=Main]: {{ Main }};");
+    let result = check(&src, &opts(StrategyKind::Feedback, 2000));
+    assert_eq!(result.report.num_bugs, 1, "if/while probes alone cannot see progress inside the assignment");
 }

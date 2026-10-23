@@ -93,6 +93,9 @@ pub struct CoverageInfo {
     pub transition_pairs: FxHashSet<(StateId, StateId, StateId)>,
     /// Code coverage probes that ran (see `Op::Probe`), as a bit set.
     pub probes: ProbeSet,
+    /// Outcomes of short-circuit Boolean expression edges, including assignments
+    /// and returns outside the reported `if`/`while` condition coverage.
+    pub condition_edges: FxHashSet<(u32, usize, bool)>,
 }
 
 /// A set of code coverage probe ids.
@@ -108,6 +111,10 @@ impl ProbeSet {
             self.bits.resize(word + 1, 0);
         }
         self.bits[word] |= 1 << bit;
+    }
+
+    fn intersection_count(&self, other: &ProbeSet) -> usize {
+        self.bits.iter().zip(&other.bits).map(|(a, b)| (a & b).count_ones() as usize).sum()
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -143,6 +150,7 @@ impl CoverageInfo {
         self.monitor_transitions.extend(other.monitor_transitions);
         self.transition_pairs.extend(other.transition_pairs);
         self.probes.union(&other.probes);
+        self.condition_edges.extend(other.condition_edges);
     }
 }
 
@@ -182,6 +190,8 @@ pub struct Coverage {
     tables: Rc<CoverageTables>,
     info: CoverageInfo,
     run: CoverageRun,
+    guide_conditions: bool,
+    guidance_probes: Option<Rc<ProbeSet>>,
 }
 
 impl Coverage {
@@ -196,8 +206,12 @@ impl Coverage {
     }
 
     pub(crate) fn feature_count(&self) -> usize {
-        self.info.transition_pairs.len()
-            + self.info.probes.len()
+        self.info.condition_edges.len()
+            + self.info.transition_pairs.len()
+            + self
+                .guidance_probes
+                .as_ref()
+                .map_or_else(|| self.info.probes.len(), |mask| self.info.probes.intersection_count(mask))
             + self.info.received.len()
             + self.info.sent.len()
             + self.info.links.len()
@@ -207,7 +221,26 @@ impl Coverage {
 
     /// Continues accumulating `info` (named by `tables`) in a new schedule.
     pub fn new(tables: Rc<CoverageTables>, info: CoverageInfo) -> Coverage {
-        Coverage { tables, info, run: CoverageRun::default() }
+        Coverage { tables, info, run: CoverageRun::default(), guide_conditions: false, guidance_probes: None }
+    }
+
+    /// Select probes that add independent guidance. Reported atomic guard outcomes
+    /// overlap expression-edge/branch features; retain them in reports without adding
+    /// a second, competing source of seed novelty.
+    pub(crate) fn with_guidance_probes(mut self, mask: Rc<ProbeSet>) -> Self {
+        self.guidance_probes = Some(mask);
+        self
+    }
+
+    pub(crate) fn with_condition_guidance(mut self, enabled: bool) -> Self {
+        self.guide_conditions = enabled;
+        self
+    }
+
+    pub(crate) fn condition(&mut self, fun: u32, pc: usize, outcome: bool) {
+        if self.guide_conditions {
+            self.info.condition_edges.insert((fun, pc, outcome));
+        }
     }
 
     /// The coverage accumulated so far.
@@ -588,7 +621,7 @@ mod guidance_tests {
     use super::*;
 
     #[test]
-    fn atomic_outcomes_and_consecutive_transitions_add_independent_feedback_novelty() {
+    fn expression_outcomes_and_transition_pairs_add_independent_feedback_novelty() {
         let mut sources = crate::syntax::SourceMap::new();
         sources.add(
             "model.p",
@@ -596,19 +629,27 @@ mod guidance_tests {
         );
         let analysis = crate::sema::compile(&sources, &Default::default()).unwrap();
         let mut cov = Coverage::new(Rc::new(CoverageTables::new(&analysis.program)), CoverageInfo::default());
+        cov = cov.with_guidance_probes(Rc::new(ProbeSet::default())).with_condition_guidance(true);
         let [a, b, c] = analysis.program.machines[0].states[..] else { panic!("three-state fixture") };
         cov.info.links.extend([(a.0, b.0), (b.0, c.0)]);
         let initial = cov.feature_count();
         cov.probe_hit(0); // an atomic condition's true outcome
         cov.probe_hit(1); // its false outcome, a distinct probe
         cov.probe_hit(1);
+        assert_eq!(cov.feature_count(), initial, "reported guards must not duplicate expression novelty");
+        assert!(cov.info.probes.contains(0) && cov.info.probes.contains(1));
+        cov.condition(0, 42, true);
+        cov.condition(0, 42, false);
+        cov.condition(0, 42, false);
         assert_eq!(cov.feature_count(), initial + 2);
         cov.state_enter(false, 0, a);
         cov.state_enter(false, 0, b);
         cov.state_enter(false, 0, c);
         assert_eq!(cov.feature_count(), initial + 3, "the pair is novel even when both edges are covered");
         let info = cov.into_info();
-        let mut next = Coverage::new(Rc::new(CoverageTables::new(&analysis.program)), info);
+        let mut next = Coverage::new(Rc::new(CoverageTables::new(&analysis.program)), info)
+            .with_guidance_probes(Rc::new(ProbeSet::default()))
+            .with_condition_guidance(true);
         next.state_enter(false, 0, a);
         next.state_enter(false, 0, b);
         next.state_enter(false, 0, c);
