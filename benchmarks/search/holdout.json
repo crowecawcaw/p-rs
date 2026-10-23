@@ -1,0 +1,6483 @@
+{
+  "suite_version": 1,
+  "budget": 10000,
+  "seeds": 20,
+  "seed_start": 20,
+  "rows": [
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 20,
+      "schedules_tested": 810,
+      "first_bug_schedules": {
+        "bug-alpha": 732,
+        "bug-beta": 195,
+        "bug-gamma": 810
+      },
+      "schedules_to_all": 810,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 21,
+      "schedules_tested": 949,
+      "first_bug_schedules": {
+        "bug-alpha": 748,
+        "bug-beta": 949,
+        "bug-gamma": 629
+      },
+      "schedules_to_all": 949,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 22,
+      "schedules_tested": 411,
+      "first_bug_schedules": {
+        "bug-alpha": 396,
+        "bug-beta": 405,
+        "bug-gamma": 411
+      },
+      "schedules_to_all": 411,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 23,
+      "schedules_tested": 428,
+      "first_bug_schedules": {
+        "bug-alpha": 341,
+        "bug-beta": 335,
+        "bug-gamma": 428
+      },
+      "schedules_to_all": 428,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 24,
+      "schedules_tested": 2557,
+      "first_bug_schedules": {
+        "bug-alpha": 2557,
+        "bug-beta": 1919,
+        "bug-gamma": 1618
+      },
+      "schedules_to_all": 2557,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 25,
+      "schedules_tested": 1313,
+      "first_bug_schedules": {
+        "bug-alpha": 580,
+        "bug-beta": 1313,
+        "bug-gamma": 97
+      },
+      "schedules_to_all": 1313,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 26,
+      "schedules_tested": 2730,
+      "first_bug_schedules": {
+        "bug-alpha": 789,
+        "bug-beta": 2730,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 2730,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 27,
+      "schedules_tested": 851,
+      "first_bug_schedules": {
+        "bug-alpha": 251,
+        "bug-beta": 851,
+        "bug-gamma": 378
+      },
+      "schedules_to_all": 851,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 28,
+      "schedules_tested": 713,
+      "first_bug_schedules": {
+        "bug-alpha": 239,
+        "bug-beta": 88,
+        "bug-gamma": 713
+      },
+      "schedules_to_all": 713,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 29,
+      "schedules_tested": 889,
+      "first_bug_schedules": {
+        "bug-alpha": 889,
+        "bug-beta": 356,
+        "bug-gamma": 62
+      },
+      "schedules_to_all": 889,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 30,
+      "schedules_tested": 1442,
+      "first_bug_schedules": {
+        "bug-alpha": 1442,
+        "bug-beta": 218,
+        "bug-gamma": 311
+      },
+      "schedules_to_all": 1442,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 31,
+      "schedules_tested": 3036,
+      "first_bug_schedules": {
+        "bug-alpha": 3036,
+        "bug-beta": 471,
+        "bug-gamma": 2121
+      },
+      "schedules_to_all": 3036,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 32,
+      "schedules_tested": 916,
+      "first_bug_schedules": {
+        "bug-alpha": 438,
+        "bug-beta": 910,
+        "bug-gamma": 916
+      },
+      "schedules_to_all": 916,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 33,
+      "schedules_tested": 2448,
+      "first_bug_schedules": {
+        "bug-alpha": 2448,
+        "bug-beta": 667,
+        "bug-gamma": 350
+      },
+      "schedules_to_all": 2448,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 34,
+      "schedules_tested": 2540,
+      "first_bug_schedules": {
+        "bug-alpha": 874,
+        "bug-beta": 1108,
+        "bug-gamma": 2540
+      },
+      "schedules_to_all": 2540,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 35,
+      "schedules_tested": 1691,
+      "first_bug_schedules": {
+        "bug-alpha": 1357,
+        "bug-beta": 1691,
+        "bug-gamma": 5
+      },
+      "schedules_to_all": 1691,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 36,
+      "schedules_tested": 670,
+      "first_bug_schedules": {
+        "bug-alpha": 136,
+        "bug-beta": 96,
+        "bug-gamma": 670
+      },
+      "schedules_to_all": 670,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 37,
+      "schedules_tested": 432,
+      "first_bug_schedules": {
+        "bug-alpha": 432,
+        "bug-beta": 96,
+        "bug-gamma": 197
+      },
+      "schedules_to_all": 432,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 38,
+      "schedules_tested": 3255,
+      "first_bug_schedules": {
+        "bug-alpha": 183,
+        "bug-beta": 3255,
+        "bug-gamma": 1063
+      },
+      "schedules_to_all": 3255,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random",
+      "seed": 39,
+      "schedules_tested": 1337,
+      "first_bug_schedules": {
+        "bug-alpha": 1337,
+        "bug-beta": 262,
+        "bug-gamma": 135
+      },
+      "schedules_to_all": 1337,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 20,
+      "schedules_tested": 142,
+      "first_bug_schedules": {
+        "bug-alpha": 54,
+        "bug-beta": 51,
+        "bug-gamma": 142
+      },
+      "schedules_to_all": 142,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 21,
+      "schedules_tested": 82,
+      "first_bug_schedules": {
+        "bug-alpha": 82,
+        "bug-beta": 19,
+        "bug-gamma": 31
+      },
+      "schedules_to_all": 82,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 22,
+      "schedules_tested": 194,
+      "first_bug_schedules": {
+        "bug-alpha": 194,
+        "bug-beta": 176,
+        "bug-gamma": 147
+      },
+      "schedules_to_all": 194,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 23,
+      "schedules_tested": 208,
+      "first_bug_schedules": {
+        "bug-alpha": 151,
+        "bug-beta": 208,
+        "bug-gamma": 81
+      },
+      "schedules_to_all": 208,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 24,
+      "schedules_tested": 244,
+      "first_bug_schedules": {
+        "bug-alpha": 59,
+        "bug-beta": 244,
+        "bug-gamma": 17
+      },
+      "schedules_to_all": 244,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 25,
+      "schedules_tested": 167,
+      "first_bug_schedules": {
+        "bug-alpha": 167,
+        "bug-beta": 138,
+        "bug-gamma": 141
+      },
+      "schedules_to_all": 167,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 26,
+      "schedules_tested": 196,
+      "first_bug_schedules": {
+        "bug-alpha": 116,
+        "bug-beta": 196,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 196,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 27,
+      "schedules_tested": 237,
+      "first_bug_schedules": {
+        "bug-alpha": 144,
+        "bug-beta": 167,
+        "bug-gamma": 237
+      },
+      "schedules_to_all": 237,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 28,
+      "schedules_tested": 270,
+      "first_bug_schedules": {
+        "bug-alpha": 270,
+        "bug-beta": 86,
+        "bug-gamma": 83
+      },
+      "schedules_to_all": 270,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 29,
+      "schedules_tested": 89,
+      "first_bug_schedules": {
+        "bug-alpha": 89,
+        "bug-beta": 39,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 89,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 30,
+      "schedules_tested": 74,
+      "first_bug_schedules": {
+        "bug-alpha": 74,
+        "bug-beta": 54,
+        "bug-gamma": 16
+      },
+      "schedules_to_all": 74,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 31,
+      "schedules_tested": 185,
+      "first_bug_schedules": {
+        "bug-alpha": 138,
+        "bug-beta": 185,
+        "bug-gamma": 130
+      },
+      "schedules_to_all": 185,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 32,
+      "schedules_tested": 213,
+      "first_bug_schedules": {
+        "bug-alpha": 73,
+        "bug-beta": 193,
+        "bug-gamma": 213
+      },
+      "schedules_to_all": 213,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 33,
+      "schedules_tested": 61,
+      "first_bug_schedules": {
+        "bug-alpha": 61,
+        "bug-beta": 47,
+        "bug-gamma": 51
+      },
+      "schedules_to_all": 61,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 34,
+      "schedules_tested": 115,
+      "first_bug_schedules": {
+        "bug-alpha": 62,
+        "bug-beta": 115,
+        "bug-gamma": 67
+      },
+      "schedules_to_all": 115,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 35,
+      "schedules_tested": 117,
+      "first_bug_schedules": {
+        "bug-alpha": 117,
+        "bug-beta": 109,
+        "bug-gamma": 116
+      },
+      "schedules_to_all": 117,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 36,
+      "schedules_tested": 697,
+      "first_bug_schedules": {
+        "bug-alpha": 697,
+        "bug-beta": 72,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 697,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 37,
+      "schedules_tested": 149,
+      "first_bug_schedules": {
+        "bug-alpha": 149,
+        "bug-beta": 85,
+        "bug-gamma": 78
+      },
+      "schedules_to_all": 149,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 38,
+      "schedules_tested": 441,
+      "first_bug_schedules": {
+        "bug-alpha": 340,
+        "bug-beta": 394,
+        "bug-gamma": 441
+      },
+      "schedules_to_all": 441,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "feedback",
+      "seed": 39,
+      "schedules_tested": 266,
+      "first_bug_schedules": {
+        "bug-alpha": 71,
+        "bug-beta": 109,
+        "bug-gamma": 266
+      },
+      "schedules_to_all": 266,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 20,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 21,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 22,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 23,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 24,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 25,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 26,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 27,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 28,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 29,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 30,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 31,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 32,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 33,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 34,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 35,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 36,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 37,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 38,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "dfs",
+      "seed": 39,
+      "schedules_tested": 27,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 18,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 27,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 20,
+      "schedules_tested": 21,
+      "first_bug_schedules": {
+        "bug-alpha": 21,
+        "bug-beta": 13,
+        "bug-gamma": 5
+      },
+      "schedules_to_all": 21,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 21,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 14,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 22,
+      "schedules_tested": 25,
+      "first_bug_schedules": {
+        "bug-alpha": 25,
+        "bug-beta": 4,
+        "bug-gamma": 15
+      },
+      "schedules_to_all": 25,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 23,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 11,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 24,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 22,
+        "bug-beta": 15,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 25,
+      "schedules_tested": 23,
+      "first_bug_schedules": {
+        "bug-alpha": 14,
+        "bug-beta": 3,
+        "bug-gamma": 23
+      },
+      "schedules_to_all": 23,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 26,
+      "schedules_tested": 19,
+      "first_bug_schedules": {
+        "bug-alpha": 19,
+        "bug-beta": 5,
+        "bug-gamma": 14
+      },
+      "schedules_to_all": 19,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 27,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 15,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 28,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 15,
+        "bug-beta": 24,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 29,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 14,
+        "bug-beta": 7,
+        "bug-gamma": 24
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 30,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 24,
+        "bug-gamma": 14
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 31,
+      "schedules_tested": 23,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 15,
+        "bug-gamma": 23
+      },
+      "schedules_to_all": 23,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 32,
+      "schedules_tested": 23,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 23,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 23,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 33,
+      "schedules_tested": 25,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 14,
+        "bug-gamma": 25
+      },
+      "schedules_to_all": 25,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 34,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 22,
+        "bug-gamma": 11
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 35,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 22,
+        "bug-beta": 2,
+        "bug-gamma": 16
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 36,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 14,
+        "bug-beta": 24,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 37,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 24,
+        "bug-beta": 14,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 38,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 22,
+        "bug-gamma": 15
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "random-dfs",
+      "seed": 39,
+      "schedules_tested": 25,
+      "first_bug_schedules": {
+        "bug-alpha": 25,
+        "bug-beta": 6,
+        "bug-gamma": 12
+      },
+      "schedules_to_all": 25,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 20,
+      "schedules_tested": 21,
+      "first_bug_schedules": {
+        "bug-alpha": 21,
+        "bug-beta": 13,
+        "bug-gamma": 5
+      },
+      "schedules_to_all": 21,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 21,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 14,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 22,
+      "schedules_tested": 25,
+      "first_bug_schedules": {
+        "bug-alpha": 25,
+        "bug-beta": 4,
+        "bug-gamma": 15
+      },
+      "schedules_to_all": 25,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 23,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 11,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 24,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 22,
+        "bug-beta": 15,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 25,
+      "schedules_tested": 23,
+      "first_bug_schedules": {
+        "bug-alpha": 14,
+        "bug-beta": 3,
+        "bug-gamma": 23
+      },
+      "schedules_to_all": 23,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 26,
+      "schedules_tested": 19,
+      "first_bug_schedules": {
+        "bug-alpha": 19,
+        "bug-beta": 5,
+        "bug-gamma": 14
+      },
+      "schedules_to_all": 19,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 27,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 15,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 28,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 15,
+        "bug-beta": 24,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 29,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 14,
+        "bug-beta": 7,
+        "bug-gamma": 24
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 30,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 24,
+        "bug-gamma": 14
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 31,
+      "schedules_tested": 23,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 15,
+        "bug-gamma": 23
+      },
+      "schedules_to_all": 23,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 32,
+      "schedules_tested": 23,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 23,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 23,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 33,
+      "schedules_tested": 25,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 14,
+        "bug-gamma": 25
+      },
+      "schedules_to_all": 25,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 34,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 22,
+        "bug-gamma": 11
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 35,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 22,
+        "bug-beta": 2,
+        "bug-gamma": 16
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 36,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 14,
+        "bug-beta": 24,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 37,
+      "schedules_tested": 24,
+      "first_bug_schedules": {
+        "bug-alpha": 24,
+        "bug-beta": 14,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 24,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 38,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 22,
+        "bug-gamma": 15
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-8",
+      "strategy": "auto",
+      "seed": 39,
+      "schedules_tested": 25,
+      "first_bug_schedules": {
+        "bug-alpha": 25,
+        "bug-beta": 6,
+        "bug-gamma": 12
+      },
+      "schedules_to_all": 25,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 20,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 6706
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 21,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-beta": 1377,
+        "bug-gamma": 8917
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 22,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-beta": 5532,
+        "bug-gamma": 5213
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 23,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-beta": 4338,
+        "bug-gamma": 4380
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 24,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-gamma": 4165
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 25,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-gamma": 7636
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 26,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-gamma": 6678
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 27,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 4594
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 28,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-beta": 3791
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 29,
+      "schedules_tested": 9147,
+      "first_bug_schedules": {
+        "bug-alpha": 886,
+        "bug-beta": 4977,
+        "bug-gamma": 9147
+      },
+      "schedules_to_all": 9147,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 30,
+      "schedules_tested": 5445,
+      "first_bug_schedules": {
+        "bug-alpha": 4552,
+        "bug-beta": 5445,
+        "bug-gamma": 310
+      },
+      "schedules_to_all": 5445,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 31,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 6949,
+        "bug-beta": 471
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 32,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 438,
+        "bug-beta": 1712
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 33,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-beta": 667,
+        "bug-gamma": 6126
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 34,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-beta": 5754
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 35,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 1354,
+        "bug-gamma": 4559
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 36,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 6798,
+        "bug-gamma": 9050
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 37,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 5375,
+        "bug-gamma": 1983
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 38,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 3728,
+        "bug-beta": 6140
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random",
+      "seed": 39,
+      "schedules_tested": 9819,
+      "first_bug_schedules": {
+        "bug-alpha": 9819,
+        "bug-beta": 8736,
+        "bug-gamma": 2215
+      },
+      "schedules_to_all": 9819,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 20,
+      "schedules_tested": 776,
+      "first_bug_schedules": {
+        "bug-alpha": 761,
+        "bug-beta": 754,
+        "bug-gamma": 776
+      },
+      "schedules_to_all": 776,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 21,
+      "schedules_tested": 970,
+      "first_bug_schedules": {
+        "bug-alpha": 970,
+        "bug-beta": 591,
+        "bug-gamma": 711
+      },
+      "schedules_to_all": 970,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 22,
+      "schedules_tested": 856,
+      "first_bug_schedules": {
+        "bug-alpha": 856,
+        "bug-beta": 786,
+        "bug-gamma": 195
+      },
+      "schedules_to_all": 856,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 23,
+      "schedules_tested": 595,
+      "first_bug_schedules": {
+        "bug-alpha": 595,
+        "bug-beta": 254,
+        "bug-gamma": 218
+      },
+      "schedules_to_all": 595,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 24,
+      "schedules_tested": 484,
+      "first_bug_schedules": {
+        "bug-alpha": 484,
+        "bug-beta": 383,
+        "bug-gamma": 218
+      },
+      "schedules_to_all": 484,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 25,
+      "schedules_tested": 339,
+      "first_bug_schedules": {
+        "bug-alpha": 285,
+        "bug-beta": 190,
+        "bug-gamma": 339
+      },
+      "schedules_to_all": 339,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 26,
+      "schedules_tested": 896,
+      "first_bug_schedules": {
+        "bug-alpha": 799,
+        "bug-beta": 896,
+        "bug-gamma": 760
+      },
+      "schedules_to_all": 896,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 27,
+      "schedules_tested": 265,
+      "first_bug_schedules": {
+        "bug-alpha": 173,
+        "bug-beta": 213,
+        "bug-gamma": 265
+      },
+      "schedules_to_all": 265,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 28,
+      "schedules_tested": 438,
+      "first_bug_schedules": {
+        "bug-alpha": 438,
+        "bug-beta": 313,
+        "bug-gamma": 274
+      },
+      "schedules_to_all": 438,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 29,
+      "schedules_tested": 205,
+      "first_bug_schedules": {
+        "bug-alpha": 205,
+        "bug-beta": 38,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 205,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 30,
+      "schedules_tested": 152,
+      "first_bug_schedules": {
+        "bug-alpha": 152,
+        "bug-beta": 149,
+        "bug-gamma": 98
+      },
+      "schedules_to_all": 152,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 31,
+      "schedules_tested": 401,
+      "first_bug_schedules": {
+        "bug-alpha": 401,
+        "bug-beta": 358,
+        "bug-gamma": 274
+      },
+      "schedules_to_all": 401,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 32,
+      "schedules_tested": 244,
+      "first_bug_schedules": {
+        "bug-alpha": 165,
+        "bug-beta": 193,
+        "bug-gamma": 244
+      },
+      "schedules_to_all": 244,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 33,
+      "schedules_tested": 360,
+      "first_bug_schedules": {
+        "bug-alpha": 360,
+        "bug-beta": 122,
+        "bug-gamma": 165
+      },
+      "schedules_to_all": 360,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 34,
+      "schedules_tested": 205,
+      "first_bug_schedules": {
+        "bug-alpha": 95,
+        "bug-beta": 138,
+        "bug-gamma": 205
+      },
+      "schedules_to_all": 205,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 35,
+      "schedules_tested": 1041,
+      "first_bug_schedules": {
+        "bug-alpha": 976,
+        "bug-beta": 875,
+        "bug-gamma": 1041
+      },
+      "schedules_to_all": 1041,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 36,
+      "schedules_tested": 712,
+      "first_bug_schedules": {
+        "bug-alpha": 712,
+        "bug-beta": 82,
+        "bug-gamma": 64
+      },
+      "schedules_to_all": 712,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 37,
+      "schedules_tested": 395,
+      "first_bug_schedules": {
+        "bug-alpha": 395,
+        "bug-beta": 190,
+        "bug-gamma": 161
+      },
+      "schedules_to_all": 395,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 38,
+      "schedules_tested": 2436,
+      "first_bug_schedules": {
+        "bug-alpha": 2436,
+        "bug-beta": 434,
+        "bug-gamma": 438
+      },
+      "schedules_to_all": 2436,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "feedback",
+      "seed": 39,
+      "schedules_tested": 273,
+      "first_bug_schedules": {
+        "bug-alpha": 145,
+        "bug-beta": 273,
+        "bug-gamma": 149
+      },
+      "schedules_to_all": 273,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 20,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 21,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 22,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 23,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 24,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 25,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 26,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 27,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 28,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 29,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 30,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 31,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 32,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 33,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 34,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 35,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 36,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 37,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 38,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "dfs",
+      "seed": 39,
+      "schedules_tested": 39,
+      "first_bug_schedules": {
+        "bug-alpha": 13,
+        "bug-beta": 26,
+        "bug-gamma": 39
+      },
+      "schedules_to_all": 39,
+      "exhausted": true
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 20,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 32,
+        "bug-beta": 18,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 21,
+      "schedules_tested": 37,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 19,
+        "bug-gamma": 37
+      },
+      "schedules_to_all": 37,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 22,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 32,
+        "bug-beta": 7,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 23,
+      "schedules_tested": 37,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 18,
+        "bug-gamma": 37
+      },
+      "schedules_to_all": 37,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 24,
+      "schedules_tested": 35,
+      "first_bug_schedules": {
+        "bug-alpha": 35,
+        "bug-beta": 20,
+        "bug-gamma": 8
+      },
+      "schedules_to_all": 35,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 25,
+      "schedules_tested": 30,
+      "first_bug_schedules": {
+        "bug-alpha": 19,
+        "bug-beta": 6,
+        "bug-gamma": 30
+      },
+      "schedules_to_all": 30,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 26,
+      "schedules_tested": 35,
+      "first_bug_schedules": {
+        "bug-alpha": 35,
+        "bug-beta": 8,
+        "bug-gamma": 15
+      },
+      "schedules_to_all": 35,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 27,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 20,
+        "bug-gamma": 32
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 28,
+      "schedules_tested": 33,
+      "first_bug_schedules": {
+        "bug-alpha": 22,
+        "bug-beta": 33,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 33,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 29,
+      "schedules_tested": 34,
+      "first_bug_schedules": {
+        "bug-alpha": 20,
+        "bug-beta": 10,
+        "bug-gamma": 34
+      },
+      "schedules_to_all": 34,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 30,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 32,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 31,
+      "schedules_tested": 35,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 20,
+        "bug-gamma": 35
+      },
+      "schedules_to_all": 35,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 32,
+      "schedules_tested": 33,
+      "first_bug_schedules": {
+        "bug-alpha": 19,
+        "bug-beta": 33,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 33,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 33,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 22,
+        "bug-gamma": 32
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 34,
+      "schedules_tested": 34,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 34,
+        "bug-gamma": 18
+      },
+      "schedules_to_all": 34,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 35,
+      "schedules_tested": 30,
+      "first_bug_schedules": {
+        "bug-alpha": 30,
+        "bug-beta": 5,
+        "bug-gamma": 20
+      },
+      "schedules_to_all": 30,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 36,
+      "schedules_tested": 34,
+      "first_bug_schedules": {
+        "bug-alpha": 21,
+        "bug-beta": 34,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 34,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 37,
+      "schedules_tested": 36,
+      "first_bug_schedules": {
+        "bug-alpha": 36,
+        "bug-beta": 21,
+        "bug-gamma": 8
+      },
+      "schedules_to_all": 36,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 38,
+      "schedules_tested": 33,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 33,
+        "bug-gamma": 21
+      },
+      "schedules_to_all": 33,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "random-dfs",
+      "seed": 39,
+      "schedules_tested": 33,
+      "first_bug_schedules": {
+        "bug-alpha": 33,
+        "bug-beta": 8,
+        "bug-gamma": 20
+      },
+      "schedules_to_all": 33,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 20,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 32,
+        "bug-beta": 18,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 21,
+      "schedules_tested": 37,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 19,
+        "bug-gamma": 37
+      },
+      "schedules_to_all": 37,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 22,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 32,
+        "bug-beta": 7,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 23,
+      "schedules_tested": 37,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 18,
+        "bug-gamma": 37
+      },
+      "schedules_to_all": 37,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 24,
+      "schedules_tested": 35,
+      "first_bug_schedules": {
+        "bug-alpha": 35,
+        "bug-beta": 20,
+        "bug-gamma": 8
+      },
+      "schedules_to_all": 35,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 25,
+      "schedules_tested": 30,
+      "first_bug_schedules": {
+        "bug-alpha": 19,
+        "bug-beta": 6,
+        "bug-gamma": 30
+      },
+      "schedules_to_all": 30,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 26,
+      "schedules_tested": 35,
+      "first_bug_schedules": {
+        "bug-alpha": 35,
+        "bug-beta": 8,
+        "bug-gamma": 15
+      },
+      "schedules_to_all": 35,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 27,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 20,
+        "bug-gamma": 32
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 28,
+      "schedules_tested": 33,
+      "first_bug_schedules": {
+        "bug-alpha": 22,
+        "bug-beta": 33,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 33,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 29,
+      "schedules_tested": 34,
+      "first_bug_schedules": {
+        "bug-alpha": 20,
+        "bug-beta": 10,
+        "bug-gamma": 34
+      },
+      "schedules_to_all": 34,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 30,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 32,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 31,
+      "schedules_tested": 35,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 20,
+        "bug-gamma": 35
+      },
+      "schedules_to_all": 35,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 32,
+      "schedules_tested": 33,
+      "first_bug_schedules": {
+        "bug-alpha": 19,
+        "bug-beta": 33,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 33,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 33,
+      "schedules_tested": 32,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 22,
+        "bug-gamma": 32
+      },
+      "schedules_to_all": 32,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 34,
+      "schedules_tested": 34,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 34,
+        "bug-gamma": 18
+      },
+      "schedules_to_all": 34,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 35,
+      "schedules_tested": 30,
+      "first_bug_schedules": {
+        "bug-alpha": 30,
+        "bug-beta": 5,
+        "bug-gamma": 20
+      },
+      "schedules_to_all": 30,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 36,
+      "schedules_tested": 34,
+      "first_bug_schedules": {
+        "bug-alpha": 21,
+        "bug-beta": 34,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 34,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 37,
+      "schedules_tested": 36,
+      "first_bug_schedules": {
+        "bug-alpha": 36,
+        "bug-beta": 21,
+        "bug-gamma": 8
+      },
+      "schedules_to_all": 36,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 38,
+      "schedules_tested": 33,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 33,
+        "bug-gamma": 21
+      },
+      "schedules_to_all": 33,
+      "exhausted": false
+    },
+    {
+      "workload": "branch-12",
+      "strategy": "auto",
+      "seed": 39,
+      "schedules_tested": 33,
+      "first_bug_schedules": {
+        "bug-alpha": 33,
+        "bug-beta": 8,
+        "bug-gamma": 20
+      },
+      "schedules_to_all": 33,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 20,
+      "schedules_tested": 735,
+      "first_bug_schedules": {
+        "bug-alpha": 735,
+        "bug-beta": 67,
+        "bug-gamma": 62
+      },
+      "schedules_to_all": 735,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 21,
+      "schedules_tested": 3257,
+      "first_bug_schedules": {
+        "bug-alpha": 1137,
+        "bug-beta": 3257,
+        "bug-gamma": 604
+      },
+      "schedules_to_all": 3257,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 22,
+      "schedules_tested": 1604,
+      "first_bug_schedules": {
+        "bug-alpha": 1604,
+        "bug-beta": 88,
+        "bug-gamma": 117
+      },
+      "schedules_to_all": 1604,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 23,
+      "schedules_tested": 1480,
+      "first_bug_schedules": {
+        "bug-alpha": 1480,
+        "bug-beta": 1140,
+        "bug-gamma": 1069
+      },
+      "schedules_to_all": 1480,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 24,
+      "schedules_tested": 1315,
+      "first_bug_schedules": {
+        "bug-alpha": 344,
+        "bug-beta": 1315,
+        "bug-gamma": 1085
+      },
+      "schedules_to_all": 1315,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 25,
+      "schedules_tested": 1430,
+      "first_bug_schedules": {
+        "bug-alpha": 1430,
+        "bug-beta": 321,
+        "bug-gamma": 1147
+      },
+      "schedules_to_all": 1430,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 26,
+      "schedules_tested": 1902,
+      "first_bug_schedules": {
+        "bug-alpha": 244,
+        "bug-beta": 1902,
+        "bug-gamma": 383
+      },
+      "schedules_to_all": 1902,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 27,
+      "schedules_tested": 1393,
+      "first_bug_schedules": {
+        "bug-alpha": 206,
+        "bug-beta": 1312,
+        "bug-gamma": 1393
+      },
+      "schedules_to_all": 1393,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 28,
+      "schedules_tested": 1220,
+      "first_bug_schedules": {
+        "bug-alpha": 174,
+        "bug-beta": 162,
+        "bug-gamma": 1220
+      },
+      "schedules_to_all": 1220,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 29,
+      "schedules_tested": 3684,
+      "first_bug_schedules": {
+        "bug-alpha": 1839,
+        "bug-beta": 350,
+        "bug-gamma": 3684
+      },
+      "schedules_to_all": 3684,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 30,
+      "schedules_tested": 791,
+      "first_bug_schedules": {
+        "bug-alpha": 612,
+        "bug-beta": 394,
+        "bug-gamma": 791
+      },
+      "schedules_to_all": 791,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 31,
+      "schedules_tested": 2069,
+      "first_bug_schedules": {
+        "bug-alpha": 563,
+        "bug-beta": 442,
+        "bug-gamma": 2069
+      },
+      "schedules_to_all": 2069,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 32,
+      "schedules_tested": 958,
+      "first_bug_schedules": {
+        "bug-alpha": 958,
+        "bug-beta": 171,
+        "bug-gamma": 323
+      },
+      "schedules_to_all": 958,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 33,
+      "schedules_tested": 676,
+      "first_bug_schedules": {
+        "bug-alpha": 637,
+        "bug-beta": 618,
+        "bug-gamma": 676
+      },
+      "schedules_to_all": 676,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 34,
+      "schedules_tested": 2547,
+      "first_bug_schedules": {
+        "bug-alpha": 2472,
+        "bug-beta": 804,
+        "bug-gamma": 2547
+      },
+      "schedules_to_all": 2547,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 35,
+      "schedules_tested": 1014,
+      "first_bug_schedules": {
+        "bug-alpha": 590,
+        "bug-beta": 2,
+        "bug-gamma": 1014
+      },
+      "schedules_to_all": 1014,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 36,
+      "schedules_tested": 1819,
+      "first_bug_schedules": {
+        "bug-alpha": 34,
+        "bug-beta": 1402,
+        "bug-gamma": 1819
+      },
+      "schedules_to_all": 1819,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 37,
+      "schedules_tested": 1585,
+      "first_bug_schedules": {
+        "bug-alpha": 1585,
+        "bug-beta": 631,
+        "bug-gamma": 86
+      },
+      "schedules_to_all": 1585,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 38,
+      "schedules_tested": 1971,
+      "first_bug_schedules": {
+        "bug-alpha": 898,
+        "bug-beta": 1971,
+        "bug-gamma": 410
+      },
+      "schedules_to_all": 1971,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random",
+      "seed": 39,
+      "schedules_tested": 3245,
+      "first_bug_schedules": {
+        "bug-alpha": 3245,
+        "bug-beta": 1061,
+        "bug-gamma": 874
+      },
+      "schedules_to_all": 3245,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 20,
+      "schedules_tested": 392,
+      "first_bug_schedules": {
+        "bug-alpha": 386,
+        "bug-beta": 392,
+        "bug-gamma": 378
+      },
+      "schedules_to_all": 392,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 21,
+      "schedules_tested": 858,
+      "first_bug_schedules": {
+        "bug-alpha": 858,
+        "bug-beta": 845,
+        "bug-gamma": 844
+      },
+      "schedules_to_all": 858,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 22,
+      "schedules_tested": 457,
+      "first_bug_schedules": {
+        "bug-alpha": 457,
+        "bug-beta": 437,
+        "bug-gamma": 439
+      },
+      "schedules_to_all": 457,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 23,
+      "schedules_tested": 92,
+      "first_bug_schedules": {
+        "bug-alpha": 92,
+        "bug-beta": 91,
+        "bug-gamma": 83
+      },
+      "schedules_to_all": 92,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 24,
+      "schedules_tested": 31,
+      "first_bug_schedules": {
+        "bug-alpha": 17,
+        "bug-beta": 31,
+        "bug-gamma": 27
+      },
+      "schedules_to_all": 31,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 25,
+      "schedules_tested": 663,
+      "first_bug_schedules": {
+        "bug-alpha": 663,
+        "bug-beta": 651,
+        "bug-gamma": 650
+      },
+      "schedules_to_all": 663,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 26,
+      "schedules_tested": 684,
+      "first_bug_schedules": {
+        "bug-alpha": 644,
+        "bug-beta": 665,
+        "bug-gamma": 684
+      },
+      "schedules_to_all": 684,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 27,
+      "schedules_tested": 634,
+      "first_bug_schedules": {
+        "bug-alpha": 634,
+        "bug-beta": 627,
+        "bug-gamma": 624
+      },
+      "schedules_to_all": 634,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 28,
+      "schedules_tested": 87,
+      "first_bug_schedules": {
+        "bug-alpha": 85,
+        "bug-beta": 77,
+        "bug-gamma": 87
+      },
+      "schedules_to_all": 87,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 29,
+      "schedules_tested": 233,
+      "first_bug_schedules": {
+        "bug-alpha": 233,
+        "bug-beta": 219,
+        "bug-gamma": 224
+      },
+      "schedules_to_all": 233,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 30,
+      "schedules_tested": 312,
+      "first_bug_schedules": {
+        "bug-alpha": 298,
+        "bug-beta": 297,
+        "bug-gamma": 312
+      },
+      "schedules_to_all": 312,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 31,
+      "schedules_tested": 44,
+      "first_bug_schedules": {
+        "bug-alpha": 33,
+        "bug-beta": 44,
+        "bug-gamma": 41
+      },
+      "schedules_to_all": 44,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 32,
+      "schedules_tested": 182,
+      "first_bug_schedules": {
+        "bug-alpha": 168,
+        "bug-beta": 171,
+        "bug-gamma": 182
+      },
+      "schedules_to_all": 182,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 33,
+      "schedules_tested": 52,
+      "first_bug_schedules": {
+        "bug-alpha": 47,
+        "bug-beta": 38,
+        "bug-gamma": 52
+      },
+      "schedules_to_all": 52,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 34,
+      "schedules_tested": 419,
+      "first_bug_schedules": {
+        "bug-alpha": 419,
+        "bug-beta": 387,
+        "bug-gamma": 362
+      },
+      "schedules_to_all": 419,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 35,
+      "schedules_tested": 323,
+      "first_bug_schedules": {
+        "bug-alpha": 321,
+        "bug-beta": 305,
+        "bug-gamma": 323
+      },
+      "schedules_to_all": 323,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 36,
+      "schedules_tested": 244,
+      "first_bug_schedules": {
+        "bug-alpha": 243,
+        "bug-beta": 241,
+        "bug-gamma": 244
+      },
+      "schedules_to_all": 244,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 37,
+      "schedules_tested": 470,
+      "first_bug_schedules": {
+        "bug-alpha": 456,
+        "bug-beta": 470,
+        "bug-gamma": 462
+      },
+      "schedules_to_all": 470,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 38,
+      "schedules_tested": 665,
+      "first_bug_schedules": {
+        "bug-alpha": 628,
+        "bug-beta": 569,
+        "bug-gamma": 665
+      },
+      "schedules_to_all": 665,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "feedback",
+      "seed": 39,
+      "schedules_tested": 180,
+      "first_bug_schedules": {
+        "bug-alpha": 143,
+        "bug-beta": 159,
+        "bug-gamma": 180
+      },
+      "schedules_to_all": 180,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 20,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 21,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 22,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 23,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 24,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 25,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 26,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 27,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 28,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 29,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 30,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 31,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 32,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 33,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 34,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 35,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 36,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 37,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 38,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "dfs",
+      "seed": 39,
+      "schedules_tested": 513,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 257,
+        "bug-gamma": 513
+      },
+      "schedules_to_all": 513,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 20,
+      "schedules_tested": 701,
+      "first_bug_schedules": {
+        "bug-alpha": 701,
+        "bug-beta": 502,
+        "bug-gamma": 70
+      },
+      "schedules_to_all": 701,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 21,
+      "schedules_tested": 622,
+      "first_bug_schedules": {
+        "bug-alpha": 237,
+        "bug-beta": 378,
+        "bug-gamma": 622
+      },
+      "schedules_to_all": 622,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 22,
+      "schedules_tested": 629,
+      "first_bug_schedules": {
+        "bug-alpha": 629,
+        "bug-beta": 35,
+        "bug-gamma": 418
+      },
+      "schedules_to_all": 629,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 23,
+      "schedules_tested": 644,
+      "first_bug_schedules": {
+        "bug-alpha": 181,
+        "bug-beta": 301,
+        "bug-gamma": 644
+      },
+      "schedules_to_all": 644,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 24,
+      "schedules_tested": 586,
+      "first_bug_schedules": {
+        "bug-alpha": 586,
+        "bug-beta": 426,
+        "bug-gamma": 204
+      },
+      "schedules_to_all": 586,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 25,
+      "schedules_tested": 665,
+      "first_bug_schedules": {
+        "bug-alpha": 411,
+        "bug-beta": 89,
+        "bug-gamma": 665
+      },
+      "schedules_to_all": 665,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 26,
+      "schedules_tested": 616,
+      "first_bug_schedules": {
+        "bug-alpha": 616,
+        "bug-beta": 62,
+        "bug-gamma": 407
+      },
+      "schedules_to_all": 616,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 27,
+      "schedules_tested": 526,
+      "first_bug_schedules": {
+        "bug-alpha": 252,
+        "bug-beta": 310,
+        "bug-gamma": 526
+      },
+      "schedules_to_all": 526,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 28,
+      "schedules_tested": 633,
+      "first_bug_schedules": {
+        "bug-alpha": 298,
+        "bug-beta": 633,
+        "bug-gamma": 218
+      },
+      "schedules_to_all": 633,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 29,
+      "schedules_tested": 636,
+      "first_bug_schedules": {
+        "bug-alpha": 296,
+        "bug-beta": 204,
+        "bug-gamma": 636
+      },
+      "schedules_to_all": 636,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 30,
+      "schedules_tested": 639,
+      "first_bug_schedules": {
+        "bug-alpha": 117,
+        "bug-beta": 639,
+        "bug-gamma": 374
+      },
+      "schedules_to_all": 639,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 31,
+      "schedules_tested": 726,
+      "first_bug_schedules": {
+        "bug-alpha": 80,
+        "bug-beta": 356,
+        "bug-gamma": 726
+      },
+      "schedules_to_all": 726,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 32,
+      "schedules_tested": 597,
+      "first_bug_schedules": {
+        "bug-alpha": 393,
+        "bug-beta": 597,
+        "bug-gamma": 228
+      },
+      "schedules_to_all": 597,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 33,
+      "schedules_tested": 714,
+      "first_bug_schedules": {
+        "bug-alpha": 69,
+        "bug-beta": 368,
+        "bug-gamma": 714
+      },
+      "schedules_to_all": 714,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 34,
+      "schedules_tested": 532,
+      "first_bug_schedules": {
+        "bug-alpha": 204,
+        "bug-beta": 532,
+        "bug-gamma": 396
+      },
+      "schedules_to_all": 532,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 35,
+      "schedules_tested": 698,
+      "first_bug_schedules": {
+        "bug-alpha": 698,
+        "bug-beta": 251,
+        "bug-gamma": 266
+      },
+      "schedules_to_all": 698,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 36,
+      "schedules_tested": 704,
+      "first_bug_schedules": {
+        "bug-alpha": 411,
+        "bug-beta": 704,
+        "bug-gamma": 136
+      },
+      "schedules_to_all": 704,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 37,
+      "schedules_tested": 614,
+      "first_bug_schedules": {
+        "bug-alpha": 614,
+        "bug-beta": 426,
+        "bug-gamma": 120
+      },
+      "schedules_to_all": 614,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 38,
+      "schedules_tested": 535,
+      "first_bug_schedules": {
+        "bug-alpha": 53,
+        "bug-beta": 535,
+        "bug-gamma": 451
+      },
+      "schedules_to_all": 535,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "random-dfs",
+      "seed": 39,
+      "schedules_tested": 524,
+      "first_bug_schedules": {
+        "bug-alpha": 524,
+        "bug-beta": 204,
+        "bug-gamma": 330
+      },
+      "schedules_to_all": 524,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 20,
+      "schedules_tested": 701,
+      "first_bug_schedules": {
+        "bug-alpha": 701,
+        "bug-beta": 502,
+        "bug-gamma": 70
+      },
+      "schedules_to_all": 701,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 21,
+      "schedules_tested": 622,
+      "first_bug_schedules": {
+        "bug-alpha": 237,
+        "bug-beta": 378,
+        "bug-gamma": 622
+      },
+      "schedules_to_all": 622,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 22,
+      "schedules_tested": 629,
+      "first_bug_schedules": {
+        "bug-alpha": 629,
+        "bug-beta": 35,
+        "bug-gamma": 418
+      },
+      "schedules_to_all": 629,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 23,
+      "schedules_tested": 644,
+      "first_bug_schedules": {
+        "bug-alpha": 181,
+        "bug-beta": 301,
+        "bug-gamma": 644
+      },
+      "schedules_to_all": 644,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 24,
+      "schedules_tested": 586,
+      "first_bug_schedules": {
+        "bug-alpha": 586,
+        "bug-beta": 426,
+        "bug-gamma": 204
+      },
+      "schedules_to_all": 586,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 25,
+      "schedules_tested": 665,
+      "first_bug_schedules": {
+        "bug-alpha": 411,
+        "bug-beta": 89,
+        "bug-gamma": 665
+      },
+      "schedules_to_all": 665,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 26,
+      "schedules_tested": 616,
+      "first_bug_schedules": {
+        "bug-alpha": 616,
+        "bug-beta": 62,
+        "bug-gamma": 407
+      },
+      "schedules_to_all": 616,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 27,
+      "schedules_tested": 526,
+      "first_bug_schedules": {
+        "bug-alpha": 252,
+        "bug-beta": 310,
+        "bug-gamma": 526
+      },
+      "schedules_to_all": 526,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 28,
+      "schedules_tested": 633,
+      "first_bug_schedules": {
+        "bug-alpha": 298,
+        "bug-beta": 633,
+        "bug-gamma": 218
+      },
+      "schedules_to_all": 633,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 29,
+      "schedules_tested": 636,
+      "first_bug_schedules": {
+        "bug-alpha": 296,
+        "bug-beta": 204,
+        "bug-gamma": 636
+      },
+      "schedules_to_all": 636,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 30,
+      "schedules_tested": 639,
+      "first_bug_schedules": {
+        "bug-alpha": 117,
+        "bug-beta": 639,
+        "bug-gamma": 374
+      },
+      "schedules_to_all": 639,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 31,
+      "schedules_tested": 726,
+      "first_bug_schedules": {
+        "bug-alpha": 80,
+        "bug-beta": 356,
+        "bug-gamma": 726
+      },
+      "schedules_to_all": 726,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 32,
+      "schedules_tested": 597,
+      "first_bug_schedules": {
+        "bug-alpha": 393,
+        "bug-beta": 597,
+        "bug-gamma": 228
+      },
+      "schedules_to_all": 597,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 33,
+      "schedules_tested": 714,
+      "first_bug_schedules": {
+        "bug-alpha": 69,
+        "bug-beta": 368,
+        "bug-gamma": 714
+      },
+      "schedules_to_all": 714,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 34,
+      "schedules_tested": 532,
+      "first_bug_schedules": {
+        "bug-alpha": 204,
+        "bug-beta": 532,
+        "bug-gamma": 396
+      },
+      "schedules_to_all": 532,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 35,
+      "schedules_tested": 698,
+      "first_bug_schedules": {
+        "bug-alpha": 698,
+        "bug-beta": 251,
+        "bug-gamma": 266
+      },
+      "schedules_to_all": 698,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 36,
+      "schedules_tested": 704,
+      "first_bug_schedules": {
+        "bug-alpha": 411,
+        "bug-beta": 704,
+        "bug-gamma": 136
+      },
+      "schedules_to_all": 704,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 37,
+      "schedules_tested": 614,
+      "first_bug_schedules": {
+        "bug-alpha": 614,
+        "bug-beta": 426,
+        "bug-gamma": 120
+      },
+      "schedules_to_all": 614,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 38,
+      "schedules_tested": 535,
+      "first_bug_schedules": {
+        "bug-alpha": 53,
+        "bug-beta": 535,
+        "bug-gamma": 451
+      },
+      "schedules_to_all": 535,
+      "exhausted": false
+    },
+    {
+      "workload": "opaque-8",
+      "strategy": "auto",
+      "seed": 39,
+      "schedules_tested": 524,
+      "first_bug_schedules": {
+        "bug-alpha": 524,
+        "bug-beta": 204,
+        "bug-gamma": 330
+      },
+      "schedules_to_all": 524,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 20,
+      "schedules_tested": 164,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 164,
+        "bug-gamma": 15
+      },
+      "schedules_to_all": 164,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 21,
+      "schedules_tested": 121,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 47,
+        "bug-gamma": 121
+      },
+      "schedules_to_all": 121,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 22,
+      "schedules_tested": 1207,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 1207,
+        "bug-gamma": 3
+      },
+      "schedules_to_all": 1207,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 23,
+      "schedules_tested": 58,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 58,
+        "bug-gamma": 50
+      },
+      "schedules_to_all": 58,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 24,
+      "schedules_tested": 194,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 194,
+        "bug-gamma": 60
+      },
+      "schedules_to_all": 194,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 25,
+      "schedules_tested": 244,
+      "first_bug_schedules": {
+        "bug-alpha": 8,
+        "bug-beta": 244,
+        "bug-gamma": 3
+      },
+      "schedules_to_all": 244,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 26,
+      "schedules_tested": 811,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 811,
+        "bug-gamma": 42
+      },
+      "schedules_to_all": 811,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 27,
+      "schedules_tested": 472,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 472,
+        "bug-gamma": 193
+      },
+      "schedules_to_all": 472,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 28,
+      "schedules_tested": 494,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 494,
+        "bug-gamma": 10
+      },
+      "schedules_to_all": 494,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 29,
+      "schedules_tested": 120,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 120,
+        "bug-gamma": 34
+      },
+      "schedules_to_all": 120,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 30,
+      "schedules_tested": 174,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 174,
+        "bug-gamma": 13
+      },
+      "schedules_to_all": 174,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 31,
+      "schedules_tested": 226,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 226,
+        "bug-gamma": 17
+      },
+      "schedules_to_all": 226,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 32,
+      "schedules_tested": 165,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 165,
+        "bug-gamma": 37
+      },
+      "schedules_to_all": 165,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 33,
+      "schedules_tested": 590,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-beta": 590,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 590,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 34,
+      "schedules_tested": 109,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 71,
+        "bug-gamma": 109
+      },
+      "schedules_to_all": 109,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 35,
+      "schedules_tested": 82,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 60,
+        "bug-gamma": 82
+      },
+      "schedules_to_all": 82,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 36,
+      "schedules_tested": 52,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 52,
+        "bug-gamma": 18
+      },
+      "schedules_to_all": 52,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 37,
+      "schedules_tested": 42,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 42,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 42,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 38,
+      "schedules_tested": 329,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 329,
+        "bug-gamma": 53
+      },
+      "schedules_to_all": 329,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random",
+      "seed": 39,
+      "schedules_tested": 40,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 40,
+        "bug-gamma": 21
+      },
+      "schedules_to_all": 40,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 20,
+      "schedules_tested": 746,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-beta": 746,
+        "bug-gamma": 35
+      },
+      "schedules_to_all": 746,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 21,
+      "schedules_tested": 777,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 777,
+        "bug-gamma": 85
+      },
+      "schedules_to_all": 777,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 22,
+      "schedules_tested": 240,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 240,
+        "bug-gamma": 80
+      },
+      "schedules_to_all": 240,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 23,
+      "schedules_tested": 209,
+      "first_bug_schedules": {
+        "bug-alpha": 20,
+        "bug-beta": 209,
+        "bug-gamma": 80
+      },
+      "schedules_to_all": 209,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 24,
+      "schedules_tested": 22,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 22,
+        "bug-gamma": 5
+      },
+      "schedules_to_all": 22,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 25,
+      "schedules_tested": 133,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 112,
+        "bug-gamma": 133
+      },
+      "schedules_to_all": 133,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 26,
+      "schedules_tested": 48,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 48,
+        "bug-gamma": 24
+      },
+      "schedules_to_all": 48,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 27,
+      "schedules_tested": 151,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 151,
+        "bug-gamma": 44
+      },
+      "schedules_to_all": 151,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 28,
+      "schedules_tested": 136,
+      "first_bug_schedules": {
+        "bug-alpha": 8,
+        "bug-beta": 136,
+        "bug-gamma": 46
+      },
+      "schedules_to_all": 136,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 29,
+      "schedules_tested": 123,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-beta": 102,
+        "bug-gamma": 123
+      },
+      "schedules_to_all": 123,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 30,
+      "schedules_tested": 141,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-beta": 141,
+        "bug-gamma": 79
+      },
+      "schedules_to_all": 141,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 31,
+      "schedules_tested": 112,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 2,
+        "bug-gamma": 112
+      },
+      "schedules_to_all": 112,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 32,
+      "schedules_tested": 34,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 34,
+        "bug-gamma": 18
+      },
+      "schedules_to_all": 34,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 33,
+      "schedules_tested": 81,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-beta": 12,
+        "bug-gamma": 81
+      },
+      "schedules_to_all": 81,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 34,
+      "schedules_tested": 229,
+      "first_bug_schedules": {
+        "bug-alpha": 37,
+        "bug-beta": 35,
+        "bug-gamma": 229
+      },
+      "schedules_to_all": 229,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 35,
+      "schedules_tested": 214,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 214,
+        "bug-gamma": 25
+      },
+      "schedules_to_all": 214,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 36,
+      "schedules_tested": 469,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 469,
+        "bug-gamma": 129
+      },
+      "schedules_to_all": 469,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 37,
+      "schedules_tested": 46,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 46,
+        "bug-gamma": 13
+      },
+      "schedules_to_all": 46,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 38,
+      "schedules_tested": 288,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 288,
+        "bug-gamma": 100
+      },
+      "schedules_to_all": 288,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "feedback",
+      "seed": 39,
+      "schedules_tested": 117,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 117,
+        "bug-gamma": 6
+      },
+      "schedules_to_all": 117,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 20,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 21,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 22,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 23,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 24,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 25,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 26,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 27,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 28,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 29,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 30,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 31,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 32,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 33,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 34,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 35,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 36,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 37,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 38,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "dfs",
+      "seed": 39,
+      "schedules_tested": 427,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 427,
+        "bug-gamma": 217
+      },
+      "schedules_to_all": 427,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 20,
+      "schedules_tested": 268,
+      "first_bug_schedules": {
+        "bug-alpha": 268,
+        "bug-beta": 206,
+        "bug-gamma": 1
+      },
+      "schedules_to_all": 268,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 21,
+      "schedules_tested": 530,
+      "first_bug_schedules": {
+        "bug-alpha": 52,
+        "bug-beta": 530,
+        "bug-gamma": 438
+      },
+      "schedules_to_all": 530,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 22,
+      "schedules_tested": 462,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 462,
+        "bug-gamma": 400
+      },
+      "schedules_to_all": 462,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 23,
+      "schedules_tested": 341,
+      "first_bug_schedules": {
+        "bug-alpha": 341,
+        "bug-beta": 287,
+        "bug-gamma": 3
+      },
+      "schedules_to_all": 341,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 24,
+      "schedules_tested": 393,
+      "first_bug_schedules": {
+        "bug-alpha": 361,
+        "bug-beta": 281,
+        "bug-gamma": 393
+      },
+      "schedules_to_all": 393,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 25,
+      "schedules_tested": 488,
+      "first_bug_schedules": {
+        "bug-alpha": 253,
+        "bug-beta": 488,
+        "bug-gamma": 46
+      },
+      "schedules_to_all": 488,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 26,
+      "schedules_tested": 441,
+      "first_bug_schedules": {
+        "bug-alpha": 191,
+        "bug-beta": 441,
+        "bug-gamma": 79
+      },
+      "schedules_to_all": 441,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 27,
+      "schedules_tested": 450,
+      "first_bug_schedules": {
+        "bug-alpha": 10,
+        "bug-beta": 450,
+        "bug-gamma": 295
+      },
+      "schedules_to_all": 450,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 28,
+      "schedules_tested": 552,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 552,
+        "bug-gamma": 453
+      },
+      "schedules_to_all": 552,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 29,
+      "schedules_tested": 298,
+      "first_bug_schedules": {
+        "bug-alpha": 298,
+        "bug-beta": 33,
+        "bug-gamma": 170
+      },
+      "schedules_to_all": 298,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 30,
+      "schedules_tested": 337,
+      "first_bug_schedules": {
+        "bug-alpha": 224,
+        "bug-beta": 337,
+        "bug-gamma": 270
+      },
+      "schedules_to_all": 337,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 31,
+      "schedules_tested": 470,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 470,
+        "bug-gamma": 398
+      },
+      "schedules_to_all": 470,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 32,
+      "schedules_tested": 456,
+      "first_bug_schedules": {
+        "bug-alpha": 23,
+        "bug-beta": 385,
+        "bug-gamma": 456
+      },
+      "schedules_to_all": 456,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 33,
+      "schedules_tested": 478,
+      "first_bug_schedules": {
+        "bug-alpha": 377,
+        "bug-beta": 478,
+        "bug-gamma": 169
+      },
+      "schedules_to_all": 478,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 34,
+      "schedules_tested": 350,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 350,
+        "bug-gamma": 236
+      },
+      "schedules_to_all": 350,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 35,
+      "schedules_tested": 543,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 543,
+        "bug-gamma": 267
+      },
+      "schedules_to_all": 543,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 36,
+      "schedules_tested": 772,
+      "first_bug_schedules": {
+        "bug-alpha": 69,
+        "bug-beta": 772,
+        "bug-gamma": 380
+      },
+      "schedules_to_all": 772,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 37,
+      "schedules_tested": 420,
+      "first_bug_schedules": {
+        "bug-alpha": 244,
+        "bug-beta": 420,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 420,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 38,
+      "schedules_tested": 202,
+      "first_bug_schedules": {
+        "bug-alpha": 202,
+        "bug-beta": 13,
+        "bug-gamma": 173
+      },
+      "schedules_to_all": 202,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "random-dfs",
+      "seed": 39,
+      "schedules_tested": 440,
+      "first_bug_schedules": {
+        "bug-alpha": 57,
+        "bug-beta": 440,
+        "bug-gamma": 287
+      },
+      "schedules_to_all": 440,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 20,
+      "schedules_tested": 268,
+      "first_bug_schedules": {
+        "bug-alpha": 268,
+        "bug-beta": 206,
+        "bug-gamma": 1
+      },
+      "schedules_to_all": 268,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 21,
+      "schedules_tested": 530,
+      "first_bug_schedules": {
+        "bug-alpha": 52,
+        "bug-beta": 530,
+        "bug-gamma": 438
+      },
+      "schedules_to_all": 530,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 22,
+      "schedules_tested": 462,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 462,
+        "bug-gamma": 400
+      },
+      "schedules_to_all": 462,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 23,
+      "schedules_tested": 341,
+      "first_bug_schedules": {
+        "bug-alpha": 341,
+        "bug-beta": 287,
+        "bug-gamma": 3
+      },
+      "schedules_to_all": 341,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 24,
+      "schedules_tested": 393,
+      "first_bug_schedules": {
+        "bug-alpha": 361,
+        "bug-beta": 281,
+        "bug-gamma": 393
+      },
+      "schedules_to_all": 393,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 25,
+      "schedules_tested": 488,
+      "first_bug_schedules": {
+        "bug-alpha": 253,
+        "bug-beta": 488,
+        "bug-gamma": 46
+      },
+      "schedules_to_all": 488,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 26,
+      "schedules_tested": 441,
+      "first_bug_schedules": {
+        "bug-alpha": 191,
+        "bug-beta": 441,
+        "bug-gamma": 79
+      },
+      "schedules_to_all": 441,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 27,
+      "schedules_tested": 450,
+      "first_bug_schedules": {
+        "bug-alpha": 10,
+        "bug-beta": 450,
+        "bug-gamma": 295
+      },
+      "schedules_to_all": 450,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 28,
+      "schedules_tested": 552,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 552,
+        "bug-gamma": 453
+      },
+      "schedules_to_all": 552,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 29,
+      "schedules_tested": 298,
+      "first_bug_schedules": {
+        "bug-alpha": 298,
+        "bug-beta": 33,
+        "bug-gamma": 170
+      },
+      "schedules_to_all": 298,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 30,
+      "schedules_tested": 337,
+      "first_bug_schedules": {
+        "bug-alpha": 224,
+        "bug-beta": 337,
+        "bug-gamma": 270
+      },
+      "schedules_to_all": 337,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 31,
+      "schedules_tested": 470,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 470,
+        "bug-gamma": 398
+      },
+      "schedules_to_all": 470,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 32,
+      "schedules_tested": 456,
+      "first_bug_schedules": {
+        "bug-alpha": 23,
+        "bug-beta": 385,
+        "bug-gamma": 456
+      },
+      "schedules_to_all": 456,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 33,
+      "schedules_tested": 478,
+      "first_bug_schedules": {
+        "bug-alpha": 377,
+        "bug-beta": 478,
+        "bug-gamma": 169
+      },
+      "schedules_to_all": 478,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 34,
+      "schedules_tested": 350,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 350,
+        "bug-gamma": 236
+      },
+      "schedules_to_all": 350,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 35,
+      "schedules_tested": 543,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 543,
+        "bug-gamma": 267
+      },
+      "schedules_to_all": 543,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 36,
+      "schedules_tested": 772,
+      "first_bug_schedules": {
+        "bug-alpha": 69,
+        "bug-beta": 772,
+        "bug-gamma": 380
+      },
+      "schedules_to_all": 772,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 37,
+      "schedules_tested": 420,
+      "first_bug_schedules": {
+        "bug-alpha": 244,
+        "bug-beta": 420,
+        "bug-gamma": 4
+      },
+      "schedules_to_all": 420,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 38,
+      "schedules_tested": 202,
+      "first_bug_schedules": {
+        "bug-alpha": 202,
+        "bug-beta": 13,
+        "bug-gamma": 173
+      },
+      "schedules_to_all": 202,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-4",
+      "strategy": "auto",
+      "seed": 39,
+      "schedules_tested": 440,
+      "first_bug_schedules": {
+        "bug-alpha": 57,
+        "bug-beta": 440,
+        "bug-gamma": 287
+      },
+      "schedules_to_all": 440,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 20,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-gamma": 67
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 21,
+      "schedules_tested": 5453,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 5453,
+        "bug-gamma": 32
+      },
+      "schedules_to_all": 5453,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 22,
+      "schedules_tested": 552,
+      "first_bug_schedules": {
+        "bug-alpha": 3,
+        "bug-beta": 552,
+        "bug-gamma": 142
+      },
+      "schedules_to_all": 552,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 23,
+      "schedules_tested": 6659,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 6659,
+        "bug-gamma": 463
+      },
+      "schedules_to_all": 6659,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 24,
+      "schedules_tested": 2244,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 2244,
+        "bug-gamma": 115
+      },
+      "schedules_to_all": 2244,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 25,
+      "schedules_tested": 3433,
+      "first_bug_schedules": {
+        "bug-alpha": 21,
+        "bug-beta": 3433,
+        "bug-gamma": 58
+      },
+      "schedules_to_all": 3433,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 26,
+      "schedules_tested": 1257,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 1257,
+        "bug-gamma": 165
+      },
+      "schedules_to_all": 1257,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 27,
+      "schedules_tested": 312,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 312,
+        "bug-gamma": 188
+      },
+      "schedules_to_all": 312,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 28,
+      "schedules_tested": 2445,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 2445,
+        "bug-gamma": 298
+      },
+      "schedules_to_all": 2445,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 29,
+      "schedules_tested": 4281,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 4281,
+        "bug-gamma": 147
+      },
+      "schedules_to_all": 4281,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 30,
+      "schedules_tested": 1290,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 1290,
+        "bug-gamma": 13
+      },
+      "schedules_to_all": 1290,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 31,
+      "schedules_tested": 70,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-beta": 70,
+        "bug-gamma": 20
+      },
+      "schedules_to_all": 70,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 32,
+      "schedules_tested": 3314,
+      "first_bug_schedules": {
+        "bug-alpha": 8,
+        "bug-beta": 3314,
+        "bug-gamma": 19
+      },
+      "schedules_to_all": 3314,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 33,
+      "schedules_tested": 203,
+      "first_bug_schedules": {
+        "bug-alpha": 8,
+        "bug-beta": 203,
+        "bug-gamma": 178
+      },
+      "schedules_to_all": 203,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 34,
+      "schedules_tested": 2078,
+      "first_bug_schedules": {
+        "bug-alpha": 20,
+        "bug-beta": 2078,
+        "bug-gamma": 139
+      },
+      "schedules_to_all": 2078,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 35,
+      "schedules_tested": 294,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-beta": 294,
+        "bug-gamma": 116
+      },
+      "schedules_to_all": 294,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 36,
+      "schedules_tested": 5252,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 5252,
+        "bug-gamma": 350
+      },
+      "schedules_to_all": 5252,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 37,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-gamma": 89
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 38,
+      "schedules_tested": 4373,
+      "first_bug_schedules": {
+        "bug-alpha": 9,
+        "bug-beta": 4373,
+        "bug-gamma": 57
+      },
+      "schedules_to_all": 4373,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random",
+      "seed": 39,
+      "schedules_tested": 5993,
+      "first_bug_schedules": {
+        "bug-alpha": 15,
+        "bug-beta": 5993,
+        "bug-gamma": 45
+      },
+      "schedules_to_all": 5993,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 20,
+      "schedules_tested": 1085,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 1085,
+        "bug-gamma": 749
+      },
+      "schedules_to_all": 1085,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 21,
+      "schedules_tested": 3044,
+      "first_bug_schedules": {
+        "bug-alpha": 29,
+        "bug-beta": 3044,
+        "bug-gamma": 361
+      },
+      "schedules_to_all": 3044,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 22,
+      "schedules_tested": 803,
+      "first_bug_schedules": {
+        "bug-alpha": 32,
+        "bug-beta": 803,
+        "bug-gamma": 17
+      },
+      "schedules_to_all": 803,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 23,
+      "schedules_tested": 539,
+      "first_bug_schedules": {
+        "bug-alpha": 17,
+        "bug-beta": 539,
+        "bug-gamma": 377
+      },
+      "schedules_to_all": 539,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 24,
+      "schedules_tested": 630,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 630,
+        "bug-gamma": 75
+      },
+      "schedules_to_all": 630,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 25,
+      "schedules_tested": 189,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 189,
+        "bug-gamma": 28
+      },
+      "schedules_to_all": 189,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 26,
+      "schedules_tested": 341,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 341,
+        "bug-gamma": 22
+      },
+      "schedules_to_all": 341,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 27,
+      "schedules_tested": 1296,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 1296,
+        "bug-gamma": 212
+      },
+      "schedules_to_all": 1296,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 28,
+      "schedules_tested": 492,
+      "first_bug_schedules": {
+        "bug-alpha": 15,
+        "bug-beta": 492,
+        "bug-gamma": 149
+      },
+      "schedules_to_all": 492,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 29,
+      "schedules_tested": 327,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 327,
+        "bug-gamma": 136
+      },
+      "schedules_to_all": 327,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 30,
+      "schedules_tested": 567,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 567,
+        "bug-gamma": 41
+      },
+      "schedules_to_all": 567,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 31,
+      "schedules_tested": 392,
+      "first_bug_schedules": {
+        "bug-alpha": 5,
+        "bug-beta": 392,
+        "bug-gamma": 45
+      },
+      "schedules_to_all": 392,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 32,
+      "schedules_tested": 131,
+      "first_bug_schedules": {
+        "bug-alpha": 7,
+        "bug-beta": 58,
+        "bug-gamma": 131
+      },
+      "schedules_to_all": 131,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 33,
+      "schedules_tested": 932,
+      "first_bug_schedules": {
+        "bug-alpha": 4,
+        "bug-beta": 932,
+        "bug-gamma": 51
+      },
+      "schedules_to_all": 932,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 34,
+      "schedules_tested": 504,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 504,
+        "bug-gamma": 95
+      },
+      "schedules_to_all": 504,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 35,
+      "schedules_tested": 2515,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 2515,
+        "bug-gamma": 138
+      },
+      "schedules_to_all": 2515,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 36,
+      "schedules_tested": 209,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 209,
+        "bug-gamma": 42
+      },
+      "schedules_to_all": 209,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 37,
+      "schedules_tested": 224,
+      "first_bug_schedules": {
+        "bug-alpha": 23,
+        "bug-beta": 224,
+        "bug-gamma": 59
+      },
+      "schedules_to_all": 224,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 38,
+      "schedules_tested": 309,
+      "first_bug_schedules": {
+        "bug-alpha": 2,
+        "bug-beta": 309,
+        "bug-gamma": 89
+      },
+      "schedules_to_all": 309,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "feedback",
+      "seed": 39,
+      "schedules_tested": 184,
+      "first_bug_schedules": {
+        "bug-alpha": 8,
+        "bug-beta": 184,
+        "bug-gamma": 13
+      },
+      "schedules_to_all": 184,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 20,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 21,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 22,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 23,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 24,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 25,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 26,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 27,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 28,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 29,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 30,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 31,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 32,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 33,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 34,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 35,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 36,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 37,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 38,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "dfs",
+      "seed": 39,
+      "schedules_tested": 3699,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3699,
+        "bug-gamma": 1547
+      },
+      "schedules_to_all": 3699,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 20,
+      "schedules_tested": 3173,
+      "first_bug_schedules": {
+        "bug-alpha": 1926,
+        "bug-beta": 3173,
+        "bug-gamma": 967
+      },
+      "schedules_to_all": 3173,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 21,
+      "schedules_tested": 3659,
+      "first_bug_schedules": {
+        "bug-alpha": 586,
+        "bug-beta": 3659,
+        "bug-gamma": 2178
+      },
+      "schedules_to_all": 3659,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 22,
+      "schedules_tested": 3706,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 2669,
+        "bug-gamma": 3706
+      },
+      "schedules_to_all": 3706,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 23,
+      "schedules_tested": 2931,
+      "first_bug_schedules": {
+        "bug-alpha": 1698,
+        "bug-beta": 2931,
+        "bug-gamma": 2117
+      },
+      "schedules_to_all": 2931,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 24,
+      "schedules_tested": 3525,
+      "first_bug_schedules": {
+        "bug-alpha": 3525,
+        "bug-beta": 2034,
+        "bug-gamma": 2481
+      },
+      "schedules_to_all": 3525,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 25,
+      "schedules_tested": 3992,
+      "first_bug_schedules": {
+        "bug-alpha": 1898,
+        "bug-beta": 3992,
+        "bug-gamma": 186
+      },
+      "schedules_to_all": 3992,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 26,
+      "schedules_tested": 3591,
+      "first_bug_schedules": {
+        "bug-alpha": 1283,
+        "bug-beta": 3591,
+        "bug-gamma": 586
+      },
+      "schedules_to_all": 3591,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 27,
+      "schedules_tested": 3133,
+      "first_bug_schedules": {
+        "bug-alpha": 62,
+        "bug-beta": 3133,
+        "bug-gamma": 2215
+      },
+      "schedules_to_all": 3133,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 28,
+      "schedules_tested": 3702,
+      "first_bug_schedules": {
+        "bug-alpha": 10,
+        "bug-beta": 3702,
+        "bug-gamma": 3271
+      },
+      "schedules_to_all": 3702,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 29,
+      "schedules_tested": 1461,
+      "first_bug_schedules": {
+        "bug-alpha": 33,
+        "bug-beta": 890,
+        "bug-gamma": 1461
+      },
+      "schedules_to_all": 1461,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 30,
+      "schedules_tested": 3122,
+      "first_bug_schedules": {
+        "bug-alpha": 1310,
+        "bug-beta": 3122,
+        "bug-gamma": 2857
+      },
+      "schedules_to_all": 3122,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 31,
+      "schedules_tested": 3666,
+      "first_bug_schedules": {
+        "bug-alpha": 149,
+        "bug-beta": 3666,
+        "bug-gamma": 2722
+      },
+      "schedules_to_all": 3666,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 32,
+      "schedules_tested": 3495,
+      "first_bug_schedules": {
+        "bug-alpha": 10,
+        "bug-beta": 2821,
+        "bug-gamma": 3495
+      },
+      "schedules_to_all": 3495,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 33,
+      "schedules_tested": 3603,
+      "first_bug_schedules": {
+        "bug-alpha": 2687,
+        "bug-beta": 3603,
+        "bug-gamma": 1277
+      },
+      "schedules_to_all": 3603,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 34,
+      "schedules_tested": 3453,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3453,
+        "bug-gamma": 1941
+      },
+      "schedules_to_all": 3453,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 35,
+      "schedules_tested": 3673,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 3673,
+        "bug-gamma": 2031
+      },
+      "schedules_to_all": 3673,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 36,
+      "schedules_tested": 5354,
+      "first_bug_schedules": {
+        "bug-alpha": 653,
+        "bug-beta": 5354,
+        "bug-gamma": 2676
+      },
+      "schedules_to_all": 5354,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 37,
+      "schedules_tested": 4499,
+      "first_bug_schedules": {
+        "bug-alpha": 3056,
+        "bug-beta": 4499,
+        "bug-gamma": 40
+      },
+      "schedules_to_all": 4499,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 38,
+      "schedules_tested": 3000,
+      "first_bug_schedules": {
+        "bug-alpha": 3000,
+        "bug-beta": 2560,
+        "bug-gamma": 1853
+      },
+      "schedules_to_all": 3000,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "random-dfs",
+      "seed": 39,
+      "schedules_tested": 4628,
+      "first_bug_schedules": {
+        "bug-alpha": 376,
+        "bug-beta": 4628,
+        "bug-gamma": 2228
+      },
+      "schedules_to_all": 4628,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 20,
+      "schedules_tested": 3349,
+      "first_bug_schedules": {
+        "bug-alpha": 845,
+        "bug-beta": 3349,
+        "bug-gamma": 1041
+      },
+      "schedules_to_all": 3349,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 21,
+      "schedules_tested": 4406,
+      "first_bug_schedules": {
+        "bug-alpha": 586,
+        "bug-beta": 4406,
+        "bug-gamma": 941
+      },
+      "schedules_to_all": 4406,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 22,
+      "schedules_tested": 1268,
+      "first_bug_schedules": {
+        "bug-alpha": 6,
+        "bug-beta": 1051,
+        "bug-gamma": 1268
+      },
+      "schedules_to_all": 1268,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 23,
+      "schedules_tested": 1982,
+      "first_bug_schedules": {
+        "bug-alpha": 833,
+        "bug-beta": 1554,
+        "bug-gamma": 1982
+      },
+      "schedules_to_all": 1982,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 24,
+      "schedules_tested": 1104,
+      "first_bug_schedules": {
+        "bug-alpha": 841,
+        "bug-beta": 1104,
+        "bug-gamma": 1021
+      },
+      "schedules_to_all": 1104,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 25,
+      "schedules_tested": 3636,
+      "first_bug_schedules": {
+        "bug-alpha": 849,
+        "bug-beta": 3636,
+        "bug-gamma": 186
+      },
+      "schedules_to_all": 3636,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 26,
+      "schedules_tested": 3835,
+      "first_bug_schedules": {
+        "bug-alpha": 850,
+        "bug-beta": 3835,
+        "bug-gamma": 586
+      },
+      "schedules_to_all": 3835,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 27,
+      "schedules_tested": 1792,
+      "first_bug_schedules": {
+        "bug-alpha": 62,
+        "bug-beta": 1792,
+        "bug-gamma": 1419
+      },
+      "schedules_to_all": 1792,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 28,
+      "schedules_tested": 7356,
+      "first_bug_schedules": {
+        "bug-alpha": 10,
+        "bug-beta": 7356,
+        "bug-gamma": 1748
+      },
+      "schedules_to_all": 7356,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 29,
+      "schedules_tested": 1299,
+      "first_bug_schedules": {
+        "bug-alpha": 33,
+        "bug-beta": 1299,
+        "bug-gamma": 1218
+      },
+      "schedules_to_all": 1299,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 30,
+      "schedules_tested": 4498,
+      "first_bug_schedules": {
+        "bug-alpha": 845,
+        "bug-beta": 4498,
+        "bug-gamma": 879
+      },
+      "schedules_to_all": 4498,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 31,
+      "schedules_tested": 1043,
+      "first_bug_schedules": {
+        "bug-alpha": 149,
+        "bug-beta": 1043,
+        "bug-gamma": 855
+      },
+      "schedules_to_all": 1043,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 32,
+      "schedules_tested": 6530,
+      "first_bug_schedules": {
+        "bug-alpha": 10,
+        "bug-beta": 6530,
+        "bug-gamma": 898
+      },
+      "schedules_to_all": 6530,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 33,
+      "schedules_tested": 1459,
+      "first_bug_schedules": {
+        "bug-alpha": 854,
+        "bug-beta": 1459,
+        "bug-gamma": 974
+      },
+      "schedules_to_all": 1459,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 34,
+      "schedules_tested": 2192,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 2192,
+        "bug-gamma": 876
+      },
+      "schedules_to_all": 2192,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 35,
+      "schedules_tested": 1738,
+      "first_bug_schedules": {
+        "bug-alpha": 1,
+        "bug-beta": 1738,
+        "bug-gamma": 1185
+      },
+      "schedules_to_all": 1738,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 36,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 653,
+        "bug-gamma": 862
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 37,
+      "schedules_tested": 4893,
+      "first_bug_schedules": {
+        "bug-alpha": 846,
+        "bug-beta": 4893,
+        "bug-gamma": 40
+      },
+      "schedules_to_all": 4893,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 38,
+      "schedules_tested": 2578,
+      "first_bug_schedules": {
+        "bug-alpha": 837,
+        "bug-beta": 2578,
+        "bug-gamma": 1001
+      },
+      "schedules_to_all": 2578,
+      "exhausted": false
+    },
+    {
+      "workload": "delivery-5",
+      "strategy": "auto",
+      "seed": 39,
+      "schedules_tested": 10000,
+      "first_bug_schedules": {
+        "bug-alpha": 376,
+        "bug-gamma": 975
+      },
+      "schedules_to_all": null,
+      "exhausted": false
+    }
+  ],
+  "commit": "63686f42bd37aa4e0670b01f9e24eadb94edfd5b",
+  "dirty": false,
+  "timestamp": "2026-10-23T01:48:55.646284+00:00"
+}

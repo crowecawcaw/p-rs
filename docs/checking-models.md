@@ -19,10 +19,17 @@ corpus, and a priority scheduler (PCT). A short probe measured in controlled cho
 lets small exhaustive searches finish immediately. After the probe, work credits
 reserve at least 30% for random, 30% for guided, 10% for PCT, and 10% for exhaustive
 search while all four arms remain enabled. Recent new event-order patterns,
-monitor/scenario and activity coverage, distinct failure sites, and state-cache
+monitor/scenario, statement, branch and activity coverage, distinct failure sites, and state-cache
 convergence determine the remaining 20%. Allocation measures scheduling and data
 choices rather than schedule counts or elapsed time. Each arm keeps its search
 state when another arm runs.
+
+The guided corpus keeps schedules that add code coverage, short-circuit condition
+outcomes, event-order features, scenario progress, or a distinct failure site.
+It mutates productive seeds immediately, mixing small input changes with resampled
+continuations. Seeds of distinct failure sites remain available when searching for
+other bugs. Stalled guidance increases fresh sampling while retaining a share for
+mutations. The corpus and event-feature history are bounded.
 
 A completed exhaustive search ends the run early. State and choice-expansion caps
 keep exhaustive exploration bounded; the remaining arms continue when a cap is
