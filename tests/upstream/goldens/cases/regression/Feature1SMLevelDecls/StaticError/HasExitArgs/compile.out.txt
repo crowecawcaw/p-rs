@@ -1,0 +1,2 @@
+[Error:] [entryExit_2.p:34:2] exit handlers cannot take parameters; function expects 1
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/EventSets_5",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "EventSets_5.p",
+        "-pn",
+        "EventSets_5"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "EventSets_5.p",
+        "-pn",
+        "EventSets_5"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

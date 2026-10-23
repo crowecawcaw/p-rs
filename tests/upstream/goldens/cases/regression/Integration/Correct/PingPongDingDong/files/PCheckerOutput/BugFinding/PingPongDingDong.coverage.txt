@@ -1,0 +1,67 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Ping_start
+		State event coverage: 100.0%
+		Events received: Success
+		Events sent: Success
+		Next states: Ping_ping1
+
+	State: Ping_ping1
+		State has no expected events, so coverage is 100%
+		Events sent: Ping
+		Previous states: Ping_ping2, Ping_start
+		Next states: Ping_ding1
+
+	State: Ping_ding1
+		State event coverage: 100.0%
+		Events received: Dong
+		Events sent: Ding
+		Previous states: Ping_ping1
+		Next states: Ping_ping2
+
+	State: Ping_ping2
+		State event coverage: 100.0%
+		Events received: Pong
+		Previous states: Ping_ding1
+		Next states: Ping_ping1
+
+StateMachine: PONG
+==================
+Event coverage: 100.0%
+
+	State: _Init
+		State event coverage: 100.0%
+		Events received: Success
+		Events sent: Success
+		Next states: Pong_start
+
+	State: Pong_start
+		State event coverage: 100.0%
+		Events received: Ping
+		Previous states: Pong_pong1, _Init
+		Next states: Pong_dong1
+
+	State: Pong_dong1
+		State event coverage: 100.0%
+		Events received: Ding
+		Previous states: Pong_start
+		Next states: Pong_dong2
+
+	State: Pong_dong2
+		State event coverage: 100.0%
+		Events received: Success
+		Events sent: Dong, Success
+		Previous states: Pong_dong1
+		Next states: Pong_pong1
+
+	State: Pong_pong1
+		State event coverage: 100.0%
+		Events received: Success
+		Events sent: Pong, Success
+		Previous states: Pong_dong2
+		Next states: Pong_start
+

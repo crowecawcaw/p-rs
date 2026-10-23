@@ -1,0 +1,23 @@
+Total event coverage: 66.7%
+===========================
+Monitor: M
+==========
+Event coverage: 50.0%
+
+	State: Init
+		State event coverage: 50.0%
+		Events received: E1
+		Events sent: E2
+		Events not covered: E2
+		Previous states: Init
+		Next states: Init
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: E1
+		Events sent: E1
+

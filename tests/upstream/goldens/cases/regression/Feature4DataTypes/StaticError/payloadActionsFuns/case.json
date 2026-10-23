@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/payloadActionsFuns",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "payloadActionsFuns.p",
+        "-pn",
+        "payloadActionsFuns"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "payloadActionsFuns.p",
+        "-pn",
+        "payloadActionsFuns"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

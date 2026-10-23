@@ -29,6 +29,9 @@ pub struct SearchStats {
     pub distinct_states: usize,
     /// Schedules cut short at an already explored state.
     pub pruned_schedules: usize,
+    /// Prunes that return to a state on the current execution path, rather than
+    /// joining another explored path. Zero after completion establishes acyclicity.
+    pub cycle_prunes: usize,
     /// Schedules stopped by the step bound (the search is not exhaustive then); counted
     /// by the engine.
     pub depth_bound_hits: usize,
@@ -63,6 +66,8 @@ pub struct ExhaustiveStrategy {
     pos: usize,
     /// Smallest depth each state was reached at.
     visited: FxHashMap<u64, usize>,
+    state_path: Vec<(usize, u64)>,
+    path_states: rustc_hash::FxHashSet<u64>,
     stats: SearchStats,
     error: Option<String>,
 }
@@ -75,6 +80,8 @@ impl ExhaustiveStrategy {
             path: Vec::new(),
             pos: 0,
             visited: FxHashMap::default(),
+            state_path: Vec::new(),
+            path_states: rustc_hash::FxHashSet::default(),
             stats: SearchStats::default(),
             error: None,
         }
@@ -135,6 +142,13 @@ impl Strategy for ExhaustiveStrategy {
         while let Some(c) = self.path.last_mut() {
             if c.taken + 1 < c.options.len() {
                 c.taken += 1;
+                // Everything before the changed choice replays unchanged. Retain
+                // those ancestor hashes without hashing the replayed prefix again.
+                let cutoff = self.path.len();
+                while self.state_path.last().is_some_and(|(depth, _)| *depth >= cutoff) {
+                    let (_, hash) = self.state_path.pop().unwrap();
+                    self.path_states.remove(&hash);
+                }
                 return true;
             }
             self.path.pop();
@@ -172,7 +186,10 @@ impl Strategy for ExhaustiveStrategy {
     }
 
     fn observe_state(&mut self, hash: u64) -> bool {
-        match self.visited.get_mut(&hash) {
+        if self.path_states.contains(&hash) {
+            self.stats.cycle_prunes += 1;
+        }
+        let explore = match self.visited.get_mut(&hash) {
             Some(d) if *d <= self.pos => {
                 self.stats.pruned_schedules += 1;
                 false
@@ -186,7 +203,12 @@ impl Strategy for ExhaustiveStrategy {
                 self.stats.distinct_states += 1;
                 true
             }
+        };
+        if explore {
+            self.state_path.push((self.pos, hash));
+            self.path_states.insert(hash);
         }
+        explore
     }
 
     fn exhaustive_stats(&self) -> Option<SearchStats> {

@@ -1,0 +1,14 @@
+{
+  "steps": [
+    {
+      "name": "run",
+      "p": [
+        "merge-scenario-coverage"
+      ],
+      "snappea": [
+        "merge-scenario-coverage"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/ActionAndTransitionSameEvent",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "TransDecl_DoDecl.p",
+        "-pn",
+        "ActionAndTransitionSameEvent"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "TransDecl_DoDecl.p",
+        "-pn",
+        "ActionAndTransitionSameEvent"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

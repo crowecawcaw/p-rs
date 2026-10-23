@@ -1,0 +1,17 @@
+<Log>
+  <CreateStateMachine id="Main(1)" creatorName="2" creatorType="task" />
+  <State id="Main(1)" state="S" isEntry="True" />
+  <Action id="Main(1)" state="S" action="Anon" />
+  <ExceptionThrown id="Main(1)" state="S" action="Anon" type="PChecker.Runtime.Exceptions.PNonStandardReturnException">PChecker.Runtime.Exceptions.PNonStandardReturnException: Exception of type 'PChecker.Runtime.Exceptions.PNonStandardReturnException' was thrown.</ExceptionThrown>
+  <ExceptionHandled id="Main(1)" state="S" action="Anon" type="PChecker.Runtime.Exceptions.PNonStandardReturnException">PChecker.Runtime.Exceptions.PNonStandardReturnException: Exception of type 'PChecker.Runtime.Exceptions.PNonStandardReturnException' was thrown.</ExceptionHandled>
+  <Raise id="Main(1)" state="S" event="PImplementation.x" />
+  <Action id="Main(1)" state="S" action="Anon_1" />
+  <ExceptionThrown id="Main(1)" state="S" action="Anon_1" type="PChecker.Runtime.Exceptions.PNonStandardReturnException">PChecker.Runtime.Exceptions.PNonStandardReturnException: Exception of type 'PChecker.Runtime.Exceptions.PNonStandardReturnException' was thrown.</ExceptionThrown>
+  <ExceptionHandled id="Main(1)" state="S" action="Anon_1" type="PChecker.Runtime.Exceptions.PNonStandardReturnException">PChecker.Runtime.Exceptions.PNonStandardReturnException: Exception of type 'PChecker.Runtime.Exceptions.PNonStandardReturnException' was thrown.</ExceptionHandled>
+  <Raise id="Main(1)" state="S" event="PImplementation.a" />
+  <State id="Main(1)" state="S" isEntry="False" />
+  <PopUnhandled id="Main(1)" state="S" event="PImplementation.a" />
+  <ExceptionThrown id="Main(1)" state="S" action="" type="PChecker.Runtime.StateMachines.Exceptions.UnhandledEventException">PChecker.Runtime.StateMachines.Exceptions.UnhandledEventException: Unhandled Event</ExceptionThrown>
+  <AssertionFailure>&lt;ErrorLog&gt; Main(1) received event 'PImplementation.a' that cannot be handled.</AssertionFailure>
+  <Strategy strategy="random">random[seed '42']</Strategy>
+</Log>

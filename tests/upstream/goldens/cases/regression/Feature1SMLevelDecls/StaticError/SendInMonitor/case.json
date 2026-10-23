@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/SendInMonitor",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "SendInMonitor.p",
+        "-pn",
+        "SendInMonitor"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "SendInMonitor.p",
+        "-pn",
+        "SendInMonitor"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

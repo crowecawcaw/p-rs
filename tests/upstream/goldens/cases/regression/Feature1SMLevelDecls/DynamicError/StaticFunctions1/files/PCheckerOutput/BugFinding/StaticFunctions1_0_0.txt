@@ -1,0 +1,22 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'S'.
+<RaiseLog> 'Main(1)' raised event 'a' in state 'S'.
+<GotoLog> Main(1) is transitioning from state 'S' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S'.
+<SendLog> 'Main(1)' in state 'S' sent event 'a' to 'Main(1)'.
+<SendLog> 'Main(1)' in state 'S' sent event 'b' to 'Main(1)'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'a' to 'Main(1)'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'b' to 'Main(1)'.
+<DequeueLog> 'Main(1)' dequeued event 'a' in state 'S1'.
+<ReceiveLog> 'Main(1)' dequeued event 'b' in state 'S1'.
+<ErrorLog> Assertion Failed: staticfunctions1.p:29:15
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 8 (min), 8 (avg), 8 (max).

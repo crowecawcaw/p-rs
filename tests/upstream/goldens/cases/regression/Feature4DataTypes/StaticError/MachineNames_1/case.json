@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/MachineNames_1",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "MachineNames_1.p",
+        "-pn",
+        "MachineNames_1"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "MachineNames_1.p",
+        "-pn",
+        "MachineNames_1"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

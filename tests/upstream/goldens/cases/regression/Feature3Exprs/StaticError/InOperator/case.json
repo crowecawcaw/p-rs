@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/InOperator",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "InOperator.p",
+        "-pn",
+        "InOperator"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "InOperator.p",
+        "-pn",
+        "InOperator"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

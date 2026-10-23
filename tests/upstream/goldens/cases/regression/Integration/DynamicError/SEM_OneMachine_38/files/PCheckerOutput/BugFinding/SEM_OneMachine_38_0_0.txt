@@ -1,0 +1,15 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<RaiseLog> 'Main(1)' raised event 'E' in state 'Init'.
+<GotoLog> Main(1) is transitioning from state 'Init' to state 'PImplementation.Main.Call'.
+<StateLog> Main(1) exits state 'Init'.
+<ErrorLog> Assertion Failed: NullHandlerInheritedByPushTr.p:12:10
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 2 (min), 2 (avg), 2 (max).

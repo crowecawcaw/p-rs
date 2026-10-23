@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/ModExpr1",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "modexpr1.p",
+        "-pn",
+        "ModExpr1"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "modexpr1.p",
+        "-pn",
+        "ModExpr1"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+[Error:] [SpecReceiveBodyError.p:18:13] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'Watcher'
+
+[Error:] [SpecReceiveBodyError.p:19:22] could not find event 'UndeclaredEvt'
+
+[Error:] [SpecReceiveBodyError.p:21:25] got type: string, expected: bool
+~~ [PTool]: Thanks for using P! ~~

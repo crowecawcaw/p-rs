@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/payloadTransitions",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "payloadTransitions.p",
+        "-pn",
+        "payloadTransitions"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "payloadTransitions.p",
+        "-pn",
+        "payloadTransitions"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

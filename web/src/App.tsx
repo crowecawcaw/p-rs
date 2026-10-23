@@ -11,13 +11,6 @@ import { Logo } from "./site/Logo";
 /** Output tabs. "files" is the editor, which is a tab only on phones. */
 type Tab = "files" | "console" | "trace" | "log";
 
-const STRATEGIES: { label: string; args: string[] }[] = [
-  { label: "random", args: [] },
-  { label: "pct (10)", args: ["--strategy", "pct:10"] },
-  { label: "pos", args: ["--strategy", "pos"] },
-  { label: "feedback pct (10)", args: ["--strategy", "feedback-pct:10"] },
-];
-
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 const splitArgs = (s: string) => s.split(/\s+/).filter(Boolean);
 const REPO = "https://github.com/crowecawcaw/snappea";
@@ -33,8 +26,7 @@ export function App() {
   const [open, setOpen] = useState("");
   const [tests, setTests] = useState<string[]>([]);
   const [testCase, setTestCase] = useState(DEMOS[0].testCase);
-  const [schedules, setSchedules] = useState(DEMOS[0].schedules);
-  const [strategy, setStrategy] = useState(0);
+  const [timeout, setTimeoutSeconds] = useState(10);
   const [seed, setSeed] = useState(randomSeed);
   const [fixedSeed, setFixedSeed] = useState(false);
   const [extraArgs, setExtraArgs] = useState("");
@@ -64,9 +56,8 @@ export function App() {
     setFiles(s.files);
     setOpen(s.files[s.open] !== undefined ? s.open : sortPaths(Object.keys(s.files))[0] ?? "");
     setTestCase(s.testCase ?? d.testCase);
-    setSchedules(s.schedules ?? d.schedules);
+    setTimeoutSeconds(s.timeout ?? 10);
     setExtraArgs(s.extraArgs ?? d.extraArgs ?? "");
-    setStrategy(0);
     setResult(undefined);
     setRunError(undefined);
     setDiagnostics([]);
@@ -138,7 +129,7 @@ export function App() {
         files,
         open,
         testCase,
-        schedules,
+        timeout,
         extraArgs: extraArgs || undefined,
       };
       const { url, tooBig } = urlFor(state, edited.current);
@@ -146,7 +137,7 @@ export function App() {
       if (url !== location.search + location.hash) history.replaceState(null, "", url);
     }, URL_DEBOUNCE_MS);
     return () => clearTimeout(t);
-  }, [loaded, demo, files, open, testCase, schedules, extraArgs]);
+  }, [loaded, demo, files, open, testCase, timeout, extraArgs]);
 
   // Compile shortly after each edit: diagnostics and the list of test cases.
   useEffect(() => {
@@ -183,9 +174,9 @@ export function App() {
       const r = await runner.check({
         files,
         testCase,
-        schedules,
+        timeout,
         seed: s,
-        extraArgs: [...STRATEGIES[strategy].args, ...splitArgs(extraArgs)],
+        extraArgs: splitArgs(extraArgs),
       });
       setResult(r);
       if (r.diagnostics.length) setDiagnostics(r.diagnostics);
@@ -198,7 +189,7 @@ export function App() {
     } finally {
       setRunning(false);
     }
-  }, [running, testCase, fixedSeed, seed, runner, files, schedules, strategy, extraArgs]);
+  }, [running, testCase, fixedSeed, seed, runner, files, timeout, extraArgs]);
 
   const openLocation = useCallback(
     (file: string, line: number) => {
@@ -285,7 +276,7 @@ export function App() {
             ? "Bug found"
             : result.exitCode !== 0
               ? "Error (see console)"
-              : `No bugs in ${schedules} schedules`
+              : "No bugs found (see console for completion)"
           : compileOk
             ? "Ready"
             : "Loading…";
@@ -457,32 +448,22 @@ export function App() {
                 </svg>
                 Options
                 <span className="muted">
-                  {" "}· {schedules} schedules · {STRATEGIES[strategy].label}
+                  {" "}· up to {timeout}s
                   {fixedSeed ? ` · seed ${seed}` : ""}
                   {extraArgs.trim() ? ` · ${extraArgs.trim()}` : ""}
                 </span>
               </summary>
               <div className="options-grid">
                 <label>
-                  Schedules
+                  Timeout (seconds)
                   <input
                     type="number"
                     inputMode="numeric"
                     min={1}
-                    max={1_000_000}
-                    value={schedules}
-                    onChange={(e) => setSchedules(Math.max(1, Number(e.target.value) || 1))}
+                    max={3600}
+                    value={timeout}
+                    onChange={(e) => setTimeoutSeconds(Math.min(3600, Math.max(1, Math.trunc(Number(e.target.value)) || 1)))}
                   />
-                </label>
-                <label>
-                  Strategy
-                  <select value={strategy} onChange={(e) => setStrategy(Number(e.target.value))}>
-                    {STRATEGIES.map((s, i) => (
-                      <option key={s.label} value={i}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
                 </label>
                 <label>
                   Seed
@@ -504,7 +485,7 @@ export function App() {
                   Extra flags
                   <input
                     value={extraArgs}
-                    placeholder="e.g. --timed --max-steps 500"
+                    placeholder="e.g. --timed"
                     onChange={(e) => setExtraArgs(e.target.value)}
                     spellCheck={false}
                     autoCapitalize="off"

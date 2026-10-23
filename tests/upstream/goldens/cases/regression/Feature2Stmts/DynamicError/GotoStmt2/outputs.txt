@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/GotoStmt2.coverage.txt
+PCheckerOutput/BugFinding/GotoStmt2.sci
+PCheckerOutput/BugFinding/GotoStmt2_0_0.schedule
+PCheckerOutput/BugFinding/GotoStmt2_0_0.trace.json
+PCheckerOutput/BugFinding/GotoStmt2_0_0.txt
+PCheckerOutput/BugFinding/GotoStmt2_pchecker_summary.txt

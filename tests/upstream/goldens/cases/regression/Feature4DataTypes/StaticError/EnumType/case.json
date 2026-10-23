@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/EnumType",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "enumType.p",
+        "-pn",
+        "EnumType"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "enumType.p",
+        "-pn",
+        "EnumType"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

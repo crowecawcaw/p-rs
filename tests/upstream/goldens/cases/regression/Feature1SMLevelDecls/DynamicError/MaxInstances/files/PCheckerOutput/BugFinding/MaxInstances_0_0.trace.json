@@ -1,0 +1,156 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Real_Init\u0027.",
+      "id": "Main(1)",
+      "state": "Real_Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Ghost(2) was created by Main(1).",
+      "id": "Ghost(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Ghost(2)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Ghost(2) enters state \u0027_Init\u0027.",
+      "id": "Ghost(2)",
+      "state": "_Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Ghost(2)": 2
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Real_Init\u0027 sent event \u0027E0\u0027 to \u0027Ghost(2)\u0027.",
+      "event": "E0",
+      "state": "Real_Init",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "Ghost(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Ghost(2)\u0027 in state \u0027_Init\u0027 sent event \u0027E1\u0027 to \u0027Main(1)\u0027.",
+      "event": "E1",
+      "state": "_Init",
+      "payload": "null",
+      "sender": "Ghost(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Ghost(2)": 3
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Ghost(2)\u0027 dequeued event \u0027E0\u0027 in state \u0027_Init\u0027.",
+      "id": "Ghost(2)",
+      "event": "E0",
+      "state": "_Init",
+      "payload": "null",
+      "clock": {
+        "Ghost(2)": 4,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Ghost(2) exits state \u0027_Init\u0027.",
+      "id": "Ghost(2)",
+      "state": "_Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Ghost(2)": 5,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "PopStateUnhandledEvent",
+    "details": {
+      "log": "Ghost(2) popped state _Init due to unhandled event \u0027E0\u0027.",
+      "id": "Ghost(2)",
+      "event": "E0",
+      "state": "_Init",
+      "payload": "null",
+      "clock": {
+        "Ghost(2)": 6,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "ExceptionThrown",
+    "details": {
+      "log": "Ghost(2) running action \u0027\u0027 in state \u0027_Init\u0027 threw exception \u0027UnhandledEventException\u0027.",
+      "id": "Ghost(2)",
+      "state": "_Init",
+      "payload": "null",
+      "action": "",
+      "exception": "UnhandledEventException",
+      "clock": {
+        "Ghost(2)": 7,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Ghost(2) received event \u0027PImplementation.E0\u0027 that cannot be handled.",
+      "error": "Ghost(2) received event \u0027PImplementation.E0\u0027 that cannot be handled.",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

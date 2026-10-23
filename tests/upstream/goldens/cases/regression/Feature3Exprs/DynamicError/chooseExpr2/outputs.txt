@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/chooseExpr2.coverage.txt
+PCheckerOutput/BugFinding/chooseExpr2.sci
+PCheckerOutput/BugFinding/chooseExpr2_pchecker_summary.txt

@@ -1,0 +1,8 @@
+[Error:] [MultipleErrors.p:42:17] got type: bool, expected: int
+
+[Error:] [MultipleErrors.p:43:17] could not find name 'undeclaredVar'
+
+[Error:] [MultipleErrors.p:44:19] operator '+' requires both operands to be int or both float; got int and string
+
+[Error:] [MultipleErrors.p:45:13] got type: (int,int,int), expected: (no value)
+~~ [PTool]: Thanks for using P! ~~

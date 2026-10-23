@@ -1,0 +1,5 @@
+Unified scenario coverage across 1 test case:
+  1/2 scenarios covered in >=1 test case; 1 coverage gap.
+  [covered] ReadAfterWrite: covered in 1/1 test cases ((default)); 5 total triggers, 1 satisfying timelines (summed per test case)
+  [  GAP  ] NeverCovered: never covered in any of 1 test case; best progress anywhere 1/2 states
+~~ [PTool]: Thanks for using P! ~~

@@ -76,7 +76,7 @@ async function handle(req: Request): Promise<CompileResult | CheckResult> {
       diagnostics: c.diagnostics, testCase: req.testCase, millis: performance.now() - t0,
     };
   }
-  const opts = ["-n", String(req.schedules), "--seed", String(req.seed), ...req.extraArgs];
+  const opts = ["--timeout", `${req.timeout}s`, "--seed", String(req.seed), ...req.extraArgs];
   const shown = ["check", req.testCase, ...opts];
   const args = ["check", ...sourceArgs(req.files), req.testCase, ...opts];
   const r = (await p()).run(args, toFs(req.files), { seed: req.seed });

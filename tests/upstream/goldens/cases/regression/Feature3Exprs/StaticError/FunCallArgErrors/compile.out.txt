@@ -1,0 +1,8 @@
+[Error:] [FunCallArgErrors.p:23:17] goto, function or constructor call expected 2 arguments, got 1
+
+[Error:] [FunCallArgErrors.p:23:24] could not find name 'undeclaredA'
+
+[Error:] [FunCallArgErrors.p:24:24] could not find name 'undeclaredB'
+
+[Error:] [FunCallArgErrors.p:24:37] got type: string, expected: int
+~~ [PTool]: Thanks for using P! ~~

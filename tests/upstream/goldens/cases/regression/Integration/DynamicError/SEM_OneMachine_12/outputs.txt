@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/SEM_OneMachine_12.coverage.txt
+PCheckerOutput/BugFinding/SEM_OneMachine_12.sci
+PCheckerOutput/BugFinding/SEM_OneMachine_12_0_0.schedule
+PCheckerOutput/BugFinding/SEM_OneMachine_12_0_0.trace.json
+PCheckerOutput/BugFinding/SEM_OneMachine_12_0_0.txt
+PCheckerOutput/BugFinding/SEM_OneMachine_12_pchecker_summary.txt

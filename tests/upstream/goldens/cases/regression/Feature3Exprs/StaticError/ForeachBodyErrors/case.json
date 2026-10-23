@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/ForeachBodyErrors",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "ForeachBodyErrors.p",
+        "-pn",
+        "ForeachBodyErrors"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ForeachBodyErrors.p",
+        "-pn",
+        "ForeachBodyErrors"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

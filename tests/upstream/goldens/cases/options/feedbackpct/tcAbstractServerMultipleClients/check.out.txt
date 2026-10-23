@@ -1,0 +1,4 @@
+.. Found P project file: <dir>/1_ClientServer/ClientServer.pproj
+.. Running test cases with prefix 'tcAbstractServerMultipleClients':
+. Done
+~~ [PTool]: Thanks for using P! ~~

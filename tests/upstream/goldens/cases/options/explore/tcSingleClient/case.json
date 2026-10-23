@@ -1,0 +1,30 @@
+{
+  "source": "Tutorial",
+  "cwd": "1_ClientServer",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-tc",
+        "tcSingleClient",
+        "-s",
+        "20",
+        "--seed",
+        "42",
+        "--explore"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcSingleClient",
+        "-s",
+        "20",
+        "--seed",
+        "42",
+        "--explore"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

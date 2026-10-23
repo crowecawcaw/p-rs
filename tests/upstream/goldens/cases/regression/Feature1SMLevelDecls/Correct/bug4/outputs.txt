@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/bug4.coverage.txt
+PCheckerOutput/BugFinding/bug4.sci
+PCheckerOutput/BugFinding/bug4_pchecker_summary.txt

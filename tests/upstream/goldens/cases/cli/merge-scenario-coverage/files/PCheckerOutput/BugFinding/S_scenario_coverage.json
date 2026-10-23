@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "testCase": "",
+  "scenarios": [
+    {
+      "name": "NeverCovered",
+      "satisfied": false,
+      "satisfyingSchedules": 0,
+      "distinctSatisfyingTimelines": 0,
+      "maxStatesVisited": 1,
+      "monitorStates": 2
+    },
+    {
+      "name": "ReadAfterWrite",
+      "satisfied": true,
+      "satisfyingSchedules": 5,
+      "distinctSatisfyingTimelines": 1,
+      "maxStatesVisited": 3,
+      "monitorStates": 3
+    }
+  ]
+}

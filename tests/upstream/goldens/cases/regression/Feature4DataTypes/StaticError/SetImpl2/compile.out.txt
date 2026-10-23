@@ -1,0 +1,2 @@
+[Error:] [SetImpl2.p:28:11] got type: set[bool], expected: set[int]
+~~ [PTool]: Thanks for using P! ~~

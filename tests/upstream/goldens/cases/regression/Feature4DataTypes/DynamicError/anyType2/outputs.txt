@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/anyType2.coverage.txt
+PCheckerOutput/BugFinding/anyType2.sci
+PCheckerOutput/BugFinding/anyType2_0_0.schedule
+PCheckerOutput/BugFinding/anyType2_0_0.trace.json
+PCheckerOutput/BugFinding/anyType2_0_0.txt
+PCheckerOutput/BugFinding/anyType2_pchecker_summary.txt

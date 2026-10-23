@@ -1,0 +1,2 @@
+[Error:] [typedef.p:1:21] typedef 'Cycle1' has a circular dependency
+~~ [PTool]: Thanks for using P! ~~

@@ -64,3 +64,88 @@ to:
   command; `OutputDir` and `Target` in `.pproj` files are ignored.
 * .NET and Java stack frames in exception reports, traces and `UnknownError_N.txt`.
 * Foreign code in C# or Java, and PObserve jars (`--jars`).
+
+## How compatibility is checked
+
+Upstream's outputs are recorded once and committed, so CI compares against them without
+running upstream P. Upstream is built from source at the commit in
+`tests/upstream/goldens/UPSTREAM` (newer than the latest NuGet release).
+
+| What | Measure | Runs |
+| --- | --- | --- |
+| `check` exit code | exact | every run |
+| `check` console (stdout and stderr, separately) | exact after normalization | every run |
+| Parse and type errors, compiler warnings | exact | 423 regression tests (upstream: `p compile`) |
+| Readable traces (`.txt`) | exact after normalization | every bug found |
+| XML traces (`--xml-trace`) | exact after normalization | command line |
+| JSON traces (`.trace.json`) | exact text after normalization | every bug found |
+| Schedules (`.schedule`) | exact | every bug found |
+| Coverage reports (`.coverage.txt`) | exact | every run |
+| Summaries (`_pchecker_summary.txt`) | exact except time and memory | every run |
+| Scenario coverage (`.json`, console, `merge-scenario-coverage`) | exact | scenario coverage runs |
+| Output folder layout and history rotation | exact list of files written | every run |
+| `.sci` coverage files | written, contents not compared | every run |
+| Schedules explored by other strategies (PCT, fair PCT, POS, probabilistic, feedback) and step limits | exact, through the traces and statistics they print | tutorial |
+| Help, usage errors, unknown options and test cases, project names, replay, `--list-tests` | exact | command line |
+| `observe`: exit code, console, replay logs, error files, metrics | exact after normalization | 192 PObserve runs ([below](#observe)) |
+
+Normalization (`tests/upstream/goldens/normalize.tsv`, applied to both tools):
+
+* Dropped: lines about finding the project and the compiled `.dll` and the
+  `Parsing ...`/`Type checking ...` progress lines (snappea-compat reads sources and
+  prints `.. Checking <project>` instead).
+* Masked: elapsed time and memory, the working directory, .NET task ids
+  (`created by task '2'`), .NET stack frames, and a byte order mark.
+* Compiler warnings: upstream prints them in `p compile`, snappea-compat in `check`; the
+  recorder puts the compile step's warnings first in the check steps' output.
+
+Files over 128 KB are stored as the SHA-256 of their normalized contents, so they are still
+compared exactly.
+
+Not compared: `p compile` output and generated code, timings, `--version`, runs with more
+than one worker (`-j`), PEx mode (upstream runs it on a Java build of the model), and
+anything under "Out of scope". Not recorded: the PVerifier tutorials
+(`Tutorial/Advanced`), the tutorial with C# foreign code (`PriorityQueue`) and
+`Liveness/DynamicError/InfiniteLoopInAtomicBlock`, on which upstream hangs.
+
+Known differences are listed, with reasons, in
+`tests/upstream/goldens/known-differences.tsv` (today: six help and usage texts, which
+mention `--pproj`/`observe` instead of `compile`). The test fails when a listed case
+starts to match, so the list only shrinks.
+
+The corpus (`tests/upstream/goldens/cases/<id>/`):
+
+* `regression/…` (423 cases): every upstream regression test. `StaticError` tests:
+  compile. Others: `check -s 10 --max-steps 1000 --seed 42`, plus `--list-tests` for
+  parametric ones.
+* `tutorial/…` (8 cases): each tutorial project: `--list-tests`, then every test case with
+  `-s 100 --seed 42`.
+* `cli/…` and `options/…` (34 cases): help and usage errors, project names, verbose, `-o`,
+  `--xml-trace`, replay, history rotation, scenario coverage merging, and each strategy and
+  step-limit option on two test cases of the client-server tutorial.
+
+Where it runs:
+
+* `cargo test` and CI (`ci.yml`, job "upstream compat"):
+  `crates/snappea/tests/compat_check_upstream.rs` and `compat_observe_upstream.rs` run
+  snappea-compat in memory on every case. `UPSTREAM_CASES=<id prefix>` runs a subset.
+* `.github/workflows/upstream-goldens.yml` (manual, and weekly against upstream's master)
+  builds upstream, re-records and fails if the result differs from the committed goldens:
+  at the pinned commit this shows the goldens are upstream's output, at master what
+  changed upstream.
+
+To record again, or after moving the pin:
+
+```sh
+git clone https://github.com/p-org/P && git -C P checkout "$(cat tests/upstream/goldens/UPSTREAM)"
+(cd P/Bld && ./build.sh --skip-submodules)
+UPSTREAM_P="dotnet $PWD/P/Bld/Drops/Release/Binaries/net8.0/p.dll" scripts/record-upstream-goldens.py
+```
+
+### observe
+
+`tests/upstream/PObserve` holds upstream PObserve's outputs on its regression logs
+(`scripts/vendor-pobserve-goldens.py`). Normalized: colors, the output folder, the
+configuration lines naming jars and project files, timings, Java stack frames, and the
+order of error blocks (upstream checks keys in parallel). Six runs differ only in the
+message of a null dereference, which names a variable of upstream's generated Java code.

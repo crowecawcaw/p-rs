@@ -1,0 +1,70 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027S\u0027.",
+      "id": "Main(1)",
+      "state": "S",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "XYZ(2) was created by Main(1).",
+      "id": "XYZ(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "XYZ(2)": 1
+      }
+    }
+  },
+  {
+    "type": "ExceptionThrown",
+    "details": {
+      "log": "Main(1) running action \u0027Anon\u0027 in state \u0027S\u0027 threw exception \u0027NullReferenceException\u0027.",
+      "id": "Main(1)",
+      "state": "S",
+      "payload": "null",
+      "action": "Anon",
+      "exception": "NullReferenceException",
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Exception \u0027System.NullReferenceException\u0027 was thrown in Main(1) (state \u0027S\u0027, action \u0027Anon\u0027): Object reference not set to an instance of an object.\nfrom location \u0027CastInExprs3\u0027:\nThe stack trace is:\n",
+      "error": "Exception \u0027System.NullReferenceException\u0027 was thrown in Main(1) (state \u0027S\u0027, action \u0027Anon\u0027): Object reference not set to an instance of an object.\nfrom location \u0027CastInExprs3\u0027:\nThe stack trace is:\n",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

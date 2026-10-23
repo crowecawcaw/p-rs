@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/issue511.coverage.txt
+PCheckerOutput/BugFinding/issue511.sci
+PCheckerOutput/BugFinding/issue511_pchecker_summary.txt

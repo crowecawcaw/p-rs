@@ -1,0 +1,694 @@
+<TestLog> Running test 'tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1'.
+<CreateLog> PImplementation.AtomicityInvariant was created.
+<MonitorLog> PImplementation.AtomicityInvariant enters state 'Init'.
+<CreateLog> PImplementation.Progress was created.
+<MonitorLog> PImplementation.Progress enters state 'Init'.
+<CreateLog> TestWithConfig(1) was created by task '<n>'.
+<StateLog> TestWithConfig(1) enters state 'Init'.
+<CreateLog> Participant(2) was created by TestWithConfig(1).
+<StateLog> Participant(2) enters state 'Init'.
+<CreateLog> Participant(3) was created by TestWithConfig(1).
+<StateLog> Participant(3) enters state 'Init'.
+<CreateLog> Participant(4) was created by TestWithConfig(1).
+<StateLog> Participant(4) enters state 'Init'.
+<CreateLog> Participant(5) was created by TestWithConfig(1).
+<CreateLog> Participant(6) was created by TestWithConfig(1).
+<AnnounceLog> 'TestWithConfig(1)' announced event 'eMonitor_AtomicityInitialize' with payload 5.
+<MonitorLog> AtomicityInvariant is processing event 'eMonitor_AtomicityInitialize with payload (5)' in state 'Init'.
+<MonitorLog> PImplementation.AtomicityInvariant exits state 'Init'.
+<MonitorLog> PImplementation.AtomicityInvariant enters state 'WaitForEvents'.
+<StateLog> Participant(6) enters state 'Init'.
+<CreateLog> Coordinator(7) was created by TestWithConfig(1).
+<StateLog> Coordinator(7) enters state 'Init'.
+<CreateLog> Client(8) was created by TestWithConfig(1).
+<StateLog> Client(8) enters state 'Init'.
+<GotoLog> Client(8) is transitioning from state 'Init' to state 'PImplementation.Client.SendWriteTransaction'.
+<StateLog> Client(8) exits state 'Init'.
+<StateLog> Client(8) enters state 'SendWriteTransaction'.
+<RandomLog> Client(8) nondeterministically chose '9'.
+<RandomLog> Client(8) nondeterministically chose '8'.
+<MonitorLog> Progress is processing event 'eWriteTransReq with payload (<client:Client(8), trans:<key:"9", val:8, transId:101, >, >)' in state 'Init'.
+<MonitorLog> PImplementation.Progress exits state 'Init'.
+<MonitorLog> PImplementation.Progress enters hot state 'WaitForResponses'.
+<CreateLog> Timer(9) was created by Coordinator(7).
+<StateLog> Timer(9) enters state 'Init'.
+<GotoLog> Timer(9) is transitioning from state 'Init' to state 'PImplementation.Timer.WaitForTimerRequests'.
+<StateLog> Timer(9) exits state 'Init'.
+<StateLog> Timer(9) enters state 'WaitForTimerRequests'.
+<SendLog> 'Client(8)' in state 'SendWriteTransaction' sent event 'eWriteTransReq with payload (<client:Client(8), trans:<key:"9", val:8, transId:101, >, >)' to 'Coordinator(7)'.
+<CreateLog> Client(10) was created by TestWithConfig(1).
+<StateLog> Client(10) enters state 'Init'.
+<GotoLog> Client(10) is transitioning from state 'Init' to state 'PImplementation.Client.SendWriteTransaction'.
+<StateLog> Client(10) exits state 'Init'.
+<StateLog> Client(10) enters state 'SendWriteTransaction'.
+<RandomLog> Client(10) nondeterministically chose '3'.
+<RandomLog> Client(10) nondeterministically chose '2'.
+<MonitorLog> Progress is processing event 'eWriteTransReq with payload (<client:Client(10), trans:<key:"3", val:2, transId:201, >, >)' in state 'WaitForResponses'.
+<StateLog> Participant(5) enters state 'Init'.
+<SendLog> 'Coordinator(7)' in state 'Init' sent event 'eInformCoordinator with payload (Coordinator(7))' to 'Participant(2)'.
+<SendLog> 'Client(10)' in state 'SendWriteTransaction' sent event 'eWriteTransReq with payload (<client:Client(10), trans:<key:"3", val:2, transId:201, >, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'Init' sent event 'eInformCoordinator with payload (Coordinator(7))' to 'Participant(3)'.
+<DequeueLog> 'Participant(3)' dequeued event 'eInformCoordinator with payload (Coordinator(7))' in state 'Init'.
+<GotoLog> Participant(3) is transitioning from state 'Init' to state 'PImplementation.Participant.WaitForRequests'.
+<StateLog> Participant(3) exits state 'Init'.
+<StateLog> Participant(3) enters state 'WaitForRequests'.
+<CreateLog> Client(11) was created by TestWithConfig(1).
+<DequeueLog> 'Participant(2)' dequeued event 'eInformCoordinator with payload (Coordinator(7))' in state 'Init'.
+<GotoLog> Participant(2) is transitioning from state 'Init' to state 'PImplementation.Participant.WaitForRequests'.
+<StateLog> Participant(2) exits state 'Init'.
+<StateLog> Participant(2) enters state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'Init' sent event 'eInformCoordinator with payload (Coordinator(7))' to 'Participant(4)'.
+<CreateLog> FailureInjector(12) was created by TestWithConfig(1).
+<DequeueLog> 'Participant(4)' dequeued event 'eInformCoordinator with payload (Coordinator(7))' in state 'Init'.
+<GotoLog> Participant(4) is transitioning from state 'Init' to state 'PImplementation.Participant.WaitForRequests'.
+<StateLog> Participant(4) exits state 'Init'.
+<StateLog> Participant(4) enters state 'WaitForRequests'.
+<StateLog> Client(11) enters state 'Init'.
+<GotoLog> Client(11) is transitioning from state 'Init' to state 'PImplementation.Client.SendWriteTransaction'.
+<StateLog> Client(11) exits state 'Init'.
+<StateLog> Client(11) enters state 'SendWriteTransaction'.
+<RandomLog> Client(11) nondeterministically chose '5'.
+<RandomLog> Client(11) nondeterministically chose '7'.
+<MonitorLog> Progress is processing event 'eWriteTransReq with payload (<client:Client(11), trans:<key:"5", val:7, transId:301, >, >)' in state 'WaitForResponses'.
+<SendLog> 'Client(11)' in state 'SendWriteTransaction' sent event 'eWriteTransReq with payload (<client:Client(11), trans:<key:"5", val:7, transId:301, >, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'Init' sent event 'eInformCoordinator with payload (Coordinator(7))' to 'Participant(5)'.
+<SendLog> 'Coordinator(7)' in state 'Init' sent event 'eInformCoordinator with payload (Coordinator(7))' to 'Participant(6)'.
+<GotoLog> Coordinator(7) is transitioning from state 'Init' to state 'PImplementation.Coordinator.WaitForTransactions'.
+<StateLog> Coordinator(7) exits state 'Init'.
+<StateLog> Coordinator(7) enters state 'WaitForTransactions'.
+<DequeueLog> 'Participant(6)' dequeued event 'eInformCoordinator with payload (Coordinator(7))' in state 'Init'.
+<GotoLog> Participant(6) is transitioning from state 'Init' to state 'PImplementation.Participant.WaitForRequests'.
+<StateLog> Participant(6) exits state 'Init'.
+<StateLog> Participant(6) enters state 'WaitForRequests'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eWriteTransReq with payload (<client:Client(8), trans:<key:"9", val:8, transId:101, >, >)' in state 'WaitForTransactions'.
+<DequeueLog> 'Participant(5)' dequeued event 'eInformCoordinator with payload (Coordinator(7))' in state 'Init'.
+<GotoLog> Participant(5) is transitioning from state 'Init' to state 'PImplementation.Participant.WaitForRequests'.
+<StateLog> Participant(5) exits state 'Init'.
+<StateLog> Participant(5) enters state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' to 'Participant(2)'.
+<StateLog> FailureInjector(12) enters state 'Init'.
+<GotoLog> FailureInjector(12) is transitioning from state 'Init' to state 'PImplementation.FailureInjector.FailOneNode'.
+<StateLog> FailureInjector(12) exits state 'Init'.
+<StateLog> FailureInjector(12) enters state 'FailOneNode'.
+<RandomLog> FailureInjector(12) nondeterministically chose 'False'.
+<SendLog> 'FailureInjector(12)' in state 'FailOneNode' sent event 'eDelayNodeFailure' to 'FailureInjector(12)'.
+<DequeueLog> 'FailureInjector(12)' dequeued event 'eDelayNodeFailure' in state 'FailOneNode'.
+<GotoLog> FailureInjector(12) is transitioning from state 'FailOneNode' to state 'PImplementation.FailureInjector.FailOneNode'.
+<StateLog> FailureInjector(12) exits state 'FailOneNode'.
+<StateLog> FailureInjector(12) enters state 'FailOneNode'.
+<RandomLog> FailureInjector(12) nondeterministically chose 'True'.
+<RandomLog> FailureInjector(12) nondeterministically chose '0'.
+<DequeueLog> 'Participant(2)' dequeued event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(2), transId:101, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Participant(2)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(2), transId:101, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'FailureInjector(12)' in state 'FailOneNode' sent event 'eShutDown with payload (Participant(2))' to 'Participant(2)'.
+<DequeueLog> 'Participant(2)' dequeued event 'eShutDown with payload (Participant(2))' in state 'WaitForRequests'.
+<RaiseLog> 'Participant(2)' raised event 'PHalt' in state 'WaitForRequests'.
+<StateLog> Participant(2) exits state 'WaitForRequests'.
+<PopLog> Participant(2) popped state WaitForRequests due to unhandled event 'PHalt'.
+<ExceptionLog> Participant(2) running action '' in state 'WaitForRequests' threw exception 'UnhandledEventException'.
+<ExceptionLog> Participant(2) running action '' in state 'WaitForRequests' chose to handle exception 'UnhandledEventException'.
+<HaltLog> Participant(2) halted with 0 events in its inbox.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' to 'Participant(3)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' to 'Participant(4)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' to 'Participant(5)'.
+<DequeueLog> 'Participant(5)' dequeued event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(5), transId:101, status:0, >)' in state 'WaitForEvents'.
+<DequeueLog> 'Participant(4)' dequeued event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(4), transId:101, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Participant(5)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(5), transId:101, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' to 'Participant(6)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'eStartTimer' to 'Timer(9)'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForTransactions' to state 'PImplementation.Coordinator.WaitForPrepareResponses'.
+<StateLog> Coordinator(7) exits state 'WaitForTransactions'.
+<StateLog> Coordinator(7) enters state 'WaitForPrepareResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eStartTimer' in state 'WaitForTimerRequests'.
+<GotoLog> Timer(9) is transitioning from state 'WaitForTimerRequests' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'WaitForTimerRequests'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '2'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(2), transId:101, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Participant(4)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(4), transId:101, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Participant(3)' dequeued event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(3), transId:101, status:0, >)' in state 'WaitForEvents'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(5), transId:101, status:0, >)' in state 'WaitForPrepareResponses'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(4), transId:101, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Participant(3)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(3), transId:101, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Participant(6)' dequeued event 'ePrepareReq with payload (<key:"9", val:8, transId:101, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(6), transId:101, status:0, >)' in state 'WaitForEvents'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(3), transId:101, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Participant(6)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(6), transId:101, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '8'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(6), transId:101, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eCommitTrans with payload (101)' to 'Participant(2)' which has halted.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eCommitTrans with payload (101)' to 'Participant(3)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eCommitTrans with payload (101)' to 'Participant(4)'.
+<DequeueLog> 'Participant(3)' dequeued event 'eCommitTrans with payload (101)' in state 'WaitForRequests'.
+<DequeueLog> 'Participant(4)' dequeued event 'eCommitTrans with payload (101)' in state 'WaitForRequests'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '0'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eTimeOut' to 'Coordinator(7)'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.WaitForTimerRequests'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'WaitForTimerRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eCommitTrans with payload (101)' to 'Participant(5)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eCommitTrans with payload (101)' to 'Participant(6)'.
+<MonitorLog> AtomicityInvariant is processing event 'eWriteTransResp with payload (<transId:101, status:0, >)' in state 'WaitForEvents'.
+<MonitorLog> Progress is processing event 'eWriteTransResp with payload (<transId:101, status:0, >)' in state 'WaitForResponses'.
+<DequeueLog> 'Participant(5)' dequeued event 'eCommitTrans with payload (101)' in state 'WaitForRequests'.
+<DequeueLog> 'Participant(6)' dequeued event 'eCommitTrans with payload (101)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eWriteTransResp with payload (<transId:101, status:0, >)' to 'Client(8)'.
+<DequeueLog> 'Client(8)' dequeued event 'eWriteTransResp with payload (<transId:101, status:0, >)' in state 'SendWriteTransaction'.
+<GotoLog> Client(8) is transitioning from state 'SendWriteTransaction' to state 'PImplementation.Client.ConfirmTransaction'.
+<StateLog> Client(8) exits state 'SendWriteTransaction'.
+<StateLog> Client(8) enters state 'ConfirmTransaction'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eCancelTimer' to 'Timer(9)'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForPrepareResponses' to state 'PImplementation.Coordinator.WaitForTransactions'.
+<StateLog> Coordinator(7) exits state 'WaitForPrepareResponses'.
+<StateLog> Coordinator(7) enters state 'WaitForTransactions'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eWriteTransReq with payload (<client:Client(10), trans:<key:"3", val:2, transId:201, >, >)' in state 'WaitForTransactions'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' to 'Participant(2)' which has halted.
+<SendLog> 'Client(8)' in state 'ConfirmTransaction' sent event 'eReadTransReq with payload (<client:Client(8), key:"9", >)' to 'Coordinator(7)'.
+<ReceiveLog> Client(8) is waiting to dequeue an event of type 'eReadTransResp' or 'PHalt' in state 'ConfirmTransaction'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' to 'Participant(3)'.
+<DequeueLog> 'Participant(3)' dequeued event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(3), transId:201, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Participant(3)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(3), transId:201, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' to 'Participant(4)'.
+<DequeueLog> 'Participant(4)' dequeued event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(4), transId:201, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' to 'Participant(5)'.
+<DequeueLog> 'Participant(5)' dequeued event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(5), transId:201, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' to 'Participant(6)'.
+<SendLog> 'Participant(4)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(4), transId:201, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Participant(6)' dequeued event 'ePrepareReq with payload (<key:"3", val:2, transId:201, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(6), transId:201, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'eStartTimer' to 'Timer(9)'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForTransactions' to state 'PImplementation.Coordinator.WaitForPrepareResponses'.
+<StateLog> Coordinator(7) exits state 'WaitForTransactions'.
+<StateLog> Coordinator(7) enters state 'WaitForPrepareResponses'.
+<SendLog> 'Participant(5)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(5), transId:201, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eStartTimer' in state 'WaitForTimerRequests'.
+<GotoLog> Timer(9) is transitioning from state 'WaitForTimerRequests' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'WaitForTimerRequests'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '2'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eTimeOut' in state 'WaitForPrepareResponses'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForPrepareResponses' to state 'PImplementation.Coordinator.WaitForTransactions'.
+<StateLog> Coordinator(7) exits state 'WaitForPrepareResponses'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '4'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (201)' to 'Participant(2)' which has halted.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (201)' to 'Participant(3)'.
+<SendLog> 'Participant(6)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(6), transId:201, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Participant(3)' dequeued event 'eAbortTrans with payload (201)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (201)' to 'Participant(4)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '6'.
+<DequeueLog> 'Participant(4)' dequeued event 'eAbortTrans with payload (201)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (201)' to 'Participant(5)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (201)' to 'Participant(6)'.
+<MonitorLog> AtomicityInvariant is processing event 'eWriteTransResp with payload (<transId:201, status:2, >)' in state 'WaitForEvents'.
+<MonitorLog> Progress is processing event 'eWriteTransResp with payload (<transId:201, status:2, >)' in state 'WaitForResponses'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Participant(5)' dequeued event 'eAbortTrans with payload (201)' in state 'WaitForRequests'.
+<DequeueLog> 'Participant(6)' dequeued event 'eAbortTrans with payload (201)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eWriteTransResp with payload (<transId:201, status:2, >)' to 'Client(10)'.
+<StateLog> Coordinator(7) enters state 'WaitForTransactions'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '8'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eWriteTransReq with payload (<client:Client(11), trans:<key:"5", val:7, transId:301, >, >)' in state 'WaitForTransactions'.
+<DequeueLog> 'Client(10)' dequeued event 'eWriteTransResp with payload (<transId:201, status:2, >)' in state 'SendWriteTransaction'.
+<GotoLog> Client(10) is transitioning from state 'SendWriteTransaction' to state 'PImplementation.Client.ConfirmTransaction'.
+<StateLog> Client(10) exits state 'SendWriteTransaction'.
+<StateLog> Client(10) enters state 'ConfirmTransaction'.
+<GotoLog> Client(10) is transitioning from state 'ConfirmTransaction' to state 'PImplementation.Client.SendWriteTransaction'.
+<StateLog> Client(10) exits state 'ConfirmTransaction'.
+<StateLog> Client(10) enters state 'SendWriteTransaction'.
+<RandomLog> Client(10) nondeterministically chose '3'.
+<RandomLog> Client(10) nondeterministically chose '7'.
+<MonitorLog> Progress is processing event 'eWriteTransReq with payload (<client:Client(10), trans:<key:"3", val:7, transId:200, >, >)' in state 'WaitForResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '2'.
+<SendLog> 'Client(10)' in state 'SendWriteTransaction' sent event 'eWriteTransReq with payload (<client:Client(10), trans:<key:"3", val:7, transId:200, >, >)' to 'Coordinator(7)'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '6'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '9'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' to 'Participant(2)' which has halted.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' to 'Participant(3)'.
+<DequeueLog> 'Participant(3)' dequeued event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(3), transId:301, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Participant(3)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(3), transId:301, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' to 'Participant(4)'.
+<DequeueLog> 'Participant(4)' dequeued event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(4), transId:301, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' to 'Participant(5)'.
+<DequeueLog> 'Participant(5)' dequeued event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(5), transId:301, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Participant(5)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(5), transId:301, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' to 'Participant(6)'.
+<SendLog> 'Participant(4)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(4), transId:301, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Participant(6)' dequeued event 'ePrepareReq with payload (<key:"5", val:7, transId:301, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(6), transId:301, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'eStartTimer' to 'Timer(9)'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForTransactions' to state 'PImplementation.Coordinator.WaitForPrepareResponses'.
+<StateLog> Coordinator(7) exits state 'WaitForTransactions'.
+<StateLog> Coordinator(7) enters state 'WaitForPrepareResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '3'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eReadTransReq with payload (<client:Client(8), key:"9", >)' in state 'WaitForPrepareResponses'.
+<RandomLog> Coordinator(7) nondeterministically chose '0'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eReadTransReq with payload (<client:Client(8), key:"9", >)' to 'Participant(2)' which has halted.
+<SendLog> 'Participant(6)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(6), transId:301, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(3), transId:201, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(4), transId:201, status:0, >)' in state 'WaitForPrepareResponses'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(5), transId:201, status:0, >)' in state 'WaitForPrepareResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '4'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(6), transId:201, status:0, >)' in state 'WaitForPrepareResponses'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(3), transId:301, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(5), transId:301, status:0, >)' in state 'WaitForPrepareResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(4), transId:301, status:0, >)' in state 'WaitForPrepareResponses'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(6), transId:301, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '1'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '2'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '9'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '8'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '7'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '2'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '7'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '4'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '9'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '3'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '0'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eTimeOut' to 'Coordinator(7)'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.WaitForTimerRequests'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'WaitForTimerRequests'.
+<DequeueLog> 'Timer(9)' dequeued event 'eStartTimer' in state 'WaitForTimerRequests'.
+<GotoLog> Timer(9) is transitioning from state 'WaitForTimerRequests' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'WaitForTimerRequests'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '1'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eTimeOut' in state 'WaitForPrepareResponses'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForPrepareResponses' to state 'PImplementation.Coordinator.WaitForTransactions'.
+<StateLog> Coordinator(7) exits state 'WaitForPrepareResponses'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (301)' to 'Participant(2)' which has halted.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (301)' to 'Participant(3)'.
+<DequeueLog> 'Participant(3)' dequeued event 'eAbortTrans with payload (301)' in state 'WaitForRequests'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '3'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (301)' to 'Participant(4)'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Participant(4)' dequeued event 'eAbortTrans with payload (301)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (301)' to 'Participant(5)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '4'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '8'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<DequeueLog> 'Participant(5)' dequeued event 'eAbortTrans with payload (301)' in state 'WaitForRequests'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (301)' to 'Participant(6)'.
+<MonitorLog> AtomicityInvariant is processing event 'eWriteTransResp with payload (<transId:301, status:2, >)' in state 'WaitForEvents'.
+<MonitorLog> Progress is processing event 'eWriteTransResp with payload (<transId:301, status:2, >)' in state 'WaitForResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '7'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eWriteTransResp with payload (<transId:301, status:2, >)' to 'Client(11)'.
+<StateLog> Coordinator(7) enters state 'WaitForTransactions'.
+<DequeueLog> 'Participant(6)' dequeued event 'eAbortTrans with payload (301)' in state 'WaitForRequests'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '1'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '9'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Client(11)' dequeued event 'eWriteTransResp with payload (<transId:301, status:2, >)' in state 'SendWriteTransaction'.
+<GotoLog> Client(11) is transitioning from state 'SendWriteTransaction' to state 'PImplementation.Client.ConfirmTransaction'.
+<StateLog> Client(11) exits state 'SendWriteTransaction'.
+<StateLog> Client(11) enters state 'ConfirmTransaction'.
+<GotoLog> Client(11) is transitioning from state 'ConfirmTransaction' to state 'PImplementation.Client.SendWriteTransaction'.
+<StateLog> Client(11) exits state 'ConfirmTransaction'.
+<StateLog> Client(11) enters state 'SendWriteTransaction'.
+<RandomLog> Client(11) nondeterministically chose '6'.
+<RandomLog> Client(11) nondeterministically chose '4'.
+<MonitorLog> Progress is processing event 'eWriteTransReq with payload (<client:Client(11), trans:<key:"6", val:4, transId:300, >, >)' in state 'WaitForResponses'.
+<SendLog> 'Client(11)' in state 'SendWriteTransaction' sent event 'eWriteTransReq with payload (<client:Client(11), trans:<key:"6", val:4, transId:300, >, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '7'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '9'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eWriteTransReq with payload (<client:Client(10), trans:<key:"3", val:7, transId:200, >, >)' in state 'WaitForTransactions'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '2'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' to 'Participant(2)' which has halted.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '3'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' to 'Participant(3)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' to 'Participant(4)'.
+<DequeueLog> 'Participant(4)' dequeued event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(4), transId:200, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Participant(4)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(4), transId:200, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' to 'Participant(5)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Participant(5)' dequeued event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(5), transId:200, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Participant(5)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(5), transId:200, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '4'.
+<DequeueLog> 'Participant(3)' dequeued event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(3), transId:200, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Participant(3)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(3), transId:200, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' to 'Participant(6)'.
+<DequeueLog> 'Participant(6)' dequeued event 'ePrepareReq with payload (<key:"3", val:7, transId:200, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(6), transId:200, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Participant(6)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(6), transId:200, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'eStartTimer' to 'Timer(9)'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForTransactions' to state 'PImplementation.Coordinator.WaitForPrepareResponses'.
+<StateLog> Coordinator(7) exits state 'WaitForTransactions'.
+<StateLog> Coordinator(7) enters state 'WaitForPrepareResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '5'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '4'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(4), transId:200, status:0, >)' in state 'WaitForPrepareResponses'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(5), transId:200, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(3), transId:200, status:0, >)' in state 'WaitForPrepareResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '7'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '1'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'ePrepareResp with payload (<participant:Participant(6), transId:200, status:0, >)' in state 'WaitForPrepareResponses'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '0'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eTimeOut' to 'Coordinator(7)'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.WaitForTimerRequests'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'WaitForTimerRequests'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eTimeOut' in state 'WaitForPrepareResponses'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForPrepareResponses' to state 'PImplementation.Coordinator.WaitForTransactions'.
+<StateLog> Coordinator(7) exits state 'WaitForPrepareResponses'.
+<DequeueLog> 'Timer(9)' dequeued event 'eStartTimer' in state 'WaitForTimerRequests'.
+<GotoLog> Timer(9) is transitioning from state 'WaitForTimerRequests' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'WaitForTimerRequests'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '3'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '1'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eDelayedTimeOut' to 'Timer(9)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (200)' to 'Participant(2)' which has halted.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (200)' to 'Participant(3)'.
+<DequeueLog> 'Timer(9)' dequeued event 'eDelayedTimeOut' in state 'TimerStarted'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '0'.
+<DequeueLog> 'Participant(3)' dequeued event 'eAbortTrans with payload (200)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (200)' to 'Participant(4)'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eTimeOut' to 'Coordinator(7)'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.WaitForTimerRequests'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'WaitForTimerRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (200)' to 'Participant(5)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (200)' to 'Participant(6)'.
+<MonitorLog> AtomicityInvariant is processing event 'eWriteTransResp with payload (<transId:200, status:2, >)' in state 'WaitForEvents'.
+<MonitorLog> Progress is processing event 'eWriteTransResp with payload (<transId:200, status:2, >)' in state 'WaitForResponses'.
+<DequeueLog> 'Participant(4)' dequeued event 'eAbortTrans with payload (200)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eWriteTransResp with payload (<transId:200, status:2, >)' to 'Client(10)'.
+<StateLog> Coordinator(7) enters state 'WaitForTransactions'.
+<DequeueLog> 'Participant(6)' dequeued event 'eAbortTrans with payload (200)' in state 'WaitForRequests'.
+<DequeueLog> 'Client(10)' dequeued event 'eWriteTransResp with payload (<transId:200, status:2, >)' in state 'SendWriteTransaction'.
+<GotoLog> Client(10) is transitioning from state 'SendWriteTransaction' to state 'PImplementation.Client.ConfirmTransaction'.
+<StateLog> Client(10) exits state 'SendWriteTransaction'.
+<StateLog> Client(10) enters state 'ConfirmTransaction'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eWriteTransReq with payload (<client:Client(11), trans:<key:"6", val:4, transId:300, >, >)' in state 'WaitForTransactions'.
+<DequeueLog> 'Participant(5)' dequeued event 'eAbortTrans with payload (200)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' to 'Participant(2)' which has halted.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' to 'Participant(3)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' to 'Participant(4)'.
+<DequeueLog> 'Participant(4)' dequeued event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(4), transId:300, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' to 'Participant(5)'.
+<DequeueLog> 'Participant(3)' dequeued event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(3), transId:300, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Participant(3)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(3), transId:300, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' to 'Participant(6)'.
+<DequeueLog> 'Participant(6)' dequeued event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(6), transId:300, status:0, >)' in state 'WaitForEvents'.
+<SendLog> 'Coordinator(7)' in state 'WaitForTransactions' sent event 'eStartTimer' to 'Timer(9)'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForTransactions' to state 'PImplementation.Coordinator.WaitForPrepareResponses'.
+<StateLog> Coordinator(7) exits state 'WaitForTransactions'.
+<StateLog> Coordinator(7) enters state 'WaitForPrepareResponses'.
+<DequeueLog> 'Participant(5)' dequeued event 'ePrepareReq with payload (<key:"6", val:4, transId:300, >)' in state 'WaitForRequests'.
+<MonitorLog> AtomicityInvariant is processing event 'ePrepareResp with payload (<participant:Participant(5), transId:300, status:0, >)' in state 'WaitForEvents'.
+<DequeueLog> 'Timer(9)' dequeued event 'eStartTimer' in state 'WaitForTimerRequests'.
+<GotoLog> Timer(9) is transitioning from state 'WaitForTimerRequests' to state 'PImplementation.Timer.TimerStarted'.
+<StateLog> Timer(9) exits state 'WaitForTimerRequests'.
+<StateLog> Timer(9) enters state 'TimerStarted'.
+<RandomLog> Timer(9) nondeterministically chose '0'.
+<SendLog> 'Participant(6)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(6), transId:300, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Participant(5)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(5), transId:300, status:0, >)' to 'Coordinator(7)'.
+<SendLog> 'Timer(9)' in state 'TimerStarted' sent event 'eTimeOut' to 'Coordinator(7)'.
+<GotoLog> Timer(9) is transitioning from state 'TimerStarted' to state 'PImplementation.Timer.WaitForTimerRequests'.
+<StateLog> Timer(9) exits state 'TimerStarted'.
+<StateLog> Timer(9) enters state 'WaitForTimerRequests'.
+<SendLog> 'Participant(4)' in state 'WaitForRequests' sent event 'ePrepareResp with payload (<participant:Participant(4), transId:300, status:0, >)' to 'Coordinator(7)'.
+<DequeueLog> 'Coordinator(7)' dequeued event 'eTimeOut' in state 'WaitForPrepareResponses'.
+<GotoLog> Coordinator(7) is transitioning from state 'WaitForPrepareResponses' to state 'PImplementation.Coordinator.WaitForTransactions'.
+<StateLog> Coordinator(7) exits state 'WaitForPrepareResponses'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (300)' to 'Participant(2)' which has halted.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (300)' to 'Participant(3)'.
+<DequeueLog> 'Participant(3)' dequeued event 'eAbortTrans with payload (300)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (300)' to 'Participant(4)'.
+<DequeueLog> 'Participant(4)' dequeued event 'eAbortTrans with payload (300)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (300)' to 'Participant(5)'.
+<DequeueLog> 'Participant(5)' dequeued event 'eAbortTrans with payload (300)' in state 'WaitForRequests'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eAbortTrans with payload (300)' to 'Participant(6)'.
+<MonitorLog> AtomicityInvariant is processing event 'eWriteTransResp with payload (<transId:300, status:2, >)' in state 'WaitForEvents'.
+<MonitorLog> Progress is processing event 'eWriteTransResp with payload (<transId:300, status:2, >)' in state 'WaitForResponses'.
+<MonitorLog> Monitor 'Progress' raised event 'GotoStateEvent' in state 'WaitForResponses'.
+<MonitorLog> PImplementation.Progress exits hot state 'WaitForResponses'.
+<MonitorLog> PImplementation.Progress enters cold state 'AllTransactionsFinished'.
+<SendLog> 'Coordinator(7)' in state 'WaitForPrepareResponses' sent event 'eWriteTransResp with payload (<transId:300, status:2, >)' to 'Client(11)'.
+<StateLog> Coordinator(7) enters state 'WaitForTransactions'.
+<DequeueLog> 'Participant(6)' dequeued event 'eAbortTrans with payload (300)' in state 'WaitForRequests'.
+<DequeueLog> 'Client(11)' dequeued event 'eWriteTransResp with payload (<transId:300, status:2, >)' in state 'SendWriteTransaction'.
+<GotoLog> Client(11) is transitioning from state 'SendWriteTransaction' to state 'PImplementation.Client.ConfirmTransaction'.
+<StateLog> Client(11) exits state 'SendWriteTransaction'.
+<StateLog> Client(11) enters state 'ConfirmTransaction'.
+<ErrorLog> Deadlock detected. Client(8) is waiting to receive an event, but no other controlled tasks are enabled.
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 12 schedules
+<StrategyLog> Explored 12 timelines
+<StrategyLog> Found 8.33% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 344 (min), 389 (avg), 430 (max).

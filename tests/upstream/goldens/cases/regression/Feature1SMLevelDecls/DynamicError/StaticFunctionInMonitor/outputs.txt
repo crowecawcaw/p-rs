@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/StaticFunctionInMonitor.coverage.txt
+PCheckerOutput/BugFinding/StaticFunctionInMonitor.sci
+PCheckerOutput/BugFinding/StaticFunctionInMonitor_0_0.schedule
+PCheckerOutput/BugFinding/StaticFunctionInMonitor_0_0.trace.json
+PCheckerOutput/BugFinding/StaticFunctionInMonitor_0_0.txt
+PCheckerOutput/BugFinding/StaticFunctionInMonitor_pchecker_summary.txt

@@ -1,0 +1,18 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: S
+		State has no expected events, so coverage is 100%
+		Events sent: EI1, EI6, EMAP1, EMAP11, EMAP2, EMAP3, ESEQ1, ESEQ2, ET1, ET2, PHalt
+
+StateMachine: XYZ
+=================
+Event coverage: 100.0%
+
+	State: init
+		State event coverage: 100.0%
+		Events received: EI1, EI6, EMAP1, EMAP11, EMAP2, EMAP3, ESEQ1, ESEQ2, ET1, ET2
+

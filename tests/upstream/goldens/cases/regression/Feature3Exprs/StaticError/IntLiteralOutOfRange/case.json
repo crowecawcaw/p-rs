@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/IntLiteralOutOfRange",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "IntLiteralOutOfRange.p",
+        "-pn",
+        "IntLiteralOutOfRange"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "IntLiteralOutOfRange.p",
+        "-pn",
+        "IntLiteralOutOfRange"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

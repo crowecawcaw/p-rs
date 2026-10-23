@@ -1,0 +1,2 @@
+[Error:] [enum1.p:13:20] types Foo and Bar are incomparable
+~~ [PTool]: Thanks for using P! ~~

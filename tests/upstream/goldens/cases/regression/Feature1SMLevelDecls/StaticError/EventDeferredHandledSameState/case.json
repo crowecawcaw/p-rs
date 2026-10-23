@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/EventDeferredHandledSameState",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "EventDeferredHandledSameState.p",
+        "-pn",
+        "EventDeferredHandledSameState"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "EventDeferredHandledSameState.p",
+        "-pn",
+        "EventDeferredHandledSameState"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

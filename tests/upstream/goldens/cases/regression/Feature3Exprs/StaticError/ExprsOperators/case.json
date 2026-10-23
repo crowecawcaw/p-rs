@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/ExprsOperators",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "ExprOperators.p",
+        "-pn",
+        "ExprsOperators"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ExprOperators.p",
+        "-pn",
+        "ExprsOperators"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

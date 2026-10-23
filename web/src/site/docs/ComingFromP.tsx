@@ -95,8 +95,8 @@ $ p check -r PCheckerOutput/BugFinding/MyProject_0_0.schedule
           finds the project the way <code>p</code> does:
         </p>
         <Code lang="shell">{`
-$ snappea check tcMyTest -n 1000            # one test case
-$ snappea check 'tcMy*' --time 5m           # a glob, five minutes each
+$ snappea check tcMyTest                    # one test case, up to ten seconds
+$ snappea check 'tcMy*' --timeout 5m           # a glob, five minutes each
 $ snappea replay PCheckerOutput/tcMyTest/bug.schedule
 $ snappea observe --spec BankBalanceCorrect logs/
 `}</Code>
@@ -168,8 +168,8 @@ $ snappea observe --spec BankBalanceCorrect logs/
           <div>
             <dt>Exhaustive search</dt>
             <dd>
-              <code>--exhaustive</code> explores every scheduling and <code>$</code>/<code>choose</code> choice depth
-              first, skipping states it has already seen, and reports whether the search finished.
+              Exhaustive exploration runs automatically alongside sampled search, skipping states it has already
+              seen. Completed exhaustive searches end early; searches that reach the timeout remain incomplete.
             </dd>
           </div>
           <div>

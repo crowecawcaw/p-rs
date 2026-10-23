@@ -1,0 +1,81 @@
+Total event coverage: 100.0%
+============================
+Monitor: BankBalanceIsAlwaysCorrect
+===================================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eSpec_BankBalanceIsAlwaysCorrect_Init
+		Next states: WaitForWithDrawReqAndResp
+
+	State: WaitForWithDrawReqAndResp
+		State event coverage: 100.0%
+		Events received: eWithDrawReq, eWithDrawResp
+		Previous states: Init, WaitForWithDrawReqAndResp
+		Next states: WaitForWithDrawReqAndResp
+
+StateMachine: BankServer
+========================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: WaitForWithdrawRequests
+
+	State: WaitForWithdrawRequests
+		State event coverage: 100.0%
+		Events received: eReadQueryResp, eWithDrawReq
+		Events sent: eReadQuery, eUpdateQuery, eWithDrawResp
+		Previous states: Init
+
+StateMachine: Client
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: WithdrawMoney
+
+	State: WithdrawMoney
+		State event coverage: 100.0%
+		Events received: eWithDrawResp
+		Events sent: eWithDrawReq
+		Previous states: Init, WithdrawMoney
+		Next states: NoMoneyToWithDraw, WithdrawMoney
+
+	State: NoMoneyToWithDraw
+		State has no expected events, so coverage is 100%
+		Previous states: WithdrawMoney
+
+StateMachine: Database
+======================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eReadQuery, eUpdateQuery
+		Events sent: eReadQueryResp
+
+Monitor: GuaranteedWithDrawProgress
+===================================
+Event coverage: 100.0%
+
+	State: NopendingRequests
+		State event coverage: 100.0%
+		Events received: eWithDrawReq
+		Previous states: PendingReqs
+		Next states: PendingReqs[hot]
+
+	State: PendingReqs
+		State event coverage: 100.0%
+		Events received: eWithDrawReq, eWithDrawResp
+		Next states: NopendingRequests, PendingReqs[hot]
+
+StateMachine: TestWithConfig
+============================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+

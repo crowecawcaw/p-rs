@@ -1,0 +1,13 @@
+================================================================================
+The P commandline tool supports two commands (or modes): compile or check.
+
+usage:> p command options
+	 command : compile | check           'compile' to run the P compiler and 
+	                                     'check' to run the P checker on the compiled code
+	 options:                             use `--help` or `-h` to learn more about the
+	                                      corresponding command options
+	 -----------------------------------------------------------------------
+	 p compile --help                     for P compiler help
+	 p check --help                       for P checker help
+================================================================================
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,94 @@
+Total event coverage: 3.6%
+==========================
+StateMachine: CoffeeMakerControlPanel
+=====================================
+Event coverage: 0.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events received: eCoffeeMachineUser
+		Next states: WarmUpCoffeeMaker
+
+	State: WarmUpCoffeeMaker is uncovered
+		Events not covered: eWarmUpCompleted
+		Previous states: Init
+
+	State: CoffeeMakerReady is uncovered
+		Events not covered: eEspressoButtonPressed, eOpenGroundsDoor, eSteamerButtonOn
+
+	State: CoffeeMakerRunGrind is uncovered
+		Events not covered: eGrindBeansCompleted, eNoBeansError, eNoWaterError
+
+	State: CoffeeMakerRunEspresso is uncovered
+		Events not covered: eEspressoCompleted, eNoWaterError
+
+	State: CoffeeMakerRunSteam is uncovered
+		Events not covered: eNoWaterError, eSteamerButtonOff
+
+	State: CoffeeMakerDoorOpened is uncovered
+		Events not covered: eCloseGroundsDoor
+
+	State: EncounteredError is uncovered
+		Events not covered: eResetCoffeeMaker
+
+StateMachine: CrazyUser
+=======================
+Event coverage: 100.0%
+
+	State: StartPressingButtons
+		State has no expected events, so coverage is 100%
+		Events sent: eCoffeeMachineUser, eEspressoButtonPressed
+
+StateMachine: EspressoCoffeeMaker
+=================================
+Event coverage: 0.0%
+
+	State: WaitForRequests is uncovered
+		Events not covered: eGrindBeansReq, eStartEspressoReq, eStartSteamerReq, eStopSteamerReq, eWarmUpReq
+
+Monitor: EspressoMachineModesOfOperation
+========================================
+Event coverage: 10.0%
+
+	State: StartUp
+		State event coverage: 100.0%
+		Events received: eInWarmUpState
+		Next states: WarmUp
+
+	State: WarmUp is uncovered
+		Events received: eInWarmUpState
+		Events not covered: eErrorHappened, eInReadyState
+		Previous states: StartUp
+
+	State: Ready is uncovered
+		Events not covered: eErrorHappened, eInBeansGrindingState
+
+	State: BeanGrinding is uncovered
+		Events not covered: eErrorHappened, eInCoffeeBrewingState
+
+	State: MakingCoffee is uncovered
+		Events not covered: eErrorHappened, eInReadyState
+
+	State: Error is uncovered
+		Events not covered: eResetPerformed
+
+StateMachine: SaneUser
+======================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: eCoffeeMachineUser
+		Next states: LetsMakeCoffee
+
+	State: LetsMakeCoffee
+		State has no expected events, so coverage is 100%
+		Previous states: Init
+
+StateMachine: TestWithMultipleUsers
+===================================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+

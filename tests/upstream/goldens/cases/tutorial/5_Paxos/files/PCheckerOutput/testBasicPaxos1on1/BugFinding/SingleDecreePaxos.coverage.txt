@@ -1,0 +1,73 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Acceptor
+======================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Accept
+
+	State: Accept
+		State event coverage: 100.0%
+		Events received: eAcceptReq, ePrepareReq
+		Events sent: eAcceptRsp, ePrepareRsp
+		Previous states: Init
+
+StateMachine: BasicPaxos1on1
+============================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Learner
+=====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Learn
+
+	State: Learn
+		State event coverage: 100.0%
+		Events received: eLearn
+		Previous states: Init
+
+Monitor: OneValueTaught
+=======================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eLearn
+		Previous states: Init
+		Next states: Init
+
+StateMachine: Proposer
+======================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Prepare
+
+	State: Prepare
+		State event coverage: 100.0%
+		Events received: ePrepareRsp
+		Events sent: ePrepareReq
+		Previous states: Init
+		Next states: Accept
+
+	State: Accept
+		State event coverage: 100.0%
+		Events received: eAcceptRsp
+		Events sent: eAcceptReq
+		Previous states: Prepare
+		Next states: Teach
+
+	State: Teach
+		State has no expected events, so coverage is 100%
+		Events sent: eLearn
+		Previous states: Accept
+

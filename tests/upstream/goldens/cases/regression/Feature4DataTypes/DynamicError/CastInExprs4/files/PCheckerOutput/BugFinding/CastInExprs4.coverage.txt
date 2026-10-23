@@ -1,0 +1,46 @@
+Total event coverage: 0.0%
+==========================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: S
+		State has no expected events, so coverage is 100%
+
+StateMachine: XYZ
+=================
+Event coverage: 0.0%
+
+	State: init is uncovered
+		Events not covered: EI1, EI6, EMAP1, EMAP11, EMAP2, EMAP3, ESEQ1, ESEQ2, ET1, ET2
+
+	State: XYZEI1
+		State has no expected events, so coverage is 100%
+
+	State: XYZEI6
+		State has no expected events, so coverage is 100%
+
+	State: XYZET1
+		State has no expected events, so coverage is 100%
+
+	State: XYZET2
+		State has no expected events, so coverage is 100%
+
+	State: XYZESEQ1
+		State has no expected events, so coverage is 100%
+
+	State: XYZESEQ2
+		State has no expected events, so coverage is 100%
+
+	State: XYZEMAP1
+		State has no expected events, so coverage is 100%
+
+	State: XYZEMAP11
+		State has no expected events, so coverage is 100%
+
+	State: XYZEMAP2
+		State has no expected events, so coverage is 100%
+
+	State: XYZEMAP3
+		State has no expected events, so coverage is 100%
+

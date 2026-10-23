@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/Liveness_FAIRNONDET2.coverage.txt
+PCheckerOutput/BugFinding/Liveness_FAIRNONDET2.sci
+PCheckerOutput/BugFinding/Liveness_FAIRNONDET2_pchecker_summary.txt

@@ -1,0 +1,7 @@
+.. Found P project file: <dir>/BasicPaxos/BasicPaxos_2026_02_23_19_03_15/BasicPaxos.pproj
+.. List of test cases (total 3)
+testBasicConsensus
+testMultipleProposers
+testThreeProposers
+. Done
+~~ [PTool]: Thanks for using P! ~~

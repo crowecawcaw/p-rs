@@ -1,0 +1,29 @@
+.. Found P project file: <dir>/1_ClientServer/ClientServer.pproj
+.. Running test cases with prefix 'tcSingleClient':
+tcSingleClient
+.. Test case :: tcSingleClient
+... Checker is using 'feedbackpct' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+..... Schedule #5
+..... Schedule #6
+..... Schedule #7
+..... Schedule #8
+..... Schedule #9
+..... Schedule #10
+..... Schedule #20
+... Emitting coverage report:
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer.coverage.txt
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer.sci
+... Checking statistics:
+..... Found 0 bugs.
+... Scheduling statistics:
+..... Explored 20 schedules
+..... Explored 2 timelines
+..... Number of scheduling points in terminating schedules: 115 (min), 115 (avg), 115 (max).
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

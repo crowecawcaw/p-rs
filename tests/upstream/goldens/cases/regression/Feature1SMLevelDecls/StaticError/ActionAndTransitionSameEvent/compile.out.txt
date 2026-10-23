@@ -1,0 +1,2 @@
+[Error:] [TransDecl_DoDecl.p:11:6] event handler in state 'X1' duplicates handler at TransDecl_DoDecl.p:10:6
+~~ [PTool]: Thanks for using P! ~~

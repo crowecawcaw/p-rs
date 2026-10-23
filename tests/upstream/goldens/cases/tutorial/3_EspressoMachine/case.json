@@ -1,0 +1,678 @@
+{
+  "source": "Tutorial",
+  "cwd": "3_EspressoMachine",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcSaneUserUsingCoffeeMachine",
+      "p": [
+        "check",
+        "-tc",
+        "tcSaneUserUsingCoffeeMachine",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcSaneUserUsingCoffeeMachine",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcCrazyUserUsingCoffeeMachine",
+      "p": [
+        "check",
+        "-tc",
+        "tcCrazyUserUsingCoffeeMachine",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcCrazyUserUsingCoffeeMachine",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcCrazyUserParamOps___nOps_4",
+      "p": [
+        "check",
+        "-tc",
+        "tcCrazyUserParamOps___nOps_4",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcCrazyUserParamOps___nOps_4",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcCrazyUserParamOps___nOps_5",
+      "p": [
+        "check",
+        "-tc",
+        "tcCrazyUserParamOps___nOps_5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcCrazyUserParamOps___nOps_5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcCrazyUserParamOps___nOps_6",
+      "p": [
+        "check",
+        "-tc",
+        "tcCrazyUserParamOps___nOps_6",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcCrazyUserParamOps___nOps_6",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_1__nOps_3",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_1__nOps_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_1__nOps_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_2__nOps_3",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_2__nOps_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_2__nOps_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_3__nOps_3",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_3__nOps_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_3__nOps_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_1__nOps_5",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_1__nOps_5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_1__nOps_5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_2__nOps_5",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_2__nOps_5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_2__nOps_5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_3__nOps_5",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_3__nOps_5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_3__nOps_5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_1__nOps_7",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_1__nOps_7",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_1__nOps_7",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_2__nOps_7",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_2__nOps_7",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_2__nOps_7",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcMultiUserOperations___nUsers_3__nOps_7",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_3__nOps_7",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultiUserOperations___nUsers_3__nOps_7",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_0__beanLevel_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_0__beanLevel_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_0__beanLevel_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_25__beanLevel_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_25__beanLevel_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_25__beanLevel_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_50__beanLevel_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_50__beanLevel_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_50__beanLevel_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_100__beanLevel_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_100__beanLevel_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_100__beanLevel_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_0__beanLevel_25",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_0__beanLevel_25",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_0__beanLevel_25",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_25__beanLevel_25",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_25__beanLevel_25",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_25__beanLevel_25",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_50__beanLevel_25",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_50__beanLevel_25",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_50__beanLevel_25",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_100__beanLevel_25",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_100__beanLevel_25",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_100__beanLevel_25",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_0__beanLevel_50",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_0__beanLevel_50",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_0__beanLevel_50",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_25__beanLevel_50",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_25__beanLevel_50",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_25__beanLevel_50",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_50__beanLevel_50",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_50__beanLevel_50",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_50__beanLevel_50",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcResourceConstraints___waterLevel_100__beanLevel_50",
+      "p": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_100__beanLevel_50",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcResourceConstraints___waterLevel_100__beanLevel_50",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcBooleanConfigs___enableSteamer_true__cleaningMode_true",
+      "p": [
+        "check",
+        "-tc",
+        "tcBooleanConfigs___enableSteamer_true__cleaningMode_true",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcBooleanConfigs___enableSteamer_true__cleaningMode_true",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcBooleanConfigs___enableSteamer_false__cleaningMode_true",
+      "p": [
+        "check",
+        "-tc",
+        "tcBooleanConfigs___enableSteamer_false__cleaningMode_true",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcBooleanConfigs___enableSteamer_false__cleaningMode_true",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcBooleanConfigs___enableSteamer_true__cleaningMode_false",
+      "p": [
+        "check",
+        "-tc",
+        "tcBooleanConfigs___enableSteamer_true__cleaningMode_false",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcBooleanConfigs___enableSteamer_true__cleaningMode_false",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcBooleanConfigs___enableSteamer_false__cleaningMode_false",
+      "p": [
+        "check",
+        "-tc",
+        "tcBooleanConfigs___enableSteamer_false__cleaningMode_false",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcBooleanConfigs___enableSteamer_false__cleaningMode_false",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

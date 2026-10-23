@@ -1,0 +1,35 @@
+{
+  "source": "RegressionTests/Feature5ModuleSystem/Correct/OSR",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "Headers.p",
+        "Link.p",
+        "OS.p",
+        "OSRDriver.p",
+        "User.p",
+        "-pn",
+        "OSR",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Real1_Init
+		State event coverage: 100.0%
+		Events received: E1
+		Events sent: E1, E2
+		Next states: Real1_S1
+
+	State: Real1_S1
+		State event coverage: 100.0%
+		Events received: E2
+		Previous states: Real1_Init
+

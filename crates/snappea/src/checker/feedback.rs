@@ -42,19 +42,23 @@ impl<T: Copy> RandomChoices<T> {
     }
 
     /// `Utils.MutateRandomChoices(choices, meanMutationCount, meanMutationSize, random)`.
-    fn mutate(&self, mean_count: i64, mean_size: i64) -> Self {
+    fn mutate(&self, mean_count: i64, mean_size: i64, legacy: bool) -> Self {
         let n = self.data.len() as i64;
         let mean_count = (n / 3).min(mean_count).max(1);
         let mean_size = (n / 3).min(mean_size).max(1);
         let mut out =
             RandomChoices { random: self.random.clone(), pos: 0, data: self.data.clone(), generate: self.generate };
+        if n == 0 && !legacy {
+            return out;
+        }
+        let geometric = if legacy { sample_geometric_upstream } else { sample_geometric };
         let r = self.random.borrow_mut().next_double();
-        let mut mutations = sample_geometric((1.0f32 / mean_count as f32) as f64, r);
+        let mut mutations = geometric((1.0f32 / mean_count as f32) as f64, r);
         while mutations > 0 {
             mutations -= 1;
             let offset = self.random.borrow_mut().next_below(out.data.len() as i32) as usize;
             let r = self.random.borrow_mut().next_double();
-            let size = sample_geometric((1.0f32 / mean_size as f32) as f64, r);
+            let size = geometric((1.0f32 / mean_size as f32) as f64, r);
             let mut i = offset;
             while (i as i64) < offset as i64 + size as i64 {
                 if i >= out.data.len() {
@@ -68,8 +72,18 @@ impl<T: Copy> RandomChoices<T> {
     }
 }
 
-/// `Utils.SampleGeometric`.
+/// Geometric distribution on 1.., including its degenerate p=1 case. Mutation
+/// segments of mean one must change one choice, rather than silently changing none.
 fn sample_geometric(p: f64, random: f64) -> i32 {
+    if p == 1.0 {
+        return 1;
+    }
+    sample_geometric_upstream(p, random).max(1)
+}
+
+/// `Utils.SampleGeometric`, including its p=1 zero-length mutation bug. Keep the
+/// upstream random stream for snappea-compat; native checking uses the corrected form.
+fn sample_geometric_upstream(p: f64, random: f64) -> i32 {
     let r = ((1.0 - random).ln() / (1.0 - p).ln()).ceil();
     if r.is_nan() {
         0
@@ -83,6 +97,7 @@ fn sample_geometric(p: f64, random: f64) -> i32 {
 pub struct ControlledRandom {
     ints: RandomChoices<i32>,
     doubles: RandomChoices<f64>,
+    legacy_mutations: bool,
 }
 
 impl ControlledRandom {
@@ -95,6 +110,7 @@ impl ControlledRandom {
         ControlledRandom {
             ints: RandomChoices::new(r.clone(), |r| r.next()),
             doubles: RandomChoices::new(r, |r| r.next_double()),
+            legacy_mutations: false,
         }
     }
 
@@ -107,11 +123,21 @@ impl ControlledRandom {
 
     /// Fresh choices drawing from the same underlying generator.
     pub fn new_like(&self) -> ControlledRandom {
-        ControlledRandom::from_random(self.ints.random.clone())
+        ControlledRandom::from_random(self.ints.random.clone()).with_legacy_mutations(self.legacy_mutations)
     }
 
     pub fn mutate(&self) -> ControlledRandom {
-        ControlledRandom { ints: self.ints.mutate(5, 1), doubles: self.doubles.mutate(5, 1) }
+        ControlledRandom {
+            ints: self.ints.mutate(5, 1, self.legacy_mutations),
+            doubles: self.doubles.mutate(5, 1, self.legacy_mutations),
+            legacy_mutations: self.legacy_mutations,
+        }
+    }
+
+    /// Preserve upstream's zero-length mutations for seed compatibility.
+    pub fn with_legacy_mutations(mut self, legacy: bool) -> Self {
+        self.legacy_mutations = legacy;
+        self
     }
 }
 
@@ -433,10 +459,11 @@ pub struct FeedbackGuidedStrategy {
     next_record_id: usize,
     suite_best_reached: std::collections::HashMap<String, usize>,
     suite_satisfied: HashSet<String>,
+    fresh_percent: u8,
 }
 
 impl FeedbackGuidedStrategy {
-    /// `max_steps` is the unfair step bound; `seed` seeds the input generator, the
+    /// `max_steps` is the step bound; `seed` seeds the input generator, the
     /// scheduler's generator and the explore/exploit choices independently.
     pub fn new(max_steps: usize, seed: u32, scheduler: Box<dyn Scheduler>) -> Self {
         FeedbackGuidedStrategy {
@@ -453,7 +480,21 @@ impl FeedbackGuidedStrategy {
             next_record_id: 0,
             suite_best_reached: std::collections::HashMap::new(),
             suite_satisfied: HashSet::new(),
+            fresh_percent: 0,
         }
+    }
+
+    /// Match the input generator's mutation semantics to the scheduler's source.
+    pub fn with_legacy_mutations(self, legacy: bool) -> Self {
+        self.generator.borrow_mut().input.legacy_mutations = legacy;
+        self
+    }
+
+    /// Reserve a fraction of schedules for fresh choices, retaining the learned corpus
+    /// and mutation budget between them. Zero preserves the original exploration policy.
+    pub fn with_fresh_exploration(mut self, percent: u8) -> Self {
+        self.fresh_percent = percent.min(100);
+        self
     }
 
     fn compute_diversity(&mut self, timeline: &str, hash: &[i32]) -> f64 {
@@ -483,6 +524,10 @@ impl FeedbackGuidedStrategy {
 
     fn prepare_next_input(&mut self) {
         self.generator.borrow_mut().scheduler.prepare_next_iteration();
+        if self.fresh_percent > 0 && self.rnd.next_double() < f64::from(self.fresh_percent) / 100.0 {
+            self.generator = self.new_generator();
+            return;
+        }
         if self.saved.is_empty() {
             self.generator = self.new_generator();
             return;
@@ -625,4 +670,68 @@ pub fn stable_hash(token: &str) -> i32 {
         h = (h ^ b as u32).wrapping_mul(16777619);
     }
     h as i32
+}
+
+#[cfg(test)]
+mod mutation_tests {
+    use super::*;
+
+    #[test]
+    fn geometric_mutation_sizes_are_positive_even_at_mean_one() {
+        for random in [0.0, 0.1, 0.5, 0.999999] {
+            assert_eq!(sample_geometric(1.0, random), 1);
+            assert!(sample_geometric(0.2, random) >= 1);
+            assert_eq!(sample_geometric_upstream(1.0, random), 0);
+        }
+        assert_eq!(sample_geometric(0.5, 0.75), 2);
+    }
+
+    #[test]
+    fn mutating_recorded_choices_changes_short_and_long_inputs_without_changing_parent() {
+        for count in [1, 3, 30] {
+            let mut source = ControlledRandom::new(7);
+            for _ in 0..count {
+                source.next_below(i32::MAX);
+            }
+            let original = source.ints.data.clone();
+            let mutation = source.mutate();
+            assert_ne!(mutation.ints.data, original, "{count} choices");
+            assert_eq!(source.ints.data, original);
+            assert_eq!(mutation.ints.pos, 0);
+            assert!(mutation.doubles.data.is_empty());
+        }
+        // No recorded input is also safe to mutate and subsequently extend.
+        let mut empty = ControlledRandom::new(7).mutate();
+        assert!((0..10).contains(&empty.next_below(10)));
+    }
+
+    #[test]
+    fn legacy_mutations_and_fresh_generators_keep_the_upstream_mode() {
+        let mut source = ControlledRandom::new(7).with_legacy_mutations(true);
+        for _ in 0..30 {
+            source.next_below(i32::MAX);
+        }
+        let mutation = source.mutate();
+        assert_eq!(mutation.ints.data, source.ints.data);
+        assert!(mutation.legacy_mutations);
+        assert!(source.new_like().legacy_mutations);
+    }
+
+    #[test]
+    fn fresh_exploration_keeps_the_corpus_and_resumes_mutations() {
+        let source = Source::Controlled(ControlledRandom::new(7));
+        let mut strategy =
+            FeedbackGuidedStrategy::new(100, 7, Box::new(RandomScheduler::new(source))).with_fresh_exploration(100);
+        strategy.next_int(1000);
+        strategy.observe_timeline("timeline", &[1, 2], &[], &[]);
+        assert_eq!(strategy.saved.len(), 1);
+        let saved = strategy.saved[0].clone();
+        strategy.prepare_next_iteration();
+        assert!(strategy.generator.borrow().input.ints.data.is_empty());
+        assert!(Rc::ptr_eq(&strategy.saved[0], &saved));
+        strategy = strategy.with_fresh_exploration(0);
+        strategy.prepare_next_iteration();
+        assert_eq!(strategy.current_parent.as_ref().unwrap().id, saved.id);
+        assert!(!strategy.generator.borrow().input.ints.data.is_empty());
+    }
 }

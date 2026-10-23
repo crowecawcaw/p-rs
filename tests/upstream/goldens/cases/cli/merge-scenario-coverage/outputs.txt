@@ -1,0 +1,4 @@
+PCheckerOutput/BugFinding/S.coverage.txt
+PCheckerOutput/BugFinding/S.sci
+PCheckerOutput/BugFinding/S_pchecker_summary.txt
+PCheckerOutput/BugFinding/S_scenario_coverage.json

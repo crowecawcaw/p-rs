@@ -1,0 +1,124 @@
+[
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "M was created.",
+      "payload": "null",
+      "monitor": "M",
+      "clock": {
+        "M": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "M enters state \u0027Init\u0027.",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "M",
+      "clock": {
+        "M": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "M is processing event \u0027E1\u0027 in state \u0027Init\u0027.",
+      "event": "E1",
+      "state": "Init",
+      "payload": "null",
+      "sender": "Main(1)",
+      "monitor": "M",
+      "clock": {
+        "M": 3,
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "MonitorRaiseEvent",
+    "details": {
+      "log": "Monitor \u0027M\u0027 raised event \u0027GotoStateEvent\u0027 in state \u0027Init\u0027.",
+      "event": "GotoStateEvent",
+      "state": "Init",
+      "payload": "null",
+      "monitor": "M",
+      "clock": {
+        "M": 4,
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "M exits state \u0027Init\u0027.",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "monitor": "M",
+      "clock": {
+        "M": 5,
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "M enters state \u0027S\u0027.",
+      "state": "S",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "M",
+      "clock": {
+        "M": 6,
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: goto3.p:24:7 Expected payload to be 1000, actual payload is 1000",
+      "error": "Assertion Failed: goto3.p:24:7 Expected payload to be 1000, actual payload is 1000",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

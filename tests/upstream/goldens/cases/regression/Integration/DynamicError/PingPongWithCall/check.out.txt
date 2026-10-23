@@ -1,0 +1,23 @@
+.. Test case :: DefaultImpl
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/BugFinding/PingPongWithCall_0_0.txt
+..... Writing PCheckerOutput/BugFinding/PingPongWithCall_0_0.trace.json
+..... Writing PCheckerOutput/BugFinding/PingPongWithCall_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/BugFinding/PingPongWithCall.coverage.txt
+..... Writing PCheckerOutput/BugFinding/PingPongWithCall.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 1 schedule
+..... Explored 1 timeline
+..... Found 100.00% buggy schedules.
+..... Number of scheduling points in terminating schedules: 408 (min), 408 (avg), 408 (max).
+..... Writing PCheckerOutput/BugFinding/PingPongWithCall_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

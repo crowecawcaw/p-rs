@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/Actions_3.coverage.txt
+PCheckerOutput/BugFinding/Actions_3.sci
+PCheckerOutput/BugFinding/Actions_3_0_0.schedule
+PCheckerOutput/BugFinding/Actions_3_0_0.trace.json
+PCheckerOutput/BugFinding/Actions_3_0_0.txt
+PCheckerOutput/BugFinding/Actions_3_pchecker_summary.txt

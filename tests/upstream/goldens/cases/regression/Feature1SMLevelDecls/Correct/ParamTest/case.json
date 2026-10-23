@@ -1,0 +1,47 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/Correct/ParamTest",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ParamTest.p",
+        "-pn",
+        "ParamTest",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ParamTest.p",
+        "-pn",
+        "ParamTest",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

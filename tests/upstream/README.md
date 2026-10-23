@@ -26,4 +26,12 @@ contain the expected JSON as a subset.
 `Src/PObserve/PObserveRegressionTesting` (spec, run parameters, and every log under
 8 KB) with the outputs of upstream PObserve on each log, with and without
 `--assumeInputsAreSorted` (`expected/`, recorded by `scripts/vendor-pobserve-goldens.py`
-and checked in `crates/p-rs/tests/compat_observe_upstream.rs`).
+and checked in `crates/snappea/tests/compat_observe_upstream.rs`).
+
+`goldens/` holds what upstream `p check` prints and writes on a fixed set of runs: every
+regression test above, every test case of every tutorial, and the command line (help,
+errors, replay, history, scenario coverage, the other strategies). Recorded by
+`scripts/record-upstream-goldens.py` from upstream built at the commit in
+`goldens/UPSTREAM`, normalized with `goldens/normalize.tsv`, and checked in
+`crates/snappea/tests/compat_check_upstream.rs`. See
+[How compatibility is checked](../../docs/compatibility.md#how-compatibility-is-checked).

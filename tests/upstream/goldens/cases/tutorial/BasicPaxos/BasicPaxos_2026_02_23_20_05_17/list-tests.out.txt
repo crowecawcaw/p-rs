@@ -1,0 +1,6 @@
+.. Found P project file: <dir>/BasicPaxos/BasicPaxos_2026_02_23_20_05_17/BasicPaxos.pproj
+.. List of test cases (total 2)
+tcBasicConsensus
+tcCompetingProposals
+. Done
+~~ [PTool]: Thanks for using P! ~~

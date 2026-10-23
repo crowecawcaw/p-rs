@@ -176,6 +176,14 @@ pub struct Coverage {
 }
 
 impl Coverage {
+    pub(crate) fn feature_count(&self) -> usize {
+        self.info.received.len()
+            + self.info.sent.len()
+            + self.info.links.len()
+            + self.info.monitor_states.len()
+            + self.info.monitor_transitions.len()
+    }
+
     /// Continues accumulating `info` (named by `tables`) in a new schedule.
     pub fn new(tables: Rc<CoverageTables>, info: CoverageInfo) -> Coverage {
         Coverage { tables, info, run: CoverageRun::default() }

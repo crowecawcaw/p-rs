@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Integration/Correct/SEM_TwoMachines_14",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "NewMonitor_v.p",
+        "-pn",
+        "SEM_TwoMachines_14",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

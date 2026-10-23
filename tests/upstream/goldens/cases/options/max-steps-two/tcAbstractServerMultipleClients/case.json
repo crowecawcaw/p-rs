@@ -1,0 +1,34 @@
+{
+  "source": "Tutorial",
+  "cwd": "1_ClientServer",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-tc",
+        "tcAbstractServerMultipleClients",
+        "-s",
+        "20",
+        "--seed",
+        "42",
+        "--max-steps",
+        "20",
+        "40"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcAbstractServerMultipleClients",
+        "-s",
+        "20",
+        "--seed",
+        "42",
+        "--max-steps",
+        "20",
+        "40"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

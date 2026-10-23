@@ -1,0 +1,16 @@
+{
+  "steps": [
+    {
+      "name": "run",
+      "p": [
+        "check",
+        "--bogus"
+      ],
+      "snappea": [
+        "check",
+        "--bogus"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

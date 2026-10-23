@@ -1,0 +1,2 @@
+[Error:] [namedTuple1.p:8:13] got type: (bool,tRecord,int), expected: (res:bool,record:tRecord,rId:int)
+~~ [PTool]: Thanks for using P! ~~

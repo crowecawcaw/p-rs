@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/nonAtomicDataTypes4.coverage.txt
+PCheckerOutput/BugFinding/nonAtomicDataTypes4.sci
+PCheckerOutput/BugFinding/nonAtomicDataTypes4_0_0.schedule
+PCheckerOutput/BugFinding/nonAtomicDataTypes4_0_0.trace.json
+PCheckerOutput/BugFinding/nonAtomicDataTypes4_0_0.txt
+PCheckerOutput/BugFinding/nonAtomicDataTypes4_pchecker_summary.txt

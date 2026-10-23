@@ -1,0 +1,113 @@
+Total event coverage: 96.2%
+===========================
+StateMachine: Client
+====================
+Event coverage: 80.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: DoWrite
+
+	State: DoWrite
+		State event coverage: 100.0%
+		Events received: WRITE_FAIL, WRITE_SUCCESS
+		Events sent: WRITE_REQ
+		Previous states: Init
+		Next states: DoRead, End
+
+	State: DoRead
+		State event coverage: 50.0%
+		Events received: READ_SUCCESS
+		Events sent: READ_REQ
+		Events not covered: READ_FAIL
+		Previous states: DoWrite
+		Next states: End
+
+	State: End
+		State has no expected events, so coverage is 100%
+		Previous states: DoRead, DoWrite
+
+StateMachine: Coordinator
+=========================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: Loop
+
+	State: Loop
+		State event coverage: 100.0%
+		Events received: READ_REQ, Unit, WRITE_REQ
+		Events sent: READ_SUCCESS, REQ_REPLICA, StartTimer, Unit
+		Previous states: CountVote, Init, WaitForCancelTimerResponse, WaitForTimeout
+		Next states: CountVote
+
+	State: CountVote
+		State event coverage: 100.0%
+		Events received: READ_REQ, RESP_REPLICA_ABORT, RESP_REPLICA_COMMIT, Timeout, Unit
+		Events sent: CancelTimer, GLOBAL_ABORT, GLOBAL_COMMIT, READ_SUCCESS, Unit, WRITE_FAIL, WRITE_SUCCESS
+		Previous states: CountVote, Loop
+		Next states: CountVote, Loop, WaitForCancelTimerResponse
+
+	State: WaitForCancelTimerResponse
+		State event coverage: 100.0%
+		Events received: CancelTimerFailure, CancelTimerSuccess, Timeout
+		Previous states: CountVote
+		Next states: Loop, WaitForTimeout
+
+	State: WaitForTimeout
+		State event coverage: 100.0%
+		Events received: Timeout
+		Previous states: WaitForCancelTimerResponse
+		Next states: Loop
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Replica
+=====================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: Loop
+
+	State: Loop
+		State event coverage: 100.0%
+		Events received: GLOBAL_ABORT, GLOBAL_COMMIT, REQ_REPLICA
+		Events sent: RESP_REPLICA_ABORT, RESP_REPLICA_COMMIT
+		Previous states: Init
+
+StateMachine: Timer
+===================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: Loop
+
+	State: Loop
+		State event coverage: 100.0%
+		Events received: StartTimer
+		Previous states: Init, TimerStarted
+		Next states: TimerStarted
+
+	State: TimerStarted
+		State event coverage: 100.0%
+		Events received: CancelTimer, Unit
+		Events sent: CancelTimerFailure, CancelTimerSuccess, Timeout, Unit
+		Previous states: Loop
+		Next states: Loop
+

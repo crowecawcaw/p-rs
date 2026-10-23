@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/recursivefunctioncalls.coverage.txt
+PCheckerOutput/BugFinding/recursivefunctioncalls.sci
+PCheckerOutput/BugFinding/recursivefunctioncalls_pchecker_summary.txt

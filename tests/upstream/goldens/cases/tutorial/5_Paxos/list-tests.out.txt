@@ -1,0 +1,10 @@
+.. Found P project file: <dir>/5_Paxos/SingleDecreePaxos.pproj
+.. List of test cases (total 6)
+testBasicPaxos3on5
+testBasicPaxos3on3
+testBasicPaxos3on1
+testBasicPaxos2on3
+testBasicPaxos2on2
+testBasicPaxos1on1
+. Done
+~~ [PTool]: Thanks for using P! ~~

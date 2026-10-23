@@ -1,0 +1,32 @@
+.. Found P project file: <dir>/1_ClientServer/ClientServer.pproj
+.. Running test cases with prefix 'tcSingleClient':
+tcSingleClient
+.. Test case :: tcSingleClient
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+..... Schedule #5
+..... Schedule #6
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer_0_0.txt
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer_0_0.trace.json
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer.coverage.txt
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 6 schedules
+..... Explored 3 timelines
+..... Found 16.67% buggy schedules.
+..... Number of scheduling points in terminating schedules: 20 (min), 100 (avg), 160 (max).
+..... Exceeded the max-steps bound of '20' in 100.00% of the fair schedules.
+..... Writing PCheckerOutput/tcSingleClient/BugFinding/ClientServer_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

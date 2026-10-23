@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/TransitionFunction.coverage.txt
+PCheckerOutput/BugFinding/TransitionFunction.sci
+PCheckerOutput/BugFinding/TransitionFunction_pchecker_summary.txt

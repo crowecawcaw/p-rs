@@ -1,0 +1,875 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Coordinator(2) was created by Main(1).",
+      "id": "Coordinator(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Coordinator(2)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Coordinator(2) enters state \u0027Init\u0027.",
+      "id": "Coordinator(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Coordinator(2)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Client(3) was created by Main(1).",
+      "id": "Client(3)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Client(3)": 1
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Client(4) was created by Main(1).",
+      "id": "Client(4)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Client(4)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) enters state \u0027Init\u0027.",
+      "id": "Client(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(4)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Client(4)\u0027 raised event \u0027Unit\u0027 in state \u0027Init\u0027.",
+      "id": "Client(4)",
+      "event": "Unit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Client(4)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(4) is transitioning from state \u0027Init\u0027 to state \u0027DoWrite\u0027.",
+      "id": "Client(4)",
+      "startState": "Init",
+      "endState": "DoWrite",
+      "payload": "null",
+      "clock": {
+        "Client(4)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) exits state \u0027Init\u0027.",
+      "id": "Client(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(4)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(4) enters state \u0027DoWrite\u0027.",
+      "id": "Client(4)",
+      "state": "DoWrite",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(4)": 6
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(3) enters state \u0027Init\u0027.",
+      "id": "Client(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(3)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Client(3)\u0027 raised event \u0027Unit\u0027 in state \u0027Init\u0027.",
+      "id": "Client(3)",
+      "event": "Unit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Client(3)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(3) is transitioning from state \u0027Init\u0027 to state \u0027DoWrite\u0027.",
+      "id": "Client(3)",
+      "startState": "Init",
+      "endState": "DoWrite",
+      "payload": "null",
+      "clock": {
+        "Client(3)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(3) exits state \u0027Init\u0027.",
+      "id": "Client(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(3)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(3) enters state \u0027DoWrite\u0027.",
+      "id": "Client(3)",
+      "state": "DoWrite",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(3)": 6
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Replica(5) was created by Coordinator(2).",
+      "id": "Replica(5)",
+      "creatorName": "Coordinator(2)",
+      "creatorType": "Coordinator",
+      "payload": "null",
+      "clock": {
+        "Replica(5)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Replica(5) enters state \u0027Init\u0027.",
+      "id": "Replica(5)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Replica(5)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Replica(5)\u0027 raised event \u0027Unit\u0027 in state \u0027Init\u0027.",
+      "id": "Replica(5)",
+      "event": "Unit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Replica(5)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Replica(5) is transitioning from state \u0027Init\u0027 to state \u0027Loop\u0027.",
+      "id": "Replica(5)",
+      "startState": "Init",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Replica(5)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Replica(5) exits state \u0027Init\u0027.",
+      "id": "Replica(5)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Replica(5)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Replica(5) enters state \u0027Loop\u0027.",
+      "id": "Replica(5)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Replica(5)": 6
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Replica(6) was created by Coordinator(2).",
+      "id": "Replica(6)",
+      "creatorName": "Coordinator(2)",
+      "creatorType": "Coordinator",
+      "payload": "null",
+      "clock": {
+        "Replica(6)": 1
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Client(3)\u0027 in state \u0027DoWrite\u0027 sent event \u0027WRITE_REQ with payload (\u003Cclient:Client(3), key:101, val:101, \u003E)\u0027 to \u0027Coordinator(2)\u0027.",
+      "event": "WRITE_REQ",
+      "state": "DoWrite",
+      "payload": {
+        "client": "Client(3)",
+        "key": 101,
+        "val": 101
+      },
+      "sender": "Client(3)",
+      "target": "Coordinator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Client(4)\u0027 in state \u0027DoWrite\u0027 sent event \u0027WRITE_REQ with payload (\u003Cclient:Client(4), key:201, val:201, \u003E)\u0027 to \u0027Coordinator(2)\u0027.",
+      "event": "WRITE_REQ",
+      "state": "DoWrite",
+      "payload": {
+        "client": "Client(4)",
+        "key": 201,
+        "val": 201
+      },
+      "sender": "Client(4)",
+      "target": "Coordinator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Client(4)": 7
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Timer(7) was created by Coordinator(2).",
+      "id": "Timer(7)",
+      "creatorName": "Coordinator(2)",
+      "creatorType": "Coordinator",
+      "payload": "null",
+      "clock": {
+        "Timer(7)": 1
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 raised event \u0027Unit\u0027 in state \u0027Init\u0027.",
+      "id": "Coordinator(2)",
+      "event": "Unit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Coordinator(2)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Coordinator(2) is transitioning from state \u0027Init\u0027 to state \u0027Loop\u0027.",
+      "id": "Coordinator(2)",
+      "startState": "Init",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Coordinator(2)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Coordinator(2) exits state \u0027Init\u0027.",
+      "id": "Coordinator(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Coordinator(2)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Coordinator(2) enters state \u0027Loop\u0027.",
+      "id": "Coordinator(2)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Coordinator(2)": 6
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Replica(6) enters state \u0027Init\u0027.",
+      "id": "Replica(6)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Replica(6)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Replica(6)\u0027 raised event \u0027Unit\u0027 in state \u0027Init\u0027.",
+      "id": "Replica(6)",
+      "event": "Unit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Replica(6)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Replica(6) is transitioning from state \u0027Init\u0027 to state \u0027Loop\u0027.",
+      "id": "Replica(6)",
+      "startState": "Init",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Replica(6)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Replica(6) exits state \u0027Init\u0027.",
+      "id": "Replica(6)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Replica(6)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Replica(6) enters state \u0027Loop\u0027.",
+      "id": "Replica(6)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Replica(6)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 dequeued event \u0027WRITE_REQ with payload (\u003Cclient:Client(3), key:101, val:101, \u003E)\u0027 in state \u0027Loop\u0027.",
+      "id": "Coordinator(2)",
+      "event": "WRITE_REQ",
+      "state": "Loop",
+      "payload": {
+        "client": "Client(3)",
+        "key": 101,
+        "val": 101
+      },
+      "clock": {
+        "Coordinator(2)": 7,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(7) enters state \u0027Init\u0027.",
+      "id": "Timer(7)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(7)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Timer(7)\u0027 raised event \u0027Unit\u0027 in state \u0027Init\u0027.",
+      "id": "Timer(7)",
+      "event": "Unit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Timer(7)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(7) is transitioning from state \u0027Init\u0027 to state \u0027Loop\u0027.",
+      "id": "Timer(7)",
+      "startState": "Init",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Timer(7)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(7) exits state \u0027Init\u0027.",
+      "id": "Timer(7)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(7)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(7) enters state \u0027Loop\u0027.",
+      "id": "Timer(7)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(7)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 in state \u0027Loop\u0027 sent event \u0027REQ_REPLICA with payload (\u003CseqNum:1, key:101, val:101, \u003E)\u0027 to \u0027Replica(5)\u0027.",
+      "event": "REQ_REPLICA",
+      "state": "Loop",
+      "payload": {
+        "seqNum": 1,
+        "key": 101,
+        "val": 101
+      },
+      "sender": "Coordinator(2)",
+      "target": "Replica(5)",
+      "isTargetHalted": false,
+      "clock": {
+        "Coordinator(2)": 8,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Replica(5)\u0027 dequeued event \u0027REQ_REPLICA with payload (\u003CseqNum:1, key:101, val:101, \u003E)\u0027 in state \u0027Loop\u0027.",
+      "id": "Replica(5)",
+      "event": "REQ_REPLICA",
+      "state": "Loop",
+      "payload": {
+        "seqNum": 1,
+        "key": 101,
+        "val": 101
+      },
+      "clock": {
+        "Replica(5)": 7,
+        "Coordinator(2)": 8,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 in state \u0027Loop\u0027 sent event \u0027REQ_REPLICA with payload (\u003CseqNum:1, key:101, val:101, \u003E)\u0027 to \u0027Replica(6)\u0027.",
+      "event": "REQ_REPLICA",
+      "state": "Loop",
+      "payload": {
+        "seqNum": 1,
+        "key": 101,
+        "val": 101
+      },
+      "sender": "Coordinator(2)",
+      "target": "Replica(6)",
+      "isTargetHalted": false,
+      "clock": {
+        "Coordinator(2)": 9,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 in state \u0027Loop\u0027 sent event \u0027StartTimer with payload (100)\u0027 to \u0027Timer(7)\u0027.",
+      "event": "StartTimer",
+      "state": "Loop",
+      "payload": 100,
+      "sender": "Coordinator(2)",
+      "target": "Timer(7)",
+      "isTargetHalted": false,
+      "clock": {
+        "Coordinator(2)": 10,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 raised event \u0027Unit\u0027 in state \u0027Loop\u0027.",
+      "id": "Coordinator(2)",
+      "event": "Unit",
+      "state": "Loop",
+      "payload": "null",
+      "clock": {
+        "Coordinator(2)": 11,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Coordinator(2) is transitioning from state \u0027Loop\u0027 to state \u0027CountVote\u0027.",
+      "id": "Coordinator(2)",
+      "startState": "Loop",
+      "endState": "CountVote",
+      "payload": "null",
+      "clock": {
+        "Coordinator(2)": 12,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Coordinator(2) exits state \u0027Loop\u0027.",
+      "id": "Coordinator(2)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Coordinator(2)": 13,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Coordinator(2) enters state \u0027CountVote\u0027.",
+      "id": "Coordinator(2)",
+      "state": "CountVote",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Coordinator(2)": 14,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Replica(5)\u0027 in state \u0027Loop\u0027 sent event \u0027RESP_REPLICA_ABORT with payload (1)\u0027 to \u0027Coordinator(2)\u0027.",
+      "event": "RESP_REPLICA_ABORT",
+      "state": "Loop",
+      "payload": 1,
+      "sender": "Replica(5)",
+      "target": "Coordinator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Replica(5)": 8,
+        "Coordinator(2)": 8,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Timer(7)\u0027 dequeued event \u0027StartTimer with payload (100)\u0027 in state \u0027Loop\u0027.",
+      "id": "Timer(7)",
+      "event": "StartTimer",
+      "state": "Loop",
+      "payload": 100,
+      "clock": {
+        "Timer(7)": 7,
+        "Coordinator(2)": 10,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(7) is transitioning from state \u0027Loop\u0027 to state \u0027TimerStarted\u0027.",
+      "id": "Timer(7)",
+      "startState": "Loop",
+      "endState": "TimerStarted",
+      "payload": "null",
+      "clock": {
+        "Timer(7)": 8,
+        "Coordinator(2)": 10,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(7) exits state \u0027Loop\u0027.",
+      "id": "Timer(7)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(7)": 9,
+        "Coordinator(2)": 10,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(7) enters state \u0027TimerStarted\u0027.",
+      "id": "Timer(7)",
+      "state": "TimerStarted",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(7)": 10,
+        "Coordinator(2)": 10,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Replica(6)\u0027 dequeued event \u0027REQ_REPLICA with payload (\u003CseqNum:1, key:101, val:101, \u003E)\u0027 in state \u0027Loop\u0027.",
+      "id": "Replica(6)",
+      "event": "REQ_REPLICA",
+      "state": "Loop",
+      "payload": {
+        "seqNum": 1,
+        "key": 101,
+        "val": 101
+      },
+      "clock": {
+        "Replica(6)": 7,
+        "Coordinator(2)": 9,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Replica(6)\u0027 in state \u0027Loop\u0027 sent event \u0027RESP_REPLICA_COMMIT with payload (1)\u0027 to \u0027Coordinator(2)\u0027.",
+      "event": "RESP_REPLICA_COMMIT",
+      "state": "Loop",
+      "payload": 1,
+      "sender": "Replica(6)",
+      "target": "Coordinator(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Replica(6)": 8,
+        "Coordinator(2)": 9,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 dequeued event \u0027RESP_REPLICA_ABORT with payload (1)\u0027 in state \u0027CountVote\u0027.",
+      "id": "Coordinator(2)",
+      "event": "RESP_REPLICA_ABORT",
+      "state": "CountVote",
+      "payload": 1,
+      "clock": {
+        "Coordinator(2)": 15,
+        "Client(3)": 7,
+        "Replica(5)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 in state \u0027CountVote\u0027 sent event \u0027GLOBAL_ABORT with payload (1)\u0027 to \u0027Replica(5)\u0027.",
+      "event": "GLOBAL_ABORT",
+      "state": "CountVote",
+      "payload": 1,
+      "sender": "Coordinator(2)",
+      "target": "Replica(5)",
+      "isTargetHalted": false,
+      "clock": {
+        "Coordinator(2)": 16,
+        "Client(3)": 7,
+        "Replica(5)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Replica(5)\u0027 dequeued event \u0027GLOBAL_ABORT with payload (1)\u0027 in state \u0027Loop\u0027.",
+      "id": "Replica(5)",
+      "event": "GLOBAL_ABORT",
+      "state": "Loop",
+      "payload": 1,
+      "clock": {
+        "Replica(5)": 9,
+        "Coordinator(2)": 16,
+        "Client(3)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Coordinator(2)\u0027 in state \u0027CountVote\u0027 sent event \u0027GLOBAL_ABORT with payload (1)\u0027 to \u0027Replica(6)\u0027.",
+      "event": "GLOBAL_ABORT",
+      "state": "CountVote",
+      "payload": 1,
+      "sender": "Coordinator(2)",
+      "target": "Replica(6)",
+      "isTargetHalted": false,
+      "clock": {
+        "Coordinator(2)": 17,
+        "Client(3)": 7,
+        "Replica(5)": 8
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Target in send cannot be null. Machine Coordinator(2) trying to send event WRITE_FAIL to null target in state CountVote.",
+      "error": "Target in send cannot be null. Machine Coordinator(2) trying to send event WRITE_FAIL to null target in state CountVote.",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

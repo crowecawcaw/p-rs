@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/InOperator.coverage.txt
+PCheckerOutput/BugFinding/InOperator.sci
+PCheckerOutput/BugFinding/InOperator_0_0.schedule
+PCheckerOutput/BugFinding/InOperator_0_0.trace.json
+PCheckerOutput/BugFinding/InOperator_0_0.txt
+PCheckerOutput/BugFinding/InOperator_pchecker_summary.txt

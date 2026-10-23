@@ -1,0 +1,2 @@
+[Error:] [nullType.p:5:12] types int and null are incomparable
+~~ [PTool]: Thanks for using P! ~~

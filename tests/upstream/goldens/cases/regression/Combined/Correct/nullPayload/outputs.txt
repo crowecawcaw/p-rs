@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/nullPayload.coverage.txt
+PCheckerOutput/BugFinding/nullPayload.sci
+PCheckerOutput/BugFinding/nullPayload_pchecker_summary.txt

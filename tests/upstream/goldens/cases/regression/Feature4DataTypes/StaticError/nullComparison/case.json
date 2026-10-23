@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/nullComparison",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "nullType.p",
+        "-pn",
+        "nullComparison"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "nullType.p",
+        "-pn",
+        "nullComparison"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

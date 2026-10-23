@@ -1,0 +1,4 @@
+[Error:] [modexpr1.p:6:12] types string and int are incomparable
+
+[Error:] [modexpr1.p:6:28] types string and int are incomparable
+~~ [PTool]: Thanks for using P! ~~

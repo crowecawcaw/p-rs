@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/events1.coverage.txt
+PCheckerOutput/BugFinding/events1.sci
+PCheckerOutput/BugFinding/events1_pchecker_summary.txt

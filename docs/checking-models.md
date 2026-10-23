@@ -4,32 +4,74 @@ Run `snappea` in a folder with a `.pproj` file:
 
 ```sh
 snappea tests                                   # list the test cases
-snappea check                                   # check every test case, 10000 schedules each
-snappea check tcMyTest -n 1000                  # one test case, 1000 schedules
-snappea check 'tcMy*' --time 5m                 # test cases matching a glob, for 5 minutes each
-snappea check model.p tcMyTest                  # .p files instead of a .pproj
-snappea check tcMyTest --strategy pct:10        # another search strategy
-snappea check tcMyTest --exhaustive             # every scheduling and data choice
+snappea check                                   # check every test, up to 10 seconds each
+snappea check tcMyTest                          # one test case
+snappea check 'tcMy*' --timeout 5m               # matching tests, up to 5 minutes each
+snappea check model.p tcMyTest                  # explicit sources
 snappea replay PCheckerOutput/tcMyTest/bug.schedule
 ```
+
+`snappea check` type-checks the sources and selects search strategies automatically.
+Each worker retains an exhaustive frontier, fresh random exploration, a guided
+corpus, and a priority scheduler (PCT). A short probe measured in controlled choices
+lets small exhaustive searches finish immediately. After the probe, work credits
+reserve at least 30% for random, 30% for guided, 10% for PCT, and 10% for exhaustive
+search while all four arms remain enabled. Recent new event-order patterns,
+monitor/scenario and activity coverage, distinct failure sites, and state-cache
+convergence determine the remaining 20%. Allocation measures scheduling and data
+choices rather than schedule counts or elapsed time. Each arm keeps its search
+state when another arm runs.
+
+A completed exhaustive search ends the run early. State and choice-expansion caps
+keep exhaustive exploration bounded; the remaining arms continue when a cap is
+reached. Timed models use the sampled arms because exhaustive time tracking is not
+supported. Hot cycles continue through fair sampling: closing a repeated state is
+not a liveness proof. A coverage plateau changes allocation, never the stopping rule.
+
+The default is a fixed **10-second limit per test**, with no automatic extensions.
+`--timeout` overrides it; the previous spelling `--time` remains an alias. A timeout
+means the search is incomplete, even if it found no bugs. Exit status is 0 when no
+bug was found, 1 when a bug was found, and 2 on an error. The result distinguishes
+exhaustive completion from an incomplete search.
+
+Workers run in parallel, one per available CPU core by default; `-j N` limits resource
+use. The first bug or a valid exhaustive completion stops the other workers. `--seed`
+sets their starting seeds, but worker interleaving can change which bug wins. Bug
+schedules record the choices and replay independently of the allocating policy.
+`-v` shows progress and statistics and uses one worker.
+
+Each test case's files go to `PCheckerOutput/<test>/`, replacing the previous run's:
+`bug.txt`, `bug.schedule`, `bug.trace.json` and, for
+scenario monitors, `scenario_coverage.json`. A failure includes its report and a
+`snappea replay` command. `-o DIR` selects another output folder.
+
+The native CLI no longer accepts schedule counts, strategy selection, exhaustive
+mode selection, step bounds, or feedback-tuning options. `snappea-compat` retains
+upstream's CLI, defaults, step bounds, and seeded streams, including the original
+feedback mutation behavior. Existing compatibility traces still replay; the native
+`replay` command accepts step options needed by older traces.
+
+Time tracking (`--latency <file>[:<profile>]`, `--timed`) checks timeouts and latency
+budgets; see [design/time](../design/time/RetryBudget/README.md).
 
 `snappea check` type-checks the sources itself and reports errors as `p compile` does.
 It prints one line per test case with its coverage and, for a bug, its report and the
 `snappea replay` command that reproduces it. Then it lists the code no test case ran:
 
 ```
-$ snappea check -n 1000
+$ snappea check
 Checking Inventory: 2 test cases
 ok    tcAtomicReserve (1000 schedules, 4 workers, 0.07s)
       Coverage: 41/49 statements, 6/10 branches, 6/9 event handlers
 FAIL  tcCheckThenReserve (bug found after 4 schedules, 4 workers, 0.00s)
       Assertion Failed: PSpec/inventory.p:27:7 reservation exceeds available stock
       Replay: snappea replay PCheckerOutput/tcCheckThenReserve/bug.schedule
-      Coverage: 43/49 statements, 5/10 branches, 8/9 event handlers
+      Coverage: 43/49 statements, 5/10 branches, 8/9 event handlers (partial: stopped at first bug)
 Coverage of all test cases: 49/50 statements, 8/10 branches, 9/9 event handlers
 Not covered by any test case:
   PSrc/Inventory.p:46  Inventory.Serving, on eReleaseReq: if (req.order in reservations) never false
   PSrc/Inventory.p:85  OrderClient.Checking, on eAvailableResp: if (resp.units < units) never true
+Coverage includes partial results from test cases stopped at their first bug.
 1 of 2 test cases failed in 0.08s, peak memory 10 MB. Output: PCheckerOutput/
 ```
 
@@ -47,23 +89,6 @@ command, and coverage; then the coverage of all test cases with every uncovered 
 these options, before or after the command (for example, `snappea --json check`).
 Argument errors, including unknown options and missing values, also produce a JSON
 error result and write `--json-report` when requested. JSON keys retain insertion order.
-
-`snappea check` explores schedules on one worker thread per CPU core (`-j N` sets the
-number). The schedule count is split between the workers, each with its own seed; the
-first bug stops them all, and its `bug.schedule` file replays it as usual. The `random`,
-`pct`, `fairpct`, `prob` and `pos` strategies use workers; the feedback strategies and
-`rl` (which learn from earlier schedules), `--exhaustive` and `--verbose` run one
-worker. With more than one worker, a given `--seed` explores different schedules than
-upstream, and which bug is reported can vary from run to run; `-j 1` explores exactly
-upstream's schedules.
-
-`--exhaustive` explores every scheduling choice and every `$` / `choose` value by
-depth-first search, skipping states it has already seen. Its report says whether the
-search finished or hit the `--max-steps` bound. Time tracking is not supported in this
-mode yet.
-
-Time tracking (`--latency <file>[:<profile>]`, `--timed`) checks timeouts and latency
-budgets; see [design/time](../design/time/RetryBudget/README.md).
 
 ## Coverage
 

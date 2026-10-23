@@ -1,0 +1,2 @@
+[Error:] [ParamTest3.p:12:20] internal compiler error (please report): Invalid parameter list: Duplicate integer value '2' found. All test values must be unique (e.g., [2, 2] is not allowed).
+~~ [PTool]: Thanks for using P! ~~

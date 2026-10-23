@@ -1,0 +1,39 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/Correct/ScenarioCoverageBasic",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "5",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ScenarioCoverageBasic.p",
+        "-pn",
+        "S",
+        "-s",
+        "5",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "merge",
+      "p": [
+        "merge-scenario-coverage",
+        "PCheckerOutput"
+      ],
+      "snappea": [
+        "merge-scenario-coverage",
+        "PCheckerOutput"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

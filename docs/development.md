@@ -60,6 +60,11 @@ Upstream's test suites are vendored in `tests/upstream`.
   `cargo run --release -p snappea --example tutorials -- tests/upstream/Tutorial`
 * Traces: readable and JSON traces match upstream's golden files
   (`tests/upstream/CorrectLogs`), checked in `crates/snappea/tests/compat_cli.rs`.
+* `snappea-compat check`: console output, exit codes, traces, schedules, coverage and the
+  output folder match upstream's on every regression test, tutorial test case and a set of
+  command lines, recorded once from upstream (`tests/upstream/goldens`) and checked in
+  `crates/snappea/tests/compat_check_upstream.rs`. See
+  [How compatibility is checked](compatibility.md#how-compatibility-is-checked).
 * `snappea-compat observe`: `scripts/compare-pobserve.py` runs upstream PObserve and
   `snappea-compat observe` on all 96 logs of upstream's regression suite, with and without
   `--assumeInputsAreSorted`. All 192 runs give the same exit code; 186 give identical

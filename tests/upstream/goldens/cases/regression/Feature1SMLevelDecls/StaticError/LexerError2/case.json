@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/LexerError2",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "LexerError2.p",
+        "-pn",
+        "LexerError2"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "LexerError2.p",
+        "-pn",
+        "LexerError2"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/NestedExprErrors",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "NestedExprErrors.p",
+        "-pn",
+        "NestedExprErrors"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "NestedExprErrors.p",
+        "-pn",
+        "NestedExprErrors"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

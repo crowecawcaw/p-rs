@@ -1,0 +1,6 @@
+[Error:] [InOperator.p:16:13] got type: (int,int), expected: int
+
+[Error:] [InOperator.p:17:13] got type: bool, expected: int
+
+[Error:] [InOperator.p:19:18] got type: int, expected: map, sequence
+~~ [PTool]: Thanks for using P! ~~

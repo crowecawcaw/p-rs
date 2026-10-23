@@ -1,0 +1,2 @@
+[Error:] [entryExit_2.p:17:6] got type: (no value), expected: int
+~~ [PTool]: Thanks for using P! ~~

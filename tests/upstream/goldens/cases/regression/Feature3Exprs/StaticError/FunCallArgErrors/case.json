@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/FunCallArgErrors",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "FunCallArgErrors.p",
+        "-pn",
+        "FunCallArgErrors"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "FunCallArgErrors.p",
+        "-pn",
+        "FunCallArgErrors"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

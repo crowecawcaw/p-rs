@@ -1,0 +1,125 @@
+Total event coverage: 95.5%
+===========================
+Monitor: AtomicityInvariant
+===========================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eMonitor_AtomicityInitialize
+		Next states: WaitForEvents
+
+	State: WaitForEvents
+		State event coverage: 100.0%
+		Events received: ePrepareResp, eWriteTransResp
+		Previous states: Init, WaitForEvents
+		Next states: WaitForEvents
+
+StateMachine: Client
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: SendWriteTransaction
+
+	State: SendWriteTransaction
+		State event coverage: 100.0%
+		Events received: eWriteTransResp
+		Events sent: eWriteTransReq
+		Previous states: ConfirmTransaction, Init
+		Next states: ConfirmTransaction
+
+	State: ConfirmTransaction
+		State has no expected events, so coverage is 100%
+		Events received: eReadTransResp
+		Events sent: eReadTransReq
+		Previous states: SendWriteTransaction
+		Next states: SendWriteTransaction
+
+StateMachine: Coordinator
+=========================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: eInformCoordinator
+		Next states: WaitForTransactions
+
+	State: WaitForTransactions
+		State event coverage: 100.0%
+		Events received: eReadTransReq, eWriteTransReq
+		Events sent: ePrepareReq, eReadTransReq, eStartTimer
+		Previous states: Init, WaitForPrepareResponses
+		Next states: WaitForPrepareResponses
+
+	State: WaitForPrepareResponses
+		State event coverage: 100.0%
+		Events received: ePrepareResp, eReadTransReq, eTimeOut
+		Events sent: eAbortTrans, eCancelTimer, eCommitTrans, eReadTransReq, eWriteTransResp
+		Previous states: WaitForTransactions
+		Next states: WaitForTransactions
+
+StateMachine: MultipleClientsNoFailure
+======================================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Participant
+=========================
+Event coverage: 83.3%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eInformCoordinator
+		Next states: WaitForRequests
+
+	State: WaitForRequests
+		State event coverage: 80.0%
+		Events received: eAbortTrans, eCommitTrans, ePrepareReq, eReadTransReq
+		Events sent: ePrepareResp, eReadTransResp
+		Events not covered: eShutDown
+		Previous states: Init
+
+Monitor: Progress
+=================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eWriteTransReq
+		Next states: WaitForResponses[hot]
+
+	State: WaitForResponses
+		State event coverage: 100.0%
+		Events received: eWriteTransReq, eWriteTransResp
+		Next states: AllTransactionsFinished[cold], WaitForResponses[hot]
+
+	State: AllTransactionsFinished
+		State event coverage: 100.0%
+		Events received: eWriteTransReq
+		Next states: WaitForResponses[hot]
+
+StateMachine: Timer
+===================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: WaitForTimerRequests
+
+	State: WaitForTimerRequests
+		State event coverage: 100.0%
+		Events received: eStartTimer
+		Previous states: Init, TimerStarted
+		Next states: TimerStarted
+
+	State: TimerStarted
+		State event coverage: 100.0%
+		Events received: eCancelTimer, eDelayedTimeOut
+		Events sent: eDelayedTimeOut, eTimeOut
+		Previous states: TimerStarted, WaitForTimerRequests
+		Next states: TimerStarted, WaitForTimerRequests
+

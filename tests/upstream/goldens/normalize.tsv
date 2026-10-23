@@ -1,0 +1,40 @@
+# Normalization applied to upstream's recorded output and to snappea-compat's output before
+# they are compared. Read by scripts/record-upstream-goldens.py and
+# crates/snappea/tests/compat_check_upstream.rs, so both sides stay in sync.
+#
+# Every rule is one line of tab-separated fields:
+#   drop <regex>                  remove whole lines that match (console only)
+#   mask <regex> <replacement>    replace every match (console and files)
+# Regexes use the syntax shared by Python `re` and Rust `regex`. Replacements are literal
+# except for `${1}`, `${2}`, ..., the text of a capture group.
+# Besides these rules, the working directory is replaced by `<dir>` and a leading UTF-8
+# byte order mark is removed.
+
+# Source discovery: upstream finds the .pproj and the compiled .dll, snappea-compat reads
+# P sources directly (docs/compatibility.md, "Functional").
+drop	^\.\. Searching for a P project file
+drop	^\.\. No P project file
+drop	^\.\. Searching for a P compiled file
+drop	^\.\. Found a P compiled file
+drop	^\.\. Checking
+drop	^==== Loading project file
+drop	^\.+ includes (p|foreign) file
+drop	^-{40}$
+drop	^Parsing \.\.\.$
+drop	^Type checking \.\.\.$
+
+# Timings and memory differ from run to run.
+mask	Elapsed [0-9.E-]+ sec( and used [0-9.]+ GB)?\.	Elapsed <t>.
+mask	time_seconds:[0-9.E-]+	time_seconds:<t>
+mask	memory_max_mb:[0-9.E-]+	memory_max_mb:<m>
+
+# .NET stack frames of exceptions (docs/compatibility.md, "Out of scope"): one frame per
+# line in readable traces and on the console, before the closing tag in XML traces, and
+# `\n`-separated inside JSON strings.
+mask	\n   at [^\n]*(?:\n   at [^\n]*)*(</Exception(?:Thrown|Handled)>)	${1}
+mask	(?m)^   at [^\n]*(\n   at [^\n]*)*	
+mask	   at (?:[^"\\]|\\[^n])*(?:\\n   at (?:[^"\\]|\\[^n])*)*	
+
+# .NET task ids in creation logs: a runtime detail of upstream's thread pool.
+mask	task '[0-9]+'	task '<n>'
+mask	task \\u0027[0-9]+\\u0027	task \u0027<n>\u0027

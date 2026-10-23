@@ -1,0 +1,12 @@
+.. Found P project file: <dir>/6_Raft/Raft.pproj
+.. List of test cases (total 8)
+oneClientOneServerReliable
+oneClientThreeServersReliable
+oneClientThreeServersUnreliable
+oneClientFiveServersReliable
+oneClientFiveServersUnreliable
+threeClientsOneServerReliable
+twoClientsThreeServersReliable
+twoClientsThreeServersUnreliable
+. Done
+~~ [PTool]: Thanks for using P! ~~

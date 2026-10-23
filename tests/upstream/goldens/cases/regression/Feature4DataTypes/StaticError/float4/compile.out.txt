@@ -1,0 +1,4 @@
+[Error:] [float4.p:9:11] got type: (a:<error>,b:float), expected: (a:int,b:float)
+
+[Error:] [float4.p:9:16] coerce expects an interface, int, or float type
+~~ [PTool]: Thanks for using P! ~~

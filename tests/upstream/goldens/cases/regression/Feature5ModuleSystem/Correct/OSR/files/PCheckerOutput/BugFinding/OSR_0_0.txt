@@ -1,0 +1,418 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'User_Init'.
+<CreateLog> OSRDriverInterface(2) was created by Main(1).
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'User_Init'.
+<GotoLog> Main(1) is transitioning from state 'User_Init' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'User_Init'.
+<StateLog> Main(1) enters state 'S0'.
+<StateLog> OSRDriverInterface(2) enters state 'Driver_Init'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<CreateLog> TimerInterface(3) was created by OSRDriverInterface(2).
+<CreateLog> LEDInterface(4) was created by OSRDriverInterface(2).
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<StateLog> LEDInterface(4) enters state '_Init'.
+<RaiseLog> 'LEDInterface(4)' raised event 'eUnit' in state '_Init'.
+<GotoLog> LEDInterface(4) is transitioning from state '_Init' to state 'PImplementation.LEDMachine.LED_Init'.
+<StateLog> LEDInterface(4) exits state '_Init'.
+<StateLog> LEDInterface(4) enters state 'LED_Init'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<CreateLog> SwitchInterface(5) was created by OSRDriverInterface(2).
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eUnit' in state 'Driver_Init'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'Driver_Init' to state 'PImplementation.OSRDriverMachine.sDxDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'Driver_Init'.
+<StateLog> OSRDriverInterface(2) enters state 'sDxDriver'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Entry' in state 'sDxDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sDxDriver' to state 'PImplementation.OSRDriverMachine.sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sDxDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompleteD0EntryDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompleteD0EntryDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompleteD0EntryDriver' to state 'PImplementation.OSRDriverMachine.sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sWaitingForSwitchStatusChangeDriver'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Exit' in state 'sWaitingForSwitchStatusChangeDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sWaitingForSwitchStatusChangeDriver' to state 'PImplementation.OSRDriverMachine.sCompletingD0ExitDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompletingD0ExitDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompletingD0ExitDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompletingD0ExitDriver' to state 'PImplementation.OSRDriverMachine.sDxDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompletingD0ExitDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sDxDriver'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Entry' in state 'sDxDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sDxDriver' to state 'PImplementation.OSRDriverMachine.sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sDxDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompleteD0EntryDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompleteD0EntryDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompleteD0EntryDriver' to state 'PImplementation.OSRDriverMachine.sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sWaitingForSwitchStatusChangeDriver'.
+<StateLog> TimerInterface(3) enters state '_Init'.
+<RaiseLog> 'TimerInterface(3)' raised event 'eUnit' in state '_Init'.
+<GotoLog> TimerInterface(3) is transitioning from state '_Init' to state 'PImplementation.TimerMachine.Timer_Init'.
+<StateLog> TimerInterface(3) exits state '_Init'.
+<StateLog> TimerInterface(3) enters state 'Timer_Init'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<StateLog> SwitchInterface(5) enters state '_Init'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state '_Init'.
+<GotoLog> SwitchInterface(5) is transitioning from state '_Init' to state 'PImplementation.SwitchMachine.Switch_Init'.
+<StateLog> SwitchInterface(5) exits state '_Init'.
+<StateLog> SwitchInterface(5) enters state 'Switch_Init'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'Switch_Init'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'Switch_Init' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'Switch_Init'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Exit' in state 'sWaitingForSwitchStatusChangeDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sWaitingForSwitchStatusChangeDriver' to state 'PImplementation.OSRDriverMachine.sCompletingD0ExitDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompletingD0ExitDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompletingD0ExitDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompletingD0ExitDriver' to state 'PImplementation.OSRDriverMachine.sDxDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompletingD0ExitDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sDxDriver'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Entry' in state 'sDxDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sDxDriver' to state 'PImplementation.OSRDriverMachine.sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sDxDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompleteD0EntryDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompleteD0EntryDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompleteD0EntryDriver' to state 'PImplementation.OSRDriverMachine.sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sWaitingForSwitchStatusChangeDriver'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Exit' in state 'sWaitingForSwitchStatusChangeDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sWaitingForSwitchStatusChangeDriver' to state 'PImplementation.OSRDriverMachine.sCompletingD0ExitDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompletingD0ExitDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompletingD0ExitDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompletingD0ExitDriver' to state 'PImplementation.OSRDriverMachine.sDxDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompletingD0ExitDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sDxDriver'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Entry' in state 'sDxDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sDxDriver' to state 'PImplementation.OSRDriverMachine.sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sDxDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompleteD0EntryDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompleteD0EntryDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompleteD0EntryDriver' to state 'PImplementation.OSRDriverMachine.sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sWaitingForSwitchStatusChangeDriver'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Exit' in state 'sWaitingForSwitchStatusChangeDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sWaitingForSwitchStatusChangeDriver' to state 'PImplementation.OSRDriverMachine.sCompletingD0ExitDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompletingD0ExitDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompletingD0ExitDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompletingD0ExitDriver' to state 'PImplementation.OSRDriverMachine.sDxDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompletingD0ExitDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sDxDriver'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eD0Entry' in state 'sDxDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sDxDriver' to state 'PImplementation.OSRDriverMachine.sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sDxDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sCompleteD0EntryDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eOperationSuccess' in state 'sCompleteD0EntryDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sCompleteD0EntryDriver' to state 'PImplementation.OSRDriverMachine.sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sCompleteD0EntryDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sWaitingForSwitchStatusChangeDriver'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eSwitchStatusChange' in state 'sWaitingForSwitchStatusChangeDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sWaitingForSwitchStatusChangeDriver' to state 'PImplementation.OSRDriverMachine.sStoringSwitchAndCheckingIfStateChangedDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sWaitingForSwitchStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sStoringSwitchAndCheckingIfStateChangedDriver'.
+<RandomLog> OSRDriverInterface(2) nondeterministically chose 'True'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eYes' in state 'sStoringSwitchAndCheckingIfStateChangedDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sStoringSwitchAndCheckingIfStateChangedDriver' to state 'PImplementation.OSRDriverMachine.sUpdatingBarGraphStateDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sStoringSwitchAndCheckingIfStateChangedDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sUpdatingBarGraphStateDriver'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'OSRDriverInterface(2)' in state 'sUpdatingBarGraphStateDriver' sent event 'eUpdateBarGraphStateUsingControlTransfer' to 'LEDInterface(4)'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<DequeueLog> 'LEDInterface(4)' dequeued event 'eUpdateBarGraphStateUsingControlTransfer' in state 'LED_Init'.
+<GotoLog> LEDInterface(4) is transitioning from state 'LED_Init' to state 'PImplementation.LEDMachine.ProcessUpdateLED'.
+<StateLog> LEDInterface(4) exits state 'LED_Init'.
+<StateLog> LEDInterface(4) enters state 'ProcessUpdateLED'.
+<RandomLog> LEDInterface(4) nondeterministically chose 'True'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'LEDInterface(4)' in state 'ProcessUpdateLED' sent event 'eTransferSuccess' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'LEDInterface(4)' raised event 'eUnit' in state 'ProcessUpdateLED'.
+<GotoLog> LEDInterface(4) is transitioning from state 'ProcessUpdateLED' to state 'PImplementation.LEDMachine.LED_Init'.
+<StateLog> LEDInterface(4) exits state 'ProcessUpdateLED'.
+<StateLog> LEDInterface(4) enters state 'LED_Init'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eTransferSuccess' in state 'sUpdatingBarGraphStateDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sUpdatingBarGraphStateDriver' to state 'PImplementation.OSRDriverMachine.sUpdatingLedStateToUnstableDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sUpdatingBarGraphStateDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sUpdatingLedStateToUnstableDriver'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'OSRDriverInterface(2)' in state 'sUpdatingLedStateToUnstableDriver' sent event 'eSetLedStateToUnstableUsingControlTransfer' to 'LEDInterface(4)'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<DequeueLog> 'LEDInterface(4)' dequeued event 'eSetLedStateToUnstableUsingControlTransfer' in state 'LED_Init'.
+<GotoLog> LEDInterface(4) is transitioning from state 'LED_Init' to state 'PImplementation.LEDMachine.UnstableLED'.
+<StateLog> LEDInterface(4) exits state 'LED_Init'.
+<StateLog> LEDInterface(4) enters state 'UnstableLED'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'LEDInterface(4)' in state 'UnstableLED' sent event 'eTransferSuccess' to 'OSRDriverInterface(2)'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eTransferSuccess' in state 'sUpdatingLedStateToUnstableDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sUpdatingLedStateToUnstableDriver' to state 'PImplementation.OSRDriverMachine.sWaitingForTimerDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sUpdatingLedStateToUnstableDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sWaitingForTimerDriver'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'OSRDriverInterface(2)' in state 'sWaitingForTimerDriver' sent event 'eStartDebounceTimer' to 'TimerInterface(3)'.
+<DequeueLog> 'TimerInterface(3)' dequeued event 'eStartDebounceTimer' in state 'Timer_Init'.
+<GotoLog> TimerInterface(3) is transitioning from state 'Timer_Init' to state 'PImplementation.TimerMachine.TimerStarted'.
+<StateLog> TimerInterface(3) exits state 'Timer_Init'.
+<StateLog> TimerInterface(3) enters state 'TimerStarted'.
+<RandomLog> TimerInterface(3) nondeterministically chose 'True'.
+<RaiseLog> 'TimerInterface(3)' raised event 'eUnit' in state 'TimerStarted'.
+<GotoLog> TimerInterface(3) is transitioning from state 'TimerStarted' to state 'PImplementation.TimerMachine.SendTimerFired'.
+<StateLog> TimerInterface(3) exits state 'TimerStarted'.
+<StateLog> TimerInterface(3) enters state 'SendTimerFired'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'Main(1)' in state 'S0' sent event 'eD0Entry' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S0'.
+<GotoLog> Main(1) is transitioning from state 'S0' to state 'PImplementation.Main.S1'.
+<StateLog> Main(1) exits state 'S0'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'TimerInterface(3)' in state 'SendTimerFired' sent event 'eTimerFired' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'TimerInterface(3)' raised event 'eUnit' in state 'SendTimerFired'.
+<GotoLog> TimerInterface(3) is transitioning from state 'SendTimerFired' to state 'PImplementation.TimerMachine.Timer_Init'.
+<StateLog> TimerInterface(3) exits state 'SendTimerFired'.
+<StateLog> TimerInterface(3) enters state 'Timer_Init'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'eD0Exit' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'Main(1)' raised event 'eUnit' in state 'S1'.
+<GotoLog> Main(1) is transitioning from state 'S1' to state 'PImplementation.Main.S0'.
+<StateLog> Main(1) exits state 'S1'.
+<StateLog> Main(1) enters state 'S0'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<SendLog> 'SwitchInterface(5)' in state 'ChangeSwitchStatus' sent event 'eSwitchStatusChange' to 'OSRDriverInterface(2)'.
+<RaiseLog> 'SwitchInterface(5)' raised event 'eUnit' in state 'ChangeSwitchStatus'.
+<GotoLog> SwitchInterface(5) is transitioning from state 'ChangeSwitchStatus' to state 'PImplementation.SwitchMachine.ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) exits state 'ChangeSwitchStatus'.
+<StateLog> SwitchInterface(5) enters state 'ChangeSwitchStatus'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eSwitchStatusChange' in state 'sWaitingForTimerDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sWaitingForTimerDriver' to state 'PImplementation.OSRDriverMachine.sStoppingTimerOnStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sWaitingForTimerDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sStoppingTimerOnStatusChangeDriver'.
+<RaiseLog> 'OSRDriverInterface(2)' raised event 'eUnit' in state 'sStoppingTimerOnStatusChangeDriver'.
+<GotoLog> OSRDriverInterface(2) is transitioning from state 'sStoppingTimerOnStatusChangeDriver' to state 'PImplementation.OSRDriverMachine.sStoppingTimerDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sStoppingTimerOnStatusChangeDriver'.
+<StateLog> OSRDriverInterface(2) enters state 'sStoppingTimerDriver'.
+<SendLog> 'OSRDriverInterface(2)' in state 'sStoppingTimerDriver' sent event 'eStopTimer' to 'TimerInterface(3)'.
+<DequeueLog> 'OSRDriverInterface(2)' dequeued event 'eSwitchStatusChange' in state 'sStoppingTimerDriver'.
+<StateLog> OSRDriverInterface(2) exits state 'sStoppingTimerDriver'.
+<PopLog> OSRDriverInterface(2) popped state sStoppingTimerDriver due to unhandled event 'eSwitchStatusChange'.
+<ExceptionLog> OSRDriverInterface(2) running action '' in state 'sStoppingTimerDriver' threw exception 'UnhandledEventException'.
+<ErrorLog> OSRDriverInterface(2) received event 'PImplementation.eSwitchStatusChange' that cannot be handled.
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 85 (min), 85 (avg), 85 (max).

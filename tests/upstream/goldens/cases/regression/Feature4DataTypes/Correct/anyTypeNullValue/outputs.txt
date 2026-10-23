@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/anyTypeNullValue.coverage.txt
+PCheckerOutput/BugFinding/anyTypeNullValue.sci
+PCheckerOutput/BugFinding/anyTypeNullValue_pchecker_summary.txt

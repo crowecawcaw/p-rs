@@ -1,0 +1,62 @@
+{
+  "source": "Tutorial",
+  "cwd": "BasicPaxos/BasicPaxos_2026_02_23_20_05_17",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcBasicConsensus",
+      "p": [
+        "check",
+        "-tc",
+        "tcBasicConsensus",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcBasicConsensus",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcCompetingProposals",
+      "p": [
+        "check",
+        "-tc",
+        "tcCompetingProposals",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcCompetingProposals",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

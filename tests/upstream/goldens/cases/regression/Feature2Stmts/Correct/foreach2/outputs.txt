@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/foreach2.coverage.txt
+PCheckerOutput/BugFinding/foreach2.sci
+PCheckerOutput/BugFinding/foreach2_pchecker_summary.txt

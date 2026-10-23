@@ -1,0 +1,14 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<CreateLog> M2(2) was created by Main(1).
+<StateLog> M2(2) enters state 'Init'.
+<ErrorLog> Assertion Failed: newMachine1.p:12:7 Expected param not equal to: 1, actual received: 1
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 4 (min), 4 (avg), 4 (max).

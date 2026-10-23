@@ -1,0 +1,216 @@
+{
+  "source": "Tutorial",
+  "cwd": "4_FailureDetector",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_FailureDetector",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_FailureDetector",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_FailureDetector",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_BalancedLoad___numNodes_3__numClients_2",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_3__numClients_2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_3__numClients_2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_BalancedLoad___numNodes_4__numClients_2",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_4__numClients_2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_4__numClients_2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_BalancedLoad___numNodes_5__numClients_2",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_5__numClients_2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_5__numClients_2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_BalancedLoad___numNodes_3__numClients_3",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_3__numClients_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_3__numClients_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_BalancedLoad___numNodes_4__numClients_3",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_4__numClients_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_4__numClients_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_BalancedLoad___numNodes_5__numClients_3",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_5__numClients_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_5__numClients_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_BalancedLoad___numNodes_4__numClients_4",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_4__numClients_4",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_4__numClients_4",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcTest_BalancedLoad___numNodes_5__numClients_4",
+      "p": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_5__numClients_4",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcTest_BalancedLoad___numNodes_5__numClients_4",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

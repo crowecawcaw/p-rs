@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/NestedFun.coverage.txt
+PCheckerOutput/BugFinding/NestedFun.sci
+PCheckerOutput/BugFinding/NestedFun_pchecker_summary.txt

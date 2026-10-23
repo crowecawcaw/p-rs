@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Combined/StaticError/PopInExitFun",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "PopInExitFun.p",
+        "-pn",
+        "PopInExitFun"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "PopInExitFun.p",
+        "-pn",
+        "PopInExitFun"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

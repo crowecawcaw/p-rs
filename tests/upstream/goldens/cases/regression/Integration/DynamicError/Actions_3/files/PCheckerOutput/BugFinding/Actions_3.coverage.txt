@@ -1,0 +1,40 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Ghost
+===================
+Event coverage: 100.0%
+
+	State: Ghost_Init
+		State event coverage: 100.0%
+		Events received: E1
+		Next states: Ghost_S1
+
+	State: Ghost_S1
+		State event coverage: 100.0%
+		Events received: E3
+		Events sent: E2
+		Previous states: Ghost_Init
+		Next states: Ghost_S2
+
+	State: Ghost_S2
+		State has no expected events, so coverage is 100%
+		Events sent: E4
+		Previous states: Ghost_S1
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Real_Init
+		State event coverage: 100.0%
+		Events received: E2, E4
+		Events sent: E1, E3
+		Next states: Real_S2
+
+	State: Real_S1
+		State has no expected events, so coverage is 100%
+
+	State: Real_S2
+		State has no expected events, so coverage is 100%
+		Previous states: Real_Init
+

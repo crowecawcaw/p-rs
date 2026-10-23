@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/InterfaceTest.coverage.txt
+PCheckerOutput/BugFinding/InterfaceTest.sci
+PCheckerOutput/BugFinding/InterfaceTest_pchecker_summary.txt

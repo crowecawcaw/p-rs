@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/SentNullEvent",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "SentNullEvent.p",
+        "-pn",
+        "SentNullEvent"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "SentNullEvent.p",
+        "-pn",
+        "SentNullEvent"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

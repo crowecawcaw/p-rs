@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/nestedTypedef.coverage.txt
+PCheckerOutput/BugFinding/nestedTypedef.sci
+PCheckerOutput/BugFinding/nestedTypedef_pchecker_summary.txt

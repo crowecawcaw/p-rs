@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/newMachine1.coverage.txt
+PCheckerOutput/BugFinding/newMachine1.sci
+PCheckerOutput/BugFinding/newMachine1_0_0.schedule
+PCheckerOutput/BugFinding/newMachine1_0_0.trace.json
+PCheckerOutput/BugFinding/newMachine1_0_0.txt
+PCheckerOutput/BugFinding/newMachine1_pchecker_summary.txt

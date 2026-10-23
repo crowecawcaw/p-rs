@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/break1.coverage.txt
+PCheckerOutput/BugFinding/break1.sci
+PCheckerOutput/BugFinding/break1_0_0.schedule
+PCheckerOutput/BugFinding/break1_0_0.trace.json
+PCheckerOutput/BugFinding/break1_0_0.txt
+PCheckerOutput/BugFinding/break1_pchecker_summary.txt

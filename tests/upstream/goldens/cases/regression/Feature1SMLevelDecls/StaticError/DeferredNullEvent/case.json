@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/DeferredNullEvent",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "DeferredNullEvent.p",
+        "-pn",
+        "DeferredNullEvent"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "DeferredNullEvent.p",
+        "-pn",
+        "DeferredNullEvent"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

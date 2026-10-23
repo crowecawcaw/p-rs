@@ -1,0 +1,101 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027S1\u0027.",
+      "id": "Main(1)",
+      "state": "S1",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027S1\u0027 sent event \u0027XYZ with payload ((\u003C\u003Cserver:0, seqN:0, \u003E-\u003E\u003Cfirst:1, second:\u003C100,False,\u003E, \u003E\u003E, \u003C\u003Cserver:1, seqN:1, \u003E-\u003E\u003Cfirst:10, second:\u003C1000,True,\u003E, \u003E\u003E))\u0027 to \u0027Main(1)\u0027.",
+      "event": "XYZ",
+      "state": "S1",
+      "payload": {
+        "\u003Cserver:0, seqN:0, \u003E": {
+          "first": 1,
+          "second": {
+            "0": {},
+            "1": {}
+          }
+        },
+        "\u003Cserver:1, seqN:1, \u003E": {
+          "first": 10,
+          "second": {
+            "0": {},
+            "1": {}
+          }
+        }
+      },
+      "sender": "Main(1)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027XYZ with payload ((\u003C\u003Cserver:0, seqN:0, \u003E-\u003E\u003Cfirst:1, second:\u003C100,False,\u003E, \u003E\u003E, \u003C\u003Cserver:1, seqN:1, \u003E-\u003E\u003Cfirst:10, second:\u003C1000,True,\u003E, \u003E\u003E))\u0027 in state \u0027S1\u0027.",
+      "id": "Main(1)",
+      "event": "XYZ",
+      "state": "S1",
+      "payload": {
+        "\u003Cserver:0, seqN:0, \u003E": {
+          "first": 1,
+          "second": {
+            "0": {},
+            "1": {}
+          }
+        },
+        "\u003Cserver:1, seqN:1, \u003E": {
+          "first": 10,
+          "second": {
+            "0": {},
+            "1": {}
+          }
+        }
+      },
+      "clock": {
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: typedef.p:34:4",
+      "error": "Assertion Failed: typedef.p:34:4",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

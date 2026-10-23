@@ -1,0 +1,6 @@
+[Error:] [foreach2.p:27:15] got type: (int,int), expected: (a:int,b:int)
+
+[Error:] [foreach2.p:29:18] got type: (int,int), expected: namedtuple, base
+
+[Error:] [foreach2.p:29:30] got type: (int,int), expected: namedtuple, base
+~~ [PTool]: Thanks for using P! ~~

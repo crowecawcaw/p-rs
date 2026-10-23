@@ -1,0 +1,6 @@
+Replay option is used, checker is ignoring all other parameters and using the PCheckerOutput/BugFinding/bug2_0_0.schedule to replay the schedule
+... Replaying PCheckerOutput/BugFinding/bug2_0_0.schedule
+.. Test case :: DefaultImpl
+... Checker is using 'replay' strategy.
+... Reproduced 1 bug.
+... Elapsed <t>.~~ [PTool]: Thanks for using P! ~~

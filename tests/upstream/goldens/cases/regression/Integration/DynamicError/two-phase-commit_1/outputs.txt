@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/two_phase_commit_1.coverage.txt
+PCheckerOutput/BugFinding/two_phase_commit_1.sci
+PCheckerOutput/BugFinding/two_phase_commit_1_0_0.schedule
+PCheckerOutput/BugFinding/two_phase_commit_1_0_0.trace.json
+PCheckerOutput/BugFinding/two_phase_commit_1_0_0.txt
+PCheckerOutput/BugFinding/two_phase_commit_1_pchecker_summary.txt

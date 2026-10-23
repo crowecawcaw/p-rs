@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/MultiFunctionPerMachine",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "MultiFunctionPerMachine.p",
+        "-pn",
+        "MultiFunctionPerMachine"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "MultiFunctionPerMachine.p",
+        "-pn",
+        "MultiFunctionPerMachine"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

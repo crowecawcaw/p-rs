@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/TransitionOnNullInSpecMachine",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "TransitionOnNullInSpecMachine"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "TransitionOnNullInSpecMachine"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

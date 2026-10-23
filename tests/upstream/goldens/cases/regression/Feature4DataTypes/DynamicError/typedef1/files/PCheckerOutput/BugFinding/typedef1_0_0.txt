@@ -1,0 +1,14 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'S1'.
+<SendLog> 'Main(1)' in state 'S1' sent event 'XYZ with payload ((<<server:0, seqN:0, >-><first:1, second:<100,False,>, >>, <<server:1, seqN:1, >-><first:10, second:<1000,True,>, >>))' to 'Main(1)'.
+<DequeueLog> 'Main(1)' dequeued event 'XYZ with payload ((<<server:0, seqN:0, >-><first:1, second:<100,False,>, >>, <<server:1, seqN:1, >-><first:10, second:<1000,True,>, >>))' in state 'S1'.
+<ErrorLog> Assertion Failed: typedef.p:34:4
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 4 (min), 4 (avg), 4 (max).

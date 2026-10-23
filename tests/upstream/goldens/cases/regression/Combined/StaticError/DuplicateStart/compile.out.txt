@@ -1,0 +1,2 @@
+[Error:] [Duplicates.p:6:3] state 'S2' tries to replace start state 'S1' in machine 'm2'
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,2 @@
+[Error:] [monitors.p:19:4] '$', '$$', 'this', 'new', 'send', 'announce', 'receive', and 'pop' are not allowed in spec monitor 'M'
+~~ [PTool]: Thanks for using P! ~~

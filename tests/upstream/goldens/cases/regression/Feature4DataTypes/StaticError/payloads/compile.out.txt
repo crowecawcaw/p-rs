@@ -1,0 +1,48 @@
+[Error:] [payloads.p:14:10] got type: int, expected: (no value)
+
+[Error:] [payloads.p:15:10] got type: Main, expected: (no value)
+
+[Error:] [payloads.p:16:10] got type: event, expected: (no value)
+
+[Error:] [payloads.p:18:10] got type: (no value), expected: any
+
+[Error:] [payloads.p:24:10] got type: (no value), expected: int
+
+[Error:] [payloads.p:25:10] got type: (no value), expected: int
+
+[Error:] [payloads.p:27:10] got type: Main, expected: int
+
+[Error:] [payloads.p:28:10] got type: event, expected: int
+
+[Error:] [payloads.p:36:15] got type: event, expected: machine
+
+[Error:] [payloads.p:37:15] got type: event, expected: machine
+
+[Error:] [payloads.p:38:10] got type: int, expected: (no value)
+
+[Error:] [payloads.p:38:15] got type: event, expected: machine
+
+[Error:] [payloads.p:39:10] got type: Main, expected: (no value)
+
+[Error:] [payloads.p:39:15] got type: event, expected: machine
+
+[Error:] [payloads.p:40:10] got type: event, expected: (no value)
+
+[Error:] [payloads.p:40:15] got type: event, expected: machine
+
+[Error:] [payloads.p:42:21] got type: int, expected: event
+
+[Error:] [payloads.p:43:21] got type: int, expected: event
+
+[Error:] [payloads.p:44:21] got type: int, expected: event
+
+[Error:] [payloads.p:45:21] got type: int, expected: event
+
+[Error:] [payloads.p:46:21] got type: int, expected: event
+
+[Error:] [payloads.p:50:10] got type: int, expected: (no value)
+
+[Error:] [payloads.p:51:10] got type: Main, expected: (no value)
+
+[Error:] [payloads.p:52:10] got type: event, expected: (no value)
+~~ [PTool]: Thanks for using P! ~~

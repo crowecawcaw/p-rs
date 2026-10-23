@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/openwsn1.coverage.txt
+PCheckerOutput/BugFinding/openwsn1.sci
+PCheckerOutput/BugFinding/openwsn1_pchecker_summary.txt

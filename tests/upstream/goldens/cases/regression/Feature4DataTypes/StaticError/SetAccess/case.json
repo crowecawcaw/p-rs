@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/SetAccess",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "SetImpl1.p",
+        "-pn",
+        "SetAccess"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "SetImpl1.p",
+        "-pn",
+        "SetAccess"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

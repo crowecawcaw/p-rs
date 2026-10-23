@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [EntryNamedFunction1.p] parse error: line 9:8 missing ';' at '}'
+~~ [PTool]: Thanks for using P! ~~

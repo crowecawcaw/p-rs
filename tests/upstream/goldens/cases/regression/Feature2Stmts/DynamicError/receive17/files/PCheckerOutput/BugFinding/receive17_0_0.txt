@@ -1,0 +1,18 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'S'.
+<CreateLog> N(2) was created by Main(1).
+<StateLog> N(2) enters state 'S'.
+<ReceiveLog> N(2) is waiting to dequeue an event of type 'e2' or 'PHalt' in state 'S'.
+<SendLog> 'Main(1)' in state 'S' sent event 'getres with payload (Main(1))' to 'N(2)'.
+<SendLog> 'Main(1)' in state 'S' sent event 'e2' to 'N(2)'.
+<ReceiveLog> 'N(2)' dequeued event 'e2' and unblocked in state 'S'.
+<ErrorLog> Assertion Failed: temp.p:20:29
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 7 (min), 7 (avg), 7 (max).

@@ -1,0 +1,20 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Real_Init'.
+<CreateLog> Ghost(2) was created by Main(1).
+<StateLog> Ghost(2) enters state '_Init'.
+<SendLog> 'Main(1)' in state 'Real_Init' sent event 'E0' to 'Ghost(2)'.
+<SendLog> 'Ghost(2)' in state '_Init' sent event 'E1' to 'Main(1)'.
+<DequeueLog> 'Ghost(2)' dequeued event 'E0' in state '_Init'.
+<StateLog> Ghost(2) exits state '_Init'.
+<PopLog> Ghost(2) popped state _Init due to unhandled event 'E0'.
+<ExceptionLog> Ghost(2) running action '' in state '_Init' threw exception 'UnhandledEventException'.
+<ErrorLog> Ghost(2) received event 'PImplementation.E0' that cannot be handled.
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 7 (min), 7 (avg), 7 (max).

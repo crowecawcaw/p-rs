@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/pingPongTuple.coverage.txt
+PCheckerOutput/BugFinding/pingPongTuple.sci
+PCheckerOutput/BugFinding/pingPongTuple_pchecker_summary.txt

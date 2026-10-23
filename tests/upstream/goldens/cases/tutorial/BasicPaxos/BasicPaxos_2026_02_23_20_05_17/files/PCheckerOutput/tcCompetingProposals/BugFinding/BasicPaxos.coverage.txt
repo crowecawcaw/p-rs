@@ -1,0 +1,72 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Acceptor
+======================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Ready
+
+	State: Ready
+		State event coverage: 100.0%
+		Events received: eAcceptRequest, ePropose
+		Events sent: eAccepted, ePromise
+		Previous states: Init
+
+StateMachine: Learner
+=====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Learning
+
+	State: Learning
+		State event coverage: 100.0%
+		Events received: eAccepted
+		Previous states: Init
+
+Monitor: OnlyOneValueChosen
+===========================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Monitoring
+
+	State: Monitoring
+		State event coverage: 100.0%
+		Events received: eLearn
+		Previous states: Init, Monitoring
+		Next states: Monitoring
+
+StateMachine: Proposer
+======================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eStartConsensus
+		Next states: ProposalPhase
+
+	State: ProposalPhase
+		State event coverage: 100.0%
+		Events received: ePromise
+		Events sent: ePropose
+		Previous states: Init
+		Next states: AcceptPhase
+
+	State: AcceptPhase
+		State has no expected events, so coverage is 100%
+		Events sent: eAcceptRequest
+		Previous states: ProposalPhase
+
+StateMachine: Scenario2_CompetingProposals
+==========================================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: eStartConsensus
+

@@ -1,0 +1,24 @@
+.. Test case :: tcLiveness
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/BugFinding/Liveness_10_0_0.txt
+..... Writing PCheckerOutput/BugFinding/Liveness_10_0_0.trace.json
+..... Writing PCheckerOutput/BugFinding/Liveness_10_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/BugFinding/Liveness_10.coverage.txt
+..... Writing PCheckerOutput/BugFinding/Liveness_10.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 1 schedule
+..... Explored 1 timeline
+..... Found 100.00% buggy schedules.
+..... Number of scheduling points in terminating schedules: 5004 (min), 5004 (avg), 5004 (max).
+..... Exceeded the max-steps bound of '1000' in 100.00% of the fair schedules.
+..... Writing PCheckerOutput/BugFinding/Liveness_10_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,6 @@
+[Error:] [EventSets_4.p:19:11] got type: machine, expected: ES3
+
+[Error:] [EventSets_4.p:23:7] got type: (ES1,machine), expected: (ES1,ES2)
+
+[Error:] [EventSets_4.p:25:7] got type: (ES2,machine), expected: (ES1,ES2)
+~~ [PTool]: Thanks for using P! ~~

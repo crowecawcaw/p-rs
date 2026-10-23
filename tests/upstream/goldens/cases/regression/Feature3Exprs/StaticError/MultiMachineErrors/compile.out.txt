@@ -1,0 +1,6 @@
+[Error:] [MultiMachineErrors.p:26:21] got type: bool, expected: int
+
+[Error:] [MultiMachineErrors.p:33:21] could not find name 'undeclaredVar'
+
+[Error:] [MultiMachineErrors.p:40:23] operator '+' requires both operands to be int or both float; got int and string
+~~ [PTool]: Thanks for using P! ~~

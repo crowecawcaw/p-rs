@@ -12,9 +12,24 @@ import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE = 'python:3.12-slim@sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2'
+IMAGE = os.environ.get('SNAPPEA_EVAL_IMAGE', 'python:3.12-slim@sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2')
+P_IMAGE = os.environ.get('SNAPPEA_EVAL_P_IMAGE', IMAGE)
 PUBLIC = ['TASK.md','contract.py','runtime.py','test_public.py']
-from prompts import COMMON, P, CONTROL, VERSION as PROMPT_VERSION, task_prompt
+from prompts import COMMON, P, CONTROL, VERSION as PROMPT_VERSION, task_prompt, prompt_version, prompt_variant
+
+
+def tool_paths():
+    binary = Path(os.environ.get('SNAPPEA_EVAL_BINARY', ROOT/'vendor/bin/snappea-v0.1.0-x86_64-unknown-linux-gnu/snappea')).resolve()
+    source = Path(os.environ.get('SNAPPEA_EVAL_SOURCE', ROOT/'vendor/source/snappea-main')).resolve()
+    return binary, source
+
+
+def image_for_arm(arm):
+    return P_IMAGE if arm == 'p' else IMAGE
+
+
+def grading_image(run):
+    return json.loads((run/'metadata.json').read_text()).get('image', IMAGE)
 
 
 def command(argv, **kwargs):
@@ -39,14 +54,14 @@ def container_args(name,work,arm):
         '--pids-limit','128','--read-only','--tmpfs','/tmp:rw,size=128m',
         '--mount',f'type=bind,src={work},dst=/work','-w','/work']
     if arm == 'p':
-        binary = ROOT/'vendor/bin/snappea-v0.1.0-x86_64-unknown-linux-gnu/snappea'
-        docs = ROOT/'vendor/source/snappea-main/docs'
-        inventory = ROOT/'vendor/source/snappea-main/examples/model'
+        binary, source = tool_paths()
+        docs = source/'docs'
+        inventory = source/'examples/model'
         args += ['--env','PATH=/opt:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin',
                  '--mount',f'type=bind,src={binary},dst=/opt/snappea,readonly',
                  '--mount',f'type=bind,src={docs},dst=/opt/pdocs,readonly',
                  '--mount',f'type=bind,src={inventory},dst=/opt/inventory,readonly']
-    return args + [IMAGE,'sleep','infinity']
+    return args + [image_for_arm(arm),'sleep','infinity']
 
 
 def shell(name,cmd,timeout=40):
@@ -102,7 +117,7 @@ def grade(run,seeds):
         '--mount',f'type=bind,src={ROOT}/private,dst=/grader/private,readonly',
         '--mount',f'type=bind,src={ROOT}/public,dst=/grader/public,readonly',
         '--mount',f'type=bind,src={run}/submission,dst=/submission,readonly',
-        '--mount',f'type=bind,src={out},dst=/output',IMAGE,
+        '--mount',f'type=bind,src={out},dst=/output',grading_image(run),
         'python','/grader/private/grade.py','/submission/solution.py',
         '--seeds',str(seeds),'--output','/output/grade.json']
     r=command(args,timeout=1800)
@@ -116,7 +131,7 @@ def main(a):
         raise SystemExit('Sonnet execution blocked: configure ANTHROPIC_API_KEY. No API request was made.')
     run,work,prompt=prepare(a.run_id,a.arm)
     name='snappea-eval-'+a.run_id.replace('_','-')
-    metadata={'run_id':a.run_id,'arm':a.arm,'prompt_version':PROMPT_VERSION,'model':a.model,'image':IMAGE,
+    metadata={'run_id':a.run_id,'arm':a.arm,'prompt_version':prompt_version(),'prompt_variant':prompt_variant(a.arm),'model':a.model,'image':image_for_arm(a.arm),
         'limits':{'seconds':a.seconds,'generated_tokens':a.generated_tokens,'tool_calls':a.tool_calls},
         'public_sha256':{n:hashlib.sha256((ROOT/'public'/n).read_bytes()).hexdigest() for n in PUBLIC},
         'prompt_sha256':hashlib.sha256(prompt.encode()).hexdigest(),
@@ -138,7 +153,7 @@ def main(a):
             transcript.append({'smoke_public':r})
             assert r['exit_code'] != 0, 'starter should fail public tests'
             if a.arm == 'p':
-                r=shell(name,'/opt/snappea version; cp -r /opt/inventory ./inventory; cd inventory; /opt/snappea check tcAtomicReserve --exhaustive')
+                r=shell(name,'/opt/snappea version; cp -r /opt/inventory ./inventory; cd inventory; /opt/snappea check tcAtomicReserve')
                 transcript.append({'smoke_p':r})
                 assert r['exit_code']==0,r
             # Calibration reference enters only smoke runs, never real agent runs.

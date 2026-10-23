@@ -1,0 +1,242 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "B(2) was created by Main(1).",
+      "id": "B(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "B(2)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "B(2) enters state \u0027Init\u0027.",
+      "id": "B(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "B(2)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027B(2)\u0027 raised event \u0027Unit\u0027 in state \u0027Init\u0027.",
+      "id": "B(2)",
+      "event": "Unit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "B(2)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "B(2) is transitioning from state \u0027Init\u0027 to state \u0027X\u0027.",
+      "id": "B(2)",
+      "startState": "Init",
+      "endState": "X",
+      "payload": "null",
+      "clock": {
+        "B(2)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "B(2) exits state \u0027Init\u0027.",
+      "id": "B(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "B(2)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "B(2) enters state \u0027X\u0027.",
+      "id": "B(2)",
+      "state": "X",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "B(2)": 6
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "B(2) is waiting to dequeue an event of type \u0027E\u0027 or \u0027PHalt\u0027 in state \u0027X\u0027.",
+      "id": "B(2)",
+      "payload": "null",
+      "eventTypes": [
+        "E",
+        "PHalt"
+      ],
+      "clock": {
+        "B(2)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027F\u0027 to \u0027B(2)\u0027.",
+      "event": "F",
+      "state": "Init",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "B(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027E\u0027 to \u0027B(2)\u0027.",
+      "event": "E",
+      "state": "Init",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "B(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027B(2)\u0027 dequeued event \u0027E\u0027 and unblocked in state \u0027X\u0027.",
+      "id": "B(2)",
+      "event": "E",
+      "state": "X",
+      "payload": "null",
+      "wasBlocked": true,
+      "clock": {
+        "B(2)": 8,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027B(2)\u0027 dequeued event \u0027F\u0027 in state \u0027X\u0027.",
+      "id": "B(2)",
+      "event": "F",
+      "state": "X",
+      "payload": "null",
+      "wasBlocked": false,
+      "clock": {
+        "B(2)": 9,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "B(2) is waiting to dequeue an event of type \u0027F\u0027 or \u0027PHalt\u0027 in state \u0027X\u0027.",
+      "id": "B(2)",
+      "payload": "null",
+      "eventTypes": [
+        "F",
+        "PHalt"
+      ],
+      "clock": {
+        "B(2)": 10,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027F\u0027 to \u0027B(2)\u0027.",
+      "event": "F",
+      "state": "Init",
+      "payload": "null",
+      "sender": "Main(1)",
+      "target": "B(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027B(2)\u0027 dequeued event \u0027F\u0027 and unblocked in state \u0027X\u0027.",
+      "id": "B(2)",
+      "event": "F",
+      "state": "X",
+      "payload": "null",
+      "wasBlocked": true,
+      "clock": {
+        "B(2)": 11,
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: receive8.p:38:18 Assertion 1 failed",
+      "error": "Assertion Failed: receive8.p:38:18 Assertion 1 failed",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/float4.coverage.txt
+PCheckerOutput/BugFinding/float4.sci
+PCheckerOutput/BugFinding/float4_pchecker_summary.txt

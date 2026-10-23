@@ -1,0 +1,25 @@
+.. Test case :: DefaultImpl
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+..... Schedule #5
+..... Schedule #6
+..... Schedule #7
+..... Schedule #8
+..... Schedule #9
+..... Schedule #10
+... Emitting coverage report:
+..... Writing PCheckerOutput/BugFinding/foreach4.coverage.txt
+..... Writing PCheckerOutput/BugFinding/foreach4.sci
+... Checking statistics:
+..... Found 0 bugs.
+... Scheduling statistics:
+..... Explored 10 schedules
+..... Explored 1 timeline
+..... Number of scheduling points in terminating schedules: 2 (min), 2 (avg), 2 (max).
+..... Writing PCheckerOutput/BugFinding/foreach4_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

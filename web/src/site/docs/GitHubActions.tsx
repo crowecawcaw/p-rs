@@ -51,7 +51,7 @@ jobs:
         run: curl -fsSL ${INSTALL_SH} | sh -s -- --version 0.1.0
 
       - name: Check the model
-        run: snappea check --time 2m
+        run: snappea check --timeout 2m
 
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -85,30 +85,15 @@ jobs:
       <section>
         <h2 id="budget">How long to explore</h2>
         <p>
-          More schedules find rarer bugs. Pick a budget per test case that fits your CI time:
+          Search strategies are selected automatically. The default is ten seconds per test; choose a larger timeout for CI when needed. Exhaustive completion ends a check early:
         </p>
         <table className="compare ref">
           <tbody>
             <tr>
               <th>
-                <code>--time 2m</code>
+                <code>--timeout 2m</code>
               </th>
               <td>Explore for a fixed time per test case. The simplest choice for CI.</td>
-            </tr>
-            <tr>
-              <th>
-                <code>-n 100000</code>
-              </th>
-              <td>A fixed number of schedules (the default is 10000).</td>
-            </tr>
-            <tr>
-              <th>
-                <code>--exhaustive</code>
-              </th>
-              <td>
-                Every ordering and choice. For small test cases this finishes and proves there is no bug for that
-                configuration; for large ones it may not finish, so give the job a timeout.
-              </td>
             </tr>
           </tbody>
         </table>
@@ -164,7 +149,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: curl -fsSL ${INSTALL_SH} | sh -s -- --version 0.1.0
       - working-directory: model
-        run: snappea check "\${{ matrix.test }}" --time 5m
+        run: snappea check "\${{ matrix.test }}" --timeout 5m
 `}</Code>
       </section>
 

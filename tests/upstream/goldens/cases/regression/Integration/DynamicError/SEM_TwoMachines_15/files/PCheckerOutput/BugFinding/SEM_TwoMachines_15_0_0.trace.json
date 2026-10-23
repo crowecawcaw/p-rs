@@ -1,0 +1,94 @@
+[
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "M was created.",
+      "payload": "null",
+      "monitor": "M",
+      "clock": {
+        "M": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "M enters state \u0027x\u0027.",
+      "state": "x",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "M",
+      "clock": {
+        "M": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Real1_Init\u0027.",
+      "id": "Main(1)",
+      "state": "Real1_Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Main(1) announced event E2 with payload False.",
+      "id": "Main(1)",
+      "event": "E2",
+      "payload": false,
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "M is processing event \u0027E2 with payload (False)\u0027 in state \u0027x\u0027.",
+      "event": "E2",
+      "state": "x",
+      "payload": false,
+      "sender": "Main(1)",
+      "monitor": "M",
+      "clock": {
+        "M": 3,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: MonitorInvocationEventExprPayload.p:20:30",
+      "error": "Assertion Failed: MonitorInvocationEventExprPayload.p:20:30",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

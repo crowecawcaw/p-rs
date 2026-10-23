@@ -1,0 +1,6 @@
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer.coverage.txt
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer.sci
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer_0_0.schedule
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer_0_0.trace.json
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer_0_0.txt
+PCheckerOutput/tcSingleClient/BugFinding/ClientServer_pchecker_summary.txt

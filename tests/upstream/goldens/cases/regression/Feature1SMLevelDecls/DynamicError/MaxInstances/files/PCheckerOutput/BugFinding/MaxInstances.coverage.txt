@@ -1,0 +1,18 @@
+Total event coverage: 0.0%
+==========================
+StateMachine: Ghost
+===================
+Event coverage: 100.0%
+
+	State: _Init
+		State has no expected events, so coverage is 100%
+		Events sent: E1
+
+StateMachine: Main
+==================
+Event coverage: 0.0%
+
+	State: Real_Init is uncovered
+		Events sent: E0
+		Events not covered: E1
+

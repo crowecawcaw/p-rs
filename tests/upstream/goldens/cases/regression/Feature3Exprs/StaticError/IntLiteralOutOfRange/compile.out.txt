@@ -1,0 +1,2 @@
+[Error:] [IntLiteralOutOfRange.p:8:17] value is out of range for type 'int'
+~~ [PTool]: Thanks for using P! ~~

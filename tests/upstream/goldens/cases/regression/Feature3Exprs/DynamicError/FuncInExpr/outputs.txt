@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/FuncInExpr.coverage.txt
+PCheckerOutput/BugFinding/FuncInExpr.sci
+PCheckerOutput/BugFinding/FuncInExpr_0_0.schedule
+PCheckerOutput/BugFinding/FuncInExpr_0_0.trace.json
+PCheckerOutput/BugFinding/FuncInExpr_0_0.txt
+PCheckerOutput/BugFinding/FuncInExpr_pchecker_summary.txt

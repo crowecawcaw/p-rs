@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [linear3.p] parse error: line 18:12 extraneous input 'swap' expecting ')'
+~~ [PTool]: Thanks for using P! ~~

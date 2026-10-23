@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/Elevator.coverage.txt
+PCheckerOutput/BugFinding/Elevator.sci
+PCheckerOutput/BugFinding/Elevator_0_0.schedule
+PCheckerOutput/BugFinding/Elevator_0_0.trace.json
+PCheckerOutput/BugFinding/Elevator_0_0.txt
+PCheckerOutput/BugFinding/Elevator_pchecker_summary.txt

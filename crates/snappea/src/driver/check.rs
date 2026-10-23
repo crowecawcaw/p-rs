@@ -383,6 +383,7 @@ fn engine_options(cfg: &CheckConfig, seed: u32) -> CheckerOptions {
         liveness_temperature_threshold: Some(cfg.liveness_threshold),
         fail_on_max_steps: cfg.fail_on_max_steps,
         strategy_bound: cfg.strategy_bound,
+        upstream_feedback: cfg.style == Style::Upstream,
         full_exploration: cfg.full_exploration,
         incremental_seed: false,
         replay: None,
