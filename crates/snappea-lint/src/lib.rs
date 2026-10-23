@@ -9,7 +9,7 @@ mod visit;
 
 use snappea_syntax::{ast::*, parse, FileId, ParseError, SourceMap, Span};
 
-pub use rules::{PermissiveMonitor, TautologicalAssert, UnselectedSpec, UnusedPayloadField};
+pub use rules::{NoModelMachine, PermissiveMonitor, TautologicalAssert, UnselectedSpec, UnusedPayloadField};
 pub use suppression::MUTATIONS;
 
 /// An actionable diagnostic. Every unsuppressed finding fails CLI linting.
@@ -87,6 +87,7 @@ impl Registry {
     pub fn builtins() -> Self {
         let mut r = Self::default();
         r.register(PermissiveMonitor);
+        r.register(NoModelMachine);
         r.register(UnselectedSpec);
         r.register(TautologicalAssert);
         r.register(UnusedPayloadField);

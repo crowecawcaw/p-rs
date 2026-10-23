@@ -29,6 +29,7 @@ model covers every requirement or faithfully represents the implementation.
 | --- | --- | --- |
 | `permissive-monitor` | A spec accepts every sequence of its observed events through empty handlers, ignores, or unconditional state transitions, with no hot-state obligation. | Check an invariant, reject invalid event ordering, or express a progress obligation. |
 | `unselected-spec` | A spec is selected by no test or runnable implementation in the loaded project. | Add `assert MySpec in ...` to a test/module, or suppress for an observation-only spec. |
+| `no-model-machine` | A runnable test configuration contains no selected implementation machine besides its entry machine. | Put modeled behavior in a separate implementation machine and select it alongside the entry driver. |
 | `tautological-assert` | A scalar assertion is guaranteed true by its expression or preceding assignments. | Compare against independently observed state or an independent expected result. |
 | `unused-payload-field` | An event handler in a spec declares a named payload field but never reads it. | Validate or use the field, or suppress an intentional abstraction. |
 
@@ -63,6 +64,52 @@ The rule resolves named modules across files, including compositions, wrappers,
 and runnable `implementation` declarations. Load the test files along with the
 spec; linting the spec file alone will report it as unselected. A spec used only
 by Python tests or `snappea observe` needs an explicit suppression.
+
+### No modeled machine
+
+Each runnable `test` or `implementation` is checked separately. Its entry machine
+is the ordinary implementation machine that starts the scenario, so putting all
+behavior in that machine leaves the checker with no separate model behavior to
+exercise. Add another `machine` and include it in the test module, for example:
+
+```p
+machine Main {
+  start state Start {
+    entry {
+      var worker: Worker;
+      worker = new Worker();
+    }
+  }
+}
+
+machine Worker {
+  start state Waiting { }
+}
+
+test tcWorker [main=Main]: { Main, Worker };
+```
+
+Module aliases, compositions, and wrappers are followed when identifying the
+machines in each selected configuration. Specs and scenarios do not count, and
+an implementation declared elsewhere in the loaded project does not count.
+When there are no explicit tests or implementations, the checker's implicit
+`DefaultImpl` configuration is checked if a machine named `Main` exists. Files
+without a runnable configuration, such as observation-only specs, are not
+reported. For an intentional fixed-trace test, put a narrow suppression before
+that test or implementation declaration:
+
+```p
+// snappea-lint: allow no-model-machine -- this test checks a fixed trace only
+test tcTrace [main=Main]: { Main };
+```
+
+For the implicit `DefaultImpl` configuration, put the suppression before the
+entry machine declaration instead:
+
+```p
+// snappea-lint: allow no-model-machine -- this observation model has no separate driver
+machine Main { start state S { } }
+```
 
 ### Tautological assertions
 
@@ -104,8 +151,8 @@ spec AtomicCommit observes eCommitted {
 }
 ```
 
-The comment allows only the named rule within the following machine, state,
-handler, function, or statement, including its nested code. It does not suppress
+The comment allows only the named rule within the following machine, test,
+implementation, state, handler, function, or statement, including its nested code. It does not suppress
 sibling declarations or statements. Multiple rule IDs are comma-separated:
 
 ```p

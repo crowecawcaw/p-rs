@@ -43,6 +43,8 @@ fn directives(ctx: &Context<'_>, known: &dyn Fn(&str) -> bool) -> (Vec<(Span, St
     let mut scopes = Vec::new();
     for d in ctx.declarations() {
         match d {
+            TopDecl::SafetyTest(test) => scopes.push(test.span),
+            TopDecl::RefinementTest { span, .. } | TopDecl::Implementation { span, .. } => scopes.push(*span),
             TopDecl::Machine(m) => {
                 scopes.push(m.span);
                 for s in &m.states {
@@ -115,7 +117,7 @@ fn directives(ctx: &Context<'_>, known: &dyn Fn(&str) -> bool) -> (Vec<(Span, St
                         }
                     } else {
                         invalid.push(bad(
-                            "lint suppression must precede a machine, state, handler, function, or statement",
+                            "lint suppression must precede a machine, test, implementation, state, handler, function, or statement",
                         ));
                     }
                 });

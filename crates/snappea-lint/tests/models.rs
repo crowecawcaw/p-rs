@@ -12,7 +12,7 @@ fn has(text: &str, id: &str) -> bool {
     findings(&[text]).iter().any(|f| f.rule == id)
 }
 const PASSIVE: &str = "event E; spec Passive observes E { start state S { on E goto S; } }";
-const SAFE: &str = "event E: (actual: int, expected: int); spec Guard observes E { start state S { on E do (p: (actual: int, expected: int)) { assert p.actual == p.expected; } } } machine Main { start state S {} } test t [main=Main]: assert Guard in {Main};";
+const SAFE: &str = "event E: (actual: int, expected: int); spec Guard observes E { start state S { on E do (p: (actual: int, expected: int)) { assert p.actual == p.expected; } } } machine Main { start state S {} } machine Worker { start state S {} } test t [main=Main]: assert Guard in {Main, Worker};";
 
 #[test]
 fn frozen_agent_models_expose_the_observed_bad_patterns() {
@@ -67,6 +67,81 @@ fn selection_resolves_modules_across_files_and_runnable_implementations() {
         .iter()
         .any(|f| f.rule == "unselected-spec"));
     assert!(findings(&[spec, module, "test t [main=Main]: Base;"]).iter().any(|f| f.rule == "unselected-spec"));
+}
+
+#[test]
+fn no_model_machine_checks_each_runnable_configuration() {
+    assert!(has("machine Main { start state S {} } test t [main=Main]: { Main };", "no-model-machine"));
+    assert!(has(
+        "event E; spec Watch observes E { start state S { on E goto S; } } machine Main { start state S {} } test t [main=Main]: assert Watch in { Main };",
+        "no-model-machine"
+    ));
+    assert!(!has(
+        "machine Main { start state S {} } machine Model { start state S {} } test t [main=Main]: { Main, Model };",
+        "no-model-machine"
+    ));
+    // A declared implementation outside this test module is not selected behavior.
+    assert!(has(
+        "machine Main { start state S {} } machine Model { start state S {} } test t [main=Main]: { Main };",
+        "no-model-machine"
+    ));
+    assert!(has("machine Main { start state S {} } implementation i [main=Main]: { Main };", "no-model-machine"));
+    assert!(!has(
+        "machine Main { start state S {} } machine Model { start state S {} } implementation i [main=Main]: { Main, Model };",
+        "no-model-machine"
+    ));
+    // Implementations without a checker entry are not runnable test cases.
+    assert!(!has("machine Main { start state S {} } implementation i: { Main };", "no-model-machine"));
+}
+
+#[test]
+fn no_model_machine_resolves_aliases_compositions_and_wrappers() {
+    let source = "machine Main { start state S {} } machine Model { start state S {} } module MainModule = { Main }; module ModelModule = { Model }; module Base = compose MainModule, ModelModule; module Alias = main Model in Base; test t [main=Main]: Alias;";
+    assert!(!has(source, "no-model-machine"));
+
+    let source = "machine Main { start state S {} } machine Model { start state S {} } module Base = { Main, Model }; module Alias = Base; test t [main=Main]: Alias;";
+    assert!(!has(source, "no-model-machine"));
+
+    let files = [
+        "machine Main { start state S {} } machine Model { start state S {} }",
+        "module Base = { Main, Model };",
+        "module Alias = main Model in Base; test t [main=Main]: Alias;",
+    ];
+    let fs = findings(&files);
+    assert!(!fs.iter().any(|f| f.rule == "no-model-machine"));
+}
+
+#[test]
+fn no_model_machine_is_per_test_and_scoped_suppression_does_not_leak() {
+    let two_tests = "event E; spec Watch observes E { start state S { on E goto S; } } machine Main { start state S {} } machine Other { start state S {} } test trace [main=Main]: assert Watch in { Main }; test modeled [main=Other]: { Main, Other };";
+    let fs = findings(&[two_tests]);
+    assert_eq!(fs.iter().filter(|f| f.rule == "no-model-machine").count(), 1);
+
+    let suppressed = "machine Main { start state S {} }\n// snappea-lint: allow no-model-machine -- fixed trace fixture\ntest trace [main=Main]: { Main };\ntest sibling [main=Main]: { Main };";
+    let fs = findings(&[suppressed]);
+    assert_eq!(fs.iter().filter(|f| f.rule == "no-model-machine").count(), 1);
+    assert!(!fs.iter().any(|f| f.rule == "invalid-suppression"));
+
+    let implementation = "machine Main { start state S {} }\n// snappea-lint: allow no-model-machine -- trace-only implementation fixture\nimplementation trace [main=Main]: { Main };\nimplementation sibling [main=Main]: { Main };";
+    let fs = findings(&[implementation]);
+    assert_eq!(fs.iter().filter(|f| f.rule == "no-model-machine").count(), 1);
+    assert!(!fs.iter().any(|f| f.rule == "invalid-suppression"));
+}
+
+#[test]
+fn no_model_machine_uses_checker_implicit_main_conditions() {
+    assert!(has("machine Main { start state S {} }", "no-model-machine"));
+    let suppressed =
+        "// snappea-lint: allow no-model-machine -- trace-only default model\nmachine Main { start state S {} }";
+    assert!(!findings(&[suppressed]).iter().any(|f| f.rule == "no-model-machine"));
+    assert!(!has("machine Main { start state S {} } machine Worker { start state S {} }", "no-model-machine"));
+    // Once a test exists, the checker does not synthesize the default implementation.
+    assert!(!has(
+        "machine Main { start state S {} } machine Worker { start state S {} } test t [main=Main]: { Main, Worker };",
+        "no-model-machine"
+    ));
+    // Observation-only sources without a runnable test do not invent a Main test.
+    assert!(!has("event E; spec Watch observes E { start state S { on E goto S; } }", "no-model-machine"));
 }
 
 fn block(body: &str) -> String {
