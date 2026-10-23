@@ -281,7 +281,7 @@ fn guided_search_develops_rare_data_and_scheduling_prefixes_and_replays_them() {
 
 #[test]
 fn auto_completes_finite_search_and_replays_failures() {
-    let safe = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::Auto, 0));
+    let safe = check(&clients("assert sizeof(got) == 3;"), &opts(StrategyKind::Auto, 1000));
     assert_eq!(safe.report.num_bugs, 0);
     assert!(safe.exhaustive.unwrap().finished);
     let buggy = check(&clients("assert false, \"all clients delivered\";"), &opts(StrategyKind::Auto, 1000));
@@ -412,15 +412,38 @@ fn schedule_observer_counts_every_exploration_and_can_stop_at_all_bugs() {
 }
 
 #[test]
-fn short_circuit_conditions_supply_native_guidance_without_changing_reported_coverage() {
-    let source = r#"machine Main { start state Init { entry {
+fn native_feedback_records_atomic_condition_probes_and_compat_does_not_enable_them() {
+    use snappea::checker::bytecode::ProbeKind;
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add(
+        "model.p",
+        r#"machine Main { start state Init { entry {
         if ($ && $ && $) { print "all true"; }
-    } } } test tcMain [main=Main]: { Main };"#;
+    } } } test tcMain [main=Main]: { Main };"#,
+    );
+    let a = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let tc = a.program.test_cases().remove(0);
+    let checker = Checker::with_code_coverage(&a.program);
     let options = CheckerOptions { activity_coverage: true, ..opts(StrategyKind::Feedback, 200) };
-    let native = check(source, &options).coverage.unwrap();
-    assert_eq!(native.condition_edges.len(), 4, "both outcomes of two short-circuit decisions");
-    let legacy = check(source, &CheckerOptions { upstream_feedback: true, ..options }).coverage.unwrap();
-    assert!(legacy.condition_edges.is_empty(), "compatibility runs retain upstream feedback");
+    let native = checker.check(&tc, &options, &mut Quiet).unwrap().coverage.unwrap();
+    let conditions: Vec<_> = checker
+        .code
+        .probes
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| matches!(p.kind, ProbeKind::ConditionTrue | ProbeKind::ConditionFalse))
+        .collect();
+    assert_eq!(conditions.len(), 6, "two outcomes of each of three atomic conditions");
+    assert!(conditions.iter().all(|(id, _)| native.probes.contains(*id as u32)));
+    let legacy = Checker::new(&a.program)
+        .check(&tc, &CheckerOptions { upstream_feedback: true, ..options }, &mut Quiet)
+        .unwrap()
+        .coverage
+        .unwrap();
+    assert!(
+        checker.code.probes.iter().enumerate().all(|(id, _)| !legacy.probes.contains(id as u32)),
+        "compatibility runs must not enable code instrumentation for feedback"
+    );
 }
 
 #[test]
@@ -433,4 +456,107 @@ fn discovery_identity_ignores_instances_but_preserves_distinct_event_names() {
         failure_site("Assertion Failed: dir with spaces/x.p:3:2 value 12"),
         failure_site("Assertion Failed: dir with spaces/x.p:3:2 value 99")
     );
+}
+
+#[test]
+fn auto_depth_bound_hands_off_to_fair_feedback_and_replays_the_bug() {
+    let src = "machine Main { start state S { entry { if ($) { if ($) { if ($) { assert false; } } } } } } test tcMain [main=Main]: { Main };";
+    let options = CheckerOptions { max_unfair_steps: 2, max_fair_steps: 100, ..opts(StrategyKind::Auto, 100) };
+    let result = check(src, &options);
+    assert_eq!(result.report.num_bugs, 1);
+    assert_eq!(result.report.explored_unfair_schedules, 1);
+    assert!(result.report.explored_fair_schedules > 0);
+    let stats = result.exhaustive.unwrap();
+    assert!(!stats.finished);
+    assert_eq!(stats.depth_bound_hits, 1);
+    let replay = check(
+        src,
+        &CheckerOptions {
+            strategy: StrategyKind::Replay,
+            replay: Some(ScheduleTrace::parse(result.schedule_trace.as_ref().unwrap()).unwrap()),
+            ..options
+        },
+    );
+    assert_eq!(replay.report.bug_reports, result.report.bug_reports);
+    assert!(replay.replay_error.is_none());
+}
+
+#[test]
+fn auto_keeps_coverage_from_both_sides_of_the_feedback_handoff() {
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("model.p", "machine Main { start state S { entry { var n: int; var i: int; if ($) { print \"left\"; } else { print \"right\"; } while (i < 200) { n = choose(10000); i = i + 1; } print \"done\"; } } } test tcMain [main=Main]: { Main };");
+    let a = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let tc = a.program.test_cases().remove(0);
+    let checker = Checker::with_code_coverage(&a.program);
+    for seed in 0..20 {
+        let options = CheckerOptions { seed, activity_coverage: true, ..opts(StrategyKind::Auto, 1) };
+        let dfs = checker.check(&tc, &options, &mut Quiet).unwrap().coverage.unwrap();
+        let feedback = checker
+            .check(&tc, &CheckerOptions { strategy: StrategyKind::Feedback, ..options.clone() }, &mut Quiet)
+            .unwrap()
+            .coverage
+            .unwrap();
+        let mut expected = feedback.probes.clone();
+        expected.union(&dfs.probes);
+        if expected == feedback.probes {
+            continue;
+        }
+        let both = checker.check(&tc, &CheckerOptions { iterations: 2, ..options }, &mut Quiet).unwrap();
+        assert_eq!(both.report.explored_unfair_schedules, 1);
+        assert_eq!(both.report.explored_fair_schedules, 1);
+        assert_eq!(both.coverage.unwrap().probes, expected, "DFS-only hits must survive the fresh feedback history");
+        return;
+    }
+    panic!("fixture did not exercise distinct DFS/feedback coverage");
+}
+
+#[test]
+fn auto_keeps_small_recovery_models_in_exhaustive_search() {
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("prefix.p", include_str!("models/guided_prefix.p"));
+    let a = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let checker = Checker::new(&a.program);
+    for name in ["tcDataPrefix___depth_24", "tcSchedulePrefix___depth_12", "tcSchedulePrefix___depth_24"] {
+        let tc = a.program.test_cases().into_iter().find(|tc| tc.name == name).unwrap();
+        let result =
+            checker.check(&tc, &CheckerOptions { seed: 1, ..opts(StrategyKind::Auto, 200) }, &mut Quiet).unwrap();
+        assert_eq!(
+            result.report.num_bugs, 1,
+            "{name}: a small recovery model should stay exhaustive long enough to reach its deep bug"
+        );
+    }
+}
+
+#[test]
+fn feedback_keeps_boolean_assignment_prefixes_in_addition_to_reported_conditions() {
+    let condition = std::iter::repeat_n("$", 20).collect::<Vec<_>>().join(" && ");
+    let src = format!("machine Main {{ start state S {{ entry {{ var ready: bool; ready = {condition}; if (ready) {{ assert false, \"rare Boolean assignment\"; }} }} }} }} test tcMain [main=Main]: {{ Main }};");
+    let result = check(&src, &opts(StrategyKind::Feedback, 2000));
+    assert_eq!(result.report.num_bugs, 1, "if/while probes alone cannot see progress inside the assignment");
+}
+
+#[test]
+fn auto_exhausts_atomic_inventory() {
+    let mut sources = snappea::syntax::SourceMap::new();
+    for (name, src) in [
+        ("Inventory.p", include_str!("../../../examples/model/PSrc/Inventory.p")),
+        ("inventory-spec.p", include_str!("../../../examples/model/PSpec/inventory.p")),
+        ("TestDriver.p", include_str!("../../../examples/model/PTst/TestDriver.p")),
+        ("TestScript.p", include_str!("../../../examples/model/PTst/TestScript.p")),
+    ] {
+        sources.add(name, src);
+    }
+    let analysis = snappea::sema::compile(&sources, &Default::default()).unwrap();
+    let tc = analysis.program.test_cases().into_iter().find(|t| t.name == "tcAtomicReserve").unwrap();
+    for strategy in [StrategyKind::RandomDfs, StrategyKind::Auto] {
+        let result = Checker::new(&analysis.program)
+            .check(
+                &tc,
+                &CheckerOptions { strategy, iterations: 30_000, full_exploration: true, seed: 0, ..Default::default() },
+                &mut Quiet,
+            )
+            .unwrap();
+        assert_eq!(result.report.num_bugs, 0);
+        assert!(result.exhaustive.as_ref().is_some_and(|s| s.finished));
+    }
 }

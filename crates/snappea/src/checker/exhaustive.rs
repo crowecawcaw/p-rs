@@ -87,6 +87,16 @@ impl ExhaustiveStrategy {
         }
     }
 
+    /// Allocated choice alternatives retained along the current DFS path.
+    pub(crate) fn retained_alternatives(&self) -> usize {
+        self.path.iter().map(|choice| choice.options.len()).sum()
+    }
+
+    /// Untried alternatives remaining along the current DFS frontier.
+    pub(crate) fn pending_alternatives(&self) -> usize {
+        self.path.iter().map(|c| c.options.len() - c.taken - 1).sum()
+    }
+
     /// The next decision of the current schedule: the path's choice while replaying it,
     /// else a new choice point with `options` (never empty).
     fn decide(&mut self, kind: Kind, mut options: Vec<u64>) -> u64 {

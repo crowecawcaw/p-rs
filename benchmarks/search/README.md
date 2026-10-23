@@ -30,8 +30,8 @@ without updating main history.
 
 Measurements compare code commit `63686f4` with the original feedback scheduler at
 `9983d8d`, using Rust 1.99.1 and suite version 1. The checked-in raw results are
-[baseline.json](baseline.json), [guided.json](guided.json), and
-[holdout.json](holdout.json). Each records an exact commit and `dirty: false`.
+[baseline.json.gz](baseline.json.gz), [guided.json.gz](guided.json.gz), and
+[holdout.json.gz](holdout.json.gz). Each records an exact commit and `dirty: false`.
 Random and both exhaustive strategies produced identical per-seed results before
 and after the change on seeds 0–19.
 
@@ -39,7 +39,7 @@ On seeds 0–19, standalone feedback found all three bugs in **100/100 model run
 compared with **80/100** for original feedback and **83/100** for random. DFS and
 randomized DFS completed all 100. On the separate seeds 20–39, final feedback
 completed **100/100**, random **81/100**, and both exhaustive strategies **100/100**.
-The automatic portfolio completed 99/100 on seeds 0–19 and 98/100 on seeds 20–39;
+The earlier automatic portfolio completed 99/100 on seeds 0–19 and 98/100 on seeds 20–39;
 its initial exhaustive probe and work allocation mean it does not inherit the
 standalone feedback scheduler's full improvement.
 
@@ -114,8 +114,8 @@ The per-commit workflow also appends the broad corpus results to `corpus.jsonl`
 on the `benchmarks` branch and uploads the complete Markdown per-case table.
 Verify accounting with `python3 -m unittest discover -s scripts -p test_bench_corpus.py`.
 
-The checked-in [full per-case corpus report](corpus.md) and
-[compressed raw measurements](corpus.json.gz) record a three-seed quick pass at
+The checked-in [previous per-case corpus report](corpus-before-auto.md) and
+[compressed raw measurements](corpus-before-auto.json.gz) record a three-seed quick pass at
 commit `befd956` (clean working tree). All 459 model inputs were inventoried:
 289 resolved/compiled projects supplied **495 expanded test cases**; 148 static
 error inputs were excluded as not schedulable, and 22 inputs had explicit
@@ -140,3 +140,87 @@ python3 scripts/bench-corpus.py --seeds 3 --out corpus.json --report corpus.md
 
 The gzip file contains ordinary JSON and can be read with `gzip -dc
 benchmarks/search/corpus.json.gz` or Python's `gzip.open`.
+
+
+Automatic search now exhausts small models first, then permanently hands off to
+feedback when the frontier stops converging or a work, memory, or depth bound is
+reached. There are no independent random or PCT arms. Feedback still performs
+fresh sampling (25%, rising to 75% after 128 unproductive schedules), because
+coverage gives no direction through opaque predicates. Timed models start with
+feedback; incomplete exhaustion never certifies safety. The exhaustive phase
+allows a narrow frontier to continue, which preserves deep recovery examples
+that regressed when every search was cut off after the first probe window.
+
+The new raw measurements are [auto.json.gz](auto.json.gz),
+[auto-holdout.json.gz](auto-holdout.json.gz), and the
+[full per-case corpus report](corpus.md) with [raw data](corpus.json.gz).
+Their metadata records the exact measured revision and clean working tree.
+
+| Synthetic result | Previous auto | Exhaustive-first auto |
+|---|---:|---:|
+| All bugs found, seeds 0–19 | 99/100 | 100/100 |
+| All bugs found, seeds 20–39 | 98/100 | 100/100 |
+| Five-client delivery median, seeds 0–19 | 2,740 | 1,416.5 |
+| Five-client delivery median, seeds 20–39 | 2,385 | 1,340.5 |
+
+The delivery medians for previous auto exclude its incomplete runs; completion
+rates above must be considered with them. Standalone feedback remains faster on
+this workload (577.5 and 498 schedules respectively). The exhaustive-first policy
+pays for the user's preference to finish small models exhaustively, rather than
+choosing the fastest synthetic sampling strategy at every size.
+
+The condition/transition-pair coverage from PR #95 was also evaluated. Atomic
+condition probes now appear in reports, while existing expression-edge guidance
+is retained: it covers Boolean assignments and returns as well as `if`/`while`
+guards. Crediting every reported atomic outcome separately improved four-client
+delivery median from 154.5 to 102, but five-client feedback fell from 20/20
+completions to 19/20 and its penalized mean rose from 682.9 to 2,008 schedules.
+The final policy excludes those additional atomic probe bits from independent
+seed novelty, avoiding competing credit for overlapping condition signals.
+Transition pairs do add independent context (A→B→C versus previously covered
+individual edges), and now contribute to feedback novelty. A regression test
+checks novelty for a new pair and none for a repeated pair.
+
+These additional coverage types did not demonstrate an overall discovery speedup
+in this pass. The final synthetic results match the same exhaustive-first policy
+before their integration. They supply richer reports and potential path guidance,
+without sacrificing the rare-expression-prefix guidance that already works.
+
+The pre-rebase condition-probe experiment is recorded in
+[condition-novelty-trial.json.gz](condition-novelty-trial.json.gz) and
+[its holdout](condition-novelty-trial-holdout.json.gz), measured at `0bc64de`.
+That scheduler patch is retained in the PR history before the corrective
+expression-guidance change; raw data preserves the original measured revision.
+
+The final broad pass covers 495 cases and 5,940 strategy/seed measurements.
+On the same catalog digest as the previous pass, auto finds all observed issues
+in **420/435** runs (previous auto 421/435), standalone feedback in **421/435**,
+random in **415/435**, and DFS in **408/435**. The lost auto discovery is one seed
+of the upstream OSR `DefaultImpl` case: all three new auto seeds reach the
+200-schedule budget, so this is a scheduling tradeoff rather than a time-cap
+artifact. This policy does not improve every model. Exhaustion certifies 404
+catalogs; 13 expected DynamicError cases still have no observed common issue.
+
+The CI inventory example exposed a limit in the initial policy above: its fixed
+16,384-choice cap abandoned a finite search even while the cache kept closing
+paths. The final policy renews that stall budget whenever a probe window prunes
+at least as many schedules as it discovers states. Memory limits now count
+retained alternatives rather than choices replayed across earlier schedules.
+Atomic inventory exhausts in 20,241 schedules for seed 0; a regression checks
+both randomized DFS and auto complete within 30,000 schedules with no bug.
+
+The rerun at `bf0fae4` is recorded in [convergence.json.gz](convergence.json.gz),
+[convergence-holdout.json.gz](convergence-holdout.json.gz), and
+[convergence-corpus.json.gz](convergence-corpus.json.gz), with the complete
+[per-case report](convergence-corpus.md). The initial `auto` files above remain
+available to compare the convergence fix's discovery tradeoff.
+
+Both synthetic seed sets still complete 100/100 runs. Five-client auto medians
+rise to 3,433 schedules (seeds 0–19) and 3,597 (seeds 20–39), versus the initial
+cutoff policy's 1,416.5 and 1,340.5. They also exceed the previous portfolio's
+completed-only medians of 2,740 and 2,385; that portfolio missed one/two runs.
+This is the cost of preserving converging exhaustive completion rather than
+claiming small-model completeness while abandoning the inventory example.
+Standalone feedback results are unchanged. The broad corpus retains the same
+catalog digest and completion counts: auto 420/435, feedback 421/435, random
+415/435, DFS 408/435; 404 catalogs are exhaustively certified.

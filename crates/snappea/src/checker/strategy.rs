@@ -14,7 +14,7 @@ use crate::checker::random::RandomValueGenerator;
 pub enum StrategyKind {
     #[default]
     Random,
-    /// Native automatic portfolio; upstream defaults remain random.
+    /// Native exhaustive-first search with feedback fallback; upstream defaults remain random.
     Auto,
     Pct,
     FairPct,
@@ -179,6 +179,11 @@ pub trait Strategy {
     /// there, without a deadlock or liveness check (the state was explored before).
     fn observe_state(&mut self, _hash: u64) -> bool {
         true
+    }
+    /// Independent coverage novelty history of the current scheduler phase. Coverage
+    /// reports still merge every phase; changing this starts a fresh guidance history.
+    fn coverage_epoch(&self) -> u64 {
+        0
     }
     /// Coverage delta and failure observed during the current execution.
     fn observe_progress(&mut self, _new_coverage: usize, _bug: Option<&str>) {}

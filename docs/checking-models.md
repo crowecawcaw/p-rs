@@ -14,28 +14,38 @@ snappea replay PCheckerOutput/tcMyTest/bug.schedule
 `snappea check` type-checks and [lints](linting.md) the sources before exploring
 schedules. Unsuppressed lint findings stop the check with exit status 2; run
 `snappea check lint` to inspect them without exploration. It selects search strategies automatically.
-Each worker retains an exhaustive frontier, fresh random exploration, a guided
-corpus, and a priority scheduler (PCT). A short probe measured in controlled choices
-lets small exhaustive searches finish immediately. After the probe, work credits
-reserve at least 30% for random, 30% for guided, 10% for PCT, and 10% for exhaustive
-search while all four arms remain enabled. Recent new event-order patterns,
-monitor/scenario, statement, branch and activity coverage, distinct failure sites, and state-cache
-convergence determine the remaining 20%. Allocation measures scheduling and data
-choices rather than schedule counts or elapsed time. Each arm keeps its search
-state when another arm runs.
+Each worker starts with exhaustive search so small finite models can finish.
+After each 1,024 controlled choices it checks whether the unexplored frontier is
+small, state-cache pruning is keeping up with new states, or a shrinking frontier
+is projected to finish within another 4,096 choices. If none applies, it releases
+the exhaustive search and continues with coverage-guided feedback. Narrow frontiers
+(up to 256 untried alternatives) get the bounded probe to reach deeper recovery stages. The 16,384-choice stall budget renews while cache pruning keeps up with new states.
+Memory is limited to 100,000 cached states and 1,000,000 retained choice
+alternatives; hitting a step bound also starts feedback.
+There are no separate random or PCT arms in automatic mode. Feedback retains its
+own fresh sampling so it can escape unproductive seeds.
 
-The guided corpus keeps schedules that add code coverage, short-circuit condition
-outcomes, event-order features, scenario progress, or a distinct failure site.
+The handoff gives feedback a fresh coverage novelty history; the coverage report
+still includes every schedule from both phases. Work budgets count controlled
+scheduling and data choices, including replayed DFS prefixes, rather than elapsed
+time or schedule counts.
+
+The guided corpus keeps schedules that add statement/branch coverage, Boolean
+expression outcomes, consecutive transition pairs, event-order features, scenario
+progress, or a distinct failure site. Boolean expression edges also guide assignments
+and returns outside the reported condition coverage of `if`/`while` guards. Reported
+atomic condition outcomes overlap these expression and branch features; feedback
+retains them in coverage reports without treating them as a second source of seed
+novelty.
 It mutates productive seeds immediately, mixing small input changes with resampled
 continuations. Seeds of distinct failure sites remain available when searching for
 other bugs. Stalled guidance increases fresh sampling while retaining a share for
 mutations. The corpus and event-feature history are bounded.
 
-A completed exhaustive search ends the run early. State and choice-expansion caps
-keep exhaustive exploration bounded; the remaining arms continue when a cap is
-reached. Timed models use the sampled arms because exhaustive time tracking is not
-supported. Hot cycles continue through fair sampling: closing a repeated state is
-not a liveness proof. A coverage plateau changes allocation, never the stopping rule.
+A completed exhaustive search ends the run early. Timed models start directly
+with feedback because exhaustive time tracking is not supported. Cyclic hot
+monitors also continue through fair feedback: closing a repeated state is not a
+liveness proof. Stalling changes strategy; it never certifies a model as safe.
 
 The default is a fixed **10-second limit per test**, with no automatic extensions.
 `--timeout` overrides it; the previous spelling `--time` remains an alias. A timeout
@@ -46,7 +56,7 @@ exhaustive completion from an incomplete search.
 Workers run in parallel, one per available CPU core by default; `-j N` limits resource
 use. The first bug or a valid exhaustive completion stops the other workers. `--seed`
 sets their starting seeds, but worker interleaving can change which bug wins. Bug
-schedules record the choices and replay independently of the allocating policy.
+schedules record the choices and replay independently of the automatic policy.
 `-v` shows progress and statistics and uses one worker.
 
 Each test case's files go to `PCheckerOutput/<test>/`, replacing the previous run's:
