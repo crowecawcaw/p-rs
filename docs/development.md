@@ -105,3 +105,22 @@ python3 scripts/bench.py report --current bench.json --history old.jsonl
 * Against upstream P: run the "Benchmark vs upstream P" workflow by hand. It installs P
   from NuGet, runs both tools on the same runner and appends the comparison to
   `upstream.jsonl` on the `benchmarks` branch.
+
+Search effectiveness is measured separately from throughput:
+
+```sh
+python3 scripts/bench-search.py --out search.json
+```
+
+This compares random, feedback, DFS, randomized DFS and auto on a fixed multi-bug
+suite across 20 seeds, counting schedules to each bug and to all known bugs. Runs
+that miss bugs within 10,000 schedules remain explicitly incomplete. The
+`Search effectiveness` workflow records every main commit in `search.jsonl` on
+the `benchmarks` branch. See [methodology and recorded experiments](../benchmarks/search/README.md)
+for the workloads, raw results and limits of the comparisons.
+
+For a quick pass across every runnable example/tutorial/regression model test
+case, use `python3 scripts/bench-corpus.py --out corpus.json`. It writes a per-case
+`corpus.md` table and raw first-discovery schedule counts for random, feedback,
+DFS and auto. Unknown totals and unsuccessful/incomplete runs remain explicit;
+see the [corpus methodology](../benchmarks/search/README.md).

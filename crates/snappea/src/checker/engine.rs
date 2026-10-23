@@ -301,12 +301,37 @@ fn percent(v: f64) -> String {
     format!("{:.2}%", v)
 }
 
+/// A stable failure identity for discovery metrics. Assertions use their source site
+/// without formatted values. Other errors ignore numeric machine instance suffixes,
+/// preserving event/type names such as `e1` and `e2` as distinct issues.
+pub fn failure_site(bug: &str) -> String {
+    if bug.starts_with("Assertion Failed: ") {
+        return crate::checker::auto::failure_class(bug);
+    }
+    let mut key = String::new();
+    for part in bug.split_inclusive(')') {
+        if let Some(start) = part.rfind('(').filter(|_| part.ends_with(')')) {
+            let id = &part[start + 1..part.len() - 1];
+            if !id.is_empty() && id.bytes().all(|b| b.is_ascii_digit()) {
+                key.push_str(&part[..start]);
+                key.push_str("(#)");
+                continue;
+            }
+        }
+        key.push_str(part);
+    }
+    key
+}
+
 /// Receives the console output of a run as it is produced.
 pub trait Output {
     /// A normal line (`Logger.WriteLine`).
     fn line(&mut self, s: &str);
     /// A bug report (`ErrorReporter.WriteErrorLine`).
     fn error(&mut self, s: &str);
+    /// A completed exploration schedule (one-based across workers), including its bug.
+    /// Replays used to render traces do not emit this callback.
+    fn schedule_finished(&mut self, _schedule: usize, _bug: Option<&str>) {}
     /// Polled before every schedule; returning true stops exploration (timeouts).
     fn cancelled(&mut self) -> bool {
         false
@@ -375,6 +400,7 @@ fn build_strategy(
         let bound = if opts.upstream_feedback { opts.max_unfair_steps } else { opts.max_fair_steps };
         Box::new(
             FeedbackGuidedStrategy::new(bound, opts.seed, scheduler)
+                .with_code_guidance(!opts.upstream_feedback)
                 .with_legacy_mutations(opts.upstream_feedback)
                 .with_fresh_exploration(if opts.upstream_feedback { 0 } else { 25 }),
         )
@@ -533,11 +559,18 @@ pub struct Checker<'p> {
     /// Implementations of the program's foreign functions.
     pub foreign: Option<Rc<dyn crate::checker::foreign::ForeignFunctions>>,
     coverage_tables: std::cell::OnceCell<Rc<crate::checker::coverage::CoverageTables>>,
+    guided_code: std::cell::OnceCell<Code>,
 }
 
 impl<'p> Checker<'p> {
     pub fn new(prog: &'p Program) -> Checker<'p> {
-        Checker { prog, code: compile_program(prog), foreign: None, coverage_tables: std::cell::OnceCell::new() }
+        Checker {
+            prog,
+            code: compile_program(prog),
+            foreign: None,
+            coverage_tables: std::cell::OnceCell::new(),
+            guided_code: std::cell::OnceCell::new(),
+        }
     }
 
     /// A checker whose code records which statements and branches run: activity coverage
@@ -545,7 +578,13 @@ impl<'p> Checker<'p> {
     /// [`crate::checker::code_coverage`]).
     pub fn with_code_coverage(prog: &'p Program) -> Checker<'p> {
         let code = crate::checker::compile::compile_program_with_probes(prog);
-        Checker { prog, code, foreign: None, coverage_tables: std::cell::OnceCell::new() }
+        Checker {
+            prog,
+            code,
+            foreign: None,
+            coverage_tables: std::cell::OnceCell::new(),
+            guided_code: std::cell::OnceCell::new(),
+        }
     }
 
     /// Node/event tables for activity coverage (built on first use).
@@ -721,7 +760,17 @@ impl<'p> Checker<'p> {
         // `Task.Id`s are handed out in order: one for the engine, then per schedule one for
         // the test task and one per machine event handler run
         let mut tasks_used = 1u64;
-        let coverage_tables = opts.activity_coverage.then(|| self.coverage_tables());
+        let guided = !opts.upstream_feedback
+            && matches!(
+                opts.strategy,
+                StrategyKind::Auto | StrategyKind::Feedback | StrategyKind::FeedbackPct | StrategyKind::FeedbackPos
+            );
+        let code = if guided && self.code.probes.is_empty() {
+            self.guided_code.get_or_init(|| crate::checker::compile::compile_program_with_probes(prog))
+        } else {
+            &self.code
+        };
+        let coverage_tables = (opts.activity_coverage || guided).then(|| self.coverage_tables());
         let mut verbose_json = (opts.verbose && opts.json_trace && !is_replay).then(Vec::new);
         let mut depth_bound_hits = 0usize;
         while !idle && (max_iterations == 0 || i < max_iterations) {
@@ -745,14 +794,21 @@ impl<'p> Checker<'p> {
                     foreign: self.foreign.clone(),
                     time: time.clone(),
                     json_trace: verbose_json.is_some(),
-                    coverage: coverage_tables
-                        .as_ref()
-                        .map(|t| Coverage::new(t.clone(), result.coverage.take().unwrap_or_default())),
+                    coverage: coverage_tables.as_ref().map(|t| {
+                        Coverage::new(t.clone(), result.coverage.take().unwrap_or_default())
+                            .with_condition_guidance(guided)
+                    }),
                     ..Setup::default()
                 };
-                let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, setup);
+                let mut rt = Runtime::new(prog, code, module, &config, &mut *strategy, setup);
                 let previous_coverage = rt.coverage.as_ref().map_or(0, |c| c.feature_count());
                 rt.run_test(main, &tc.name);
+                if rt.bug.is_none() {
+                    rt.check_hot_monitors_at_termination();
+                }
+                let new_coverage =
+                    rt.coverage.as_ref().map_or(0, |c| c.feature_count()).saturating_sub(previous_coverage);
+                rt.strategy.observe_progress(new_coverage, rt.bug.as_deref());
                 if rt.strategy.wants_feedback() {
                     let tokens = rt.timeline.tokens();
                     let timeline = tokens.join(";");
@@ -767,13 +823,11 @@ impl<'p> Checker<'p> {
                         rt.scenarios.iter().filter(|s| s.satisfied).map(|s| s.name.clone()).collect();
                     rt.strategy.observe_timeline(&timeline, &minhash, &reached, &satisfied);
                 }
-                if rt.bug.is_none() {
-                    rt.check_hot_monitors_at_termination();
-                }
-                let new_coverage =
-                    rt.coverage.as_ref().map_or(0, |c| c.feature_count()).saturating_sub(previous_coverage);
-                rt.strategy.observe_progress(new_coverage, rt.bug.as_deref());
+
                 bug_found = rt.bug.is_some();
+                if !is_replay {
+                    out.borrow_mut().schedule_finished(schedule, rt.bug.as_deref());
+                }
                 let test_task_id = tasks_used + 1;
                 tasks_used += 1 + rt.handler_starts;
                 if let (Some(all), Some(j)) = (verbose_json.as_mut(), rt.json.take()) {

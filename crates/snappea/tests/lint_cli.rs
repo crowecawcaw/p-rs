@@ -14,17 +14,17 @@ fn lint_uses_the_shared_json_output_for_results_rules_and_failures() {
     let mut h = MemHost::new("/w");
     h.terminal = false;
     h.add_file("model.p", MODEL);
-    for command in ["lint", "check"] {
-        assert_eq!(run(&mut h, &[command, "model.p"]), 2);
+    for command in [&["check", "lint"][..], &["check"], &["check", "lint"]] {
+        assert_eq!(run(&mut h, &[command, &["model.p"]].concat()), 2);
         let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
         assert_eq!(result["exit_code"], 2);
         assert!(result["error"].as_str().unwrap().contains("permissive-monitor"));
     }
-    assert_eq!(run(&mut h, &["lint", "--list-rules"]), 0);
+    assert_eq!(run(&mut h, &["check", "lint", "--list-rules"]), 0);
     let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
     assert_eq!(result["rules"].as_array().unwrap().len(), 4);
     h.add_file("model.p", "machine Main { start state S {} }");
-    assert_eq!(run(&mut h, &["lint", "model.p", "--json-report", "lint.json"]), 0);
+    assert_eq!(run(&mut h, &["check", "lint", "model.p", "--json-report", "lint.json"]), 0);
     let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
     assert_eq!(result["findings"], serde_json::json!([]));
     assert_eq!(result["exit_code"], 0);
@@ -39,7 +39,7 @@ fn frozen_agent_models_type_check_and_report_the_expected_weaknesses() {
     ] {
         let mut h = MemHost::new("/w");
         h.add_file("model.p", source);
-        assert_eq!(run(&mut h, &["lint", "model.p"]), 2);
+        assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 2);
         assert!(h.stderr.contains(&format!("error[{expected}]")), "{}{}", h.stdout, h.stderr);
         assert!(h.files_under("PCheckerOutput").is_empty());
     }
@@ -49,7 +49,7 @@ fn frozen_agent_models_type_check_and_report_the_expected_weaknesses() {
 fn lint_and_check_fail_with_same_findings_before_any_output_is_written() {
     let mut h = MemHost::new("/w");
     h.add_file("model.p", MODEL);
-    assert_eq!(run(&mut h, &["lint", "model.p"]), 2);
+    assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 2);
     let lint = h.stderr.clone();
     assert!(lint.contains("model.p:2:6: error[permissive-monitor]"), "{lint}");
     assert_eq!(run(&mut h, &["check", "model.p"]), 2);
@@ -66,7 +66,7 @@ fn scoped_suppression_allows_check_but_does_not_hide_model_bugs() {
         "// snappea-lint: allow permissive-monitor -- intentionally passive fixture\nspec Passive",
     );
     h.add_file("model.p", &model);
-    assert_eq!(run(&mut h, &["lint", "model.p"]), 0, "{}{}", h.stdout, h.stderr);
+    assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 0, "{}{}", h.stdout, h.stderr);
     assert_eq!(h.stdout, "Lint passed.\n");
     assert!(h.files_under("PCheckerOutput").is_empty());
     assert_eq!(run(&mut h, &["check", "model.p"]), 0, "{}{}", h.stdout, h.stderr);
@@ -86,29 +86,32 @@ fn source_discovery_pproj_and_parse_errors_work_without_running_schedules() {
         "<Project><ProjectName>Model</ProjectName><InputFiles><PFile>model.p</PFile></InputFiles></Project>",
     );
     h.add_file("model.p", MODEL);
-    assert_eq!(run(&mut h, &["lint"]), 2);
+    assert_eq!(run(&mut h, &["check", "lint"]), 2);
     assert!(h.stderr.contains("permissive-monitor"));
-    assert_eq!(run(&mut h, &["lint", "Model.pproj"]), 2);
+    assert_eq!(run(&mut h, &["check", "lint", "Model.pproj"]), 2);
     assert!(h.stderr.contains("permissive-monitor"));
     h.add_file("model.p", "machine Main { broken");
-    assert_eq!(run(&mut h, &["lint", "model.p"]), 2);
+    assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 2);
     assert!(!h.stdout.contains("Lint passed"));
     h.add_file("model.p", "machine Main { start state S { entry { assert missing; } } }");
-    assert_eq!(run(&mut h, &["lint", "model.p"]), 2);
+    assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 2);
     assert!(!h.stdout.contains("Lint passed"));
 }
 
 #[test]
 fn help_rules_and_bad_options_do_not_need_sources() {
     let mut h = MemHost::new("/empty");
-    assert_eq!(run(&mut h, &["lint", "--list-rules"]), 0);
+    assert_eq!(run(&mut h, &["check", "lint", "--list-rules"]), 0);
     assert_eq!(h.stdout.lines().count(), 4);
     assert!(h.stdout.contains("unused-payload-field"));
-    assert_eq!(run(&mut h, &["help", "lint"]), 0);
-    assert!(h.stdout.contains("Usage: snappea lint"));
-    assert_eq!(run(&mut h, &["lint", "--schedules", "1"]), 2);
-    assert_eq!(run(&mut h, &["lint", "testName"]), 2);
-    assert_eq!(run(&mut h, &["lint", "--list-rules", "model.p"]), 2);
+    assert_eq!(run(&mut h, &["check", "lint", "--help"]), 0);
+    assert!(h.stdout.contains("Usage: snappea check lint"));
+    // output options before the subcommand
+    assert_eq!(run(&mut h, &["--json", "check", "lint", "--list-rules"]), 0);
+    assert!(h.stdout.starts_with('{'), "{}", h.stdout);
+    assert_eq!(run(&mut h, &["check", "lint", "--schedules", "1"]), 2);
+    assert_eq!(run(&mut h, &["check", "lint", "testName"]), 2);
+    assert_eq!(run(&mut h, &["check", "lint", "--list-rules", "model.p"]), 2);
 }
 
 #[test]

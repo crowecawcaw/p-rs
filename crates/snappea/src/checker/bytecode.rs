@@ -248,7 +248,7 @@ pub struct CodeBlock {
 }
 
 /// What a code coverage probe marks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProbeKind {
     /// The start of a function body (or receive case).
     Entry,

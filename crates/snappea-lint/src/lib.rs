@@ -10,6 +10,7 @@ mod visit;
 use snappea_syntax::{ast::*, parse, FileId, ParseError, SourceMap, Span};
 
 pub use rules::{PermissiveMonitor, TautologicalAssert, UnselectedSpec, UnusedPayloadField};
+pub use suppression::MUTATIONS;
 
 /// An actionable diagnostic. Every unsuppressed finding fails CLI linting.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -119,4 +120,10 @@ impl Registry {
 
 pub fn lint(sources: &SourceMap) -> Result<Vec<Finding>, ParseError> {
     Ok(Registry::builtins().check(&Context::parse(sources)?))
+}
+
+/// The code `// snappea-lint: allow mutation[:<kind>]` comments exclude from mutation
+/// testing, with the ID each allows (`mutation` or `mutation:<kind>`).
+pub fn mutation_suppressions(sources: &SourceMap) -> Result<Vec<(Span, String)>, ParseError> {
+    Ok(suppression::mutation_suppressions(&Context::parse(sources)?))
 }

@@ -261,6 +261,11 @@ impl Hits {
         Hits { probes: info.probes.clone(), handled, transition_pairs: info.transition_pairs.clone() }
     }
 
+    /// Whether code coverage probe `id` ran.
+    pub fn ran(&self, id: u32) -> bool {
+        self.probes.contains(id)
+    }
+
     pub fn add(&mut self, other: &Hits) {
         self.probes.union(&other.probes);
         self.handled.extend(other.handled.iter().copied());
@@ -658,7 +663,7 @@ fn must_not_run(probes: &[Probe], id: usize) -> bool {
 
 /// Where function `f` runs, e.g. `Server.Serving, on eRequest`, `Server.Init entry`,
 /// `Server.helper` or `helper`.
-fn fun_context(prog: &Program, f: FunId) -> String {
+pub(crate) fn fun_context(prog: &Program, f: FunId) -> String {
     let decl = prog.fun(f);
     if let Some(parent) = decl.parent {
         return fun_context(prog, parent);
@@ -702,11 +707,11 @@ fn condition(sm: &SourceMap, span: Span) -> String {
 }
 
 /// The first line of the source of `span`, shortened.
-fn snippet(sm: &SourceMap, span: Span) -> String {
+pub(crate) fn snippet(sm: &SourceMap, span: Span) -> String {
     shorten(sm.text(span).lines().next().unwrap_or("").trim().trim_end_matches('{').trim_end())
 }
 
-fn shorten(line: &str) -> String {
+pub(crate) fn shorten(line: &str) -> String {
     const MAX: usize = 60;
     if line.chars().count() > MAX {
         format!("{}...", line.chars().take(MAX - 3).collect::<String>())

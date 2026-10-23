@@ -7,13 +7,13 @@ creates checker output. A model bug found during exploration still exits with 1.
 To run linting alone:
 
 ```sh
-snappea lint                         # discover local .pproj or .p sources
-snappea lint Model.pproj
-snappea lint events.p model.p tests.p
-snappea lint --list-rules
+snappea check lint                   # discover local .pproj or .p sources
+snappea check lint Model.pproj
+snappea check lint events.p model.p tests.p
+snappea check lint --list-rules
 ```
 
-`lint` loads and type-checks sources, prints every unsuppressed finding with its
+`check lint` loads and type-checks sources, prints every unsuppressed finding with its
 file, line, column, and rule ID, and exits with 0 when clean or 2 on findings or
 source errors. It does not explore schedules or write checker artifacts. Test-name
 filters are not accepted: selection checks need the complete loaded project.
@@ -111,6 +111,12 @@ sibling declarations or statements. Multiple rule IDs are comma-separated:
 ```p
 // snappea-lint: allow permissive-monitor, unselected-spec -- passive trace fixture
 ```
+
+The same comment excludes code from `snappea check`'s mutation testing:
+`allow mutation` for every mutant of the following code, or `allow mutation:<kind>`
+(`remove-statement`, `condition-true`, `condition-false`, `swap-operator`, `remove-not`,
+`flip-boolean`) for one kind. See
+[mutation testing](checking-models.md#suppressing-a-mutant).
 
 The `-- reason` suffix is optional, but explains the abstraction to reviewers.
 Comments must be on their own line. Unknown IDs, malformed directives, and

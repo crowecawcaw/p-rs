@@ -119,6 +119,7 @@ impl AutoStrategy {
                         seed,
                         Box::new(RandomScheduler::new(Source::Controlled(ControlledRandom::new(seed)))),
                     )
+                    .with_code_guidance(true)
                     .with_fresh_exploration(25),
                 ),
                 Box::new(PctStrategy::new(unfair_steps, 10, rng())),
@@ -259,6 +260,7 @@ impl Strategy for AutoStrategy {
         self.arms[self.active].observe_timeline(timeline, minhash, reached, satisfied);
     }
     fn observe_progress(&mut self, new_coverage: usize, bug: Option<&str>) {
+        self.arms[self.active].observe_progress(new_coverage, bug);
         self.reward += new_coverage as f64;
         if let Some(bug) = bug {
             let key = failure_class(bug);
@@ -293,7 +295,7 @@ impl Strategy for AutoStrategy {
 }
 
 /// A failure site, independent of formatted values and machine instance numbers.
-fn failure_class(bug: &str) -> String {
+pub(crate) fn failure_class(bug: &str) -> String {
     if let Some(rest) = bug.strip_prefix("Assertion Failed: ") {
         let end = rest
             .char_indices()

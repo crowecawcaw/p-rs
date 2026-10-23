@@ -9,6 +9,7 @@
 
 pub mod check;
 pub mod lint;
+pub mod mutation;
 pub mod observe;
 pub mod scenario;
 mod sci;

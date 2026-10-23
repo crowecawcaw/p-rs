@@ -670,6 +670,7 @@ impl<'p> Runtime<'p> {
         };
         let frame = &exec.frames[frame_idx];
         let code = frame.code.clone();
+        let fun = frame.fun;
         let base = frame.base;
         let mut pc = frame.pc;
         let limit = self.config.max_work_per_step;
@@ -925,7 +926,11 @@ impl<'p> Runtime<'p> {
                 }
                 Op::JumpIfFalseElsePop(t) => {
                     charge!(1);
-                    if !stack.last().expect("operand stack underflow").as_bool() {
+                    let outcome = stack.last().expect("operand stack underflow").as_bool();
+                    if let Some(c) = self.coverage.as_mut() {
+                        c.condition(fun.0, pc - 1, outcome);
+                    }
+                    if !outcome {
                         pc = *t as usize;
                     } else {
                         charge!(1);
@@ -934,7 +939,11 @@ impl<'p> Runtime<'p> {
                 }
                 Op::JumpIfTrueElsePop(t) => {
                     charge!(1);
-                    if stack.last().expect("operand stack underflow").as_bool() {
+                    let outcome = stack.last().expect("operand stack underflow").as_bool();
+                    if let Some(c) = self.coverage.as_mut() {
+                        c.condition(fun.0, pc - 1, outcome);
+                    }
+                    if outcome {
                         pc = *t as usize;
                     } else {
                         charge!(1);
