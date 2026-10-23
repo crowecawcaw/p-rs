@@ -113,3 +113,30 @@ profile/adapters remain explicit limitations of this quick pass.
 The per-commit workflow also appends the broad corpus results to `corpus.jsonl`
 on the `benchmarks` branch and uploads the complete Markdown per-case table.
 Verify accounting with `python3 -m unittest discover -s scripts -p test_bench_corpus.py`.
+
+The checked-in [full per-case corpus report](corpus.md) and
+[compressed raw measurements](corpus.json.gz) record a three-seed quick pass at
+commit `befd956` (clean working tree). All 459 model inputs were inventoried:
+289 resolved/compiled projects supplied **495 expanded test cases**; 148 static
+error inputs were excluded as not schedulable, and 22 inputs had explicit
+compilation/resolution limitations. There are 5,940 strategy/seed measurements.
+Among 145 cases with observed common issues, feedback found the entire shared
+catalog in **421/435** runs, random in **415/435**, DFS in **408/435**, and auto in
+**421/435**. These counts include all successful schedules preceding discovery.
+The broad improvement is modest and several cases still favor random.
+
+Exhaustion certified 404 case catalogs. Thirteen expected DynamicError cases had
+no common issue observed; the other unexhausted catalogs are provisional. The
+quick 200-schedule, 1,000-step pass and 0.1-second safety cap leave misses and
+potential liveness warnings visible. Its per-run catalog digest is stored in the
+JSON: compare results across commits only when the catalogs and bounds match,
+or recompute against a shared union catalog from the raw discoveries.
+
+Reproduce this measured pass with:
+
+```sh
+python3 scripts/bench-corpus.py --seeds 3 --out corpus.json --report corpus.md
+```
+
+The gzip file contains ordinary JSON and can be read with `gzip -dc
+benchmarks/search/corpus.json.gz` or Python's `gzip.open`.
