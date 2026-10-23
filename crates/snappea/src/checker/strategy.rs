@@ -1,8 +1,8 @@
 //! Scheduling strategies (`PChecker.SystematicTesting.Strategies`).
 //!
-//! Every strategy consumes random numbers from the shared [`RandomValueGenerator`] in
-//! exactly the order the upstream implementation does, so a seed reproduces the same
-//! schedule here as it does there.
+//! The compatibility CLI preserves upstream's random streams, including its feedback
+//! mutation quirks. Native feedback corrects mutation sizes and uses the fair step bound;
+//! recorded schedules remain replayable regardless of which policy found them.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -14,6 +14,8 @@ use crate::checker::random::RandomValueGenerator;
 pub enum StrategyKind {
     #[default]
     Random,
+    /// Native automatic portfolio; upstream defaults remain random.
+    Auto,
     Pct,
     FairPct,
     Probabilistic,
@@ -32,7 +34,8 @@ pub enum StrategyKind {
 }
 
 impl StrategyKind {
-    const ALL: [StrategyKind; 12] = [
+    const ALL: [StrategyKind; 13] = [
+        StrategyKind::Auto,
         StrategyKind::Random,
         StrategyKind::Pct,
         StrategyKind::FairPct,
@@ -49,6 +52,7 @@ impl StrategyKind {
 
     pub fn name(self) -> &'static str {
         match self {
+            StrategyKind::Auto => "auto",
             StrategyKind::Random => "random",
             StrategyKind::Pct => "pct",
             StrategyKind::FairPct => "fairpct",
@@ -86,7 +90,8 @@ impl StrategyKind {
     pub fn explores_independently(self) -> bool {
         matches!(
             self,
-            StrategyKind::Random
+            StrategyKind::Auto
+                | StrategyKind::Random
                 | StrategyKind::Pct
                 | StrategyKind::FairPct
                 | StrategyKind::Probabilistic
@@ -161,6 +166,10 @@ pub trait Strategy {
     fn wants_feedback(&self) -> bool {
         false
     }
+    /// Whether timeline MinHashes are needed (novelty-only observers skip their cost).
+    fn wants_minhash(&self) -> bool {
+        self.wants_feedback()
+    }
     /// Whether [`Strategy::observe_state`] is used (avoids hashing the state otherwise).
     fn wants_state_hash(&self) -> bool {
         false
@@ -170,6 +179,12 @@ pub trait Strategy {
     /// there, without a deadlock or liveness check (the state was explored before).
     fn observe_state(&mut self, _hash: u64) -> bool {
         true
+    }
+    /// Coverage delta and failure observed during the current execution.
+    fn observe_progress(&mut self, _new_coverage: usize, _bug: Option<&str>) {}
+    /// Validated exhaustive completion, including liveness requirements.
+    fn search_complete(&self) -> bool {
+        false
     }
     /// Statistics of an exhaustive search.
     fn exhaustive_stats(&self) -> Option<crate::checker::exhaustive::SearchStats> {

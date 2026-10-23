@@ -363,6 +363,8 @@ impl Exception {
 /// What a run is given and records beyond its [`Config`]; everything is off by default.
 #[derive(Default)]
 pub struct Setup<'p> {
+    /// Interrupt exploration without reporting a model failure.
+    pub cancelled: Option<&'p dyn Fn() -> bool>,
     /// Values of the test case's global parameters (`param`).
     pub assignment: Option<&'p crate::sema::ParamAssignment>,
     /// Implementations of foreign functions.
@@ -396,6 +398,7 @@ pub struct Runtime<'p> {
     pub(crate) log: Vec<String>,
     pub(crate) timeline: Timeline,
     pub(crate) bug: Option<String>,
+    cancelled: Option<&'p dyn Fn() -> bool>,
     stopped: bool,
     fully_explored: bool,
     /// The strategy cut the schedule short at an already explored state.
@@ -403,6 +406,8 @@ pub struct Runtime<'p> {
     scheduled_steps: usize,
     /// Work done since the last scheduling point (see [`Config::max_work_per_step`]).
     pub(crate) step_work: u64,
+    /// Next cancellation checkpoint; preserved across bytecode frames.
+    pub(crate) next_cancel_work: u64,
     /// The JSON trace, when enabled.
     pub(crate) json: Option<JsonLog>,
     /// The XML trace, when enabled.
@@ -446,7 +451,7 @@ impl<'p> Runtime<'p> {
         strategy: &'p mut dyn Strategy,
         setup: Setup<'p>,
     ) -> Runtime<'p> {
-        let Setup { assignment, foreign, time, json_trace, xml_trace, coverage, java_semantics } = setup;
+        let Setup { cancelled, assignment, foreign, time, json_trace, xml_trace, coverage, java_semantics } = setup;
         let mut globals: Vec<Value> =
             prog.global_params.iter().map(|v| default_value(&prog.var(*v).ty, prog)).collect();
         if let Some(a) = assignment {
@@ -477,11 +482,13 @@ impl<'p> Runtime<'p> {
             log: Vec::new(),
             timeline: Timeline::new(config.timeline),
             bug: None,
+            cancelled,
             stopped: false,
             fully_explored: false,
             pruned: false,
             scheduled_steps: 0,
             step_work: 0,
+            next_cancel_work: 4096,
             json: json_trace.then(JsonLog::new),
             xml: xml_trace.map(crate::checker::xmllog::XmlLog::new),
             bug_strategy_description: None,
@@ -794,8 +801,18 @@ impl<'p> Runtime<'p> {
         Ok(())
     }
 
+    pub(crate) fn check_cancelled(&mut self) -> Result<(), Stop> {
+        if self.cancelled.is_some_and(|f| f()) {
+            self.stopped = true;
+            Err(Stop)
+        } else {
+            Ok(())
+        }
+    }
+
     /// `ScheduleNextEnabledOperation`: picks the operation to run next.
     pub fn schedule_next(&mut self, kind: SchedKind) -> Result<(), Stop> {
+        self.check_cancelled()?;
         let cur = self.current;
         self.op_mut(cur).kind = kind;
         self.check_steps_bound()?;
@@ -821,6 +838,7 @@ impl<'p> Runtime<'p> {
         match self.strategy.next_operation(current, &infos) {
             Some(next) => {
                 self.step_work = 0;
+                self.next_cancel_work = 4096;
                 self.scheduled_steps = self.strategy.scheduled_steps();
                 self.trace.steps.push(ScheduleStep::Operation(next));
                 self.current = next;

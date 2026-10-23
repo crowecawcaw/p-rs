@@ -138,7 +138,7 @@ def main(a):
             transcript.append({'smoke_public':r})
             assert r['exit_code'] != 0, 'starter should fail public tests'
             if a.arm == 'p':
-                r=shell(name,'/opt/snappea version; cp -r /opt/inventory ./inventory; cd inventory; /opt/snappea check tcAtomicReserve --exhaustive')
+                r=shell(name,'/opt/snappea version; cp -r /opt/inventory ./inventory; cd inventory; /opt/snappea check tcAtomicReserve')
                 transcript.append({'smoke_p':r})
                 assert r['exit_code']==0,r
             # Calibration reference enters only smoke runs, never real agent runs.

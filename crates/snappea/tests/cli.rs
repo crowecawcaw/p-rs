@@ -92,10 +92,10 @@ fn check_finds_a_bug_that_replays() {
         "Replaying tcCoins from PCheckerOutput/tcCoins/bug.schedule\nReproduced the bug (0.00s):\n      Assertion Failed: coins.p:8:1 six heads\nRun with --verbose to see the schedule's log.\n"
     );
     // a run without a bug replaces the previous run's files
-    h.add_file("coins.p", &COINS.replace("n < 6", "n < 60"));
-    assert_eq!(snappea(&mut h, &["check", "coins.p", "tcCoins", "-n", "10"]), 0, "{}", h.stdout);
+    h.add_file("coins.p", &COINS.replace("assert false", "assert true"));
+    assert_eq!(snappea(&mut h, &["check", "coins.p", "tcCoins"]), 0, "{}", h.stdout);
     assert_eq!(names(&h, OUT), ["coverage.txt", "summary.txt"]);
-    assert!(h.stdout.contains("\nok    tcCoins (10 schedules, "), "{}", h.stdout);
+    assert!(h.stdout.contains("\nok    tcCoins (all "), "{}", h.stdout);
     assert!(h.stdout.ends_with("\n🫛 The test case passed in 0.00s. Output: PCheckerOutput/\n"), "{}", h.stdout);
 }
 
@@ -110,20 +110,25 @@ fn the_replay_command_names_the_sources() {
 }
 
 #[test]
-fn the_replay_command_keeps_the_step_options() {
+fn replay_accepts_step_options_for_existing_compat_traces() {
     let mut h = MemHost::new("/w");
-    h.add_file(
-        "ping.p",
-        "event ePing;\nmachine Loop { start state S { entry { send this, ePing; } on ePing do { send this, ePing; } } }\n\
-         test tcLoop [main=Loop]: { Loop };\n",
+    h.add_file("ping.p", "event ePing; machine Loop { start state S { entry { send this, ePing; } on ePing do { send this, ePing; } } } test tcLoop [main=Loop]: { Loop };");
+    assert_eq!(
+        compat(&mut h, &["check", "-tc", "tcLoop", "--schedules", "3", "--max-steps", "50", "--fail-on-maxsteps"]),
+        1,
+        "{}{}",
+        h.stdout,
+        h.stderr
     );
-    let code = snappea(&mut h, &["check", "ping.p", "-n", "3", "--max-steps", "50", "--fail-on-max-steps"]);
-    assert_eq!(code, 1, "{}", h.stdout);
-    let replay = "snappea replay PCheckerOutput/tcLoop/bug.schedule ping.p --max-steps 50 --fail-on-max-steps";
-    assert!(h.stdout.contains(&format!("      Replay: {}\n", replay)), "{}", h.stdout);
-    let args: Vec<&str> = replay.split(' ').skip(1).collect();
-    assert_eq!(snappea(&mut h, &args), 1, "{}{}", h.stdout, h.stderr);
-    assert!(h.stdout.contains("Reproduced the bug"), "{}", h.stdout);
+    let path = "PCheckerOutput/tcLoop/BugFinding/generatedOutput_0_0.schedule";
+    assert_eq!(
+        snappea(&mut h, &["replay", path, "ping.p", "--max-steps", "50", "--fail-on-max-steps"]),
+        1,
+        "{}{}",
+        h.stdout,
+        h.stderr
+    );
+    assert!(h.stdout.contains("Reproduced the bug"));
 }
 
 #[test]
@@ -144,7 +149,7 @@ fn warnings_show_without_verbose() {
         "<Project><ProjectName>P</ProjectName><InputFiles><PFile>./coins.p</PFile><PFile>./F.cs</PFile></InputFiles></Project>",
     );
     h.add_file("F.cs", "");
-    assert_eq!(snappea(&mut h, &["check", "tcFine", "-n", "1"]), 0, "{}", h.stdout);
+    assert_eq!(snappea(&mut h, &["check", "tcFine"]), 0, "{}", h.stdout);
     assert!(h.stdout.starts_with("Warning: foreign file /w/F.cs is ignored;"), "{}", h.stdout);
 }
 
@@ -173,15 +178,11 @@ fn included_projects_are_found_beside_the_project_file() {
 fn tests_are_arguments() {
     let mut h = host();
     // all test cases by default; a bug in any fails the run
-    assert_eq!(snappea(&mut h, &["check", "-n", "200", "--seed", "2"]), 1, "{}", h.stdout);
-    assert!(
-        h.stdout.contains("\nFAIL  tcCoins (") && h.stdout.contains("\nok    tcFine (200 schedules"),
-        "{}",
-        h.stdout
-    );
+    assert_eq!(snappea(&mut h, &["check", "--seed", "2"]), 1, "{}", h.stdout);
+    assert!(h.stdout.contains("\nFAIL  tcCoins (") && h.stdout.contains("\nok    tcFine (all "), "{}", h.stdout);
     assert!(h.stdout.ends_with("\n1 of 2 test cases failed in 0.00s. Output: PCheckerOutput/\n"), "{}", h.stdout);
     assert!(h.is_dir(Path::new("/w/PCheckerOutput/tcFine")));
-    assert_eq!(snappea(&mut h, &["check", "coins.p", "tcF*", "-n", "5"]), 0, "{}", h.stdout);
+    assert_eq!(snappea(&mut h, &["check", "coins.p", "tcF*"]), 0, "{}", h.stdout);
     assert!(!h.stdout.contains("tcCoins"), "{}", h.stdout);
     assert_eq!(snappea(&mut h, &["check", "tcNope"]), 2);
     assert_eq!(h.stderr, "error: no test case matches 'tcNope'. Test cases: tcCoins, tcFine\n");
@@ -202,19 +203,8 @@ fn command_line_errors_exit_with_2() {
     let mut h = host();
     for (args, err) in [
         (&["check", "--bogus"][..], "error: unknown option '--bogus'\n"),
-        (&["check", "-n"], "error: '-n' needs a value\n"),
-        (&["check", "-n", "x"], "error: '--schedules' needs a non-negative whole number, not 'x'\n"),
-        (&["check", "--strategy", "pct"], "error: strategy 'pct' needs a number, e.g. 'pct:10'\n"),
-        (
-            &["check", "--strategy", "pos", "--exhaustive"],
-            "error: '--strategy' and '--exhaustive' cannot be combined\n",
-        ),
-        (&["check", "--time", "5d"], "error: bad duration '5d' (examples: 90, 90s, 5m, 1h)\n"),
+        (&["check", "--timeout", "5d"], "error: bad duration '5d' (examples: 90, 90s, 5m, 1h)\n"),
         (&["check", "-j", "0"], "error: '--workers' needs at least 1 worker\n"),
-        (
-            &["check", "--max-steps", "10", "--fair-max-steps", "5"],
-            "error: '--fair-max-steps' must be at least '--max-steps'\n",
-        ),
         (&["replay"], "error: no .schedule file given\n"),
         (&["frobnicate"], "error: unknown command 'frobnicate'\n"),
     ] {
@@ -228,39 +218,34 @@ fn command_line_errors_exit_with_2() {
 }
 
 #[test]
-fn one_worker_explores_the_schedules_of_snappea_compat() {
-    for (snappea_args, compat_args, mode) in [
-        (&["-n", "500", "--seed", "3"][..], &["-s", "500", "--seed", "3"][..], "BugFinding"),
-        (
-            &["-n", "20", "--seed", "1", "--strategy", "pct:2"],
-            &["-s", "20", "--seed", "1", "--sch-pct", "2"],
-            "BugFinding",
-        ),
-        (&["--exhaustive"], &["--mode", "pex"], "PEx"),
+fn native_scheduling_controls_are_removed_and_compat_keeps_them() {
+    let mut h = host();
+    for option in [
+        "--schedules",
+        "--strategy",
+        "--exhaustive",
+        "--max-steps",
+        "--fair-max-steps",
+        "--fail-on-max-steps",
+        "--timeline",
+        "--timeline-payload",
     ] {
-        let mut a = host();
-        let mut args = vec!["check", "tcCoins", "-j", "1"];
-        args.extend_from_slice(snappea_args);
-        let code = snappea(&mut a, &args);
-        let mut b = host();
-        let mut args = vec!["check", "-tc", "tcCoins"];
-        args.extend_from_slice(compat_args);
-        assert_eq!(code, compat(&mut b, &args), "{:?}", snappea_args);
-        assert!(!a.stdout.contains("workers"), "{}", a.stdout);
-        // the same files, under snappea's names
-        let upstream = format!("PCheckerOutput/tcCoins/{}", mode);
-        for (snappea_name, upstream_name) in [
-            ("bug.schedule", "generatedOutput_0_0.schedule"),
-            ("bug.txt", "generatedOutput_0_0.txt"),
-            ("bug.trace.json", "generatedOutput_0_0.trace.json"),
-            ("coverage.txt", "generatedOutput.coverage.txt"),
-            ("summary.txt", "generatedOutput_pchecker_summary.txt"),
-        ] {
-            let ours = a.read_to_string(Path::new(&format!("{}/{}", OUT, snappea_name))).ok();
-            let theirs = b.read_to_string(Path::new(&format!("{}/{}", upstream, upstream_name))).ok();
-            assert_eq!(ours, theirs, "{:?}: {}", snappea_args, snappea_name);
-        }
+        assert_eq!(snappea(&mut h, &["check", option]), 2, "{option}: {}", h.stderr);
+        assert!(h.stderr.contains("unknown option"), "{option}: {}", h.stderr);
     }
+    for strategy in ["--sch-random", "--sch-feedback", "--sch-rl"] {
+        assert_eq!(
+            compat(&mut h, &["check", "-tc", "tcCoins", "--schedules", "1000", "--seed", "3", strategy]),
+            if strategy == "--sch-rl" { 0 } else { 1 },
+            "{}{}",
+            h.stdout,
+            h.stderr
+        );
+    }
+    assert_eq!(compat(&mut h, &["check", "-tc", "tcFine", "--mode", "pex"]), 0, "{}{}", h.stdout, h.stderr);
+    assert_eq!(snappea(&mut h, &["check", "--help"]), 0);
+    assert!(h.stdout.contains("default: 10s"));
+    assert!(!h.stdout.contains("--strategy"));
 }
 
 /// The schedule count of the `FAIL`/`ok` line of `test`.
@@ -275,7 +260,7 @@ fn schedules(stdout: &str, test: &str) -> usize {
 fn workers_find_a_bug_that_replays() {
     for seed in ["1", "2", "3", "4", "5"] {
         let mut h = host();
-        assert_eq!(snappea(&mut h, &["check", "tcCoins", "-n", "5000", "--seed", seed]), 1, "{}", h.stdout);
+        assert_eq!(snappea(&mut h, &["check", "tcCoins", "--seed", seed]), 1, "{}", h.stdout);
         assert!(h.stdout.contains(" schedules, 4 workers, "), "{}", h.stdout);
         let txt = read(&h, &format!("{}/bug.txt", OUT));
         assert!(txt.contains("<ErrorLog> Assertion Failed: coins.p:8:1 six heads"), "{}", txt);
@@ -295,20 +280,7 @@ fn workers_find_a_bug_that_replays() {
 fn workers_share_the_schedule_count() {
     use snappea::driver::check::{self, CheckConfig, Style};
     let mut h = host();
-    // a check without bug: no six heads in a row
-    h.add_file("coins.p", &COINS.replace("n < 6", "n < 60"));
-    assert_eq!(snappea(&mut h, &["check", "tcCoins", "-n", "1003", "--seed", "9"]), 0, "{}", h.stdout);
-    assert!(h.stdout.contains("\nok    tcCoins (1003 schedules, 4 workers, "), "{}", h.stdout);
-    assert!(read(&h, &format!("{}/summary.txt", OUT)).contains("\nschedules:1003\n"));
-    // the coverage of all workers: every event handled
-    assert!(read(&h, &format!("{}/coverage.txt", OUT)).starts_with("Total event coverage: 100.0%"));
-    // fewer schedules than workers
-    assert_eq!(snappea(&mut h, &["check", "tcCoins", "-n", "2", "--seed", "9"]), 0, "{}", h.stdout);
-    assert!(h.stdout.contains("\nok    tcCoins (2 schedules, 2 workers, "), "{}", h.stdout);
-    // a time limit without a schedule count explores until the limit; here, both
-    assert_eq!(snappea(&mut h, &["check", "tcCoins", "-n", "7", "--time", "1h"]), 0, "{}", h.stdout);
-    assert!(h.stdout.contains("\nok    tcCoins (7 schedules, 4 workers, "), "{}", h.stdout);
-
+    h.add_file("coins.p", &COINS.replace("assert false", "assert true"));
     // the driver's progress is numbered across workers, each number once
     h.stdout.clear();
     let mut cfg = CheckConfig {
@@ -338,13 +310,7 @@ fn workers_share_the_schedule_count() {
 #[test]
 fn some_runs_use_one_worker() {
     let mut h = host();
-    for args in [
-        &["-n", "1"][..],
-        &["-n", "100", "--strategy", "feedback"],
-        &["-n", "100", "--strategy", "rl"],
-        &["--exhaustive"],
-        &["-n", "5", "-v"],
-    ] {
+    for args in [&["-j", "1"][..], &["-v"]] {
         let mut all = vec!["check", "tcCoins"];
         all.extend_from_slice(args);
         snappea(&mut h, &all);
@@ -355,13 +321,13 @@ fn some_runs_use_one_worker() {
 #[test]
 fn exhaustive_search_writes_pex_output() {
     let mut h = host();
-    assert_eq!(snappea(&mut h, &["check", "tcCoins", "--exhaustive"]), 1, "{}", h.stdout);
+    assert_eq!(snappea(&mut h, &["check", "tcCoins"]), 1, "{}", h.stdout);
     assert!(h.is_file(Path::new("/w/PCheckerOutput/tcCoins/bug.schedule")));
-    assert_eq!(snappea(&mut h, &["check", "tcFine", "--exhaustive"]), 0, "{}", h.stdout);
+    assert_eq!(snappea(&mut h, &["check", "tcFine"]), 0, "{}", h.stdout);
     assert!(
         h.stdout.contains(
             "
-ok    tcFine (all 1 schedule, "
+ok    tcFine (all "
         ),
         "{}",
         h.stdout
@@ -394,7 +360,7 @@ fn time_tracking() {
         ("PTst/latency.toml", "--snappea-time:timed=1;profile=same-az\n"),
         ("PTst/latency.toml:cross-region", "--snappea-time:timed=1;profile=cross-region\n"),
     ] {
-        let code = snappea(&mut h, &["check", "tcRetry", "-n", "500", "--seed", "1", "--latency", latency, "--timed"]);
+        let code = snappea(&mut h, &["check", "tcRetry", "--seed", "1", "--latency", latency, "--timed"]);
         assert_eq!(code, 1, "{}{}", h.stdout, h.stderr);
         assert!(read(&h, schedule).contains(header), "{}", read(&h, schedule));
     }

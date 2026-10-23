@@ -11,7 +11,7 @@ export interface CheckRequest {
   kind: "check";
   files: Files;
   testCase: string;
-  schedules: number;
+  timeout: number;
   seed: number;
   extraArgs: string[];
 }

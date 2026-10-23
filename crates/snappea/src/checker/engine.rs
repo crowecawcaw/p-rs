@@ -36,6 +36,9 @@ pub struct CheckerOptions {
     pub fail_on_max_steps: bool,
     /// Priority switch points for `pct`/`fairpct`, coin flips for `probabilistic`.
     pub strategy_bound: usize,
+    /// Preserve upstream's zero-length feedback mutations and unfair step bound for
+    /// seed compatibility. Native feedback uses productive mutations and the fair bound.
+    pub upstream_feedback: bool,
     /// Keep exploring after the first bug (`--explore`).
     pub full_exploration: bool,
     pub incremental_seed: bool,
@@ -88,6 +91,7 @@ impl Default for CheckerOptions {
             liveness_temperature_threshold: None,
             fail_on_max_steps: false,
             strategy_bound: 0,
+            upstream_feedback: false,
             full_exploration: false,
             incremental_seed: false,
             replay: None,
@@ -358,15 +362,33 @@ pub struct CheckResult {
     pub exhaustive: Option<crate::checker::exhaustive::SearchStats>,
 }
 
-fn build_strategy(opts: &CheckerOptions, rng: &SharedRandom) -> Result<Box<dyn Strategy>, String> {
+fn build_strategy(
+    opts: &CheckerOptions,
+    rng: &SharedRandom,
+    has_hot: bool,
+    exhaustive: bool,
+) -> Result<Box<dyn Strategy>, String> {
     use crate::checker::feedback::{
         ControlledRandom, FeedbackGuidedStrategy, PctScheduler, PosScheduler, RandomScheduler, Scheduler, Source,
     };
     let feedback = |scheduler: Box<dyn Scheduler>| {
-        Box::new(FeedbackGuidedStrategy::new(opts.max_unfair_steps, opts.seed, scheduler))
+        let bound = if opts.upstream_feedback { opts.max_unfair_steps } else { opts.max_fair_steps };
+        Box::new(
+            FeedbackGuidedStrategy::new(bound, opts.seed, scheduler)
+                .with_legacy_mutations(opts.upstream_feedback)
+                .with_fresh_exploration(if opts.upstream_feedback { 0 } else { 25 }),
+        )
     };
-    let controlled = || Source::Controlled(ControlledRandom::new(opts.seed));
+    let controlled =
+        || Source::Controlled(ControlledRandom::new(opts.seed).with_legacy_mutations(opts.upstream_feedback));
     Ok(match opts.strategy {
+        StrategyKind::Auto => Box::new(crate::checker::auto::AutoStrategy::new(
+            opts.seed,
+            opts.max_unfair_steps,
+            opts.max_fair_steps,
+            has_hot,
+            exhaustive,
+        )),
         StrategyKind::Random => Box::new(RandomStrategy::new(opts.max_fair_steps, rng.clone())),
         StrategyKind::Pct => Box::new(PctStrategy::new(opts.max_unfair_steps, opts.strategy_bound, rng.clone())),
         StrategyKind::FairPct => Box::new(ComboStrategy::new(
@@ -631,7 +653,7 @@ impl<'p> Checker<'p> {
         };
         let assignment = prog.test_case_assignment(tc);
         // reports a replay without a schedule before anything else
-        build_strategy(opts, &Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed))))?;
+        build_strategy(opts, &Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed))), false, false)?;
         let is_replay = opts.strategy == StrategyKind::Replay;
         // a replay takes its time settings from the schedule file
         let time = match opts.replay.as_ref().filter(|_| is_replay).and_then(|t| t.time.as_ref().map(|h| (h, t))) {
@@ -666,6 +688,8 @@ impl<'p> Checker<'p> {
         index: usize,
         out: &mut dyn Output,
     ) -> Result<Exploration, String> {
+        let out = RefCell::new(out);
+        let interrupted = || out.borrow_mut().cancelled() || pool.stopped();
         // a worker of a pool larger than the schedule count may have none to explore
         let worker_opts = pool.worker_options(index, opts);
         let idle = opts.iterations > 0 && worker_opts.iterations == 0;
@@ -673,7 +697,12 @@ impl<'p> Checker<'p> {
         let prog = self.prog;
         let Prepared { module, main, assignment, time, config } = self.prepare(tc, opts)?;
         let rng: SharedRandom = Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed)));
-        let mut strategy = build_strategy(opts, &rng)?;
+        let mut strategy = build_strategy(
+            opts,
+            &rng,
+            prog.states.iter().any(|s| s.temperature == crate::sema::Temperature::Hot),
+            time.is_none(),
+        )?;
         let is_replay = opts.strategy == StrategyKind::Replay;
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };
@@ -688,7 +717,7 @@ impl<'p> Checker<'p> {
         let mut verbose_json = (opts.verbose && opts.json_trace && !is_replay).then(Vec::new);
         let mut depth_bound_hits = 0usize;
         while !idle && (max_iterations == 0 || i < max_iterations) {
-            if out.cancelled() {
+            if out.borrow_mut().cancelled() {
                 result.cancelled = true;
                 break;
             }
@@ -698,11 +727,12 @@ impl<'p> Checker<'p> {
             // the schedule's number among those of all workers
             let schedule = pool.started.fetch_add(1, Ordering::Relaxed) + 1;
             if !is_replay && should_print(schedule) {
-                out.line(&format!("..... Schedule #{}", schedule));
+                out.borrow_mut().line(&format!("..... Schedule #{}", schedule));
             }
             let bug_found;
             {
                 let setup = Setup {
+                    cancelled: (opts.strategy == StrategyKind::Auto).then_some(&interrupted as &dyn Fn() -> bool),
                     assignment,
                     foreign: self.foreign.clone(),
                     time: time.clone(),
@@ -713,11 +743,16 @@ impl<'p> Checker<'p> {
                     ..Setup::default()
                 };
                 let mut rt = Runtime::new(prog, &self.code, module, &config, &mut *strategy, setup);
+                let previous_coverage = rt.coverage.as_ref().map_or(0, |c| c.feature_count());
                 rt.run_test(main, &tc.name);
                 if rt.strategy.wants_feedback() {
                     let tokens = rt.timeline.tokens();
                     let timeline = tokens.join(";");
-                    let minhash = crate::checker::feedback::timeline_minhash(tokens.iter().map(String::as_str));
+                    let minhash = if rt.strategy.wants_minhash() {
+                        crate::checker::feedback::timeline_minhash(tokens.iter().map(String::as_str))
+                    } else {
+                        Vec::new()
+                    };
                     let reached: Vec<(String, usize)> =
                         rt.scenarios.iter().map(|s| (s.name.clone(), s.reached.len())).collect();
                     let satisfied: Vec<String> =
@@ -727,6 +762,9 @@ impl<'p> Checker<'p> {
                 if rt.bug.is_none() {
                     rt.check_hot_monitors_at_termination();
                 }
+                let new_coverage =
+                    rt.coverage.as_ref().map_or(0, |c| c.feature_count()).saturating_sub(previous_coverage);
+                rt.strategy.observe_progress(new_coverage, rt.bug.as_deref());
                 bug_found = rt.bug.is_some();
                 let test_task_id = tasks_used + 1;
                 tasks_used += 1 + rt.handler_starts;
@@ -735,13 +773,13 @@ impl<'p> Checker<'p> {
                 }
                 if opts.verbose {
                     for l in &rt.log {
-                        out.line(l);
+                        out.borrow_mut().line(l);
                     }
                 }
                 // upstream reports the bug through a console that is redirected to a null
                 // writer while a schedule runs, so it only shows in verbose mode
                 if let Some(b) = rt.bug.as_ref().filter(|_| opts.verbose) {
-                    out.error(b);
+                    out.borrow_mut().error(b);
                 }
                 // GatherTestingStatistics
                 let steps = rt.strategy.scheduled_steps();
@@ -810,15 +848,26 @@ impl<'p> Checker<'p> {
                 }
                 if bug_found && !is_replay && opts.full_exploration {
                     let n = pool.bugs.fetch_add(1, Ordering::Relaxed) + 1;
-                    out.line(&format!("..... Schedule #{} triggered bug #{} [task-{}]", schedule, n, index));
+                    out.borrow_mut()
+                        .line(&format!("..... Schedule #{} triggered bug #{} [task-{}]", schedule, n, index));
                 }
                 result.last_log = std::mem::take(&mut rt.log);
                 if let Some(c) = rt.coverage.take() {
                     result.coverage = Some(c.into_info());
                 }
             }
+            if opts.strategy == StrategyKind::Auto {
+                let cancelled = out.borrow_mut().cancelled();
+                if cancelled || pool.stopped() {
+                    result.cancelled = cancelled;
+                    break;
+                }
+            }
             if is_replay || (!opts.full_exploration && result.report.num_bugs > 0) || !strategy.prepare_next_iteration()
             {
+                if strategy.search_complete() {
+                    pool.stop.store(true, Ordering::Relaxed);
+                }
                 break;
             }
             if opts.incremental_seed {
@@ -827,8 +876,16 @@ impl<'p> Checker<'p> {
             }
             i += 1;
         }
-        result.exhaustive =
-            strategy.exhaustive_stats().map(|s| crate::checker::exhaustive::SearchStats { depth_bound_hits, ..s });
+        result.exhaustive = strategy.exhaustive_stats().map(|s| {
+            if opts.strategy == StrategyKind::Auto {
+                s
+            } else {
+                crate::checker::exhaustive::SearchStats { depth_bound_hits, ..s }
+            }
+        });
+        if opts.strategy == StrategyKind::Auto && out.borrow_mut().cancelled() {
+            result.cancelled = true;
+        }
         result.verbose_json_trace = verbose_json.map(|v| crate::checker::jsonlog::Json::Arr(v).to_pretty());
         Ok(Exploration { result, first_bug, won, time })
     }
@@ -916,6 +973,9 @@ fn merge(parts: Vec<Exploration>) -> Exploration {
         let r = p.result;
         result.report.merge(r.report);
         result.cancelled |= r.cancelled;
+        if r.exhaustive.as_ref().is_some_and(|s| s.finished && s.depth_bound_hits == 0) {
+            result.exhaustive = r.exhaustive;
+        }
         result.coverage = match (result.coverage.take(), r.coverage) {
             (Some(mut a), Some(b)) => {
                 a.merge(b);

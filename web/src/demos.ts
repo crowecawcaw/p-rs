@@ -31,7 +31,6 @@ export interface Demo {
   /** File opened first. */
   open: string;
   testCase: string;
-  schedules: number;
   extraArgs?: string;
 }
 
@@ -44,7 +43,6 @@ export const DEMOS: Demo[] = [
     roots: [{ from: "../demos/hello/" }],
     open: "LostUpdate.p",
     testCase: "tcTwoClients",
-    schedules: 100,
   },
   {
     id: "client-server",
@@ -54,7 +52,6 @@ export const DEMOS: Demo[] = [
     roots: [{ from: `${TUT}1_ClientServer/` }],
     open: "PSrc/Server.p",
     testCase: "tcAbstractServer",
-    schedules: 1000,
   },
   {
     id: "two-phase-commit",
@@ -68,7 +65,6 @@ export const DEMOS: Demo[] = [
     ],
     open: "PSrc/Coordinator.p",
     testCase: "tcMultipleClientsWithFailure",
-    schedules: 1000,
   },
   {
     id: "espresso",
@@ -78,7 +74,6 @@ export const DEMOS: Demo[] = [
     roots: [{ from: `${TUT}3_EspressoMachine/` }],
     open: "PSrc/CoffeeMakerControlPanel.p",
     testCase: "tcCrazyUserUsingCoffeeMachine",
-    schedules: 1000,
   },
   {
     id: "failure-detector",
@@ -92,7 +87,6 @@ export const DEMOS: Demo[] = [
     ],
     open: "PSrc/FailureDetector.p",
     testCase: "tcTest_FailureDetector",
-    schedules: 1000,
   },
   {
     id: "paxos",
@@ -101,17 +95,15 @@ export const DEMOS: Demo[] = [
     roots: [{ from: `${TUT}5_Paxos/` }],
     open: "PSrc/proposer.p",
     testCase: "testBasicPaxos3on3",
-    schedules: 1000,
   },
   {
     id: "raft",
     title: "Raft",
     blurb:
-      "Leader election and log replication with unreliable networks, checked against safety (one leader per term, log matching, …) and liveness specs. Larger: expect a few seconds per 100 schedules.",
+      "Leader election and log replication with unreliable networks, checked against safety (one leader per term, log matching, …) and liveness specs. Larger: allow more time to explore.",
     roots: [{ from: `${TUT}6_Raft/` }],
     open: "PSrc/Server.p",
     testCase: "oneClientThreeServersUnreliable",
-    schedules: 100,
   },
   {
     id: "retry-budget",
@@ -121,7 +113,6 @@ export const DEMOS: Demo[] = [
     roots: [{ from: "../../design/time/RetryBudget/" }],
     open: "PSrc/RetryClient.p",
     testCase: "tcRetry",
-    schedules: 1000,
     extraArgs: "--latency PTst/latency.toml --timed",
   },
 ];
@@ -135,7 +126,6 @@ export const CUSTOM: Demo = {
   roots: [],
   open: "",
   testCase: "",
-  schedules: 1000,
 };
 
 const ORDER = ["PSrc/", "PSpec/", "PTst/", "Common/"];

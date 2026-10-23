@@ -691,8 +691,14 @@ impl<'p> Runtime<'p> {
                 }
             };
         }
+        let mut next_poll = self.next_cancel_work;
         loop {
             charge!(1);
+            if *work >= next_poll {
+                self.check_cancelled()?;
+                next_poll = work.saturating_add(4096);
+                self.next_cancel_work = next_poll;
+            }
             let stack = &mut exec.values;
             // every code block ends with a `Return`
             let op = &code.ops[pc];

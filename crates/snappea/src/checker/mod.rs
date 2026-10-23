@@ -8,6 +8,7 @@
 //! No threads or process APIs, and no file access outside
 //! [`observe_inputs::StdFiles`], so it compiles to `wasm32`.
 
+mod auto;
 pub mod bytecode;
 pub mod compile;
 pub mod coverage;

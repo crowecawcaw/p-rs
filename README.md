@@ -72,7 +72,7 @@ With Git installed, try both inventory designs:
 git clone https://github.com/crowecawcaw/snappea.git
 cd snappea/examples/model
 snappea tests
-snappea check tcAtomicReserve --exhaustive
+snappea check tcAtomicReserve
 snappea check tcCheckThenReserve
 ```
 
