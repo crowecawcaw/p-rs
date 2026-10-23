@@ -638,6 +638,7 @@ fn output_options_work_before_commands_and_usage_errors_write_reports() {
     assert!(!h.stderr.contains("unknown subcommand"));
     for args in [
         vec!["check", "--bogus", "--json-report", "r.json", "--json"],
+        vec!["tests", "--workers", "--json-report=r.json", "--json"],
         vec!["--json-report=r.json", "--json", "check", "--workers"],
         vec!["check", "--workers", "0", "--json-report", "r.json", "--json"],
         vec!["observe", "--bogus", "--json-report", "r.json", "--json"],

@@ -146,7 +146,13 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
             }
         } else {
             command.push(arg.clone());
-            let valued = CHECK_OPTS.iter().chain(REPLAY_OPTS).chain(super::observe::OPTS).any(|o| {
+            let spec = match command.first().map(String::as_str) {
+                Some("check") => CHECK_OPTS,
+                Some("replay") => REPLAY_OPTS,
+                Some("observe") => super::observe::OPTS,
+                _ => &[],
+            };
+            let valued = spec.iter().any(|o| {
                 o.takes_value && (arg == &format!("--{}", o.long) || o.short.is_some_and(|c| arg == &format!("-{}", c)))
             });
             if valued && inline.is_none() {
