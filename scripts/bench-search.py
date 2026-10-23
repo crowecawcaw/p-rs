@@ -14,12 +14,13 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--out', required=True)
     p.add_argument('--seeds', type=int, default=20)
+    p.add_argument('--seed-start', type=int, default=0)
     p.add_argument('--budget', type=int, default=10000)
     args = p.parse_args()
-    if args.seeds < 1 or args.budget < 1:
-        p.error('seeds and budget must be positive')
+    if args.seeds < 1 or args.budget < 1 or args.seed_start < 0:
+        p.error('seeds and budget must be positive; seed-start must be nonnegative')
     subprocess.run(['cargo', 'build', '--release', '-p', 'snappea', '--example', 'search_bench', '--locked'], cwd=ROOT, check=True)
-    env = dict(os.environ, SEARCH_SEEDS=str(args.seeds), SEARCH_BUDGET=str(args.budget))
+    env = dict(os.environ, SEARCH_SEEDS=str(args.seeds), SEARCH_SEED_START=str(args.seed_start), SEARCH_BUDGET=str(args.budget))
     data = json.loads(subprocess.check_output([str(ROOT/'target/release/examples/search_bench')], cwd=ROOT, env=env, text=True))
     def git(*args):
         return subprocess.check_output(['git', *args], cwd=ROOT, text=True).strip()

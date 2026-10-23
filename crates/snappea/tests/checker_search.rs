@@ -344,3 +344,81 @@ fn auto_cancellation_interrupts_handlers_without_fabricating_completion_or_bugs(
     assert_eq!(result.report.num_bugs, 0);
     assert!(!result.exhaustive.unwrap().finished);
 }
+
+#[test]
+fn native_feedback_learns_code_branches_without_activity_coverage_requested() {
+    let src = r#"
+        machine Main {
+            start state Init {
+                entry {
+                    if ($) { if ($) { if ($) { if ($) { if ($) {
+                        if ($) { if ($) { if ($) { if ($) { if ($) {
+                            assert false, "deep branch";
+                        } } } } }
+                    } } } } }
+                }
+            }
+        }
+        test tcMain [main=Main]: { Main };
+    "#;
+    let options = opts(StrategyKind::Feedback, 500);
+    let a = check(src, &options);
+    let b = check(src, &options);
+    assert!(a.report.num_bugs > 0, "code progress should guide an event-free model");
+    assert_eq!(a.schedule_trace, b.schedule_trace);
+    let trace = ScheduleTrace::parse(a.schedule_trace.as_ref().unwrap()).unwrap();
+    let replay = check(src, &CheckerOptions { strategy: StrategyKind::Replay, replay: Some(trace), ..options });
+    assert_eq!(replay.report.num_bugs, 1);
+}
+
+#[test]
+fn schedule_observer_counts_every_exploration_and_can_stop_at_all_bugs() {
+    use std::collections::BTreeSet;
+    #[derive(Default)]
+    struct Observer {
+        tested: usize,
+        bugs: BTreeSet<String>,
+    }
+    impl Output for Observer {
+        fn line(&mut self, _: &str) {}
+        fn error(&mut self, _: &str) {}
+        fn schedule_finished(&mut self, n: usize, bug: Option<&str>) {
+            assert_eq!(n, self.tested + 1);
+            self.tested = n;
+            if let Some(b) = bug {
+                self.bugs.insert(b.to_string());
+            }
+        }
+        fn cancelled(&mut self) -> bool {
+            self.bugs.len() == 2
+        }
+    }
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add(
+        "model.p",
+        r#"machine Main { start state Init { entry {
+        if ($) { assert false, "one"; } else { assert false, "two"; }
+    } } } test tcMain [main=Main]: { Main };"#,
+    );
+    let a = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let tc = a.program.test_cases().remove(0);
+    let mut out = Observer::default();
+    let r = Checker::new(&a.program)
+        .check(&tc, &CheckerOptions { full_exploration: true, ..opts(StrategyKind::Dfs, 100) }, &mut out)
+        .unwrap();
+    assert_eq!(out.bugs.len(), 2);
+    assert_eq!(out.tested, 2, "trace rendering must not count as exploration");
+    assert_eq!(r.report.explored_unfair_schedules, out.tested);
+}
+
+#[test]
+fn short_circuit_conditions_supply_native_guidance_without_changing_reported_coverage() {
+    let source = r#"machine Main { start state Init { entry {
+        if ($ && $ && $) { print "all true"; }
+    } } } test tcMain [main=Main]: { Main };"#;
+    let options = CheckerOptions { activity_coverage: true, ..opts(StrategyKind::Feedback, 200) };
+    let native = check(source, &options).coverage.unwrap();
+    assert_eq!(native.condition_edges.len(), 4, "both outcomes of two short-circuit decisions");
+    let legacy = check(source, &CheckerOptions { upstream_feedback: true, ..options }).coverage.unwrap();
+    assert!(legacy.condition_edges.is_empty(), "compatibility runs retain upstream feedback");
+}

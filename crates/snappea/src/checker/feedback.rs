@@ -42,13 +42,20 @@ impl<T: Copy> RandomChoices<T> {
     }
 
     /// `Utils.MutateRandomChoices(choices, meanMutationCount, meanMutationSize, random)`.
-    fn mutate(&self, mean_count: i64, mean_size: i64, legacy: bool) -> Self {
+    fn mutate(&self, mean_count: i64, mean_size: i64, legacy: bool, suffix: bool) -> Self {
         let n = self.data.len() as i64;
         let mean_count = (n / 3).min(mean_count).max(1);
         let mean_size = (n / 3).min(mean_size).max(1);
         let mut out =
             RandomChoices { random: self.random.clone(), pos: 0, data: self.data.clone(), generate: self.generate };
         if n == 0 && !legacy {
+            return out;
+        }
+        // Resample a suffix as well as changing individual choices. This preserves a
+        // useful prefix while allowing the continuation to change length and shape.
+        if suffix && !legacy && self.random.borrow_mut().next_below(2) == 0 {
+            let offset = self.random.borrow_mut().next_below(n as i32) as usize;
+            out.data.truncate(offset);
             return out;
         }
         let geometric = if legacy { sample_geometric_upstream } else { sample_geometric };
@@ -98,6 +105,7 @@ pub struct ControlledRandom {
     ints: RandomChoices<i32>,
     doubles: RandomChoices<f64>,
     legacy_mutations: bool,
+    local_mutations: bool,
 }
 
 impl ControlledRandom {
@@ -111,6 +119,7 @@ impl ControlledRandom {
             ints: RandomChoices::new(r.clone(), |r| r.next()),
             doubles: RandomChoices::new(r, |r| r.next_double()),
             legacy_mutations: false,
+            local_mutations: false,
         }
     }
 
@@ -123,14 +132,28 @@ impl ControlledRandom {
 
     /// Fresh choices drawing from the same underlying generator.
     pub fn new_like(&self) -> ControlledRandom {
-        ControlledRandom::from_random(self.ints.random.clone()).with_legacy_mutations(self.legacy_mutations)
+        let mut out =
+            ControlledRandom::from_random(self.ints.random.clone()).with_legacy_mutations(self.legacy_mutations);
+        out.local_mutations = self.local_mutations;
+        out
     }
 
     pub fn mutate(&self) -> ControlledRandom {
         ControlledRandom {
-            ints: self.ints.mutate(5, 1, self.legacy_mutations),
-            doubles: self.doubles.mutate(5, 1, self.legacy_mutations),
+            ints: self.ints.mutate(
+                if self.local_mutations { 1 } else { 5 },
+                1,
+                self.legacy_mutations,
+                self.local_mutations,
+            ),
+            doubles: self.doubles.mutate(
+                if self.local_mutations { 1 } else { 5 },
+                1,
+                self.legacy_mutations,
+                self.local_mutations,
+            ),
             legacy_mutations: self.legacy_mutations,
+            local_mutations: self.local_mutations,
         }
     }
 
@@ -460,6 +483,11 @@ pub struct FeedbackGuidedStrategy {
     suite_best_reached: std::collections::HashMap<String, usize>,
     suite_satisfied: HashSet<String>,
     fresh_percent: u8,
+    code_guidance: bool,
+    stalled: usize,
+    native_features: HashSet<String>,
+    failures: HashSet<String>,
+    failure_seeds: Vec<Generator>,
 }
 
 impl FeedbackGuidedStrategy {
@@ -481,6 +509,11 @@ impl FeedbackGuidedStrategy {
             suite_best_reached: std::collections::HashMap::new(),
             suite_satisfied: HashSet::new(),
             fresh_percent: 0,
+            code_guidance: false,
+            stalled: 0,
+            native_features: HashSet::new(),
+            failures: HashSet::new(),
+            failure_seeds: Vec::new(),
         }
     }
 
@@ -494,6 +527,13 @@ impl FeedbackGuidedStrategy {
     /// and mutation budget between them. Zero preserves the original exploration policy.
     pub fn with_fresh_exploration(mut self, percent: u8) -> Self {
         self.fresh_percent = percent.min(100);
+        self
+    }
+
+    /// Use coverage novelty instead of timeline MinHash; retain upstream behavior by default.
+    pub fn with_code_guidance(mut self, enabled: bool) -> Self {
+        self.code_guidance = enabled;
+        self.generator.borrow_mut().input.local_mutations = enabled;
         self
     }
 
@@ -524,6 +564,25 @@ impl FeedbackGuidedStrategy {
 
     fn prepare_next_input(&mut self) {
         self.generator.borrow_mut().scheduler.prepare_next_iteration();
+        if self.code_guidance {
+            // Exploit recent progress promptly, share attempts with older frontiers, and
+            // fall back to independent sampling when coverage stops being informative.
+            let fresh = self.fresh_percent.max(if self.stalled >= 128 { 75 } else { 25 });
+            if self.saved.is_empty() || self.rnd.next_below(100) < i32::from(fresh) {
+                self.generator = self.new_generator();
+            } else if !self.failure_seeds.is_empty() && self.rnd.next_below(2) == 0 {
+                let index = self.rnd.next_below(self.failure_seeds.len() as i32) as usize;
+                self.generator = Self::mutate_generator(&self.failure_seeds[index]);
+            } else {
+                let index = if self.rnd.next_below(4) != 0 {
+                    self.saved.len() - 1
+                } else {
+                    self.rnd.next_below(self.saved.len() as i32) as usize
+                };
+                self.generator = Self::mutate_generator(&self.saved[index].generator);
+            }
+            return;
+        }
         if self.fresh_percent > 0 && self.rnd.next_double() < f64::from(self.fresh_percent) / 100.0 {
             self.generator = self.new_generator();
             return;
@@ -607,7 +666,63 @@ impl Strategy for FeedbackGuidedStrategy {
     fn wants_feedback(&self) -> bool {
         true
     }
+    fn wants_minhash(&self) -> bool {
+        !self.code_guidance
+    }
+    fn observe_progress(&mut self, new_coverage: usize, bug: Option<&str>) {
+        if !self.code_guidance {
+            return;
+        }
+        let new_failure = bug.is_some_and(|bug| {
+            self.failures.len() < 64 && self.failures.insert(crate::checker::auto::failure_class(bug))
+        });
+        // Reuse failing data prefixes to vary inputs near a failure site. Pure
+        // interleavings already use the branch/event corpus; repeatedly replaying a
+        // failed interleaving can crowd out other delivery orders.
+        if new_failure && !self.generator.borrow().input.ints.data.is_empty() {
+            self.failure_seeds.push(self.generator.clone());
+        }
+        self.stalled = self.stalled.saturating_add(1);
+        if new_coverage == 0 && !new_failure {
+            return;
+        }
+        self.stalled = 0;
+        // Only productive seeds enter the corpus; cap memory for long checks.
+        if self.saved.len() == 256 {
+            self.saved.remove(0);
+        }
+        self.saved.push(Rc::new(GeneratorRecord {
+            id: self.next_record_id,
+            priority: 1.,
+            mutation_budget: 1,
+            generator: self.generator.clone(),
+            minhash: Vec::new(),
+        }));
+        self.next_record_id += 1;
+    }
     fn observe_timeline(&mut self, timeline: &str, minhash: &[i32], reached: &[(String, usize)], satisfied: &[String]) {
+        if self.code_guidance {
+            let mut progress = false;
+            for token in timeline.split(';').filter(|s| !s.is_empty()) {
+                if self.native_features.len() < 100_000 {
+                    progress |= self.native_features.insert(token.to_string());
+                }
+            }
+            for (name, count) in reached {
+                let best = self.suite_best_reached.entry(name.clone()).or_default();
+                if *count > *best {
+                    *best = *count;
+                    progress = true;
+                }
+            }
+            for name in satisfied {
+                progress |= self.suite_satisfied.insert(name.clone());
+            }
+            if progress {
+                self.observe_progress(1, None);
+            }
+            return;
+        }
         let diversity = self.compute_diversity(timeline, minhash);
         if diversity <= 0.0 {
             return;
@@ -675,6 +790,45 @@ pub fn stable_hash(token: &str) -> i32 {
 #[cfg(test)]
 mod mutation_tests {
     use super::*;
+
+    #[test]
+    fn code_novelty_retains_seeds_even_with_identical_timelines_and_bounds_the_corpus() {
+        let source = Source::Controlled(ControlledRandom::new(7));
+        let mut strategy =
+            FeedbackGuidedStrategy::new(100, 7, Box::new(RandomScheduler::new(source))).with_code_guidance(true);
+        for _ in 0..300 {
+            strategy.next_int(100);
+            strategy.observe_progress(1, None);
+            strategy.observe_timeline("same", &[], &[], &[]);
+            strategy.prepare_next_iteration();
+        }
+        assert_eq!(strategy.saved.len(), 256);
+        assert!(!strategy.wants_minhash());
+        for _ in 0..128 {
+            strategy.observe_progress(0, None);
+        }
+        let mut fresh = 0;
+        for _ in 0..100 {
+            strategy.prepare_next_iteration();
+            fresh += usize::from(strategy.generator.borrow().input.ints.data.is_empty());
+        }
+        assert!(fresh > 50 && fresh < 100, "stalls favor fresh sampling but keep exploiting: {fresh}");
+        assert_eq!(strategy.saved.len(), 256);
+    }
+
+    #[test]
+    fn failure_data_seeds_are_distinct_by_site_and_do_not_need_new_coverage() {
+        let source = Source::Controlled(ControlledRandom::new(7));
+        let mut strategy =
+            FeedbackGuidedStrategy::new(100, 7, Box::new(RandomScheduler::new(source))).with_code_guidance(true);
+        strategy.next_int(100);
+        strategy.observe_progress(0, Some("Assertion Failed: model.p:3:2 value 123"));
+        strategy.observe_progress(0, Some("Assertion Failed: model.p:3:2 value 456"));
+        assert_eq!(strategy.failure_seeds.len(), 1);
+        assert_eq!(strategy.saved.len(), 1);
+        strategy.observe_progress(0, Some("Assertion Failed: model.p:4:2 value 456"));
+        assert_eq!(strategy.failure_seeds.len(), 2);
+    }
 
     #[test]
     fn geometric_mutation_sizes_are_positive_even_at_mean_one() {

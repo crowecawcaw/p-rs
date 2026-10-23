@@ -75,6 +75,7 @@ fn deliveries(n: usize) -> String {
 
 fn main() {
     let seeds: u32 = std::env::var("SEARCH_SEEDS").unwrap_or("20".into()).parse().unwrap();
+    let seed_start: u32 = std::env::var("SEARCH_SEED_START").unwrap_or("0".into()).parse().unwrap();
     let budget: usize = std::env::var("SEARCH_BUDGET").unwrap_or("10000".into()).parse().unwrap();
     assert!(seeds > 0 && budget > 0);
     let mut rows = Vec::new();
@@ -97,7 +98,7 @@ fn main() {
             StrategyKind::RandomDfs,
             StrategyKind::Auto,
         ] {
-            for seed in 0..seeds {
+            for seed in seed_start..seed_start.checked_add(seeds).expect("seed range overflow") {
                 let mut out = Discoveries::default();
                 let result = checker
                     .check(
@@ -122,5 +123,5 @@ fn main() {
             }
         }
     }
-    println!("{}", json!({"suite_version":1, "budget":budget, "seeds":seeds, "rows":rows}));
+    println!("{}", json!({"suite_version":1, "budget":budget, "seeds":seeds, "seed_start":seed_start, "rows":rows}));
 }

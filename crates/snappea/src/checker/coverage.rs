@@ -91,6 +91,9 @@ pub struct CoverageInfo {
     pub monitor_transitions: FxHashSet<(StateId, StateId)>,
     /// Code coverage probes that ran (see `Op::Probe`), as a bit set.
     pub probes: ProbeSet,
+    /// Internal short-circuit condition outcomes, used only for native search guidance.
+    /// Unlike source branch coverage these distinguish progress through `a && b && c`.
+    pub condition_edges: FxHashSet<(u32, usize, bool)>,
 }
 
 /// A set of code coverage probe ids.
@@ -106,6 +109,10 @@ impl ProbeSet {
             self.bits.resize(word + 1, 0);
         }
         self.bits[word] |= 1 << bit;
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.bits.iter().map(|w| w.count_ones() as usize).sum()
     }
 
     pub fn contains(&self, id: u32) -> bool {
@@ -136,6 +143,7 @@ impl CoverageInfo {
         self.monitor_states.extend(other.monitor_states);
         self.monitor_transitions.extend(other.monitor_transitions);
         self.probes.union(&other.probes);
+        self.condition_edges.extend(other.condition_edges);
     }
 }
 
@@ -173,11 +181,14 @@ pub struct Coverage {
     tables: Rc<CoverageTables>,
     info: CoverageInfo,
     run: CoverageRun,
+    guide_conditions: bool,
 }
 
 impl Coverage {
     pub(crate) fn feature_count(&self) -> usize {
-        self.info.received.len()
+        self.info.condition_edges.len()
+            + self.info.probes.len()
+            + self.info.received.len()
             + self.info.sent.len()
             + self.info.links.len()
             + self.info.monitor_states.len()
@@ -186,7 +197,18 @@ impl Coverage {
 
     /// Continues accumulating `info` (named by `tables`) in a new schedule.
     pub fn new(tables: Rc<CoverageTables>, info: CoverageInfo) -> Coverage {
-        Coverage { tables, info, run: CoverageRun::default() }
+        Coverage { tables, info, run: CoverageRun::default(), guide_conditions: false }
+    }
+
+    pub(crate) fn with_condition_guidance(mut self, enabled: bool) -> Self {
+        self.guide_conditions = enabled;
+        self
+    }
+
+    pub(crate) fn condition(&mut self, fun: u32, pc: usize, outcome: bool) {
+        if self.guide_conditions {
+            self.info.condition_edges.insert((fun, pc, outcome));
+        }
     }
 
     /// The coverage accumulated so far.
