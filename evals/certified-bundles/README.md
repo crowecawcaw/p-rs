@@ -165,13 +165,16 @@ The completed output-comparison pilot used version 3. The next completed cohort 
 with it, then implement it in Python.” The control says “Write a design. Then
 implement it in Python.” The P prompt adds “Use pysnappea in Python tests.” and
 the control adds “Add Python tests.” Shared deliverables appear after the task
-instruction, so the prompt no longer leads with writing the Python file. Versions
+instruction, so the prompt no longer leads with writing the Python file. Version
 4 was not evaluated. Version 5 added Python tests and a shared pytest image, with
 pysnappea available only to the P arm; keep this cohort separate from version 3.
-The current version 6 default is: “First write and check a P/Snappea model of the
+Version 6 selected this wording: “First write and check a P/Snappea model of the
 design. Only start the Python implementation after the model passes. Use pysnappea
 in Python tests.” It was selected after a small single-prompt wording screen;
 two runs per wording do not establish a reliable general ranking.
+Version 7 changes only its final sentence to “Use pysnappea to check events from
+the Python implementation during tests.” The library and its docstrings were
+held unchanged for that prompt experiment.
 
 To compare old and new output, use three independent cohorts: Python-only, P
 with the baseline binary, and P with the modified binary. Keep both P cohorts'
@@ -208,7 +211,7 @@ signals are documented in [the investigation](../../design/check-quality/mutatio
 ## Screen single-prompt wording
 
 `SNAPPEA_EVAL_PROMPT_VARIANT` selects an experimental P-only prompt, recorded as
-prompt version 6. Variants are `design_process`, `before_file`, and `passing_first` (the default):
+the current prompt version. Variants are `design_process`, `before_file`, `passing_first`, and `implementation_events` (the current default):
 
 ```sh
 SNAPPEA_EVAL_PROMPT_VARIANT=design_process python tools/collaboration_run.py start --run-id wording-design-01 --arm p

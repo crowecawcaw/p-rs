@@ -1,14 +1,15 @@
 """Short design-first task prompts for new cohorts; historical prompts stay frozen."""
 import os
-VERSION = 6
+VERSION = 7
 COMMON = "Read TASK.md and contract.py.\n\n"
 CONTROL = "Write a design. Then implement it in Python.\nAdd Python tests.\n"
 VARIANTS = {
     'design_process': "Make a P/Snappea model as part of the design process. Once it passes, begin the Python implementation. Use pysnappea in Python tests.",
     'before_file': "Design the service in P/Snappea and get the model passing before writing solution.py. Then implement it in Python and use pysnappea in the tests.",
     'passing_first': "First write and check a P/Snappea model of the design. Only start the Python implementation after the model passes. Use pysnappea in Python tests.",
+    'implementation_events': "First write and check a P/Snappea model of the design. Only start the Python implementation after the model passes. Use pysnappea to check events from the Python implementation during tests.",
 }
-DEFAULT_VARIANT = 'passing_first'
+DEFAULT_VARIANT = 'implementation_events'
 P = VARIANTS[DEFAULT_VARIANT] + "\n\nP/Snappea: /opt/snappea; docs: /opt/pdocs/; example: /opt/inventory/.\n"
 
 def prompt_version():
