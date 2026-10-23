@@ -13,7 +13,7 @@ def check(run):
         '--tmpfs','/tmp:rw,size=64m','--mount',f'type=bind,src={ROOT}/private,dst=/grader/private,readonly',
         '--mount',f'type=bind,src={ROOT}/public,dst=/grader/public,readonly',
         '--mount',f'type=bind,src={run}/submission,dst=/submission,readonly',
-        '--mount',f'type=bind,src={out},dst=/output',r.IMAGE,
+        '--mount',f'type=bind,src={out},dst=/output',r.grading_image(run),
         'python','/grader/private/stress_wide.py','/submission/solution.py','--output','/output/wide.json']
     p=r.command(args,timeout=60)
     if not (out/'wide.json').exists(): raise RuntimeError(p.stderr)

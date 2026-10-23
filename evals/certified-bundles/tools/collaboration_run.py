@@ -19,17 +19,23 @@ def start(run_id,arm):
     if result.returncode: raise RuntimeError(result.stderr)
     preflight=None
     if arm=='p':
-        check=r.command(['docker','exec','snappea-eval-'+run_id,'bash','-c','command -v snappea && snappea version'])
+        check=r.command(['docker','exec','snappea-eval-'+run_id,'bash','-c',
+            'command -v snappea && snappea version && python -c "import snappea; from importlib.metadata import version; print(version(\'pysnappea\'))"'])
         preflight={'exit_code':check.returncode,'stdout':check.stdout,'stderr':check.stderr}
         if check.returncode:
             r.command(['docker','rm','-f','snappea-eval-'+run_id])
             raise RuntimeError('Snappea preflight failed: '+check.stderr)
-    meta={'run_id':run_id,'arm':arm,'prompt_version':PROMPT_VERSION,'model':'gpt-6-luna','reasoning_effort':'high',
-        'backend':'collaboration','tool_preflight':preflight,'environment_revision':'snappea-on-path','snappea_on_path':arm=='p','tool_bridge_version':2,'delegation_prompt_sha256':hashlib.sha256(delegation.encode()).hexdigest(),'image':r.IMAGE,'limits':{'seconds':900,'tool_calls':80,'generated_tokens':None},
+    meta={'run_id':run_id,'arm':arm,'prompt_version':r.prompt_version(),'prompt_variant':r.prompt_variant(arm),'model':'gpt-6-luna','reasoning_effort':'high',
+        'backend':'collaboration','tool_preflight':preflight,'environment_revision':'pysnappea-tests','snappea_on_path':arm=='p','tool_bridge_version':2,'delegation_prompt_sha256':hashlib.sha256(delegation.encode()).hexdigest(),'image':r.image_for_arm(arm),'limits':{'seconds':900,'tool_calls':80,'generated_tokens':None},
         'public_sha256':{n:hashlib.sha256((ROOT/'public'/n).read_bytes()).hexdigest() for n in r.PUBLIC},
         'prompt_sha256':hashlib.sha256(prompt.encode()).hexdigest(),'smoke':False,
         'status':'running','seconds':None,'generated_tokens':None,'input_tokens':None,'tool_calls':0,
         'provisioned_unix':time.time()}
+    if arm=='p':
+        binary, source = r.tool_paths()
+        revision = r.command(['git','-C',str(source),'rev-parse','HEAD'])
+        meta['snappea_binary_sha256'] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        meta['docs_source_revision'] = revision.stdout.strip() if revision.returncode == 0 else None
     (run/'metadata.json').write_text(json.dumps(meta,indent=2))
     print(json.dumps({'run':run_id,'arm':arm,'container':'snappea-eval-'+run_id}))
 

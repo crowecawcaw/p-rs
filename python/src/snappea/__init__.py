@@ -174,12 +174,22 @@ def check_events(
     artifacts: Optional[str] = None,
     liveness: Optional[bool] = None,
 ) -> None:
-    """Checks a hand-written list of events: unit tests for a spec itself::
+    """Check captured implementation events against P specs::
 
-        check_events([
-            {"event": "eEnter", "payload": {"client": "c1"}},
-            {"event": "eEnter", "payload": {"client": "c2"}},
-        ], "MutualExclusion")
+        check_events(captured_events, "MutualExclusion")
+
+    Events should normally come from observed implementation behavior, with payloads
+    describing actual results and state. In Python tests, prefer application calls
+    to :func:`emit`, captured automatically by the pytest plugin or inside
+    :func:`check_spec`::
+
+        with check_spec("MutualExclusion"):
+            server.acquire("c1")
+            server.acquire("c2")
+
+    Use this function when you already have a captured event list. Hand-written
+    traces are useful for testing the spec itself; they do not validate the
+    implementation. For event logs, use ``snappea observe``.
 
     Events take ``event`` and ``payload`` (or payload fields directly, as with
     :func:`emit`) and optionally ``key`` and ``at``; without ``at`` they are checked in
