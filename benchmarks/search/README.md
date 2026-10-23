@@ -200,3 +200,27 @@ of the upstream OSR `DefaultImpl` case: all three new auto seeds reach the
 200-schedule budget, so this is a scheduling tradeoff rather than a time-cap
 artifact. This policy does not improve every model. Exhaustion certifies 404
 catalogs; 13 expected DynamicError cases still have no observed common issue.
+
+The CI inventory example exposed a limit in the initial policy above: its fixed
+16,384-choice cap abandoned a finite search even while the cache kept closing
+paths. The final policy renews that stall budget whenever a probe window prunes
+at least as many schedules as it discovers states. Memory limits now count
+retained alternatives rather than choices replayed across earlier schedules.
+Atomic inventory exhausts in 20,241 schedules for seed 0; a regression checks
+both randomized DFS and auto complete within 30,000 schedules with no bug.
+
+The rerun at `bf0fae4` is recorded in [convergence.json.gz](convergence.json.gz),
+[convergence-holdout.json.gz](convergence-holdout.json.gz), and
+[convergence-corpus.json.gz](convergence-corpus.json.gz), with the complete
+[per-case report](convergence-corpus.md). The initial `auto` files above remain
+available to compare the convergence fix's discovery tradeoff.
+
+Both synthetic seed sets still complete 100/100 runs. Five-client auto medians
+rise to 3,433 schedules (seeds 0–19) and 3,597 (seeds 20–39), versus the initial
+cutoff policy's 1,416.5 and 1,340.5. They also exceed the previous portfolio's
+completed-only medians of 2,740 and 2,385; that portfolio missed one/two runs.
+This is the cost of preserving converging exhaustive completion rather than
+claiming small-model completeness while abandoning the inventory example.
+Standalone feedback results are unchanged. The broad corpus retains the same
+catalog digest and completion counts: auto 420/435, feedback 421/435, random
+415/435, DFS 408/435; 404 catalogs are exhaustively certified.
