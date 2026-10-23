@@ -173,6 +173,16 @@ def test_unknown_spec_is_a_clear_error():
     assert "--help" not in str(info.value)
 
 
+def test_p_source_error_is_a_clear_error(tmp_path):
+    # snappea stops before checking: its JSON result has an error and no specs
+    bad = tmp_path / "bad.p"
+    bad.write_text("event eEnter: (client: string);\nspec Broken observes eEnter {\n")
+    with pytest.raises(SetupError, match="does not type-check") as info:
+        check_events([{"event": "eEnter", "client": "c1"}], spec_files=[str(bad)])
+    assert info.value.kind == "config"
+    assert "bad.p" in str(info.value)
+
+
 @pytest.mark.skipif(os.name == "nt", reason="the fake snappea is a shell script")
 @pytest.mark.parametrize(
     "output, says",

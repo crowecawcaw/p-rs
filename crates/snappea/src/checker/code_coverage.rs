@@ -420,7 +420,12 @@ impl CodeCoverage {
         if self.fingerprint != other.fingerprint {
             return Err("coverage of different P sources".into());
         }
-        if self.points != other.points {
+        // file names depend on where each run found the sources, which the fingerprint
+        // already identifies
+        let same = |a: &Point, b: &Point| {
+            (a.kind, a.line, &a.context, &a.missed, a.parent) == (b.kind, b.line, &b.context, &b.missed, b.parent)
+        };
+        if self.points.len() != other.points.len() || !self.points.iter().zip(&other.points).all(|(a, b)| same(a, b)) {
             return Err("coverage of different code (or of another snappea version)".into());
         }
         self.hit.extend(other.hit.iter().copied());

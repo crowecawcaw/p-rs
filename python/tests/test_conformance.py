@@ -18,7 +18,7 @@ FEATURES = {"events_dir", "unknown_events"}
 CASES = sorted(d for d in os.listdir(CORPUS) if os.path.isdir(os.path.join(CORPUS, d)))
 
 
-def run_case(case: str, options: dict, coverage: bool):
+def run_case(case: str, options: dict):
     """The case's outcome: None (pass), a SpecViolation or a SetupError, and the recorder."""
     rec = Recorder(
         options.get("specs", ()),
@@ -27,7 +27,6 @@ def run_case(case: str, options: dict, coverage: bool):
         strict=options.get("strict"),
         check_hot=options.get("check_hot"),
         unknown_events=options.get("unknown_events"),
-        coverage=coverage,
     )
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
@@ -62,7 +61,7 @@ def test_conformance(name):
     if missing:
         pytest.skip(f"the Python helper does not support {', '.join(sorted(missing))}")
     expect = spec["expect"]
-    outcome, rec = run_case(case, spec.get("options", {}), "coverage" in expect)
+    outcome, rec = run_case(case, spec.get("options", {}))
     want = expect["outcome"]
     if want == "pass":
         assert outcome is None, f"expected a pass, got {outcome!r}"
@@ -78,7 +77,7 @@ def test_conformance(name):
         assert outcome.kind == expect["kind"], outcome.message
         assert expect.get("message", "") in outcome.message
     for spec_name, want_cov in expect.get("coverage", {}).items():
-        report = rec.coverage_report or {}
+        report = rec.report or {}
         got = next(s["coverage"] for s in report.get("specs", []) if s["spec"] == spec_name)
         for part, counts in want_cov.items():
             for count, value in counts.items():

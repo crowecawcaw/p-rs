@@ -146,7 +146,9 @@ class Recorder:
     * ``timeout``: seconds the checker may run. Default: 30.
     * ``artifacts``: folder to keep a failed check's events and output in. Default: a
       temp folder. ``SNAPPEA_ARTIFACTS`` overrides ``[tool.snappea]``.
-    * ``coverage``: also collect monitor coverage, as ``coverage_report``.
+
+    After a check, :attr:`report` holds snappea's JSON result, with each spec's
+    monitor coverage.
     """
 
     def __init__(
@@ -160,7 +162,6 @@ class Recorder:
         unknown_events: Optional[str] = None,
         timeout: Optional[float] = None,
         artifacts: Optional[str] = None,
-        coverage: bool = False,
         liveness: Optional[bool] = None,
         output_root: Optional[str] = None,
     ):
@@ -179,8 +180,9 @@ class Recorder:
             _deprecated("output_root=", "artifacts=")
             artifacts = artifacts or output_root
         self.artifacts = os.fspath(artifacts) if artifacts is not None else None
-        self.coverage = coverage
-        self.coverage_report: Optional[dict] = None
+        #: snappea's JSON result of the last check that ran (``specs[].coverage`` holds
+        #: each spec's monitor coverage); None before, or if snappea wrote none.
+        self.report: Optional[dict] = None
         #: Specs whose violations this recorder ignores (broken on purpose inside
         #: `expect_violation`).
         self.ignored: set = set()
@@ -397,7 +399,10 @@ class Recorder:
         files = self._files(s.config)
         if s.artifacts:
             os.makedirs(s.artifacts, exist_ok=True)
-        workdir = tempfile.mkdtemp(prefix="snappea-check-", dir=s.artifacts)
+        workdir = os.path.abspath(tempfile.mkdtemp(prefix="snappea-check-", dir=s.artifacts))
+        # snappea reports P source paths relative to its working folder: the project's
+        # root, so coverage of every check names the same files and merges
+        cwd = os.path.abspath(s.config.root)
         # this process's events first: equal timestamps keep input order
         own = os.path.join(workdir, "events.jsonl")
         with open(own, "w", encoding="utf-8") as f:
@@ -425,12 +430,12 @@ class Recorder:
         cmd += ["--json-report", report_path, "--unknown-events", s.unknown_events]
         if s.check_hot:
             cmd.append("--check-hot")
-        if self.coverage:
-            cmd.append("--coverage")
         if s.strict:
             cmd.append("--strict")
+        # the output is kept for people to read; the data comes from the JSON report
+        cmd += ["--format", "text"]
         try:
-            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=workdir, timeout=s.timeout)
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, timeout=s.timeout)
         except subprocess.TimeoutExpired:
             self._keep_children(workdir)
             raise SetupError(
@@ -446,19 +451,17 @@ class Recorder:
         if os.path.isfile(report_path):
             with open(report_path, encoding="utf-8") as f:
                 report = json.load(f)
+            self.report = report
             for w in _unique(w for spec in report.get("specs", []) for w in spec.get("warnings", [])):
-                warn(_with_src(w, report, workdir), UserWarning)
-        if self.coverage and report is not None:
-            self.coverage_report = report
-            if any("coverage" not in spec for spec in report.get("specs", [])):
-                raise SetupError("snappea did not report monitor coverage; use a binary supporting observe --coverage")
+                warn(_with_src(w, report, cwd), UserWarning)
         if proc.returncode == 0:
             shutil.rmtree(workdir, ignore_errors=True)
             return []
         self._keep_children(workdir)
-        if report is None:
-            raise _command_error(output, workdir)
-        return self._violations_of(report, workdir, s)
+        if report is None or "specs" not in report:
+            # snappea stopped before checking (bad options or P sources)
+            raise _command_error(output or (report or {}).get("error", ""), workdir)
+        return self._violations_of(report, workdir, cwd, s)
 
     def _keep_children(self, workdir: str) -> None:
         """Copies the events folders this process created into the artifacts, since
@@ -467,7 +470,7 @@ class Recorder:
             if os.path.basename(d).startswith("snappea-events-") and os.path.isdir(d):
                 shutil.copytree(d, os.path.join(workdir, f"events-dir-{i}"), dirs_exist_ok=True)
 
-    def _violations_of(self, report: dict, workdir: str, s: _Settings) -> List[SpecViolation]:
+    def _violations_of(self, report: dict, workdir: str, cwd: str, s: _Settings) -> List[SpecViolation]:
         __tracebackhide__ = True
         violations: List[SpecViolation] = []
         bad_lines: Dict[str, str] = {}
@@ -490,7 +493,7 @@ class Recorder:
                         validation.append(err.get("message", "Strict observation failed"))
                 elif kind == "spec_violation" or (kind == "unknown" and err.get("events")):
                     if spec not in self.ignored:
-                        violations.append(_violation(spec, err, workdir))
+                        violations.append(_violation(spec, err, workdir, cwd))
                 else:
                     other.append((kind or "unknown", err.get("message") or kind or "error"))
         if violations:
@@ -498,7 +501,7 @@ class Recorder:
         if bad_lines:
             raise SetupError(_payload_error(bad_lines, workdir), "parser", output_dir=workdir)
         if unknown:
-            raise SetupError(_unknown_error(unknown, workdir), "unknown_event", output_dir=workdir)
+            raise SetupError(_unknown_error(unknown, workdir, cwd), "unknown_event", output_dir=workdir)
         if other:
             kind = other[0][0]
             text = "\n".join(_unique(m for _, m in other))
@@ -533,13 +536,13 @@ def _parse_log(lines: Iterable[str], path: str, parse: LogParser) -> List[Event]
     return out
 
 
-def _violation(spec: str, err: dict, workdir: str) -> SpecViolation:
+def _violation(spec: str, err: dict, workdir: str, cwd: str) -> SpecViolation:
     message = err.get("message") or ""
     location = None
     liveness = False
     m = re.match(r"Assertion failure: (.+?:\d+):\d+ (.*)$", message, re.S)
     if m:
-        location, message = _rel(m.group(1), workdir), m.group(2)
+        location, message = _rel(m.group(1), cwd), m.group(2)
     else:
         m = re.match(r".*detected liveness bug in hot state '(.*)' at the end of program execution\.$", message)
         if m:
@@ -705,11 +708,11 @@ def _package_version() -> str:
         return "snappea, unknown version"
 
 
-def _src_at(location: str, workdir: str) -> Optional[str]:
-    """The `src` of the event line at `path:line` (relative to `workdir`, where snappea
+def _src_at(location: str, cwd: str) -> Optional[str]:
+    """The `src` of the event line at `path:line` (relative to `cwd`, where snappea
     ran), if it has one."""
     path, _, line = location.rpartition(":")
-    path = os.path.join(workdir, path)
+    path = os.path.join(cwd, path)
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             for i, text in enumerate(f, 1):
@@ -721,22 +724,22 @@ def _src_at(location: str, workdir: str) -> Optional[str]:
     return None
 
 
-def _with_src(message: str, report: dict, workdir: str) -> str:
+def _with_src(message: str, report: dict, cwd: str) -> str:
     """An unknown-event warning, with the emit location instead of the events file."""
     for spec in report.get("specs", []):
         for u in spec.get("unknown_events", []):
             loc = u.get("location") or ""
-            src = _src_at(loc, workdir) if loc else None
+            src = _src_at(loc, cwd) if loc else None
             if src and loc in message:
                 return message.replace(loc, src)
     return message
 
 
-def _unknown_error(unknown: Dict[str, dict], workdir: str) -> str:
+def _unknown_error(unknown: Dict[str, dict], workdir: str, cwd: str) -> str:
     lines = ["Some events are declared in no P spec file (a typo, or a missing spec file?):"]
     for name, u in unknown.items():
         loc = u.get("location") or ""
-        where = (_src_at(loc, workdir) if loc else None) or loc
+        where = (_src_at(loc, cwd) if loc else None) or loc
         n = u.get("count", 1)
         line = f"  {name}: {n} time(s), first at {where}"
         if u.get("suggestion"):
