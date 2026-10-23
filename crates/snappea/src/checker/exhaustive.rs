@@ -98,8 +98,14 @@ impl Shared {
     /// Takes up to `max` of the work left by finished workers.
     pub(crate) fn take_spare_work(&self, max: u64) -> u64 {
         use std::sync::atomic::Ordering;
-        let taken = self.spare_work.fetch_update(Ordering::AcqRel, Ordering::Acquire, |w| Some(w - w.min(max)));
-        taken.map_or(0, |w| w.min(max))
+        let mut spare = self.spare_work.load(Ordering::Acquire);
+        loop {
+            let take = spare.min(max);
+            match self.spare_work.compare_exchange_weak(spare, spare - take, Ordering::AcqRel, Ordering::Acquire) {
+                Ok(_) => return take,
+                Err(now) => spare = now,
+            }
+        }
     }
 
     /// Records that `hash` was reached at `depth`: `Some(new)` to explore it (`new` when no
