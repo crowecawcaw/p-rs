@@ -23,11 +23,11 @@ pub(crate) struct AutoStrategy {
     feedback: FeedbackGuidedStrategy,
     parked: Option<SearchStats>,
     work: u64,
+    work_deadline: u64,
     window_work: u64,
     window_states: usize,
     window_prunes: usize,
     window_frontier: Option<usize>,
-    alternatives: usize,
     dfs_bounds: usize,
     has_hot: bool,
     interrupted: bool,
@@ -49,11 +49,11 @@ impl AutoStrategy {
             .with_fresh_exploration(25),
             parked: None,
             work: 0,
+            work_deadline: MAX_WORK,
             window_work: 0,
             window_states: 0,
             window_prunes: 0,
             window_frontier: None,
-            alternatives: 0,
             dfs_bounds: 0,
             has_hot,
             interrupted: false,
@@ -76,11 +76,12 @@ impl AutoStrategy {
         if self.dfs.is_some() {
             self.work += 1;
             self.window_work += 1;
-            self.alternatives = self.alternatives.saturating_add(alternatives);
+            let retained = self.dfs.as_ref().unwrap().retained_alternatives();
             // Check before DFS materializes a potentially huge choice vector. Keep
             // DFS active until the schedule ends, so fairness and divergence describe
             // the schedule that actually ran.
-            self.interrupted |= self.work > MAX_WORK || self.alternatives > MAX_ALTERNATIVES;
+            self.interrupted |=
+                self.work > self.work_deadline || retained.saturating_add(alternatives) > MAX_ALTERNATIVES;
         }
         !self.interrupted
     }
@@ -137,9 +138,15 @@ impl Strategy for AutoStrategy {
             // A shrinking frontier or more graph closures than discoveries supports
             // continuing DFS. Novel states/coverage alone can grow forever.
             let closing = prunes > 0 && prunes >= states;
+            if closing {
+                // Cache closures show convergence even if a narrow DFS frontier
+                // fluctuates. Renew the stall budget while that evidence continues;
+                // absolute state and retained-choice bounds still cap memory.
+                self.work_deadline = self.work.saturating_add(MAX_WORK);
+            }
             let shrinking = frontier < initial_frontier;
             let decrease = initial_frontier.saturating_sub(frontier) as u64;
-            let remaining_work = MAX_WORK.saturating_sub(self.work).min(LOOKAHEAD_WORK);
+            let remaining_work = self.work_deadline.saturating_sub(self.work).min(LOOKAHEAD_WORK);
             let affordable = decrease > 0
                 && (frontier as u64).saturating_mul(self.window_work) <= decrease.saturating_mul(remaining_work);
             // A narrow frontier gets the bounded probe to reach deeper recovery

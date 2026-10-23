@@ -87,6 +87,11 @@ impl ExhaustiveStrategy {
         }
     }
 
+    /// Allocated choice alternatives retained along the current DFS path.
+    pub(crate) fn retained_alternatives(&self) -> usize {
+        self.path.iter().map(|choice| choice.options.len()).sum()
+    }
+
     /// Untried alternatives remaining along the current DFS frontier.
     pub(crate) fn pending_alternatives(&self) -> usize {
         self.path.iter().map(|c| c.options.len() - c.taken - 1).sum()

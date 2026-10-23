@@ -19,8 +19,9 @@ After each 1,024 controlled choices it checks whether the unexplored frontier is
 small, state-cache pruning is keeping up with new states, or a shrinking frontier
 is projected to finish within another 4,096 choices. If none applies, it releases
 the exhaustive search and continues with coverage-guided feedback. Narrow frontiers
-(up to 256 untried alternatives) get the bounded probe to reach deeper recovery stages. Exhaustive work is also limited to 16,384 choices, 100,000 cached states,
-and 1,000,000 choice alternatives; hitting a step bound also starts feedback.
+(up to 256 untried alternatives) get the bounded probe to reach deeper recovery stages. The 16,384-choice stall budget renews while cache pruning keeps up with new states.
+Memory is limited to 100,000 cached states and 1,000,000 retained choice
+alternatives; hitting a step bound also starts feedback.
 There are no separate random or PCT arms in automatic mode. Feedback retains its
 own fresh sampling so it can escape unproductive seeds.
 

@@ -534,3 +534,29 @@ fn feedback_keeps_boolean_assignment_prefixes_in_addition_to_reported_conditions
     let result = check(&src, &opts(StrategyKind::Feedback, 2000));
     assert_eq!(result.report.num_bugs, 1, "if/while probes alone cannot see progress inside the assignment");
 }
+
+#[test]
+fn auto_exhausts_atomic_inventory() {
+    let mut sources = snappea::syntax::SourceMap::new();
+    for (name, src) in [
+        ("Inventory.p", include_str!("../../../examples/model/PSrc/Inventory.p")),
+        ("inventory-spec.p", include_str!("../../../examples/model/PSpec/inventory.p")),
+        ("TestDriver.p", include_str!("../../../examples/model/PTst/TestDriver.p")),
+        ("TestScript.p", include_str!("../../../examples/model/PTst/TestScript.p")),
+    ] {
+        sources.add(name, src);
+    }
+    let analysis = snappea::sema::compile(&sources, &Default::default()).unwrap();
+    let tc = analysis.program.test_cases().into_iter().find(|t| t.name == "tcAtomicReserve").unwrap();
+    for strategy in [StrategyKind::RandomDfs, StrategyKind::Auto] {
+        let result = Checker::new(&analysis.program)
+            .check(
+                &tc,
+                &CheckerOptions { strategy, iterations: 30_000, full_exploration: true, seed: 0, ..Default::default() },
+                &mut Quiet,
+            )
+            .unwrap();
+        assert_eq!(result.report.num_bugs, 0);
+        assert!(result.exhaustive.as_ref().is_some_and(|s| s.finished));
+    }
+}
