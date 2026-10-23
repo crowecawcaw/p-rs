@@ -98,6 +98,18 @@ fn project_file_and_test_case_listing() {
 }
 
 #[test]
+fn compat_check_keeps_upstream_exit_behavior_for_coverage_gaps() {
+    let mut h = MemHost::new("/w");
+    h.add_file(
+        "gap.p",
+        "event eNever; machine Main { start state S { on eNever do { print \"never\"; } } }\n\
+         test tcMain [main=Main]: { Main };\n",
+    );
+    assert_eq!(run(&mut h, &["check", "-pf", "gap.p", "-pn", "Gap", "-tc", "tcMain", "-s", "10"]), 0, "{}", h.stdout);
+    assert!(!h.stdout.contains("Required coverage was not reached"), "{}", h.stdout);
+}
+
+#[test]
 fn type_errors_are_reported() {
     let mut h = MemHost::new("/w");
     h.add_file("bad.p", "machine M { start state S { entry { x = 1; } } }");

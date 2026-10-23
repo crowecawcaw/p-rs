@@ -76,7 +76,8 @@ snappea check tcAtomicReserve
 snappea check tcCheckThenReserve
 ```
 
-The atomic design passes exhaustive checking. The check-then-reserve design fails
+The atomic design passes exhaustive checking. The model scopes coverage exceptions to
+check-then-reserve paths covered by the other test. The check-then-reserve design fails
 with exit status 1 because it oversells. The failure includes:
 
 ```text

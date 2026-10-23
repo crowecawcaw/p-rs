@@ -605,7 +605,12 @@ const PING: &str = "event ePing: machine;\n\
 fn check_reports_what_never_ran() {
     let mut h = host();
     h.add_file("ping.p", PING);
-    assert_eq!(snappea(&mut h, &["check", "ping.p", "--json-report", "result.json"]), 0, "{}", h.stdout);
+    assert_eq!(
+        snappea(&mut h, &["check", "ping.p", "--allow-incomplete-coverage", "--json-report", "result.json"]),
+        0,
+        "{}",
+        h.stdout
+    );
     // `assert false` marks code that must never run: it is neither counted nor listed
     assert!(
         h.stdout
@@ -630,6 +635,93 @@ fn check_reports_what_never_ran() {
     );
     // no coverage files
     assert!(names(&h, "PCheckerOutput/tcPing").is_empty());
+}
+
+#[test]
+fn check_requires_aggregate_coverage_and_supports_scoped_suppressions() {
+    let mut h = host();
+    h.add_file(
+        "coverage.p",
+        "event ePing;\n\
+         machine Main { start state S { entry { print \"entry\"; } on ePing do { print \"ping\"; } } }\n\
+         test tcMain [main=Main]: { Main };\n",
+    );
+    assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation", "--json-report", "r.json"]), 1);
+    let result: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    assert_eq!(result["coverage_failed"], true);
+    assert_eq!(result["coverage"]["statements"], serde_json::json!({"covered": 1, "total": 2}));
+    assert_eq!(result["coverage"]["handlers"], serde_json::json!({"covered": 0, "total": 1}));
+    assert_eq!(result["coverage"]["required"]["handlers"], serde_json::json!({"covered": 0, "total": 1}));
+    assert_eq!(result["coverage"]["uncovered_required"].as_array().unwrap().len(), 2);
+    assert!(result["coverage"]["failure"]["message"].as_str().unwrap().contains("within the run budget"));
+    assert!(result["coverage"]["failure"]["help"].as_str().unwrap().contains("Add scenarios"));
+    assert!(h.stdout.contains("Required coverage was not reached within the run budget"), "{}", h.stdout);
+    assert!(h.stdout.contains("Add scenarios that reach the listed sites"), "{}", h.stdout);
+
+    assert_eq!(
+        snappea(&mut h, &["check", "coverage.p", "--no-mutation", "--allow-incomplete-coverage", "--format", "text"]),
+        0
+    );
+    assert!(h.stdout.contains("Coverage gate bypassed:"), "{}", h.stdout);
+
+    h.add_file(
+        "coverage.p",
+        "event ePing;\n\
+         machine Main { start state S { entry { print \"entry\"; }\n\
+           // snappea-lint: allow coverage, unused-payload-field -- exercised by a separate integration suite\n\
+           on ePing do { print \"ping\"; } } }\n\
+         test tcMain [main=Main]: { Main };\n",
+    );
+    assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation", "--json"]), 0, "{}", h.stderr);
+    let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(result["coverage"]["handlers"], serde_json::json!({"covered": 0, "total": 1}));
+    assert_eq!(result["coverage"]["required"]["handlers"], serde_json::json!({"covered": 0, "total": 0}));
+    assert_eq!(result["coverage"]["uncovered_required"].as_array().unwrap().len(), 0);
+
+    h.add_file(
+        "helper.p",
+        "machine Main { fun Helper(): int { print \"helper\"; return 1; }\n\
+         start state S { entry { print \"entry\"; } } }\n\
+         test tcMain [main=Main]: { Main };\n",
+    );
+    assert_eq!(snappea(&mut h, &["check", "helper.p", "--no-mutation", "--json"]), 1);
+    let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(result["coverage_failed"], true);
+    assert!(result["coverage"]["uncovered_required"].as_array().unwrap().iter().any(|p| p["context"] == "Main.Helper"));
+
+    h.add_file("coverage.p", "event ePing;\n// snappea-lint: allow coverage:nope -- typo\nmachine Main { start state S { } }\ntest tcMain [main=Main]: { Main };\n");
+    assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation"]), 2);
+    assert!(h.stderr.contains("unknown or empty lint rule ID"), "{}", h.stderr);
+    h.add_file(
+        "coverage.p",
+        "// snappea-lint: allow coverage\nmachine Main { start state S { } }\ntest tcMain [main=Main]: { Main };\n",
+    );
+    assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation"]), 2);
+    assert!(h.stderr.contains("coverage suppression needs a reason"), "{}", h.stderr);
+}
+
+#[test]
+fn selected_test_coverage_aggregates_and_forbidden_paths_stay_excluded() {
+    let mut h = host();
+    h.add_file(
+        "coverage.p",
+        "machine A { start state S { entry { print \"a\"; } } }\n\
+         machine B { start state S { entry { print \"b\"; } } }\n\
+         test tcA [main=A]: { A };\n\
+         test tcB [main=B]: { B };\n",
+    );
+    assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation", "--json"]), 0, "{}", h.stderr);
+    let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(result["coverage"]["statements"], serde_json::json!({"covered": 2, "total": 2}));
+    assert_eq!(result["coverage"]["required"]["statements"], serde_json::json!({"covered": 2, "total": 2}));
+
+    h.add_file(
+        "forbidden.p",
+        "event eNever;\nmachine Main { start state S { on eNever do { assert false, \"forbidden\"; } } }\ntest tcMain [main=Main]: { Main };\n",
+    );
+    assert_eq!(snappea(&mut h, &["check", "forbidden.p", "--no-mutation", "--json"]), 0, "{}", h.stderr);
+    let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(result["coverage"]["required"]["handlers"], serde_json::json!({"covered": 0, "total": 0}));
 }
 
 #[test]

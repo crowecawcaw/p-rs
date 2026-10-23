@@ -118,6 +118,17 @@ The same comment excludes code from `snappea check`'s mutation testing:
 `flip-boolean`) for one kind. See
 [mutation testing](checking-models.md#suppressing-a-mutant).
 
+`allow coverage` accepts deliberate missing statement, handler, or branch coverage in
+`snappea check`. Coverage suppressions require a nonempty reason after `--`:
+
+```p
+// snappea-lint: allow coverage -- this handler is exercised by the Python integration suite
+on eObserved do { validate(payload); }
+```
+
+The raw coverage report still lists the point; the required coverage counts exclude its
+scope. A misspelled coverage suppression ID is an `invalid-suppression` finding.
+
 The `-- reason` suffix is optional, but explains the abstraction to reviewers.
 Comments must be on their own line. Unknown IDs, malformed directives, and
 directives without an eligible following node produce an `invalid-suppression`

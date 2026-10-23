@@ -35,14 +35,17 @@ machine Inventory {
         send req.client, eReserveResp, (order = req.order, ok = false);
       }
     }
+    // snappea-lint: allow coverage -- exercised by tcCheckThenReserve, not the atomic design test
     on eAvailableReq do (req: (client: OrderClient)) {
       send req.client, eAvailableResp, (units = stock,);
     }
+    // snappea-lint: allow coverage -- exercised by tcCheckThenReserve, not the atomic design test
     on eCommitReq do (req: tReserveReq) {
       Reserve(req);
     }
     on eReleaseReq do (req: (order: string)) {
       var units: int;
+      // snappea-lint: allow coverage -- clients release only successful reservations
       if (req.order in reservations) {
         units = reservations[req.order];
         stock = stock + units;
@@ -71,6 +74,7 @@ machine OrderClient {
       inventory = input.inventory;
       order = input.order;
       units = input.units;
+      // snappea-lint: allow coverage -- exercised by tcCheckThenReserve, not the atomic design test
       if (input.checkFirst) {
         send inventory, eAvailableReq, (client = this,);
         goto Checking;
@@ -80,6 +84,7 @@ machine OrderClient {
     }
   }
 
+  // snappea-lint: allow coverage -- exercised by tcCheckThenReserve, not the atomic design test
   state Checking {
     on eAvailableResp do (resp: (units: int)) {
       if (resp.units < units) {
