@@ -97,9 +97,6 @@ pub fn run_with(args: &[String], host: &mut dyn Host, parsers: Vec<Box<dyn Parse
         {
             return code;
         }
-        if let Some(coverage) = &report.coverage {
-            host.out_line(&coverage.render_text());
-        }
     }
     for warning in obs.warnings() {
         host.write(Stream::Err, &format!("warning: {}\n", warning), Some(Color::Yellow));
@@ -175,9 +172,6 @@ const USAGE: &str = "Usage: p observe [options]
     --unknown-events
       Event names no P source declares: ignore, warn or error (snappea extension)
       Default: ignore
-    --coverage
-      Report observed monitor states and handlers on stdout and in --json-report
-      (snappea extension). Does not measure paths or scheduling coverage.
     --json-report
       Write the result as JSON to this file (snappea extension)
     --keyListFile
@@ -226,8 +220,6 @@ struct PObserveConfig {
     pub json_report: Option<String>,
     /// `--check-hot`: report specs left in a hot state.
     pub check_hot: bool,
-    /// `--coverage`: report observed monitor state and handler coverage.
-    pub coverage: bool,
     pub strict: bool,
     /// `--unknown-events`: event names no P source declares.
     pub unknown_events: UnknownEvents,
@@ -269,7 +261,6 @@ const OPTIONS: &[(&[&str], Arity)] = &[
     (&["--exclude-specs"], Arity::Names),
     (&["--json-report"], Arity::One),
     (&["--check-hot"], Arity::Flag),
-    (&["--coverage"], Arity::Flag),
     (&["--strict"], Arity::Flag),
     (&["--unknown-events"], Arity::One),
     (&["--stdin"], Arity::Flag),
@@ -329,7 +320,6 @@ fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<PObserveCon
         exclude_specs: Vec::new(),
         json_report: None,
         check_hot: false,
-        coverage: false,
         strict: false,
         unknown_events: UnknownEvents::Ignore,
         live: Vec::new(),
@@ -417,7 +407,6 @@ fn parse_args(args: &[String], host: &mut dyn Host) -> Result<Option<PObserveCon
                 }
                 "--json-report" => cfg.json_report = Some(v),
                 "--check-hot" => cfg.check_hot = true,
-                "--coverage" => cfg.coverage = true,
                 "--strict" => cfg.strict = true,
                 "--unknown-events" => cfg.unknown_events = v.parse()?,
                 "--parser" => {
@@ -572,7 +561,6 @@ impl PObserveConfig {
             exclude_specs: self.exclude_specs.clone(),
             lookup: Lookup::PObserve,
             check_hot: self.check_hot,
-            coverage: self.coverage,
             strict: self.strict,
             unknown_events: self.unknown_events,
             logs: self.log_files.clone(),

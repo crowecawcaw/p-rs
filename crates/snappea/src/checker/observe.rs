@@ -17,10 +17,10 @@ use std::rc::Rc;
 
 use crate::sema::{EventId, MachineId, ModuleInfo, PType, Program};
 
-use crate::checker::compile::{compile_program, Code};
+use crate::checker::code_coverage::{CodeCoverage, CodeMap, Hits, Scope};
+use crate::checker::compile::{compile_program_with_probes, Code};
 use crate::checker::coverage::{Coverage, CoverageInfo, CoverageTables};
 use crate::checker::javafmt::{self, JavaFormatter};
-use crate::checker::observe_coverage::ObserveCoverage;
 use crate::checker::runtime::{Config, Event, Failure, Runtime, Setup};
 use crate::checker::strategy::{OpInfo, Strategy};
 use crate::checker::time::{declares_time, Stamp, Time, TimeOptions};
@@ -137,6 +137,9 @@ pub struct Spec<'p> {
     config: Config,
     time: Result<bool, String>,
     java: JavaFormatter<'p>,
+    /// The spec's code coverage points, and the tables its runs record handlers in.
+    map: CodeMap,
+    tables: Rc<CoverageTables>,
 }
 
 impl<'p> Spec<'p> {
@@ -153,20 +156,29 @@ impl<'p> Spec<'p> {
 
     pub fn from_decl(prog: &'p Program, decl: MachineId) -> Spec<'p> {
         let config = Config { logging: false, max_work_per_step: 0, ..Config::default() };
+        let code = compile_program_with_probes(prog);
+        let map = CodeMap::new(prog, &code.probes, &Scope::machine(prog, decl));
         Spec {
             prog,
             decl,
             java_package: "pobserve".into(),
-            code: compile_program(prog),
+            code,
             module: ModuleInfo::default(),
             config,
             time: declares_time(prog),
             java: JavaFormatter::new(prog),
+            map,
+            tables: Rc::new(CoverageTables::new(prog)),
         }
     }
 
     pub fn name(&self) -> &str {
         &self.prog.machine(self.decl).name
+    }
+
+    /// Adds what a run recorded in `info` to the spec's coverage `c`.
+    fn record_coverage(&self, c: &mut CodeCoverage, info: &CoverageInfo) {
+        self.map.record(c, &Hits::from_info(self.prog, &self.tables, info));
     }
 
     /// The events the spec observes (`getEventTypes()`), in declaration order.
@@ -328,8 +340,6 @@ pub struct ObserveOptions {
     /// Report a key whose spec is left in a hot state after its last event, as `snappea check`
     /// does at the end of an execution (`--check-hot`, a snappea extension).
     pub check_hot: bool,
-    /// Collect observed monitor state and handler coverage.
-    pub coverage: bool,
     /// Reject a completed observation with no successfully checked relevant events.
     /// Applied independently to every selected spec, after key filtering.
     pub strict: bool,
@@ -496,7 +506,6 @@ impl Default for ObserveOptions {
             assume_sorted: false,
             keys: Vec::new(),
             check_hot: false,
-            coverage: false,
             strict: false,
             unknown_events: UnknownEvents::Ignore,
             input_names: Vec::new(),
@@ -518,6 +527,20 @@ pub enum ErrorKind {
     Unknown,
     /// An event name no loaded P source declares, with `--unknown-events error`.
     UnknownEvent,
+}
+
+impl ErrorKind {
+    /// The kind's name in JSON results.
+    pub fn name(self) -> &'static str {
+        match self {
+            ErrorKind::SpecViolation => "spec_violation",
+            ErrorKind::OutOfOrder => "out_of_order",
+            ErrorKind::Parser => "parser",
+            ErrorKind::Unknown => "unknown",
+            ErrorKind::Validation => "validation",
+            ErrorKind::UnknownEvent => "unknown_event",
+        }
+    }
 }
 
 /// The events of one key leading up to an error (`PObserveReplayEvents`).
@@ -584,8 +607,8 @@ impl Metrics {
 
 #[derive(Debug, Clone, Default)]
 pub struct Report {
-    /// Opt-in observed monitor coverage (not full model or schedule coverage).
-    pub coverage: Option<ObserveCoverage>,
+    /// Which handlers, statements and branches of the spec the events ran.
+    pub coverage: CodeCoverage,
     /// In the order upstream records them: parser errors, then errors per key.
     pub errors: Vec<ObserveError>,
     pub metrics: Metrics,
@@ -604,6 +627,16 @@ impl Report {
     /// event name (with [`UnknownEvents::Error`]) does, since the input is not trustworthy.
     pub fn exit_status(&self) -> i32 {
         Self::errors_exit_status(&self.errors)
+    }
+
+    /// `snappea observe`'s exit status for [`Self::exit_status`]: 0 no error, 1 a spec
+    /// violation, 2 any other error.
+    pub fn snappea_exit_code(pobserve_status: i32) -> i32 {
+        match pobserve_status {
+            0 => 0,
+            2 => 1,
+            _ => 2,
+        }
     }
 
     /// Status for a combined set of spec errors, using [`Self::exit_status`] priority.
@@ -746,7 +779,6 @@ impl<'p> Spec<'p> {
         let log = &mut report.log;
         let time = self.time == Ok(true);
         let mut strategy = NoScheduling;
-        let tables = opts.coverage.then(|| Rc::new(CoverageTables::new(self.prog)));
         let mut rt = Runtime::new(
             self.prog,
             &self.code,
@@ -756,7 +788,7 @@ impl<'p> Spec<'p> {
             Setup {
                 java_semantics: Some(&self.java),
                 time: time.then(TimeOptions::default),
-                coverage: tables.clone().map(|t| Coverage::new(t, CoverageInfo::default())),
+                coverage: Some(Coverage::new(self.tables.clone(), CoverageInfo::default())),
                 ..Setup::default()
             },
         );
@@ -826,8 +858,8 @@ impl<'p> Spec<'p> {
             }
             KeyOutcome::Ok
         })();
-        if let (Some(result), Some(tables), Some(collected)) = (report.coverage.as_mut(), tables, rt.coverage.take()) {
-            result.record(self.prog, &tables, &collected.into_info());
+        if let Some(collected) = rt.coverage.take() {
+            self.record_coverage(&mut report.coverage, &collected.into_info());
         }
         outcome
     }
@@ -841,8 +873,7 @@ impl<'p> Spec<'p> {
         opts: &ObserveOptions,
         clock: &mut dyn FnMut() -> f64,
     ) -> Report {
-        let mut report =
-            Report { coverage: opts.coverage.then(|| ObserveCoverage::new(self.prog, self.decl)), ..Report::default() };
+        let mut report = Report { coverage: self.map.empty(), ..Report::default() };
         let start = clock();
         if let Err(message) = &self.time {
             report.metrics.unknown_errors = 1;
@@ -969,7 +1000,6 @@ pub struct ObserveSession<'s> {
     keys: HashMap<String, (usize, Option<Timestamp>, std::collections::VecDeque<ObservedEvent>)>,
     report: Report,
     started: f64,
-    coverage_tables: Option<Rc<CoverageTables>>,
     /// Entries pushed so far, to locate unknown events.
     entries: usize,
     unknown: UnknownTracker,
@@ -978,7 +1008,6 @@ pub struct ObserveSession<'s> {
 impl<'s> ObserveSession<'s> {
     /// `strategy` is never consulted by spec monitors; use [`NoScheduling`].
     pub fn new(spec: &'s Spec<'s>, opts: ObserveOptions, strategy: &'s mut dyn Strategy, now: f64) -> Self {
-        let coverage_tables = opts.coverage.then(|| Rc::new(CoverageTables::new(spec.prog)));
         let rt = Runtime::new(
             spec.prog,
             &spec.code,
@@ -988,12 +1017,11 @@ impl<'s> ObserveSession<'s> {
             Setup {
                 java_semantics: Some(&spec.java),
                 time: (spec.time == Ok(true)).then(TimeOptions::default),
-                coverage: coverage_tables.as_ref().map(|t| Coverage::new(t.clone(), CoverageInfo::default())),
+                coverage: Some(Coverage::new(spec.tables.clone(), CoverageInfo::default())),
                 ..Setup::default()
             },
         );
-        let mut report =
-            Report { coverage: opts.coverage.then(|| ObserveCoverage::new(spec.prog, spec.decl)), ..Report::default() };
+        let mut report = Report { coverage: spec.map.empty(), ..Report::default() };
         report.metrics.events = spec
             .observes()
             .iter()
@@ -1010,7 +1038,6 @@ impl<'s> ObserveSession<'s> {
             keys: HashMap::new(),
             report,
             started: now,
-            coverage_tables,
             entries: 0,
             unknown: UnknownTracker::default(),
         }
@@ -1201,10 +1228,8 @@ impl<'s> ObserveSession<'s> {
                 });
             }
         }
-        if let (Some(coverage), Some(tables), Some(runtime_coverage)) =
-            (&mut self.report.coverage, &self.coverage_tables, self.rt.coverage.take())
-        {
-            coverage.record(self.spec.prog, tables, &runtime_coverage.into_info());
+        if let Some(collected) = self.rt.coverage.take() {
+            self.spec.record_coverage(&mut self.report.coverage, &collected.into_info());
         }
         self.report.metrics.elapsed_ms = ((now - self.started) * 1000.0).round() as i64;
         self.report

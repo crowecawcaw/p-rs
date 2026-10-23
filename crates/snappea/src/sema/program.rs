@@ -566,6 +566,8 @@ pub struct ImplDecl {
 pub struct Program {
     /// Path-independent SHA-256 identity of the compilation source contents.
     pub source_fingerprint: Option<String>,
+    /// The sources, to resolve spans to file names and lines.
+    pub sources: std::sync::Arc<crate::syntax::SourceMap>,
     pub events: Vec<EventDecl>,
     pub enums: Vec<EnumDecl>,
     pub typedefs: Vec<TypeDefDecl>,

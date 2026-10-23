@@ -14,6 +14,12 @@ pub struct NativeHost {
 }
 
 impl Host for NativeHost {
+    fn stdout_is_terminal(&self) -> bool {
+        io::stdout().is_terminal()
+    }
+    fn env_var(&self, name: &str) -> Option<String> {
+        std::env::var(name).ok()
+    }
     fn read_stdin_line(&self) -> io::Result<Option<String>> {
         let mut line = String::new();
         match io::stdin().read_line(&mut line)? {

@@ -551,61 +551,6 @@ fn timed_observation_still_rejects_out_of_order_inputs() {
 }
 
 #[test]
-fn coverage_reports_unvisited_states_and_attempted_failing_handlers() {
-    let mut h = host();
-    h.add_file("run.log", &line("a", 1, "eDeposit", 1, 10));
-    let args = ["--spec", "NeverOverdrawn", "--coverage", "--json-report", "coverage.json", "-l", "run.log"];
-    assert_eq!(run(&mut h, &args), 0);
-    let data: serde_json::Value = serde_json::from_str(&read(&h, "coverage.json")).unwrap();
-    let c = &data["specs"][0]["coverage"];
-    assert_eq!(c["states"]["total"], 2);
-    assert_eq!(c["states"]["visited"], serde_json::json!(["NeverOverdrawn.Open"]));
-    assert_eq!(c["handlers"]["total"], 3);
-    assert_eq!(c["handlers"]["covered"], 1);
-    assert_eq!(c["transitions"], serde_json::json!([]));
-    assert!(h.stdout.contains("Unvisited state: NeverOverdrawn.Closed"));
-    assert!(h.stdout.contains("Uncovered handler: NeverOverdrawn.Open / eWithdraw"));
-
-    h.add_file("run.log", &line("a", 1, "eWithdraw", 1, 10));
-    assert_eq!(run(&mut h, &args), 2);
-    let data: serde_json::Value = serde_json::from_str(&read(&h, "coverage.json")).unwrap();
-    assert_eq!(
-        data["specs"][0]["coverage"]["handlers"]["visited"],
-        serde_json::json!([{"state":"NeverOverdrawn.Open", "event":"eWithdraw"}])
-    );
-
-    h.add_file("run.log", "{\"key\":\"a\",\"timestamp\":1,\"event\":\"eClose\",\"payload\":1}");
-    assert_eq!(run(&mut h, &args), 0);
-    let data: serde_json::Value = serde_json::from_str(&read(&h, "coverage.json")).unwrap();
-    let c = &data["specs"][0]["coverage"];
-    assert_eq!(c["states"]["covered"], 2);
-    assert_eq!(
-        c["transitions"],
-        serde_json::json!([{"source":"NeverOverdrawn.Open","target":"NeverOverdrawn.Closed"}])
-    );
-}
-
-#[test]
-fn coverage_ignores_unselected_specs_and_reports_empty_logs() {
-    let mut h = host();
-    h.add_file(
-        "PSpec/Unused.p",
-        "event eUnused; spec Unused observes eUnused { start state Unseen { on eUnused do {} } }",
-    );
-    h.add_file("empty.log", "");
-    assert_eq!(
-        run(&mut h, &["--spec", "NeverOverdrawn", "--coverage", "--json-report", "coverage.json", "-l", "empty.log"]),
-        0
-    );
-    let data: serde_json::Value = serde_json::from_str(&read(&h, "coverage.json")).unwrap();
-    let c = &data["specs"][0]["coverage"];
-    assert_eq!(c["states"]["total"], 2);
-    assert_eq!(c["states"]["covered"], 0);
-    assert_eq!(c["handlers"]["total"], 3);
-    assert_eq!(c["handlers"]["covered"], 0);
-}
-
-#[test]
 fn strict_requires_relevant_events_after_filtering_and_preserves_other_errors() {
     for log in ["", "{\"event\":\"eUnrelated\"}"] {
         let mut h = host();

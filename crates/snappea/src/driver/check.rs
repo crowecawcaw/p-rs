@@ -533,8 +533,8 @@ pub struct CaseOutcome {
     pub elapsed: f64,
     /// The `.schedule` file written for the bug (as `cfg.output_directory` names it).
     pub schedule_file: Option<String>,
-    /// What the schedules ran, with `cfg.code_coverage`.
-    pub code_coverage: Option<crate::checker::code_coverage::CodeCoverage>,
+    /// What the schedules ran, and the code they could have run, with `cfg.code_coverage`.
+    pub code_coverage: Option<(crate::checker::code_coverage::Scope, crate::checker::code_coverage::Hits)>,
 }
 
 impl CaseOutcome {
@@ -583,8 +583,9 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
     }
     let prog = &loaded.analysis.program;
     let code_coverage = res.coverage.as_ref().filter(|_| cfg.code_coverage).map(|cov| {
+        use crate::checker::code_coverage::{Hits, Scope};
         let tables = crate::checker::coverage::CoverageTables::new(prog);
-        crate::checker::code_coverage::CodeCoverage::of_case(prog, &tc, &tables, cov)
+        (Scope::test_case(prog, &tc), Hits::from_info(prog, &tables, cov))
     });
     // snappea reports coverage on the console
     if let Some(cov) = res.coverage.as_ref().filter(|_| !snappea) {

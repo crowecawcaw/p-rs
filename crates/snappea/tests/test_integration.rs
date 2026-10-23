@@ -254,8 +254,9 @@ fn coverage_merges_into_one_file_from_many_threads() {
         h.join().unwrap();
     }
     let suite = snappea::test::ObserveCoverageReport::from_json_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-    let states = suite.specs["Inventory"].to_json()["states"].clone();
-    assert_eq!((states["covered"].as_u64(), states["total"].as_u64()), (Some(2), Some(2)));
+    // the union of every thread's check: half of them handle `Done`, none `Pair`
+    let missed: Vec<String> = suite.specs["Inventory"].uncovered().iter().map(|u| u.context.clone()).collect();
+    assert_eq!(missed, ["Inventory.Ready, on Pair"]);
     assert!(!dir.join("nested/coverage.json.lock").exists());
     std::fs::remove_dir_all(dir).unwrap();
 }
