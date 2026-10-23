@@ -72,7 +72,18 @@ fn main() {
     let checker = Checker::with_code_coverage(&compiled.program);
     let has_hot = compiled.program.states.iter().any(|s| s.temperature == snappea::sema::Temperature::Hot);
     let names: Vec<_> = cases.iter().map(|tc| &tc.name).collect();
+    let monitors: BTreeMap<_, Vec<_>> = cases
+        .iter()
+        .map(|tc| {
+            let (module, _) = compiled.program.test_case_module(tc);
+            (
+                tc.name.clone(),
+                module.monitor_map.iter().map(|(id, _)| compiled.program.machine(*id).name.clone()).collect(),
+            )
+        })
+        .collect();
     emit(json!({"kind":"project", "status":"ready", "cases":names,
+        "case_monitors":monitors,
         "sources":sources.files.iter().map(|f| &f.name).collect::<Vec<_>>(), "has_hot":has_hot,
         "foreign_files":resolved.foreign_files}));
     let budget = manifest["budget"].as_u64().unwrap() as usize;
@@ -80,8 +91,14 @@ fn main() {
     let seconds = manifest["seconds_per_run"].as_f64().unwrap();
     for tc in cases {
         for name in manifest["strategies"].as_array().unwrap() {
-            let strategy: StrategyKind = name.as_str().unwrap().parse().unwrap();
-            for seed in 0..manifest["seeds"].as_u64().unwrap() as u32 {
+            let label = name.as_str().unwrap();
+            let choice_guidance = matches!(label, "feedback-choice" | "feedback-frontier-choice");
+            let frontier_guidance = matches!(label, "feedback-frontier" | "feedback-frontier-choice");
+            let strategy: StrategyKind =
+                if choice_guidance || frontier_guidance { StrategyKind::Feedback } else { label.parse().unwrap() };
+            let seed_start = manifest["seed_start"].as_u64().unwrap_or(0);
+            for seed in seed_start..seed_start + manifest["seeds"].as_u64().unwrap() {
+                let seed = seed as u32;
                 let start = Instant::now();
                 let mut out =
                     Observer { first: BTreeMap::new(), tested: 0, deadline: start + Duration::from_secs_f64(seconds) };
@@ -89,6 +106,8 @@ fn main() {
                     &tc,
                     &CheckerOptions {
                         strategy,
+                        feedback_choice_guidance: choice_guidance,
+                        feedback_frontier_guidance: frontier_guidance,
                         seed,
                         iterations: budget,
                         max_fair_steps: steps,
@@ -105,7 +124,7 @@ fn main() {
                             && r.exhaustive.as_ref().is_some_and(|s| {
                                 s.finished && s.depth_bound_hits == 0 && (!has_hot || s.cycle_prunes == 0)
                             });
-                        emit(json!({"kind":"run", "case":tc.name, "strategy":strategy.name(), "seed":seed,
+                        emit(json!({"kind":"run", "case":tc.name, "strategy":label, "seed":seed,
                             "schedules_tested":out.tested, "first_issue_schedules":out.first,
                             "cancelled":r.cancelled, "exhaustive_complete":certified,
                             "exhaustive":r.exhaustive.map(|s| json!({"finished":s.finished, "depth_bound_hits":s.depth_bound_hits, "cycle_prunes":s.cycle_prunes})),
@@ -114,7 +133,7 @@ fn main() {
                             "elapsed_seconds":start.elapsed().as_secs_f64(), "status":"ok"}));
                     }
                     Err(error) => emit(
-                        json!({"kind":"run", "case":tc.name, "strategy":strategy.name(), "seed":seed, "status":"engine_error", "detail":error}),
+                        json!({"kind":"run", "case":tc.name, "strategy":label, "seed":seed, "status":"engine_error", "detail":error}),
                     ),
                 }
             }

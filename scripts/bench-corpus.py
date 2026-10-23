@@ -105,7 +105,7 @@ def run_project(index, project, manifest_path, opts):
     existing = {(r['case'], r['strategy'], r['seed']) for r in result['runs']}
     for case in result.get('cases', []):
         for strategy in STRATEGIES:
-            for seed in range(opts.seeds):
+            for seed in range(opts.seed_start, opts.seed_start + opts.seeds):
                 if (case, strategy, seed) not in existing:
                     result['runs'].append({'case': case, 'strategy': strategy, 'seed': seed, 'status': 'not_run',
                                            'schedules_tested': 0, 'first_issue_schedules': {}})
@@ -164,19 +164,30 @@ def main():
     parser.add_argument('--budget', type=int, default=200)
     parser.add_argument('--steps', type=int, default=1000)
     parser.add_argument('--seeds', type=int, default=1)
+    parser.add_argument('--seed-start', type=int, default=0)
     parser.add_argument('--seconds-per-run', type=float, default=0.1)
     parser.add_argument('--project-timeout', type=float, default=60)
     parser.add_argument('--jobs', type=int, default=2)
+    parser.add_argument('--choice-guidance', action='store_true', help='also measure experimental next-choice feedback')
+    parser.add_argument('--frontier-guidance', action='store_true', help='also measure event-count prefix checkpoints')
     opts = parser.parse_args()
+    if opts.frontier_guidance:
+        STRATEGIES.insert(2, 'feedback-frontier')
+    if opts.choice_guidance:
+        STRATEGIES.insert(2, 'feedback-choice')
+    if opts.choice_guidance and opts.frontier_guidance:
+        STRATEGIES.insert(2, 'feedback-frontier-choice')
     if min(opts.budget, opts.steps, opts.seeds, opts.seconds_per_run, opts.project_timeout, opts.jobs) <= 0:
         parser.error('budgets, bounds, seeds, timeouts and jobs must be positive')
+    if opts.seed_start < 0 or opts.seed_start + opts.seeds > 2**32:
+        parser.error('seed range must fit unsigned 32-bit seeds')
     def git(*args):
         return subprocess.check_output(['git', *args], cwd=ROOT, text=True).strip()
     commit, dirty = git('rev-parse', 'HEAD'), bool(git('status', '--porcelain', '--untracked-files=no'))
     subprocess.run(['cargo', 'build', '--release', '--locked', '-p', 'snappea', '--example', 'corpus_bench'], cwd=ROOT, check=True)
     projects, files = inventory(opts.scope)
     projects = [p for p in projects if opts.filter in p['id']]
-    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seconds_per_run', 'scope']}
+    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'choice_guidance', 'frontier_guidance']}
     manifest = dict(settings, root=str(ROOT), strategies=STRATEGIES, projects=projects, files=files)
     results = [None]*len(projects)
     with tempfile.TemporaryDirectory(prefix='snappea-corpus-') as temp:

@@ -11,6 +11,45 @@ use crate::checker::random::DotNetRandom;
 use crate::checker::runtime::SchedKind;
 use crate::checker::strategy::{OpInfo, SharedRandom, Strategy};
 
+/// Bounded prefix-context exploration. Counts are hints, never reasons to prune:
+/// revisiting the same prefix can still discover a different continuation.
+struct ChoiceGuide {
+    prefix: u64,
+    visits: rustc_hash::FxHashMap<(u64, u8, i32), Vec<u32>>,
+    counters: usize,
+    random: DotNetRandom,
+}
+
+impl ChoiceGuide {
+    fn new(seed: u32) -> Self {
+        Self { prefix: 0, visits: Default::default(), counters: 0, random: DotNetRandom::new(seed as i32) }
+    }
+
+    fn choose(&mut self, channel: u8, max: i32, proposed: i32, fresh: bool) -> i32 {
+        let key = (self.prefix, channel, max);
+        let mut chosen = proposed;
+        if !self.visits.contains_key(&key) && self.counters + max as usize <= 262_144 {
+            self.visits.insert(key, vec![0; max as usize]);
+            self.counters += max as usize;
+        }
+        if let Some(counts) = self.visits.get_mut(&key) {
+            // Preserve recorded prefixes; occasionally guide a fresh continuation.
+            if fresh && self.random.next_below(4) == 0 {
+                let least = *counts.iter().min().unwrap();
+                let ties = counts.iter().filter(|n| **n == least).count();
+                let rank = self.random.next_below(ties as i32) as usize;
+                chosen = counts.iter().enumerate().filter(|(_, n)| **n == least).nth(rank).unwrap().0 as i32;
+            }
+            counts[chosen as usize] = counts[chosen as usize].saturating_add(1);
+        }
+        // Include domain and stream identity: input and scheduler indices differ.
+        for value in [u64::from(channel), max as u64, chosen as u64] {
+            self.prefix = (self.prefix ^ value.wrapping_add(1)).wrapping_mul(0x100000001b3);
+        }
+        chosen
+    }
+}
+
 /// A failure site, independent of formatted values and machine instance numbers.
 pub(crate) fn failure_class(bug: &str) -> String {
     if let Some(rest) = bug.strip_prefix("Assertion Failed: ") {
@@ -139,6 +178,7 @@ pub struct ControlledRandom {
     doubles: RandomChoices<f64>,
     legacy_mutations: bool,
     local_mutations: bool,
+    guide: Option<(Rc<RefCell<ChoiceGuide>>, u8)>,
 }
 
 impl ControlledRandom {
@@ -153,6 +193,7 @@ impl ControlledRandom {
             doubles: RandomChoices::new(r, |r| r.next_double()),
             legacy_mutations: false,
             local_mutations: false,
+            guide: None,
         }
     }
 
@@ -160,7 +201,19 @@ impl ControlledRandom {
         if max == 0 {
             return 0;
         }
-        self.ints.next() % max
+        let fresh = self.ints.pos == self.ints.data.len();
+        let proposed = self.ints.next() % max;
+        if let Some((guide, channel)) = &self.guide {
+            let chosen = guide.borrow_mut().choose(*channel, max, proposed, fresh);
+            // Retain the actual guided decision so corpus mutations start from
+            // the choices that ran, rather than the discarded proposal.
+            if chosen != proposed {
+                self.ints.data[self.ints.pos - 1] = chosen;
+            }
+            chosen
+        } else {
+            proposed
+        }
     }
 
     /// Fresh choices drawing from the same underlying generator.
@@ -168,6 +221,7 @@ impl ControlledRandom {
         let mut out =
             ControlledRandom::from_random(self.ints.random.clone()).with_legacy_mutations(self.legacy_mutations);
         out.local_mutations = self.local_mutations;
+        out.guide = self.guide.clone();
         out
     }
 
@@ -187,7 +241,23 @@ impl ControlledRandom {
             ),
             legacy_mutations: self.legacy_mutations,
             local_mutations: self.local_mutations,
+            guide: self.guide.clone(),
         }
+    }
+
+    fn prefix(&self, rewind: bool) -> Self {
+        let mut out = self.clone();
+        out.ints.data.truncate(out.ints.pos);
+        out.doubles.data.truncate(out.doubles.pos);
+        if rewind {
+            out.ints.pos = 0;
+            out.doubles.pos = 0;
+        }
+        out
+    }
+
+    fn choice_count(&self) -> usize {
+        self.ints.data.len() + self.doubles.data.len()
     }
 
     /// Preserve upstream's zero-length mutations for seed compatibility.
@@ -236,6 +306,10 @@ pub trait Scheduler {
     fn prepare_next_iteration(&mut self) -> bool;
     fn mutate(&self) -> Box<dyn Scheduler>;
     fn new_like(&self) -> Box<dyn Scheduler>;
+    /// Replayable consumed prefix, and the number of retained random choices.
+    fn checkpoint(&self, _rewind: bool) -> Option<(Box<dyn Scheduler>, usize)> {
+        None
+    }
 }
 
 fn highest_priority(prioritized: &[u64], choices: &[&OpInfo]) -> Option<u64> {
@@ -270,6 +344,12 @@ impl Scheduler for RandomScheduler {
     }
     fn new_like(&self) -> Box<dyn Scheduler> {
         Box::new(RandomScheduler { rng: self.rng.new_like() })
+    }
+    fn checkpoint(&self, rewind: bool) -> Option<(Box<dyn Scheduler>, usize)> {
+        let Source::Controlled(random) = &self.rng else { return None };
+        let prefix = random.prefix(rewind);
+        let count = prefix.choice_count();
+        Some((Box::new(RandomScheduler::new(Source::Controlled(prefix))), count))
     }
 }
 
@@ -489,6 +569,24 @@ struct GeneratorState {
 
 type Generator = Rc<RefCell<GeneratorState>>;
 
+type FrontierKey = (u32, u32, u32);
+
+struct FrontierRecord {
+    key: FrontierKey,
+    count: usize,
+    choices: usize,
+    generator: Generator,
+    exhausted: bool,
+}
+
+#[derive(Default)]
+struct Frontiers {
+    counts: rustc_hash::FxHashMap<FrontierKey, usize>,
+    saved: Vec<FrontierRecord>,
+    retained: usize,
+    parent: Option<(FrontierKey, usize, usize)>,
+}
+
 struct GeneratorRecord {
     id: usize,
     priority: f64,
@@ -521,6 +619,8 @@ pub struct FeedbackGuidedStrategy {
     native_features: HashSet<String>,
     failures: HashSet<String>,
     failure_seeds: Vec<Generator>,
+    choice_guide: Option<Rc<RefCell<ChoiceGuide>>>,
+    frontiers: Option<Frontiers>,
 }
 
 impl FeedbackGuidedStrategy {
@@ -547,6 +647,8 @@ impl FeedbackGuidedStrategy {
             native_features: HashSet::new(),
             failures: HashSet::new(),
             failure_seeds: Vec::new(),
+            choice_guide: None,
+            frontiers: None,
         }
     }
 
@@ -567,6 +669,28 @@ impl FeedbackGuidedStrategy {
     pub fn with_code_guidance(mut self, enabled: bool) -> Self {
         self.code_guidance = enabled;
         self.generator.borrow_mut().input.local_mutations = enabled;
+        self
+    }
+
+    /// Experimental next-choice exploration for random-scheduler feedback.
+    /// Prefix contexts distinguish paths, not complete semantic program states.
+    /// Call before running: replaces the scheduler with a controlled random one.
+    pub fn with_choice_guidance(mut self, seed: u32) -> Self {
+        let guide = Rc::new(RefCell::new(ChoiceGuide::new(seed)));
+        let mut scheduler_random = ControlledRandom::new(seed);
+        scheduler_random.guide = Some((guide.clone(), 0));
+        let mut generator = self.generator.borrow_mut();
+        generator.input.guide = Some((guide.clone(), 1));
+        generator.scheduler = Box::new(RandomScheduler::new(Source::Controlled(scheduler_random)));
+        drop(generator);
+        self.choice_guide = Some(guide);
+        self
+    }
+
+    /// Preserve input/schedule prefixes at increasing delivery counts, then sample
+    /// fresh continuations. Requires a scheduler that supports checkpoints.
+    pub fn with_frontier_guidance(mut self) -> Self {
+        self.frontiers = Some(Frontiers::default());
         self
     }
 
@@ -597,6 +721,31 @@ impl FeedbackGuidedStrategy {
 
     fn prepare_next_input(&mut self) {
         self.generator.borrow_mut().scheduler.prepare_next_iteration();
+        if let Some(frontiers) = &mut self.frontiers {
+            if let Some((key, count, prefix_choices)) = frontiers.parent.take() {
+                let generator = self.generator.borrow();
+                let (_, scheduling_choices) = generator.scheduler.checkpoint(false).expect("checkpoint scheduler");
+                let choices = scheduling_choices + generator.input.ints.pos + generator.input.doubles.pos;
+                if choices == prefix_choices {
+                    // A prefix with no further choices has no continuation to sample.
+                    if let Some(record) = frontiers.saved.iter_mut().find(|r| r.key == key && r.count == count) {
+                        record.exhausted = true;
+                    }
+                }
+            }
+            frontiers.counts.clear();
+            let available: Vec<_> = frontiers.saved.iter().filter(|record| !record.exhausted).collect();
+            if !available.is_empty() && self.rnd.next_below(2) == 0 {
+                let record = available[self.rnd.next_below(available.len() as i32) as usize];
+                frontiers.parent = Some((record.key, record.count, record.choices));
+                let parent = record.generator.borrow();
+                self.generator = Rc::new(RefCell::new(GeneratorState {
+                    input: parent.input.prefix(true),
+                    scheduler: parent.scheduler.checkpoint(true).expect("frontier scheduler has checkpoints").0,
+                }));
+                return;
+            }
+        }
         if self.code_guidance {
             // Exploit recent progress promptly, share attempts with older frontiers, and
             // fall back to independent sampling when coverage stops being informative.
@@ -664,6 +813,49 @@ impl FeedbackGuidedStrategy {
 }
 
 impl Strategy for FeedbackGuidedStrategy {
+    fn wants_frontiers(&self) -> bool {
+        self.frontiers.is_some()
+    }
+    fn observe_frontier(&mut self, machine: u32, state: u32, event: u32) {
+        let Some(frontiers) = &mut self.frontiers else { return };
+        let key = (machine, state, event);
+        if !frontiers.counts.contains_key(&key) && frontiers.counts.len() == 256 {
+            return;
+        }
+        let count = frontiers.counts.entry(key).or_default();
+        *count = count.saturating_add(1);
+        // Fine-grained early stages, sparse milestones for long-running loops.
+        if *count > 64 && !count.is_power_of_two() {
+            return;
+        }
+        let old = frontiers.saved.iter().position(|record| record.key == key);
+        if old.is_some_and(|index| frontiers.saved[index].count >= *count)
+            || (old.is_none() && frontiers.saved.len() == 256)
+        {
+            return;
+        }
+        let generator = self.generator.borrow();
+        let Some((scheduler, scheduling_choices)) = generator.scheduler.checkpoint(false) else { return };
+        let input = generator.input.prefix(false);
+        let choices = scheduling_choices + input.choice_count();
+        let retained = frontiers.retained - old.map_or(0, |index| frontiers.saved[index].choices) + choices;
+        if retained > 262_144 {
+            return;
+        }
+        let record = FrontierRecord {
+            key,
+            count: *count,
+            choices,
+            generator: Rc::new(RefCell::new(GeneratorState { input, scheduler })),
+            exhausted: false,
+        };
+        if let Some(index) = old {
+            frontiers.saved[index] = record;
+        } else {
+            frontiers.saved.push(record);
+        }
+        frontiers.retained = retained;
+    }
     fn next_operation(&mut self, current: u64, ops: &[OpInfo]) -> Option<u64> {
         let r = self.generator.borrow_mut().scheduler.next_operation(current, ops);
         self.steps += 1;
@@ -682,6 +874,9 @@ impl Strategy for FeedbackGuidedStrategy {
     fn prepare_next_iteration(&mut self) -> bool {
         self.steps = 0;
         self.prepare_next_input();
+        if let Some(guide) = &self.choice_guide {
+            guide.borrow_mut().prefix = 0;
+        }
         true
     }
     fn scheduled_steps(&self) -> usize {
@@ -821,6 +1016,77 @@ pub fn stable_hash(token: &str) -> i32 {
 #[cfg(test)]
 mod mutation_tests {
     use super::*;
+
+    #[test]
+    fn checkpoints_drop_unconsumed_mutation_suffixes_and_rewind_only_for_replay() {
+        let mut random = ControlledRandom::new(7);
+        let values: Vec<_> = (0..8).map(|_| random.next_below(100)).collect();
+        random.ints.pos = 3;
+        let saved = random.prefix(false);
+        assert_eq!(saved.ints.pos, 3);
+        assert_eq!(saved.ints.data.len(), 3);
+        let mut replay = saved.prefix(true);
+        assert_eq!((0..3).map(|_| replay.next_below(100)).collect::<Vec<_>>(), values[..3]);
+        assert_eq!(random.ints.data.len(), 8);
+    }
+
+    #[test]
+    fn frontier_records_are_bounded_and_terminal_prefixes_stop_being_sampled() {
+        let source = Source::Controlled(ControlledRandom::new(7));
+        let mut strategy = FeedbackGuidedStrategy::new(100, 7, Box::new(RandomScheduler::new(source)))
+            .with_code_guidance(true)
+            .with_frontier_guidance();
+        strategy.next_int(2);
+        for event in 0..1000 {
+            strategy.observe_frontier(0, 0, event);
+        }
+        assert_eq!(strategy.frontiers.as_ref().unwrap().saved.len(), 256);
+        assert!(strategy.frontiers.as_ref().unwrap().retained <= 262_144);
+        for _ in 0..10000 {
+            strategy.prepare_next_iteration();
+            strategy.next_int(2);
+        }
+        assert!(strategy.frontiers.as_ref().unwrap().saved.iter().all(|record| record.exhausted));
+    }
+
+    #[test]
+    fn choice_guide_explores_repeated_contexts_and_bounds_memory() {
+        let mut guide = ChoiceGuide::new(7);
+        for _ in 0..128 {
+            guide.prefix = 0;
+            guide.choose(1, 3, 0, true);
+        }
+        assert!(guide.visits[&(0, 1, 3)].iter().all(|count| *count > 0));
+        for prefix in 1..100 {
+            guide.prefix = prefix;
+            assert!((0..10_000).contains(&guide.choose(1, 10_000, 17, true)));
+        }
+        assert!(guide.counters <= 262_144);
+        assert_eq!(guide.choose(1, 0x7fffffff, 17, true), 17);
+    }
+
+    #[test]
+    fn guided_random_records_executed_choices_and_keeps_guide_when_mutated() {
+        let guide = Rc::new(RefCell::new(ChoiceGuide::new(7)));
+        let mut source = ControlledRandom::new(1);
+        source.guide = Some((guide.clone(), 1));
+        for _ in 0..100 {
+            let value = source.next_below(13);
+            assert_eq!(source.ints.data[source.ints.pos - 1] % 13, value);
+        }
+        for next in [source.new_like(), source.mutate()] {
+            assert!(Rc::ptr_eq(&next.guide.unwrap().0, &guide));
+        }
+        // Corpus replay preserves a productive prefix even as visit counts grow.
+        let recorded = source.ints.data.clone();
+        for _ in 0..20 {
+            source.ints.pos = 0;
+            guide.borrow_mut().prefix = 0;
+            for expected in &recorded {
+                assert_eq!(source.next_below(13), expected % 13);
+            }
+        }
+    }
 
     #[test]
     fn code_novelty_retains_seeds_even_with_identical_timelines_and_bounds_the_corpus() {

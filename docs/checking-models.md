@@ -42,6 +42,14 @@ continuations. Seeds of distinct failure sites remain available when searching f
 other bugs. Stalled guidance increases fresh sampling while retaining a share for
 mutations. The corpus and event-feature history are bounded.
 
+Feedback also preserves the executed input and scheduling choices when an event
+handler reaches a new repetition count. Half of subsequent attempts replay a
+saved prefix and sample a fresh continuation; the other half use the coverage
+corpus and fresh sampling above. Prefixes with no remaining choices stop being
+sampled. Up to 256 checkpoints retain at most 262,144 random choices. This is
+enabled for native random feedback, including automatic search after its
+exhaustive phase. Compatibility mode retains its original behavior.
+
 A completed exhaustive search ends the run early. Timed models start directly
 with feedback because exhaustive time tracking is not supported. Cyclic hot
 monitors also continue through fair feedback: closing a repeated state is not a
