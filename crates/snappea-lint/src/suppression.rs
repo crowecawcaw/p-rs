@@ -1,7 +1,35 @@
 use crate::{visit, Context, Finding, Rule};
 use snappea_syntax::{ast::*, lexer, FileId, Span};
 
+/// Mutation kinds a `mutation:<kind>` suppression may name (see `snappea check`).
+pub const MUTATIONS: &[&str] =
+    &["remove-statement", "condition-true", "condition-false", "swap-operator", "remove-not", "flip-boolean"];
+
+/// Whether `id` names mutation testing: `mutation`, or `mutation:<kind>`.
+fn is_mutation(id: &str) -> bool {
+    id == "mutation" || id.strip_prefix("mutation:").is_some_and(|k| MUTATIONS.contains(&k))
+}
+
 pub fn apply(ctx: &Context<'_>, rules: &[Box<dyn Rule>], findings: &mut Vec<Finding>) {
+    let (allowed, invalid) = directives(ctx, &|id| rules.iter().any(|r| r.id() == id) || is_mutation(id));
+    findings.retain(|f| {
+        !allowed
+            .iter()
+            .any(|(s, id)| id == f.rule && s.file == f.span.file && s.start <= f.span.start && s.end >= f.span.end)
+    });
+    findings.extend(invalid);
+}
+
+/// The mutation suppressions of the sources: the code each covers, and `mutation` or
+/// `mutation:<kind>`. Malformed directives are reported by linting, not here.
+pub fn mutation_suppressions(ctx: &Context<'_>) -> Vec<(Span, String)> {
+    directives(ctx, &|_| true).0.into_iter().filter(|(_, id)| is_mutation(id)).collect()
+}
+
+/// Every `snappea-lint: allow` directive: the scope and ID it allows, and the findings
+/// for malformed ones (with an ID `known` rejects, or not before a declaration or
+/// statement).
+fn directives(ctx: &Context<'_>, known: &dyn Fn(&str) -> bool) -> (Vec<(Span, String)>, Vec<Finding>) {
     let mut scopes = Vec::new();
     for d in ctx.declarations() {
         match d {
@@ -52,7 +80,7 @@ pub fn apply(ctx: &Context<'_>, rules: &[Box<dyn Rule>], findings: &mut Vec<Find
                     };
                     let ids = ids.split_once("--").map_or(ids, |(ids, _)| ids).trim();
                     let ids: Vec<_> = ids.split(',').map(str::trim).collect();
-                    if ids.iter().any(|id| !rules.iter().any(|r| r.id() == *id)) {
+                    if ids.iter().any(|id| !known(id)) {
                         invalid.push(bad("unknown or empty lint rule ID in suppression"));
                         return;
                     }
@@ -79,12 +107,7 @@ pub fn apply(ctx: &Context<'_>, rules: &[Box<dyn Rule>], findings: &mut Vec<Find
             end = token.span.end;
         }
     }
-    findings.retain(|f| {
-        !allowed
-            .iter()
-            .any(|(s, id)| id == f.rule && s.file == f.span.file && s.start <= f.span.start && s.end >= f.span.end)
-    });
-    findings.extend(invalid);
+    (allowed, invalid)
 }
 
 fn comments(text: &str, start: usize, end: usize, f: &mut impl FnMut(usize, &str)) {
