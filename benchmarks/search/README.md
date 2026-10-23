@@ -27,3 +27,55 @@ raw result to `search.jsonl` on the existing `benchmarks` branch, using the same
 retrying append helper as the throughput benchmarks. Runs have no concurrency
 group so pending commits are not dropped. Manual branch runs upload artifacts
 without updating main history.
+
+Measurements compare code commit `63686f4` with the original feedback scheduler at
+`9983d8d`, using Rust 1.99.1 and suite version 1. The checked-in raw results are
+[baseline.json](baseline.json), [guided.json](guided.json), and
+[holdout.json](holdout.json). Each records an exact commit and `dirty: false`.
+Random and both exhaustive strategies produced identical per-seed results before
+and after the change on seeds 0–19.
+
+On seeds 0–19, standalone feedback found all three bugs in **100/100 model runs**,
+compared with **80/100** for original feedback and **83/100** for random. DFS and
+randomized DFS completed all 100. On the separate seeds 20–39, final feedback
+completed **100/100**, random **81/100**, and both exhaustive strategies **100/100**.
+The automatic portfolio completed 99/100 on seeds 0–19 and 98/100 on seeds 20–39;
+its initial exhaustive probe and work allocation mean it does not inherit the
+standalone feedback scheduler's full improvement.
+
+The table shows mean schedules to all bugs, charging **20,000** for an unfinished
+10,000-schedule run (the report's penalized mean). This includes misses, rather
+than comparing only the easiest completed seeds.
+
+| Model | Original feedback | Final feedback | Random | DFS | Final feedback, seeds 20–39 |
+|---|---:|---:|---:|---:|---:|
+| branch-8 | 1,914.3 | 287.1 | 1,359.2 | 27.0 | 207.3 |
+| branch-12 | 17,927.6 | 486.1 | 17,383.7 | 39.0 | 602.1 |
+| opaque-8 | 1,971.5 | 349.6 | 1,406.2 | 513.0 | 351.1 |
+| delivery-4 | 453.9 | 175.2 | 204.6 | 427.0 | 215.8 |
+| delivery-5 | 6,113.1 | 682.9 | 4,702.7 | 3,699.0 | 735.6 |
+
+DFS still wins decisively on the finite branch trees. Random has a lower median
+on delivery-4 for seeds 0–19 (101.5 versus 154.5 schedules), even though feedback
+has a better mean. On delivery-5, final feedback's median is 577.5 schedules,
+versus 3,549 for random (19/20 complete) and 3,699 for DFS (20/20 complete).
+These synthetic results establish improvements on specific search shapes, not a
+universal advantage over random or exhaustive checking.
+
+The experiments exposed three problems: timeline-only novelty misses data-only
+branches; source `if` coverage misses progress inside conjunctions; and mutating
+several input choices can repeatedly destroy rare prefixes. The final scheduler
+uses statement/branch probes plus short-circuit outcomes, retains event/scenario
+novelty for repeated stages, favors recent productive seeds, and mixes single
+input changes with fresh suffixes. Distinct failing data prefixes get a bounded
+share of mutations to find neighboring failure sites. Scheduling mutations retain
+the broader operator: applying suffix resampling to scheduling choices regressed
+the delivery workloads. After 128 schedules without progress, fresh sampling rises
+from 25% to 75%, while corpus mutations continue. Upstream compatibility retains
+its existing timeline/MinHash behavior and random stream.
+
+Reproduce the separate-seed check with:
+
+```sh
+python3 scripts/bench-search.py --seed-start 20 --out holdout.json
+```
