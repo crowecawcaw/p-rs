@@ -605,22 +605,52 @@ fn check_reports_what_never_ran() {
     h.add_file("ping.p", PING);
     assert_eq!(snappea(&mut h, &["check", "ping.p", "--json-report", "result.json"]), 0, "{}", h.stdout);
     // `assert false` marks code that must never run: it is neither counted nor listed
-    assert!(h.stdout.contains("\n      Coverage: 4/8 statements, 1/2 branches, 1/2 event handlers\n"), "{}", h.stdout);
+    assert!(
+        h.stdout
+            .contains("\n      Coverage: 4/8 statements, 1/2 branches, 1/2 event handlers, 2/4 condition outcomes\n"),
+        "{}",
+        h.stdout
+    );
     let expected = "Not covered by the test case:\n  \
+         ping.p:7      Server.Ready, on ePing: condition from == this never true\n  \
          ping.p:7      Server.Ready, on ePing: if (from == this) never true\n  \
          ping.p:10     Server.Ready, on eStop: goto Stopped never taken\n  \
          ping.p:13     Server.Stopped entry: never ran\n  \
+         ping.p:20     Client.Init entry: condition i > 0 never true\n  \
          ping.p:21-22  Client.Init entry: not reached: i = i - 1;\n";
     assert!(h.stdout.contains(expected), "{}", h.stdout);
     // the JSON result has the same, and all of it
     let result: serde_json::Value = serde_json::from_str(&read(&h, "result.json")).unwrap();
     assert_eq!(
-        result["coverage"]["uncovered"][3],
+        result["coverage"]["uncovered"][5],
         serde_json::json!({"file": "ping.p", "line": 21, "end_line": 22, "context": "Client.Init entry",
             "what": "not reached: i = i - 1;"})
     );
     // no coverage files
     assert!(names(&h, "PCheckerOutput/tcPing").is_empty());
+}
+
+#[test]
+fn check_lists_loaded_components_outside_selected_tests() {
+    let mut h = host();
+    h.add_file(
+        "model.p",
+        "machine Main { start state S { } }\n\
+        machine Other { start state S { entry { print \"other\"; } } }\n\
+        test tcMain [main=Main]: { Main };\n\
+        test tcOther [main=Other]: { Other };\n",
+    );
+    assert_eq!(snappea(&mut h, &["check", "model.p", "tcMain", "--json-report", "r.json"]), 0, "{}", h.stdout);
+    assert!(h.stdout.contains("Outside the selected tests (excluded from coverage totals):"));
+    let v: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    let excluded = v["coverage"]["excluded_components"].as_array().unwrap();
+    assert_eq!(excluded.len(), 1);
+    assert_eq!(excluded[0]["context"], "Other");
+    assert_eq!(v["coverage"]["statements"]["total"], 0);
+    assert_eq!(snappea(&mut h, &["check", "model.p", "--json-report", "r.json"]), 0);
+    let v: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    assert_eq!(v["coverage"]["excluded_components"], serde_json::json!([]));
+    assert_eq!(v["coverage"]["statements"]["covered"], 1);
 }
 
 #[test]

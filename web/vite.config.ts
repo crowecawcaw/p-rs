@@ -21,6 +21,7 @@ export default defineConfig({
         "coming-from-p": fileURLToPath(new URL("docs/coming-from-p.html", import.meta.url)),
         parity: fileURLToPath(new URL("docs/parity.html", import.meta.url)),
         cli: fileURLToPath(new URL("docs/cli.html", import.meta.url)),
+        coverage: fileURLToPath(new URL("docs/coverage.html", import.meta.url)),
         "github-actions": fileURLToPath(new URL("docs/github-actions.html", import.meta.url)),
         python: fileURLToPath(new URL("docs/python.html", import.meta.url)),
         rust: fileURLToPath(new URL("docs/rust.html", import.meta.url)),

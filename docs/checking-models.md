@@ -103,6 +103,16 @@ error result and write `--json-report` when requested. JSON keys retain insertio
 
 ## Coverage
 
+The [coverage guide](https://snappea.dev/docs/coverage.html) explains the types of
+coverage and how to use the gaps. In addition to statements, branches and handlers,
+checks measure atomic condition outcomes in `if`/`while` decisions and consecutive
+state-transition pairs on a single instance. Structural transition pairs may be
+unreachable because of guards or data constraints. Loaded components outside the
+selected tests are listed separately, excluded from totals.
+
+JSON adds `conditions`, `transition_pairs`, and `excluded_components` under the
+suite's `coverage`; each test and observed spec has the first two counts as well.
+
 Coverage counts what the explored schedules ran, in the machines and monitors each test
 case includes: statements, both outcomes of each `if`, and the `do` and `goto` event
 handlers of each state. Code that starts with `assert false` must never run, so it is

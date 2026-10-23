@@ -713,6 +713,12 @@ impl<'p> Runtime<'p> {
                         c.probe_hit(*id);
                     }
                 }
+                Op::ConditionProbe { yes, no } => {
+                    *work -= 1;
+                    if let Some(c) = self.coverage.as_mut() {
+                        c.probe_hit(if matches!(stack.last(), Some(Value::Bool(true))) { *yes } else { *no });
+                    }
+                }
                 Op::PushNull => stack.push(Value::Null),
                 Op::PushBool(b) => stack.push(Value::Bool(*b)),
                 Op::PushInt(i) => stack.push(Value::Int(*i)),
@@ -1640,8 +1646,9 @@ mod tests {
             .filter(|i| !hit.contains(*i))
             .map(|i| format!("{:?}", probed.probes[i as usize].kind))
             .collect();
-        // the second `if` is never true, so its branch and print never run
-        assert_eq!(missed, ["Then", "Stmt"]);
+        // The second `if` is never true: its condition outcome, branch and print
+        // never run. All work bounds above still behave exactly as without probes.
+        assert_eq!(missed, ["ConditionTrue", "Then", "Stmt"]);
     }
 
     /// The specialized and fused instructions behave like the plain ones, and count the

@@ -163,7 +163,8 @@ fn unread_params(code: &CodeBlock) -> Vec<bool> {
             | Op::ReturnNull
             | Op::Assert
             | Op::Print
-            | Op::Probe(_) => Some([None, None]),
+            | Op::Probe(_)
+            | Op::ConditionProbe { .. } => Some([None, None]),
         };
         let Some(reads) = reads else { return vec![false; unread.len()] };
         for slot in reads.into_iter().flatten() {
@@ -452,7 +453,7 @@ impl<'a> Compiler<'a> {
             }
             StmtKind::While { cond, body } => {
                 let start = self.here();
-                self.expr(cond);
+                self.condition(cond);
                 let jf = self.emit(Op::JumpIfFalse(0));
                 self.loops.push(LoopCtx { break_patches: Vec::new(), continue_target: start as usize });
                 self.stmt(body);
@@ -487,7 +488,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             StmtKind::If { cond, then_branch, else_branch } => {
-                self.expr(cond);
+                self.condition(cond);
                 let jf = self.emit(Op::JumpIfFalse(0));
                 let outer = std::mem::replace(&mut self.parent_probe, probe);
                 let then_probe = self.probe(ProbeKind::Then, s.span);
@@ -659,6 +660,54 @@ impl<'a> Compiler<'a> {
     }
 
     // ---- expressions ------------------------------------------------------
+
+    /// Records actual atomic condition outcomes, retaining short-circuit evaluation.
+    /// Assertions are deliberately excluded: their false outcome is a violation, not
+    /// an obligation to exercise. Constants likewise have no two-outcome target.
+    fn condition(&mut self, e: &Expr) {
+        if self.probes.is_none() {
+            self.expr(e);
+            return;
+        }
+        match &e.kind {
+            ExprKind::Binary { op: op @ (BinOp::And | BinOp::Or | BinOp::Then), lhs, rhs } => {
+                self.condition(lhs);
+                if *op == BinOp::Then {
+                    self.emit(Op::Not);
+                }
+                let j = self.short_circuit(*op != BinOp::And);
+                self.condition(rhs);
+                let end = self.here();
+                self.patch(j, end);
+            }
+            ExprKind::Binary { op: BinOp::Iff, lhs, rhs } => {
+                self.condition(lhs);
+                self.condition(rhs);
+                self.emit(Op::Bin(BinOp::Eq));
+            }
+            ExprKind::Unary { op: UnOp::Not, operand } => {
+                self.condition(operand);
+                self.emit(Op::Not);
+            }
+            ExprKind::BoolLit(_) => self.expr(e),
+            _ => {
+                self.expr(e);
+                // Allocate metadata without emitting unconditional hit instructions.
+                let probes = self.probes.as_mut().unwrap();
+                let yes = probes.len() as u32;
+                for kind in [ProbeKind::ConditionTrue, ProbeKind::ConditionFalse] {
+                    probes.push(Probe {
+                        kind,
+                        fun: self.fun,
+                        span: e.span,
+                        parent: self.parent_probe,
+                        asserts_false: false,
+                    });
+                }
+                self.emit(Op::ConditionProbe { yes, no: yes + 1 });
+            }
+        }
+    }
 
     fn expr(&mut self, e: &Expr) {
         match &e.kind {

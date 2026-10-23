@@ -89,6 +89,8 @@ pub struct CoverageInfo {
     pub monitor_states: FxHashSet<StateId>,
     /// Actual consecutive monitor state entries (not event graph links).
     pub monitor_transitions: FxHashSet<(StateId, StateId)>,
+    /// Consecutive state transitions on one machine/monitor instance in one schedule.
+    pub transition_pairs: FxHashSet<(StateId, StateId, StateId)>,
     /// Code coverage probes that ran (see `Op::Probe`), as a bit set.
     pub probes: ProbeSet,
     /// Internal short-circuit condition outcomes, used only for native search guidance.
@@ -142,6 +144,7 @@ impl CoverageInfo {
         self.links.extend(other.links);
         self.monitor_states.extend(other.monitor_states);
         self.monitor_transitions.extend(other.monitor_transitions);
+        self.transition_pairs.extend(other.transition_pairs);
         self.probes.union(&other.probes);
         self.condition_edges.extend(other.condition_edges);
     }
@@ -165,6 +168,8 @@ struct InboxEntry {
 /// Per-schedule state of the coverage loggers.
 #[derive(Debug, Clone, Default)]
 struct CoverageRun {
+    /// Last two state entries, partitioned by actor kind and instance. Reset per run.
+    state_history: FxHashMap<(bool, usize), (Option<StateId>, StateId)>,
     monitor_previous: FxHashMap<usize, StateId>,
     /// `ControlledRuntimeLogEventCoverage.Dequeued` (a single, global slot upstream).
     dequeued: Option<u32>,
@@ -185,6 +190,16 @@ pub struct Coverage {
 }
 
 impl Coverage {
+    fn state_enter(&mut self, monitor: bool, instance: usize, state: StateId) {
+        let previous = self.run.state_history.insert((monitor, instance), (None, state));
+        if let Some((before, last)) = previous {
+            self.run.state_history.insert((monitor, instance), (Some(last), state));
+            if let Some(first) = before {
+                self.info.transition_pairs.insert((first, last, state));
+            }
+        }
+    }
+
     pub(crate) fn feature_count(&self) -> usize {
         self.info.condition_edges.len()
             + self.info.probes.len()
@@ -272,6 +287,12 @@ impl Coverage {
 }
 
 impl Runtime<'_> {
+    pub(crate) fn cov_machine_enter(&mut self, m: usize) {
+        if let (Some(cov), Some(s)) = (self.coverage.as_mut(), self.machines[m].state) {
+            cov.state_enter(false, m, s);
+        }
+    }
+
     /// The coverage being collected and the node of machine `m`'s state; `None` when
     /// coverage is off or the machine has not entered a state.
     fn cov_machine(&mut self, m: usize) -> Option<(&mut Coverage, u32)> {
@@ -413,6 +434,7 @@ impl Runtime<'_> {
     /// `OnMonitorStateTransition` on entry.
     pub(crate) fn cov_monitor_enter(&mut self, mon: usize) {
         let Some((cov, s, decl)) = self.cov_monitor(mon) else { return };
+        cov.state_enter(true, mon, s);
         let target = cov.tables.tempered(s);
         cov.info.monitor_states.insert(s);
         if let Some(previous) = cov.run.monitor_previous.insert(mon, s) {

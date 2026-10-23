@@ -899,12 +899,20 @@ fn run_check(
         cases.push(result);
     }
     let suite = CodeMap::new(prog, &probes, &scope).coverage(&hits);
+    let excluded = scope.excluded(prog);
     if !only {
         if n > 1 {
             con.inner.out_line(&format!("Coverage of all test cases: {}", suite.summary()));
         }
         let heading = if n > 1 { "Not covered by any test case:" } else { "Not covered by the test case:" };
         for l in uncovered_lines(heading, &suite.uncovered(), " (--json lists all)") {
+            con.inner.out_line(&l);
+        }
+        for l in uncovered_lines(
+            "Outside the selected tests (excluded from coverage totals):",
+            &excluded,
+            " (--json lists all)",
+        ) {
             con.inner.out_line(&l);
         }
         if failed > 0 {
@@ -971,6 +979,7 @@ fn run_check(
         return Ok((if failed > 0 || undetected > 0 { BUG } else { OK }, result));
     }
     let mut coverage = suite.to_json(false);
+    coverage["excluded_components"] = excluded.iter().map(|u| u.to_json()).collect();
     coverage["partial"] = json!(failed > 0);
     let result = json!({
         "project": cfg.project_name,

@@ -216,6 +216,11 @@ entries, so its observations also use zero.
 
 ## Coverage
 
+Observations also measure atomic condition outcomes in `if`/`while` decisions and
+consecutive state-transition pairs within a single monitor instance. Merging reports
+unions witnessed pairs; it never joins transitions from different keys or runs.
+See [coverage types and limits](https://snappea.dev/docs/coverage.html).
+
 Every observation reports, per spec, which of its `do` and `goto` event handlers,
 statements and `if` outcomes (true and false) the events ran, as `snappea check` does
 for a model. Code that starts with `assert false` must never run, so it is not

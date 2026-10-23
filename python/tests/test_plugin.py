@@ -182,7 +182,8 @@ def test_opt_in_coverage_summary_and_json(project):
     result.stdout.fnmatch_lines([
         "*Spec coverage (all completed checks)*",
         "Coverage:",
-        "  MutualExclusion: */* statements, */* branches, */* event handlers",
+        "  MutualExclusion: */* statements, */* branches, */* event handlers, 2/2 transition pairs",
+        "  RequestsGranted: */* statements, */* branches, */* event handlers, 1/2 condition outcomes, 2/2 transition pairs",
         "Not covered by any observation:",
         "  specs/lock.p:*  RequestsGranted.*",
         "JSON:*monitor.json",
@@ -193,6 +194,10 @@ def test_opt_in_coverage_summary_and_json(project):
     mutual = next(s for s in report["specs"] if s["spec"] == "MutualExclusion")
     assert mutual["coverage"]["statements"]["covered"] > 0
     assert mutual["coverage"]["handlers"]["covered"] > 0
+    assert mutual["coverage"]["transition_pairs"] == {"covered": 2, "total": 2}
+    requests = next(s for s in report["specs"] if s["spec"] == "RequestsGranted")
+    assert requests["coverage"]["conditions"] == {"covered": 1, "total": 2}
+    assert requests["coverage"]["transition_pairs"] == {"covered": 2, "total": 2}
     # P source paths are relative to the project, not to each check's temp folder
     assert all(u["file"] == "specs/lock.p" for s in report["specs"] for u in s["coverage"]["uncovered"])
 
