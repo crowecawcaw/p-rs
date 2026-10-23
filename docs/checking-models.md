@@ -49,8 +49,11 @@ liveness proof. Stalling changes strategy; it never certifies a model as safe.
 
 The default is a fixed **10-second limit per test**, with no automatic extensions.
 `--timeout` overrides it; the previous spelling `--time` remains an alias. A timeout
-means the search is incomplete, even if it found no bugs. Exit status is 0 when no
-bug was found, 1 when a bug was found, and 2 on an error. The result distinguishes
+means the search is incomplete, even if it found no bugs. A missing required coverage
+point also fails the check, with the same status as a model bug; the report says when
+coverage was not reached within the run budget. `--allow-incomplete-coverage` bypasses
+that gate during exploratory checks. Exit status is 0 when no bug or required coverage
+gap was found, 1 for a bug or coverage gap, and 2 on an error. The result distinguishes
 exhaustive completion from an incomplete search.
 
 Workers run in parallel, one per available CPU core by default; `-j N` limits resource
@@ -149,6 +152,16 @@ Scenario monitors appear in the console as a unified summary, including scenario
 that were never satisfied. JSON includes the scenario artifacts under `scenarios`
 for the suite and for each test case with scenarios. The same artifacts are still
 written to `scenario_coverage.json` for merging across runs.
+
+The default gate checks aggregate coverage across all selected test cases. It requires
+all executable statements (including ordinary assertions), event handlers, and both
+outcomes of each `if` branch. Condition-expression outcomes and consecutive transition
+pairs remain advisory. `assert false` paths keep their existing exclusion because they
+must never run. Components outside the selected tests do not enter the totals. To accept
+an intentional gap, place `// snappea-lint: allow coverage -- reason` before its
+statement, handler, function, or machine; coverage suppressions need a reason and are
+validated with the other scoped lint directives. They remain in the raw coverage totals,
+while `coverage.required` in JSON shows post-suppression counts.
 
 The list after the test cases names, for each piece of code that never ran, the
 outermost one: a handler that was never triggered rather than each of its statements.

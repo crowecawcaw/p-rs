@@ -29,7 +29,10 @@ cd examples/model
 ../../target/debug/snappea check tcCheckThenReserve
 ```
 
-The first explores every interleaving and data choice and finds no bug:
+The first explores every interleaving and data choice and finds no bug. Scoped coverage
+comments in the shared model identify the check-then-reserve paths that this test does
+not exercise; those paths are exercised by the second test. Run `snappea check` without
+a test name to select both designs:
 
 ```text
 Checking Inventory: 1 test case

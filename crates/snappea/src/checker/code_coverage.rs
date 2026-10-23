@@ -278,6 +278,8 @@ impl Hits {
 pub struct CodeMap {
     fingerprint: Option<String>,
     points: Vec<Point>,
+    /// Source spans used for scoped coverage suppressions, aligned with `points`.
+    point_spans: Vec<Span>,
     /// Point of each probe, by probe id.
     probe_point: Vec<Option<u32>>,
     handler_point: FxHashMap<(StateId, EventId), u32>,
@@ -392,6 +394,7 @@ impl CodeMap {
         let loc = sm.location(span);
         let line = loc.line.max(0) as u32;
         self.points.push(Point { kind, file: loc.file.unwrap_or_default(), line, context, missed, parent });
+        self.point_spans.push(span);
         Some(self.points.len() as u32 - 1)
     }
 
@@ -424,6 +427,54 @@ impl CodeMap {
                 c.hit.insert(*p);
             }
         }
+    }
+
+    /// Required points not reached by any selected test and not covered by a scoped
+    /// `coverage` suppression. Conditions and transition pairs are advisory.
+    pub fn required_uncovered(&self, coverage: &CodeCoverage, suppressions: &[Span]) -> Vec<Uncovered> {
+        let mut out = Vec::new();
+        for (i, p) in self.points.iter().enumerate() {
+            let point = self.point_spans[i];
+            if coverage.hit.contains(&(i as u32))
+                || !matches!(p.kind, PointKind::Statement | PointKind::Handler | PointKind::Then | PointKind::Else)
+                || suppressions
+                    .iter()
+                    .any(|scope| scope.file == point.file && scope.start <= point.start && scope.end >= point.end)
+            {
+                continue;
+            }
+            out.push(Uncovered {
+                file: p.file.clone(),
+                line: p.line,
+                end_line: p.line,
+                context: p.context.clone(),
+                what: p.missed.clone(),
+            });
+        }
+        out.sort();
+        out
+    }
+
+    /// Required coverage counts after scoped suppressions.
+    pub fn required_summary(&self, coverage: &CodeCoverage, suppressions: &[Span]) -> Summary {
+        let mut s = Summary::default();
+        for (i, p) in self.points.iter().enumerate() {
+            let point = self.point_spans[i];
+            if suppressions
+                .iter()
+                .any(|scope| scope.file == point.file && scope.start <= point.start && scope.end >= point.end)
+            {
+                continue;
+            }
+            let hit = coverage.hit.contains(&(i as u32));
+            match p.kind {
+                PointKind::Statement => s.statements.add(hit),
+                PointKind::Then | PointKind::Else => s.branches.add(hit),
+                PointKind::Handler => s.handlers.add(hit),
+                _ => {}
+            }
+        }
+        s
     }
 }
 
@@ -753,5 +804,30 @@ mod tests {
         let mut other = a.clone();
         other.points.pop();
         assert!(a.merge(&other).is_err());
+    }
+
+    #[test]
+    fn required_gate_keeps_nested_gaps_and_ignores_advisory_points() {
+        let span = |start, end| Span::new(crate::syntax::FileId(0), start, end);
+        let points = vec![
+            point(PointKind::Handler, 1, None),
+            point(PointKind::Entry, 1, Some(0)),
+            point(PointKind::Statement, 2, Some(1)),
+            point(PointKind::Statement, 3, Some(1)),
+            point(PointKind::Then, 4, Some(2)),
+            point(PointKind::ConditionTrue, 4, Some(2)),
+            point(PointKind::TransitionPair, 5, None),
+        ];
+        let point_spans = [span(1, 2), span(2, 3), span(4, 5), span(6, 7), span(8, 9), span(10, 11), span(12, 13)];
+        let map = CodeMap { points, point_spans: point_spans.to_vec(), ..Default::default() };
+        let coverage = map.empty();
+        let required = map.required_summary(&coverage, &[span(4, 5)]);
+        assert_eq!(required.statements, Count { covered: 0, total: 1 });
+        assert_eq!(required.branches, Count { covered: 0, total: 1 });
+        assert_eq!(required.handlers, Count { covered: 0, total: 1 });
+        assert_eq!((required.conditions.total, required.transition_pairs.total), (0, 0));
+        let gaps = map.required_uncovered(&coverage, &[span(4, 5)]);
+        assert_eq!(gaps.len(), 3);
+        assert!(gaps.iter().any(|u| u.line == 3), "an uncalled Entry does not hide required statements");
     }
 }

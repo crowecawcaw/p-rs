@@ -63,7 +63,7 @@ fn scoped_suppression_allows_check_but_does_not_hide_model_bugs() {
     let mut h = MemHost::new("/w");
     let model = MODEL.replace(
         "spec Passive",
-        "// snappea-lint: allow permissive-monitor -- intentionally passive fixture\nspec Passive",
+        "// snappea-lint: allow permissive-monitor, coverage -- intentionally passive fixture\nspec Passive",
     );
     h.add_file("model.p", &model);
     assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 0, "{}{}", h.stdout, h.stderr);

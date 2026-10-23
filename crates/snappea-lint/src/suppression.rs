@@ -11,7 +11,8 @@ fn is_mutation(id: &str) -> bool {
 }
 
 pub fn apply(ctx: &Context<'_>, rules: &[Box<dyn Rule>], findings: &mut Vec<Finding>) {
-    let (allowed, invalid) = directives(ctx, &|id| rules.iter().any(|r| r.id() == id) || is_mutation(id));
+    let (allowed, invalid) =
+        directives(ctx, &|id| rules.iter().any(|r| r.id() == id) || id == "coverage" || is_mutation(id));
     findings.retain(|f| {
         !allowed
             .iter()
@@ -24,6 +25,15 @@ pub fn apply(ctx: &Context<'_>, rules: &[Box<dyn Rule>], findings: &mut Vec<Find
 /// `mutation:<kind>`. Malformed directives are reported by linting, not here.
 pub fn mutation_suppressions(ctx: &Context<'_>) -> Vec<(Span, String)> {
     directives(ctx, &|_| true).0.into_iter().filter(|(_, id)| is_mutation(id)).collect()
+}
+
+/// The source scopes intentionally omitted from `snappea check` coverage requirements.
+pub fn coverage_suppressions(ctx: &Context<'_>, rules: &[Box<dyn Rule>]) -> Vec<Span> {
+    directives(ctx, &|id| id == "coverage" || rules.iter().any(|rule| rule.id() == id) || is_mutation(id))
+        .0
+        .into_iter()
+        .filter_map(|(span, id)| (id == "coverage").then_some(span))
+        .collect()
 }
 
 /// Every `snappea-lint: allow` directive: the scope and ID it allows, and the findings
@@ -78,10 +88,16 @@ fn directives(ctx: &Context<'_>, known: &dyn Fn(&str) -> bool) -> (Vec<(Span, St
                         invalid.push(bad("expected '// snappea-lint: allow rule-id[, rule-id] -- reason'"));
                         return;
                     };
-                    let ids = ids.split_once("--").map_or(ids, |(ids, _)| ids).trim();
+                    let (ids, reason) =
+                        ids.split_once("--").map_or((ids, None), |(ids, reason)| (ids, Some(reason.trim())));
+                    let ids = ids.trim();
                     let ids: Vec<_> = ids.split(',').map(str::trim).collect();
                     if ids.iter().any(|id| !known(id)) {
                         invalid.push(bad("unknown or empty lint rule ID in suppression"));
+                        return;
+                    }
+                    if ids.contains(&"coverage") && !reason.is_some_and(|reason| !reason.is_empty()) {
+                        invalid.push(bad("coverage suppression needs a reason after '--'"));
                         return;
                     }
                     // Suppression must be a standalone comment before the node.

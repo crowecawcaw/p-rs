@@ -127,3 +127,10 @@ pub fn lint(sources: &SourceMap) -> Result<Vec<Finding>, ParseError> {
 pub fn mutation_suppressions(sources: &SourceMap) -> Result<Vec<(Span, String)>, ParseError> {
     Ok(suppression::mutation_suppressions(&Context::parse(sources)?))
 }
+
+/// The source scopes intentionally omitted from `snappea check` coverage requirements.
+pub fn coverage_suppressions(sources: &SourceMap) -> Result<Vec<Span>, ParseError> {
+    let context = Context::parse(sources)?;
+    let registry = Registry::builtins();
+    Ok(suppression::coverage_suppressions(&context, &registry.rules))
+}

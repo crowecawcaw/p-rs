@@ -4,8 +4,8 @@
 //! sources as arguments, automatic scheduling, durations with units, parallel workers,
 //! time tracking) and its own output: a line per test case, the bug's report and replay
 //! command, and a folder per test case ([`Style::Snappea`]). The upstream-style progress shows
-//! with `--verbose`. Exit status: 0 when no bug is found, 1 when one is, 2 on any other
-//! error.
+//! with `--verbose`. Exit status: 0 when no bug or required coverage gap is found, 1 when
+//! either is, 2 on any other error.
 
 use std::path::Path;
 
@@ -53,7 +53,7 @@ Output is text on a terminal or in CI, JSON otherwise (agents, scripts).
 --json-report FILE also writes the JSON result to FILE.
 
 Run `snappea <command> --help` for a command's options and examples.
-Exit status: 0 no bug found, 1 bug found, 2 error.
+Exit status: 0 no bug or required coverage gap, 1 bug or coverage gap, 2 error.
 ";
 
 const CHECK_HELP: &str = "\
@@ -96,6 +96,9 @@ Mutation testing:
       --mutation-timeout <DURATION>
                             Time limit for mutation testing (default: 30s)
       --no-mutation         Skip mutation testing
+      --allow-incomplete-coverage
+                            Do not fail when selected code coverage is missing; useful
+                            for exploratory checks while a test suite is being built.
 
 Output:
   -o, --out <DIR>           Output folder (default: PCheckerOutput)
@@ -106,8 +109,10 @@ Output:
                             Uses one worker.
 
 Prints one line per test case with its coverage, and for a bug its report and the
-`snappea replay` command that reproduces it; then the code no test case ran. Uncovered
-code is unchecked code: add a test case or scenario that reaches it.
+`snappea replay` command that reproduces it; then the code no test case ran. By default,
+missing statements, event handlers, or `if` branch outcomes in selected code fail the
+check. Use a scoped `coverage` suppression with a reason for deliberate omissions.
+`--allow-incomplete-coverage` bypasses this gate for exploratory checks.
 
 A bug's files go to <DIR>/<TEST>/, replacing the previous run's: bug.txt (the buggy
 schedule's log; read this first), bug.schedule (for `snappea replay`) and
@@ -697,6 +702,7 @@ const CHECK_OPTS: &[Opt] = &[
     flag("verbose", Some('v')),
     value("mutation-timeout", None),
     flag("no-mutation", None),
+    flag("allow-incomplete-coverage", None),
 ];
 
 /// Default time limit for mutation testing, in seconds.
@@ -727,7 +733,14 @@ fn check(args: &[String], host: &mut dyn Host) -> i32 {
         Err(m) => return usage_error(host, &m, Some("check")),
     };
     with_output(host, &parsed, "check", |host| {
-        run_check(host, cfg, &patterns, parsed.get("latency"), Mutation::After(mutation))
+        run_check(
+            host,
+            cfg,
+            &patterns,
+            parsed.get("latency"),
+            Mutation::After(mutation),
+            parsed.has("allow-incomplete-coverage"),
+        )
     })
 }
 
@@ -758,7 +771,7 @@ fn mutation(args: &[String], host: &mut dyn Host) -> i32 {
         Err(m) => return usage_error(host, &m, CMD),
     };
     with_output(host, &parsed, "check mutation", |host| {
-        run_check(host, cfg, &patterns, parsed.get("latency"), Mutation::Only(limit))
+        run_check(host, cfg, &patterns, parsed.get("latency"), Mutation::Only(limit), true)
     })
 }
 
@@ -872,6 +885,7 @@ fn run_check(
     patterns: &[String],
     latency: Option<&str>,
     mutation: Mutation,
+    allow_incomplete_coverage: bool,
 ) -> Outcome {
     let only = matches!(mutation, Mutation::Only(_));
     let start = host.now();
@@ -941,7 +955,22 @@ fn run_check(
         }
         cases.push(result);
     }
-    let suite = CodeMap::new(prog, &probes, &scope).coverage(&hits);
+    let map = CodeMap::new(prog, &probes, &scope);
+    let suite = map.coverage(&hits);
+    let coverage_suppressions = snappea_lint::coverage_suppressions(&loaded.sources.source_map()).unwrap_or_default();
+    let required = map.required_summary(&suite, &coverage_suppressions);
+    let required_uncovered = map.required_uncovered(&suite, &coverage_suppressions);
+    let required_missing = required.statements.covered < required.statements.total
+        || required.branches.covered < required.branches.total
+        || required.handlers.covered < required.handlers.total;
+    let required_gap_count = required.statements.total - required.statements.covered + required.branches.total
+        - required.branches.covered
+        + required.handlers.total
+        - required.handlers.covered;
+    let coverage_failed = !only && failed == 0 && !allow_incomplete_coverage && required_missing;
+    let coverage_failure_message =
+        format!("Required coverage was not reached within the run budget ({} points).", required_gap_count);
+    let coverage_failure_help = "Add scenarios that reach the listed sites, or increase the timeout if exploration ran out of time. For deliberate omissions, add a scoped `coverage` suppression with a reason; use --allow-incomplete-coverage only for exploratory checking.";
     let excluded = scope.excluded(prog);
     if !only {
         if n > 1 {
@@ -960,6 +989,14 @@ fn run_check(
         }
         if failed > 0 {
             con.inner.out_line("Coverage includes partial results from test cases stopped at their first bug.");
+        }
+        if coverage_failed {
+            con.inner.out_line(&format!("{coverage_failure_message} {coverage_failure_help}"));
+        } else if failed == 0 && allow_incomplete_coverage && !required_uncovered.is_empty() {
+            con.inner.out_line(&format!(
+                "Coverage gate bypassed: required coverage was not reached within the run budget ({} points).",
+                required_gap_count
+            ));
         }
         if !scenarios.is_empty() {
             con.inner.write(Stream::Out, &scenario::merge(&scenarios), None);
@@ -994,6 +1031,13 @@ fn run_check(
             0 => format!("🫛 Every mutant was detected in {}{}.", elapsed, memory),
             n => format!("{} mutant{} not detected in {}{}.", n, plural(n), elapsed, memory),
         }
+    } else if failed == 0 && coverage_failed {
+        format!(
+            "Coverage requirements were not met for {} point{}. Output: {}/",
+            required_gap_count,
+            plural(required_gap_count),
+            out
+        )
     } else if failed == 0 && incomplete > 0 {
         format!(
             "🫛 No bugs found in {}{}. Search incomplete for {} test case{}. Output: {}/",
@@ -1024,6 +1068,14 @@ fn run_check(
     let mut coverage = suite.to_json(false);
     coverage["excluded_components"] = excluded.iter().map(|u| u.to_json()).collect();
     coverage["partial"] = json!(failed > 0);
+    coverage["required"] = required.to_json();
+    coverage["uncovered_required"] = required_uncovered.iter().map(|u| u.to_json()).collect();
+    coverage["gate_bypassed"] = json!(!only && allow_incomplete_coverage);
+    coverage["failure"] = if coverage_failed {
+        json!({"message": coverage_failure_message, "help": coverage_failure_help})
+    } else {
+        Value::Null
+    };
     let result = json!({
         "project": cfg.project_name,
         "test_cases": cases,
@@ -1032,10 +1084,11 @@ fn run_check(
         "seconds": round_ms(seconds),
         "output": format!("{}/", out),
         "coverage": coverage,
+        "coverage_failed": coverage_failed,
         "mutation": mutation,
         "scenarios": scenarios.iter().map(|a| serde_json::from_str::<Value>(&a.to_json()).unwrap()).collect::<Vec<_>>(),
     });
-    Ok((if failed > 0 { BUG } else { OK }, result))
+    Ok((if failed > 0 || coverage_failed { BUG } else { OK }, result))
 }
 
 /// One test case's result as JSON.

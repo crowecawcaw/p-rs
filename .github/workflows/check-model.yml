@@ -33,7 +33,7 @@ jobs:
       - name: Type-check and list the test cases
         run: snappea tests
 
-      # Exit status 1 (a bug) or 2 (an error) fails the job.
+      # Exit status 1 (a bug or missing required coverage) or 2 (an error) fails the job.
       - name: Check the model
         run: snappea check tcAtomicReserve
 
