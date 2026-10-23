@@ -405,30 +405,40 @@ snappea    </h1>
 </span><span id="L-174"><a href="#L-174"><span class="linenos">174</span></a>    <span class="n">artifacts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 </span><span id="L-175"><a href="#L-175"><span class="linenos">175</span></a>    <span class="n">liveness</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 </span><span id="L-176"><a href="#L-176"><span class="linenos">176</span></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="L-177"><a href="#L-177"><span class="linenos">177</span></a><span class="w">    </span><span class="sd">"""Checks a hand-written list of events: unit tests for a spec itself::</span>
+</span><span id="L-177"><a href="#L-177"><span class="linenos">177</span></a><span class="w">    </span><span class="sd">"""Check captured implementation events against P specs::</span>
 </span><span id="L-178"><a href="#L-178"><span class="linenos">178</span></a>
-</span><span id="L-179"><a href="#L-179"><span class="linenos">179</span></a><span class="sd">        check_events([</span>
-</span><span id="L-180"><a href="#L-180"><span class="linenos">180</span></a><span class="sd">            {"event": "eEnter", "payload": {"client": "c1"}},</span>
-</span><span id="L-181"><a href="#L-181"><span class="linenos">181</span></a><span class="sd">            {"event": "eEnter", "payload": {"client": "c2"}},</span>
-</span><span id="L-182"><a href="#L-182"><span class="linenos">182</span></a><span class="sd">        ], "MutualExclusion")</span>
-</span><span id="L-183"><a href="#L-183"><span class="linenos">183</span></a>
-</span><span id="L-184"><a href="#L-184"><span class="linenos">184</span></a><span class="sd">    Events take ``event`` and ``payload`` (or payload fields directly, as with</span>
-</span><span id="L-185"><a href="#L-185"><span class="linenos">185</span></a><span class="sd">    :func:`emit`) and optionally ``key`` and ``at``; without ``at`` they are checked in</span>
-</span><span id="L-186"><a href="#L-186"><span class="linenos">186</span></a><span class="sd">    list order. These events do not reach any enclosing check. Options are those of</span>
-</span><span id="L-187"><a href="#L-187"><span class="linenos">187</span></a><span class="sd">    :func:`check_spec`.</span>
-</span><span id="L-188"><a href="#L-188"><span class="linenos">188</span></a><span class="sd">    """</span>
-</span><span id="L-189"><a href="#L-189"><span class="linenos">189</span></a>    <span class="n">__tracebackhide__</span> <span class="o">=</span> <span class="kc">True</span>
-</span><span id="L-190"><a href="#L-190"><span class="linenos">190</span></a>    <span class="n">rec</span> <span class="o">=</span> <span class="n">Recorder</span><span class="p">(</span>
-</span><span id="L-191"><a href="#L-191"><span class="linenos">191</span></a>        <span class="n">specs</span><span class="p">,</span>
-</span><span id="L-192"><a href="#L-192"><span class="linenos">192</span></a>        <span class="n">spec_files</span><span class="o">=</span><span class="n">spec_files</span><span class="p">,</span>
-</span><span id="L-193"><a href="#L-193"><span class="linenos">193</span></a>        <span class="n">check_hot</span><span class="o">=</span><span class="n">check_hot_arg</span><span class="p">(</span><span class="n">check_hot</span><span class="p">,</span> <span class="n">liveness</span><span class="p">),</span>
-</span><span id="L-194"><a href="#L-194"><span class="linenos">194</span></a>        <span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">,</span>
-</span><span id="L-195"><a href="#L-195"><span class="linenos">195</span></a>        <span class="n">unknown_events</span><span class="o">=</span><span class="n">unknown_events</span><span class="p">,</span>
-</span><span id="L-196"><a href="#L-196"><span class="linenos">196</span></a>        <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
-</span><span id="L-197"><a href="#L-197"><span class="linenos">197</span></a>        <span class="n">artifacts</span><span class="o">=</span><span class="n">artifacts</span><span class="p">,</span>
-</span><span id="L-198"><a href="#L-198"><span class="linenos">198</span></a>    <span class="p">)</span>
-</span><span id="L-199"><a href="#L-199"><span class="linenos">199</span></a>    <span class="n">rec</span><span class="o">.</span><span class="n">_events</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">events_from_dicts</span><span class="p">(</span><span class="n">events</span><span class="p">))</span>
-</span><span id="L-200"><a href="#L-200"><span class="linenos">200</span></a>    <span class="n">rec</span><span class="o">.</span><span class="n">check</span><span class="p">()</span>
+</span><span id="L-179"><a href="#L-179"><span class="linenos">179</span></a><span class="sd">        check_events(captured_events, "MutualExclusion")</span>
+</span><span id="L-180"><a href="#L-180"><span class="linenos">180</span></a>
+</span><span id="L-181"><a href="#L-181"><span class="linenos">181</span></a><span class="sd">    Events should normally come from observed implementation behavior, with payloads</span>
+</span><span id="L-182"><a href="#L-182"><span class="linenos">182</span></a><span class="sd">    describing actual results and state. In Python tests, prefer application calls</span>
+</span><span id="L-183"><a href="#L-183"><span class="linenos">183</span></a><span class="sd">    to :func:`emit`, captured automatically by the pytest plugin or inside</span>
+</span><span id="L-184"><a href="#L-184"><span class="linenos">184</span></a><span class="sd">    :func:`check_spec`::</span>
+</span><span id="L-185"><a href="#L-185"><span class="linenos">185</span></a>
+</span><span id="L-186"><a href="#L-186"><span class="linenos">186</span></a><span class="sd">        with check_spec("MutualExclusion"):</span>
+</span><span id="L-187"><a href="#L-187"><span class="linenos">187</span></a><span class="sd">            server.acquire("c1")</span>
+</span><span id="L-188"><a href="#L-188"><span class="linenos">188</span></a><span class="sd">            server.acquire("c2")</span>
+</span><span id="L-189"><a href="#L-189"><span class="linenos">189</span></a>
+</span><span id="L-190"><a href="#L-190"><span class="linenos">190</span></a><span class="sd">    Use this function when you already have a captured event list. Hand-written</span>
+</span><span id="L-191"><a href="#L-191"><span class="linenos">191</span></a><span class="sd">    traces are useful for testing the spec itself; they do not validate the</span>
+</span><span id="L-192"><a href="#L-192"><span class="linenos">192</span></a><span class="sd">    implementation. For event logs, use ``snappea observe``.</span>
+</span><span id="L-193"><a href="#L-193"><span class="linenos">193</span></a>
+</span><span id="L-194"><a href="#L-194"><span class="linenos">194</span></a><span class="sd">    Events take ``event`` and ``payload`` (or payload fields directly, as with</span>
+</span><span id="L-195"><a href="#L-195"><span class="linenos">195</span></a><span class="sd">    :func:`emit`) and optionally ``key`` and ``at``; without ``at`` they are checked in</span>
+</span><span id="L-196"><a href="#L-196"><span class="linenos">196</span></a><span class="sd">    list order. These events do not reach any enclosing check. Options are those of</span>
+</span><span id="L-197"><a href="#L-197"><span class="linenos">197</span></a><span class="sd">    :func:`check_spec`.</span>
+</span><span id="L-198"><a href="#L-198"><span class="linenos">198</span></a><span class="sd">    """</span>
+</span><span id="L-199"><a href="#L-199"><span class="linenos">199</span></a>    <span class="n">__tracebackhide__</span> <span class="o">=</span> <span class="kc">True</span>
+</span><span id="L-200"><a href="#L-200"><span class="linenos">200</span></a>    <span class="n">rec</span> <span class="o">=</span> <span class="n">Recorder</span><span class="p">(</span>
+</span><span id="L-201"><a href="#L-201"><span class="linenos">201</span></a>        <span class="n">specs</span><span class="p">,</span>
+</span><span id="L-202"><a href="#L-202"><span class="linenos">202</span></a>        <span class="n">spec_files</span><span class="o">=</span><span class="n">spec_files</span><span class="p">,</span>
+</span><span id="L-203"><a href="#L-203"><span class="linenos">203</span></a>        <span class="n">check_hot</span><span class="o">=</span><span class="n">check_hot_arg</span><span class="p">(</span><span class="n">check_hot</span><span class="p">,</span> <span class="n">liveness</span><span class="p">),</span>
+</span><span id="L-204"><a href="#L-204"><span class="linenos">204</span></a>        <span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">,</span>
+</span><span id="L-205"><a href="#L-205"><span class="linenos">205</span></a>        <span class="n">unknown_events</span><span class="o">=</span><span class="n">unknown_events</span><span class="p">,</span>
+</span><span id="L-206"><a href="#L-206"><span class="linenos">206</span></a>        <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+</span><span id="L-207"><a href="#L-207"><span class="linenos">207</span></a>        <span class="n">artifacts</span><span class="o">=</span><span class="n">artifacts</span><span class="p">,</span>
+</span><span id="L-208"><a href="#L-208"><span class="linenos">208</span></a>    <span class="p">)</span>
+</span><span id="L-209"><a href="#L-209"><span class="linenos">209</span></a>    <span class="n">rec</span><span class="o">.</span><span class="n">_events</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">events_from_dicts</span><span class="p">(</span><span class="n">events</span><span class="p">))</span>
+</span><span id="L-210"><a href="#L-210"><span class="linenos">210</span></a>    <span class="n">rec</span><span class="o">.</span><span class="n">check</span><span class="p">()</span>
 </span></pre></div>
 
 
@@ -977,40 +987,61 @@ the test. The violation is available as <code>.violation</code> afterwards.</p>
 </span><span id="check_events-175"><a href="#check_events-175"><span class="linenos">175</span></a>    <span class="n">artifacts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 </span><span id="check_events-176"><a href="#check_events-176"><span class="linenos">176</span></a>    <span class="n">liveness</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 </span><span id="check_events-177"><a href="#check_events-177"><span class="linenos">177</span></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="check_events-178"><a href="#check_events-178"><span class="linenos">178</span></a><span class="w">    </span><span class="sd">"""Checks a hand-written list of events: unit tests for a spec itself::</span>
+</span><span id="check_events-178"><a href="#check_events-178"><span class="linenos">178</span></a><span class="w">    </span><span class="sd">"""Check captured implementation events against P specs::</span>
 </span><span id="check_events-179"><a href="#check_events-179"><span class="linenos">179</span></a>
-</span><span id="check_events-180"><a href="#check_events-180"><span class="linenos">180</span></a><span class="sd">        check_events([</span>
-</span><span id="check_events-181"><a href="#check_events-181"><span class="linenos">181</span></a><span class="sd">            {"event": "eEnter", "payload": {"client": "c1"}},</span>
-</span><span id="check_events-182"><a href="#check_events-182"><span class="linenos">182</span></a><span class="sd">            {"event": "eEnter", "payload": {"client": "c2"}},</span>
-</span><span id="check_events-183"><a href="#check_events-183"><span class="linenos">183</span></a><span class="sd">        ], "MutualExclusion")</span>
-</span><span id="check_events-184"><a href="#check_events-184"><span class="linenos">184</span></a>
-</span><span id="check_events-185"><a href="#check_events-185"><span class="linenos">185</span></a><span class="sd">    Events take ``event`` and ``payload`` (or payload fields directly, as with</span>
-</span><span id="check_events-186"><a href="#check_events-186"><span class="linenos">186</span></a><span class="sd">    :func:`emit`) and optionally ``key`` and ``at``; without ``at`` they are checked in</span>
-</span><span id="check_events-187"><a href="#check_events-187"><span class="linenos">187</span></a><span class="sd">    list order. These events do not reach any enclosing check. Options are those of</span>
-</span><span id="check_events-188"><a href="#check_events-188"><span class="linenos">188</span></a><span class="sd">    :func:`check_spec`.</span>
-</span><span id="check_events-189"><a href="#check_events-189"><span class="linenos">189</span></a><span class="sd">    """</span>
-</span><span id="check_events-190"><a href="#check_events-190"><span class="linenos">190</span></a>    <span class="n">__tracebackhide__</span> <span class="o">=</span> <span class="kc">True</span>
-</span><span id="check_events-191"><a href="#check_events-191"><span class="linenos">191</span></a>    <span class="n">rec</span> <span class="o">=</span> <span class="n">Recorder</span><span class="p">(</span>
-</span><span id="check_events-192"><a href="#check_events-192"><span class="linenos">192</span></a>        <span class="n">specs</span><span class="p">,</span>
-</span><span id="check_events-193"><a href="#check_events-193"><span class="linenos">193</span></a>        <span class="n">spec_files</span><span class="o">=</span><span class="n">spec_files</span><span class="p">,</span>
-</span><span id="check_events-194"><a href="#check_events-194"><span class="linenos">194</span></a>        <span class="n">check_hot</span><span class="o">=</span><span class="n">check_hot_arg</span><span class="p">(</span><span class="n">check_hot</span><span class="p">,</span> <span class="n">liveness</span><span class="p">),</span>
-</span><span id="check_events-195"><a href="#check_events-195"><span class="linenos">195</span></a>        <span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">,</span>
-</span><span id="check_events-196"><a href="#check_events-196"><span class="linenos">196</span></a>        <span class="n">unknown_events</span><span class="o">=</span><span class="n">unknown_events</span><span class="p">,</span>
-</span><span id="check_events-197"><a href="#check_events-197"><span class="linenos">197</span></a>        <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
-</span><span id="check_events-198"><a href="#check_events-198"><span class="linenos">198</span></a>        <span class="n">artifacts</span><span class="o">=</span><span class="n">artifacts</span><span class="p">,</span>
-</span><span id="check_events-199"><a href="#check_events-199"><span class="linenos">199</span></a>    <span class="p">)</span>
-</span><span id="check_events-200"><a href="#check_events-200"><span class="linenos">200</span></a>    <span class="n">rec</span><span class="o">.</span><span class="n">_events</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">events_from_dicts</span><span class="p">(</span><span class="n">events</span><span class="p">))</span>
-</span><span id="check_events-201"><a href="#check_events-201"><span class="linenos">201</span></a>    <span class="n">rec</span><span class="o">.</span><span class="n">check</span><span class="p">()</span>
+</span><span id="check_events-180"><a href="#check_events-180"><span class="linenos">180</span></a><span class="sd">        check_events(captured_events, "MutualExclusion")</span>
+</span><span id="check_events-181"><a href="#check_events-181"><span class="linenos">181</span></a>
+</span><span id="check_events-182"><a href="#check_events-182"><span class="linenos">182</span></a><span class="sd">    Events should normally come from observed implementation behavior, with payloads</span>
+</span><span id="check_events-183"><a href="#check_events-183"><span class="linenos">183</span></a><span class="sd">    describing actual results and state. In Python tests, prefer application calls</span>
+</span><span id="check_events-184"><a href="#check_events-184"><span class="linenos">184</span></a><span class="sd">    to :func:`emit`, captured automatically by the pytest plugin or inside</span>
+</span><span id="check_events-185"><a href="#check_events-185"><span class="linenos">185</span></a><span class="sd">    :func:`check_spec`::</span>
+</span><span id="check_events-186"><a href="#check_events-186"><span class="linenos">186</span></a>
+</span><span id="check_events-187"><a href="#check_events-187"><span class="linenos">187</span></a><span class="sd">        with check_spec("MutualExclusion"):</span>
+</span><span id="check_events-188"><a href="#check_events-188"><span class="linenos">188</span></a><span class="sd">            server.acquire("c1")</span>
+</span><span id="check_events-189"><a href="#check_events-189"><span class="linenos">189</span></a><span class="sd">            server.acquire("c2")</span>
+</span><span id="check_events-190"><a href="#check_events-190"><span class="linenos">190</span></a>
+</span><span id="check_events-191"><a href="#check_events-191"><span class="linenos">191</span></a><span class="sd">    Use this function when you already have a captured event list. Hand-written</span>
+</span><span id="check_events-192"><a href="#check_events-192"><span class="linenos">192</span></a><span class="sd">    traces are useful for testing the spec itself; they do not validate the</span>
+</span><span id="check_events-193"><a href="#check_events-193"><span class="linenos">193</span></a><span class="sd">    implementation. For event logs, use ``snappea observe``.</span>
+</span><span id="check_events-194"><a href="#check_events-194"><span class="linenos">194</span></a>
+</span><span id="check_events-195"><a href="#check_events-195"><span class="linenos">195</span></a><span class="sd">    Events take ``event`` and ``payload`` (or payload fields directly, as with</span>
+</span><span id="check_events-196"><a href="#check_events-196"><span class="linenos">196</span></a><span class="sd">    :func:`emit`) and optionally ``key`` and ``at``; without ``at`` they are checked in</span>
+</span><span id="check_events-197"><a href="#check_events-197"><span class="linenos">197</span></a><span class="sd">    list order. These events do not reach any enclosing check. Options are those of</span>
+</span><span id="check_events-198"><a href="#check_events-198"><span class="linenos">198</span></a><span class="sd">    :func:`check_spec`.</span>
+</span><span id="check_events-199"><a href="#check_events-199"><span class="linenos">199</span></a><span class="sd">    """</span>
+</span><span id="check_events-200"><a href="#check_events-200"><span class="linenos">200</span></a>    <span class="n">__tracebackhide__</span> <span class="o">=</span> <span class="kc">True</span>
+</span><span id="check_events-201"><a href="#check_events-201"><span class="linenos">201</span></a>    <span class="n">rec</span> <span class="o">=</span> <span class="n">Recorder</span><span class="p">(</span>
+</span><span id="check_events-202"><a href="#check_events-202"><span class="linenos">202</span></a>        <span class="n">specs</span><span class="p">,</span>
+</span><span id="check_events-203"><a href="#check_events-203"><span class="linenos">203</span></a>        <span class="n">spec_files</span><span class="o">=</span><span class="n">spec_files</span><span class="p">,</span>
+</span><span id="check_events-204"><a href="#check_events-204"><span class="linenos">204</span></a>        <span class="n">check_hot</span><span class="o">=</span><span class="n">check_hot_arg</span><span class="p">(</span><span class="n">check_hot</span><span class="p">,</span> <span class="n">liveness</span><span class="p">),</span>
+</span><span id="check_events-205"><a href="#check_events-205"><span class="linenos">205</span></a>        <span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">,</span>
+</span><span id="check_events-206"><a href="#check_events-206"><span class="linenos">206</span></a>        <span class="n">unknown_events</span><span class="o">=</span><span class="n">unknown_events</span><span class="p">,</span>
+</span><span id="check_events-207"><a href="#check_events-207"><span class="linenos">207</span></a>        <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+</span><span id="check_events-208"><a href="#check_events-208"><span class="linenos">208</span></a>        <span class="n">artifacts</span><span class="o">=</span><span class="n">artifacts</span><span class="p">,</span>
+</span><span id="check_events-209"><a href="#check_events-209"><span class="linenos">209</span></a>    <span class="p">)</span>
+</span><span id="check_events-210"><a href="#check_events-210"><span class="linenos">210</span></a>    <span class="n">rec</span><span class="o">.</span><span class="n">_events</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">events_from_dicts</span><span class="p">(</span><span class="n">events</span><span class="p">))</span>
+</span><span id="check_events-211"><a href="#check_events-211"><span class="linenos">211</span></a>    <span class="n">rec</span><span class="o">.</span><span class="n">check</span><span class="p">()</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Checks a hand-written list of events: unit tests for a spec itself::</p>
+            <div class="docstring"><p>Check captured implementation events against P specs::</p>
 
-<pre><code>check_events([
-    {"event": "eEnter", "payload": {"client": "c1"}},
-    {"event": "eEnter", "payload": {"client": "c2"}},
-], "MutualExclusion")
+<pre><code>check_events(captured_events, "MutualExclusion")
 </code></pre>
+
+<p>Events should normally come from observed implementation behavior, with payloads
+describing actual results and state. In Python tests, prefer application calls
+to <code><a href="#emit">emit()</a></code>, captured automatically by the pytest plugin or inside
+<code><a href="#check_spec">check_spec()</a></code>::</p>
+
+<pre><code>with check_spec("MutualExclusion"):
+    server.acquire("c1")
+    server.acquire("c2")
+</code></pre>
+
+<p>Use this function when you already have a captured event list. Hand-written
+traces are useful for testing the spec itself; they do not validate the
+implementation. For event logs, use <code>snappea observe</code>.</p>
 
 <p>Events take <code>event</code> and <code>payload</code> (or payload fields directly, as with
 <code><a href="#emit">emit()</a></code>) and optionally <code>key</code> and <code>at</code>; without <code>at</code> they are checked in
