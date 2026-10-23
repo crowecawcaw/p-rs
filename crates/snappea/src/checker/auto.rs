@@ -66,6 +66,12 @@ impl AutoStrategy {
             None => &self.feedback,
         }
     }
+    pub(crate) fn with_frontier_guidance(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.feedback = self.feedback.with_frontier_guidance();
+        }
+        self
+    }
     fn active_mut(&mut self) -> &mut dyn Strategy {
         match &mut self.dfs {
             Some(dfs) => dfs,
@@ -192,6 +198,12 @@ impl Strategy for AutoStrategy {
     }
     fn observe_progress(&mut self, new_coverage: usize, bug: Option<&str>) {
         self.active_mut().observe_progress(new_coverage, bug);
+    }
+    fn wants_frontiers(&self) -> bool {
+        self.active().wants_frontiers()
+    }
+    fn observe_frontier(&mut self, machine: u32, state: u32, event: u32) {
+        self.active_mut().observe_frontier(machine, state, event);
     }
     fn coverage_epoch(&self) -> u64 {
         u64::from(self.dfs.is_none())

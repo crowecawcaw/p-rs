@@ -187,6 +187,12 @@ pub trait Strategy {
     }
     /// Coverage delta and failure observed during the current execution.
     fn observe_progress(&mut self, _new_coverage: usize, _bug: Option<&str>) {}
+    /// Whether event-count frontier checkpoints are used during execution.
+    fn wants_frontiers(&self) -> bool {
+        false
+    }
+    /// A delivery about to be handled, grouped by declaration rather than instance.
+    fn observe_frontier(&mut self, _machine: u32, _state: u32, _event: u32) {}
     /// Validated exhaustive completion, including liveness requirements.
     fn search_complete(&self) -> bool {
         false

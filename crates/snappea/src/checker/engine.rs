@@ -39,6 +39,11 @@ pub struct CheckerOptions {
     /// Preserve upstream's zero-length feedback mutations and unfair step bound for
     /// seed compatibility. Native feedback uses productive mutations and the fair bound.
     pub upstream_feedback: bool,
+    /// Experimental prefix-based next-choice guidance for native random feedback.
+    pub feedback_choice_guidance: bool,
+    /// Preserve prefixes at increasing event counts in native feedback and auto's
+    /// feedback phase. Enabled by default; ignored by upstream compatibility mode.
+    pub feedback_frontier_guidance: bool,
     /// Keep exploring after the first bug (`--explore`).
     pub full_exploration: bool,
     pub incremental_seed: bool,
@@ -92,6 +97,8 @@ impl Default for CheckerOptions {
             fail_on_max_steps: false,
             strategy_bound: 0,
             upstream_feedback: false,
+            feedback_choice_guidance: false,
+            feedback_frontier_guidance: true,
             full_exploration: false,
             incremental_seed: false,
             replay: None,
@@ -398,23 +405,34 @@ fn build_strategy(
     };
     let feedback = |scheduler: Box<dyn Scheduler>| {
         let bound = if opts.upstream_feedback { opts.max_unfair_steps } else { opts.max_fair_steps };
+        let mut strategy = FeedbackGuidedStrategy::new(bound, opts.seed, scheduler)
+            .with_code_guidance(!opts.upstream_feedback)
+            .with_legacy_mutations(opts.upstream_feedback)
+            .with_fresh_exploration(if opts.upstream_feedback { 0 } else { 25 });
+        if opts.feedback_frontier_guidance && !opts.upstream_feedback && opts.strategy == StrategyKind::Feedback {
+            strategy = strategy.with_frontier_guidance();
+        }
         Box::new(
-            FeedbackGuidedStrategy::new(bound, opts.seed, scheduler)
-                .with_code_guidance(!opts.upstream_feedback)
-                .with_legacy_mutations(opts.upstream_feedback)
-                .with_fresh_exploration(if opts.upstream_feedback { 0 } else { 25 }),
+            if opts.feedback_choice_guidance && !opts.upstream_feedback && opts.strategy == StrategyKind::Feedback {
+                strategy.with_choice_guidance(opts.seed)
+            } else {
+                strategy
+            },
         )
     };
     let controlled =
         || Source::Controlled(ControlledRandom::new(opts.seed).with_legacy_mutations(opts.upstream_feedback));
     Ok(match opts.strategy {
-        StrategyKind::Auto => Box::new(crate::checker::auto::AutoStrategy::new(
-            opts.seed,
-            opts.max_unfair_steps,
-            opts.max_fair_steps,
-            has_hot,
-            exhaustive,
-        )),
+        StrategyKind::Auto => Box::new(
+            crate::checker::auto::AutoStrategy::new(
+                opts.seed,
+                opts.max_unfair_steps,
+                opts.max_fair_steps,
+                has_hot,
+                exhaustive,
+            )
+            .with_frontier_guidance(opts.feedback_frontier_guidance && !opts.upstream_feedback),
+        ),
         StrategyKind::Random => Box::new(RandomStrategy::new(opts.max_fair_steps, rng.clone())),
         StrategyKind::Pct => Box::new(PctStrategy::new(opts.max_unfair_steps, opts.strategy_bound, rng.clone())),
         StrategyKind::FairPct => Box::new(ComboStrategy::new(

@@ -16,11 +16,14 @@ def main():
     p.add_argument('--seeds', type=int, default=20)
     p.add_argument('--seed-start', type=int, default=0)
     p.add_argument('--budget', type=int, default=10000)
+    p.add_argument('--choice-guidance', action='store_true', help='also measure experimental next-choice feedback')
+    p.add_argument('--frontier-guidance', action='store_true', help='also measure event-count prefix checkpoints')
     args = p.parse_args()
     if args.seeds < 1 or args.budget < 1 or args.seed_start < 0:
         p.error('seeds and budget must be positive; seed-start must be nonnegative')
     subprocess.run(['cargo', 'build', '--release', '-p', 'snappea', '--example', 'search_bench', '--locked'], cwd=ROOT, check=True)
-    env = dict(os.environ, SEARCH_SEEDS=str(args.seeds), SEARCH_SEED_START=str(args.seed_start), SEARCH_BUDGET=str(args.budget))
+    env = dict(os.environ, SEARCH_SEEDS=str(args.seeds), SEARCH_SEED_START=str(args.seed_start), SEARCH_BUDGET=str(args.budget),
+               SEARCH_CHOICE_GUIDANCE=str(int(args.choice_guidance)), SEARCH_FRONTIER_GUIDANCE=str(int(args.frontier_guidance)))
     data = json.loads(subprocess.check_output([str(ROOT/'target/release/examples/search_bench')], cwd=ROOT, env=env, text=True))
     def git(*args):
         return subprocess.check_output(['git', *args], cwd=ROOT, text=True).strip()

@@ -1530,6 +1530,11 @@ impl<'p> Runtime<'p> {
                         return Err(self.report_bug(msg));
                     };
                     let action = self.prog.state(state).handler_for(e.id).map(|h| h.action.clone());
+                    if self.strategy.wants_frontiers()
+                        && matches!(action, Some(HandlerAction::Do(_) | HandlerAction::Goto { .. }))
+                    {
+                        self.strategy.observe_frontier(self.machines[m].decl.0, state.0, e.id.0);
+                    }
                     match action {
                         Some(HandlerAction::Do(f)) => {
                             self.machines[m].stage = Stage::AfterAction(e.clone());

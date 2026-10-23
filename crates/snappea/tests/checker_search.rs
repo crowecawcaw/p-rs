@@ -9,6 +9,59 @@ impl Output for Quiet {
     fn error(&mut self, _: &str) {}
 }
 
+#[test]
+fn next_choice_feedback_is_deterministic_and_replays_inputs_and_deliveries() {
+    let src = clients("assert got[0] != choose(4), \"guided delivery\";");
+    let options = CheckerOptions { feedback_choice_guidance: true, ..opts(StrategyKind::Feedback, 200) };
+    let first = check(&src, &options);
+    let second = check(&src, &options);
+    assert_eq!(first.report.num_bugs, 1);
+    assert_eq!(first.schedule_trace, second.schedule_trace);
+    let trace = ScheduleTrace::parse(first.schedule_trace.as_ref().unwrap()).unwrap();
+    let replay = check(&src, &CheckerOptions { replay: Some(trace), ..opts(StrategyKind::Replay, 1) });
+    assert_eq!(replay.report.num_bugs, 1);
+    assert!(replay.replay_error.is_none());
+
+    // The experiment must not change compatibility's seeded stream.
+    let compat = CheckerOptions { upstream_feedback: true, ..options };
+    let baseline = check(&src, &CheckerOptions { feedback_choice_guidance: false, ..compat.clone() });
+    assert_eq!(check(&src, &compat).schedule_trace, baseline.schedule_trace);
+}
+
+#[test]
+fn frontier_feedback_reaches_repeated_data_and_delivery_stages_and_replays() {
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("stages.p", include_str!("models/guided_prefix.p").to_string());
+    let compiled = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let checker = Checker::new(&compiled.program);
+    for case in compiled.program.test_cases() {
+        for seed in 0..3 {
+            let options = CheckerOptions {
+                strategy: StrategyKind::Feedback,
+                seed,
+                iterations: 200,
+                max_fair_steps: 1000,
+                ..Default::default()
+            };
+            let result = checker.check(&case, &options, &mut Quiet).unwrap();
+            assert_eq!(result.report.num_bugs, 1, "{} seed {seed}", case.name);
+            let replay = checker
+                .check(
+                    &case,
+                    &CheckerOptions {
+                        strategy: StrategyKind::Replay,
+                        replay: Some(ScheduleTrace::parse(result.schedule_trace.as_ref().unwrap()).unwrap()),
+                        ..options
+                    },
+                    &mut Quiet,
+                )
+                .unwrap();
+            assert!(replay.replay_error.is_none());
+            assert_eq!(replay.report.bug_reports, result.report.bug_reports);
+        }
+    }
+}
+
 fn check(src: &str, opts: &CheckerOptions) -> CheckResult {
     let mut sm = snappea::syntax::SourceMap::new();
     sm.add("model.p", src.to_string());
@@ -559,4 +612,37 @@ fn auto_exhausts_atomic_inventory() {
         assert_eq!(result.report.num_bugs, 0);
         assert!(result.exhaustive.as_ref().is_some_and(|s| s.finished));
     }
+}
+
+#[test]
+fn auto_handoff_uses_default_frontier_guidance_and_replays() {
+    let src = include_str!("models/guided_prefix.p");
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("stages.p", src.to_string());
+    let compiled = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let case = compiled.program.test_cases().into_iter().find(|tc| tc.name == "tcDataPrefix___depth_24").unwrap();
+    let checker = Checker::new(&compiled.program);
+    let options = CheckerOptions {
+        strategy: StrategyKind::Auto,
+        iterations: 200,
+        max_unfair_steps: 2,
+        max_fair_steps: 1000,
+        ..Default::default()
+    };
+    let result = checker.check(&case, &options, &mut Quiet).unwrap();
+    assert_eq!(result.report.num_bugs, 1);
+    assert!(result.report.explored_fair_schedules > 0);
+    let replay = checker
+        .check(
+            &case,
+            &CheckerOptions {
+                strategy: StrategyKind::Replay,
+                replay: Some(ScheduleTrace::parse(result.schedule_trace.as_ref().unwrap()).unwrap()),
+                ..options
+            },
+            &mut Quiet,
+        )
+        .unwrap();
+    assert!(replay.replay_error.is_none());
+    assert_eq!(replay.report.bug_reports, result.report.bug_reports);
 }

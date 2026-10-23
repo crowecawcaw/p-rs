@@ -91,20 +91,30 @@ fn main() {
         let compiled = snappea::sema::compile(&sm, &Default::default()).expect("benchmark compiles");
         let tc = compiled.program.test_cases().remove(0);
         let checker = Checker::with_code_coverage(&compiled.program);
-        for strategy in [
-            StrategyKind::Random,
-            StrategyKind::Feedback,
-            StrategyKind::Dfs,
-            StrategyKind::RandomDfs,
-            StrategyKind::Auto,
-        ] {
+        let mut strategies = vec![
+            ("random", StrategyKind::Random, false),
+            ("feedback", StrategyKind::Feedback, false),
+            ("dfs", StrategyKind::Dfs, false),
+            ("random-dfs", StrategyKind::RandomDfs, false),
+            ("auto", StrategyKind::Auto, false),
+        ];
+        if std::env::var("SEARCH_CHOICE_GUIDANCE").as_deref() == Ok("1") {
+            strategies.insert(2, ("feedback-choice", StrategyKind::Feedback, true));
+        }
+        if std::env::var("SEARCH_FRONTIER_GUIDANCE").as_deref() == Ok("1") {
+            strategies.insert(2, ("feedback-frontier", StrategyKind::Feedback, false));
+        }
+        for (label, strategy, choice_guidance) in strategies {
             for seed in seed_start..seed_start.checked_add(seeds).expect("seed range overflow") {
+                let start = std::time::Instant::now();
                 let mut out = Discoveries::default();
                 let result = checker
                     .check(
                         &tc,
                         &CheckerOptions {
                             strategy,
+                            feedback_choice_guidance: choice_guidance,
+                            feedback_frontier_guidance: label == "feedback-frontier",
                             seed,
                             iterations: budget,
                             max_fair_steps: 1000,
@@ -117,7 +127,8 @@ fn main() {
                     )
                     .unwrap();
                 let all = (out.first.len() == BUGS.len()).then(|| *out.first.values().max().unwrap());
-                rows.push(json!({"workload":name, "strategy":strategy.name(), "seed":seed,
+                rows.push(json!({"workload":name, "strategy":label, "seed":seed,
+                    "elapsed_seconds":start.elapsed().as_secs_f64(),
                     "schedules_tested":out.tested, "first_bug_schedules":out.first,
                     "schedules_to_all":all, "exhausted":result.exhaustive.is_some_and(|s| s.finished)}));
             }
