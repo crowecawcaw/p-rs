@@ -653,3 +653,77 @@ fn check_reports_what_never_ran() {
     // no coverage files
     assert!(names(&h, "PCheckerOutput/tcPing").is_empty());
 }
+
+#[test]
+fn output_options_work_before_commands_and_usage_errors_write_reports() {
+    let mut h = host();
+    for args in
+        [vec!["--json", "tests"], vec!["--format=json", "tests"], vec!["--json-report", "r.json", "tests", "--json"]]
+    {
+        assert_eq!(snappea(&mut h, &args), 0, "{}", h.stderr);
+        let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+        assert_eq!(result["test_cases"], serde_json::json!(["tcCoins", "tcFine"]));
+    }
+    // Options also work between the command and subcommand.
+    assert_eq!(snappea(&mut h, &["coverage", "--json", "merge-observe", "--stdin"]), 2);
+    assert!(!h.stderr.contains("unknown subcommand"));
+    for args in [
+        vec!["check", "--bogus", "--json-report", "r.json", "--json"],
+        vec!["--json-report=r.json", "--json", "check", "--schedules"],
+        vec!["check", "--workers", "0", "--json-report", "r.json", "--json"],
+        vec!["observe", "--bogus", "--json-report", "r.json", "--json"],
+        vec!["--json", "--json-report=r.json", "typo"],
+        vec!["tests", "--format=invalid", "--json-report=r.json", "--json"],
+    ] {
+        assert_eq!(snappea(&mut h, &args), 2, "{:?}: {}", args, h.stderr);
+        let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+        assert_eq!(result["exit_code"], 2);
+        assert!(result["error"].is_string());
+        assert_eq!(h.stdout, read(&h, "r.json"));
+    }
+    assert_eq!(snappea(&mut h, &["--json-report=r.json", "check", "--bogus", "--format=text"]), 2);
+    assert!(h.stdout.is_empty());
+    assert!(read(&h, "r.json").contains("unknown option"));
+    // A command option's value and everything after `--` stay positional.
+    assert_eq!(snappea(&mut h, &["check", "--out", "--json", "tcFine", "-n", "1"]), 0);
+    assert!(h.stdout.starts_with("Checking"));
+    assert_eq!(snappea(&mut h, &["tests", "--", "--json"]), 2);
+    assert!(!h.stdout.starts_with('{'));
+}
+
+#[test]
+fn json_keeps_insertion_order() {
+    let mut h = host();
+    assert_eq!(snappea(&mut h, &["--json", "version"]), 0);
+    assert!(h.stdout.find("\"version\"").unwrap() < h.stdout.find("\"exit_code\"").unwrap());
+}
+
+#[test]
+fn failed_case_coverage_is_marked_partial_in_case_and_suite() {
+    let mut h = host();
+    assert_eq!(snappea(&mut h, &["check", "--seed=2", "--json"]), 1);
+    let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(result["coverage"]["partial"], true);
+    assert_eq!(result["test_cases"][0]["coverage"]["partial"], true);
+    assert_eq!(result["test_cases"][1]["coverage"]["partial"], false);
+    assert_eq!(snappea(&mut h, &["check", "tcFine", "-n", "1", "--json"]), 0);
+    let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(result["coverage"]["partial"], false);
+}
+
+#[test]
+fn check_includes_scenario_coverage_in_console_and_json() {
+    let mut h = host();
+    h.add_file("scenario.p", concat!(
+        include_str!("../../../tests/upstream/RegressionTests/Feature1SMLevelDecls/Correct/ScenarioCoverageBasic/ScenarioCoverageBasic.p"),
+        "\ntest tcScenario [main=Main]: { Main, Server };"
+    ));
+    assert_eq!(snappea(&mut h, &["check", "scenario.p", "-n", "2", "--json-report=r.json"]), 0, "{}", h.stderr);
+    assert!(h.stdout.contains("1/2 scenarios covered"), "{}", h.stdout);
+    assert!(h.stdout.contains("[  GAP  ] NeverCovered"));
+    let result: serde_json::Value = serde_json::from_str(&read(&h, "r.json")).unwrap();
+    let artifact: serde_json::Value =
+        serde_json::from_str(&read(&h, "PCheckerOutput/tcScenario/scenario_coverage.json")).unwrap();
+    assert_eq!(result["scenarios"], serde_json::json!([artifact]));
+    assert_eq!(result["test_cases"][0]["scenarios"], result["scenarios"][0]);
+}

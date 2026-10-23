@@ -207,6 +207,10 @@ FAIL  tcCheckThenReserve (bug found after 3 schedules, 4 workers, 0.00s)
           run:
         </p>
         <Options rows={OUTPUT} />
+        <p>
+          Output options work before or after the command. Unknown options and missing values also produce a JSON
+          error result and write <code>--json-report</code> when requested. JSON keys retain insertion order.
+        </p>
       </section>
 
       <section>
@@ -220,6 +224,11 @@ snappea check [SOURCE...] [TEST...] [options]
           case is checked. It prints one line per test case with its coverage and, for a bug, the failing assertion
           and a <code>snappea replay</code> command. Then it lists the code no test case ran: handlers never
           triggered, <code>if</code> conditions never true or never false, and statements never reached.
+        </p>
+        <p>
+          Coverage from a test case stopped at its first bug is marked partial in the console and with
+          <code>coverage.partial: true</code> in JSON, including the combined total. Scenario coverage appears
+          as a console summary and as <code>scenarios</code> artifacts in suite and test case JSON results.
         </p>
         <h3>How much to explore</h3>
         <Options rows={CHECK_EXPLORATION} />

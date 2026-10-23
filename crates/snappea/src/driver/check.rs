@@ -534,6 +534,7 @@ pub struct CaseOutcome {
     /// The `.schedule` file written for the bug (as `cfg.output_directory` names it).
     pub schedule_file: Option<String>,
     /// What the schedules ran, and the code they could have run, with `cfg.code_coverage`.
+    pub scenario_coverage: crate::driver::scenario::Artifact,
     pub code_coverage: Option<(crate::checker::code_coverage::Scope, crate::checker::code_coverage::Hits)>,
 }
 
@@ -646,6 +647,7 @@ pub fn testing_process(host: &mut dyn Host, loaded: &Loaded, cfg: &CheckConfig) 
         elapsed: process_elapsed,
         schedule_file,
         code_coverage,
+        scenario_coverage: crate::driver::scenario::from_report(&res.report, &cfg.test_case_name),
     })
 }
 

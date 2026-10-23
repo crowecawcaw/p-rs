@@ -24,7 +24,7 @@ emit = ["dep:serde", "dep:serde_json"]
 # library (`snappea::syntax`, `snappea::sema`, `snappea::checker`, `snappea::project`, `snappea::driver`).
 test = ["emit", "dep:regex", "dep:roxmltree", "dep:rustc-hash", "dep:sha2"]
 # The `snappea` and `snappea-compat` binaries, and the library they run on.
-cli = ["dep:roxmltree", "dep:rustc-hash", "dep:serde_json", "dep:sha2"]
+cli = ["serde_json/preserve_order", "dep:roxmltree", "dep:rustc-hash", "dep:serde_json", "dep:sha2"]
 
 [[bin]]
 name = "snappea"

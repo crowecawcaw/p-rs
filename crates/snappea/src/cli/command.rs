@@ -22,11 +22,13 @@ use crate::project::pproj::Includes;
 pub(super) const OK: i32 = 0;
 pub(super) const BUG: i32 = 1;
 pub(super) const ERROR: i32 = 2;
+// Internal status: run() turns argument failures into the public error result.
+const USAGE_ERROR: i32 = -1;
 
 const HELP: &str = "\
 🫛 snappea checks P models.
 
-Usage: snappea <command> [options]
+Usage: snappea [output options] <command> [options]
 
 Commands:
   check      Check test cases by exploring schedules
@@ -131,6 +133,96 @@ Run `snappea coverage merge-observe --help` for input and output options.
 
 /// Runs `snappea` with `args` (without the program name); returns the exit status.
 pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
+    // Recover output options even when another option is invalid. Skip values of
+    // command options so a filename such as `--json` is never mistaken for a flag.
+    let mut output = Args::default();
+    let mut command = Vec::new();
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        if arg == "--" {
+            command.push(arg.clone());
+            command.extend(it.cloned());
+            break;
+        }
+        let (name, inline) = arg
+            .strip_prefix("--")
+            .unwrap_or(arg)
+            .split_once('=')
+            .map_or((arg.strip_prefix("--").unwrap_or(arg), None), |(n, v)| (n, Some(v)));
+        if let Some(opt) = OUTPUT_OPTS.iter().find(|o| arg.starts_with("--") && o.long == name) {
+            let mut tokens = vec![arg.clone()];
+            if opt.takes_value && inline.is_none() {
+                if let Some(v) = it.next() {
+                    tokens.push(v.clone());
+                }
+            }
+            // Leave malformed options for the regular parser to diagnose.
+            match parse_args(&tokens, &[]) {
+                Ok(parsed) => output.options.extend(parsed.options),
+                Err(_) => command.extend(tokens),
+            }
+        } else {
+            command.push(arg.clone());
+            let valued = CHECK_OPTS.iter().chain(REPLAY_OPTS).chain(super::observe::OPTS).any(|o| {
+                o.takes_value && (arg == &format!("--{}", o.long) || o.short.is_some_and(|c| arg == &format!("-{}", c)))
+            });
+            if valued && inline.is_none() {
+                if let Some(v) = it.next() {
+                    command.push(v.clone());
+                }
+            }
+        }
+    }
+    // Keep output options away from a trailing command option missing its value.
+    let at = if command.first().is_some_and(|c| c == "coverage") && command.get(1).is_some_and(|c| c == "merge-observe")
+    {
+        2
+    } else {
+        usize::from(!command.is_empty())
+    };
+    let tokens =
+        output.options.iter().map(
+            |(name, value)| {
+                if *name == "json" {
+                    "--json".to_string()
+                } else {
+                    format!("--{}={}", name, value)
+                }
+            },
+        );
+    command.splice(at..at, tokens);
+    let mut capture = Quiet::recording_errors(host);
+    let code = dispatch(&command, &mut capture);
+    // Only usage errors bypass the command's structured output wrapper.
+    let message =
+        capture.captured_err.lines().next().unwrap_or("invalid command line").trim_start_matches("error: ").to_string();
+    drop(capture);
+    if code == USAGE_ERROR {
+        let format = output_format(&output, host).unwrap_or_else(|_| {
+            if output.has("json") || output.get("format") == Some("json") {
+                Format::Json
+            } else {
+                output_format(&Args::default(), host).unwrap_or(Format::Json)
+            }
+        });
+        let text = serde_json::to_string_pretty(&json!({"exit_code": ERROR, "error": message})).unwrap() + "\n";
+        if format == Format::Json {
+            host.write(Stream::Out, &text, None);
+        }
+        if let Some(path) = output.get("json-report") {
+            if let Err(e) = host.write_file(&full_path(&host.cwd(), Path::new(path)), &text) {
+                error(host, &format!("cannot write {}: {}", path, e));
+            }
+        }
+    }
+    if code == USAGE_ERROR {
+        ERROR
+    } else {
+        code
+    }
+}
+
+fn dispatch(args: &[String], host: &mut dyn Host) -> i32 {
     let Some((cmd, rest)) = args.split_first() else {
         host.write(Stream::Out, HELP, None);
         return OK;
@@ -157,7 +249,7 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
                 OK
             }
             Some(c @ ("check" | "replay" | "tests" | "observe" | "coverage")) => {
-                run(&[c.to_string(), "--help".into()], host)
+                dispatch(&[c.to_string(), "--help".into()], host)
             }
             Some(c) => usage_error(host, &format!("unknown command '{}'", c), None),
         },
@@ -165,12 +257,12 @@ pub fn run(args: &[String], host: &mut dyn Host) -> i32 {
     }
 }
 
-/// Reports a command line error; exit status 2.
+/// Reports an argument error; run() writes its structured result and exits 2.
 pub(super) fn usage_error(host: &mut dyn Host, msg: &str, cmd: Option<&str>) -> i32 {
     error(host, msg);
     let help = cmd.map_or("snappea --help".to_string(), |c| format!("snappea {} --help", c));
     host.write(Stream::Err, &format!("Run `{}` for usage.\n", help), None);
-    ERROR
+    USAGE_ERROR
 }
 
 pub(super) fn error(host: &mut dyn Host, msg: &str) {
@@ -650,6 +742,7 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
     let probes = crate::checker::compile::compile_program_with_probes(prog).probes;
     let (mut scope, mut hits) = (Scope::default(), Hits::default());
     let mut cases = Vec::new();
+    let mut scenarios = Vec::new();
     for name in selected {
         cfg.test_case_name = name;
         check::set_output_directory(&mut con, &mut cfg)?;
@@ -661,10 +754,19 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
         let mut result = case_json(&case, &cfg);
         if let Some((s, h)) = &case.code_coverage {
             let summary = CodeMap::new(prog, &probes, s).coverage(h).summary();
-            con.inner.out_line(&format!("      Coverage: {}", summary));
+            con.inner.out_line(&format!(
+                "      Coverage: {}{}",
+                summary,
+                if case.bugs > 0 { " (partial: stopped at first bug)" } else { "" }
+            ));
             result["coverage"] = summary.to_json();
+            result["coverage"]["partial"] = json!(case.bugs > 0);
             scope.add(s);
             hits.add(h);
+        }
+        if !case.scenario_coverage.scenarios.is_empty() {
+            result["scenarios"] = serde_json::from_str(&case.scenario_coverage.to_json()).unwrap();
+            scenarios.push(case.scenario_coverage.clone());
         }
         cases.push(result);
     }
@@ -675,6 +777,12 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
     let heading = if n > 1 { "Not covered by any test case:" } else { "Not covered by the test case:" };
     for l in uncovered_lines(heading, &suite.uncovered(), " (--json lists all)") {
         con.inner.out_line(&l);
+    }
+    if failed > 0 {
+        con.inner.out_line("Coverage includes partial results from test cases stopped at their first bug.");
+    }
+    if !scenarios.is_empty() {
+        con.inner.write(Stream::Out, &scenario::merge(&scenarios), None);
     }
     let seconds = con.inner.now() - start;
     let (elapsed, memory) = (duration(seconds), memory(con.inner));
@@ -689,13 +797,16 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
     } else {
         format!("{} of {} test case{} failed in {}{}. Output: {}/", failed, n, plural(n), elapsed, memory, out)
     });
+    let mut coverage = suite.to_json(false);
+    coverage["partial"] = json!(failed > 0);
     let result = json!({
         "project": cfg.project_name,
         "test_cases": cases,
         "failed": failed,
         "seconds": round_ms(seconds),
         "output": format!("{}/", out),
-        "coverage": suite.to_json(false),
+        "coverage": coverage,
+        "scenarios": scenarios.iter().map(|a| serde_json::from_str::<Value>(&a.to_json()).unwrap()).collect::<Vec<_>>(),
     });
     Ok((if failed > 0 { BUG } else { OK }, result))
 }

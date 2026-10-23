@@ -60,7 +60,7 @@ statements and branches of the specs no event ran.
 Exit status: 0 no violation found, 1 violation found, 2 any other error.
 ";
 
-const OPTS: &[Opt] = &[
+pub(super) const OPTS: &[Opt] = &[
     value("spec", None),
     flag("all-specs", None),
     value("exclude-specs", None),
