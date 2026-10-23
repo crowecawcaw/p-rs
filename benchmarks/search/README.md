@@ -79,3 +79,37 @@ Reproduce the separate-seed check with:
 ```sh
 python3 scripts/bench-search.py --seed-start 20 --out holdout.json
 ```
+
+The broad corpus benchmark runs every expanded test case from `examples/`, the
+vendored tutorials, `design/time/`, the existing guided-prefix model, and every
+upstream `Correct`/`DynamicError` regression directory:
+
+```sh
+python3 scripts/bench-corpus.py --out corpus.json --report corpus.md
+```
+
+It defaults to one seed, 200 schedules, 1,000 steps and a 0.1-second safety cap per
+strategy/case, with two project processes. Use `--budget`, `--steps`, `--seeds`,
+`--seconds-per-run`, and `--jobs` for deeper passes; `--scope examples` omits the
+upstream regression directories and `--filter Inventory` selects matching inputs.
+Every case gets per-strategy schedules to every distinct failure site and to all
+sites in a shared catalog (the union found by all strategies/seeds). It computes
+these first-discovery counts after the runs, so no strategy gets an easier target
+because it missed a bug. A completed exhaustive run can certify the catalog;
+otherwise **all observed issues does not mean all possible issues**. A case with
+no discoveries has an unknown total unless exhaustion completed, never a bogus
+zero schedules to all bugs. The report explicitly lists expected-bug cases with
+no common issue observed.
+
+Potential liveness temperature warnings are kept separately because unfair DFS
+does not perform that check. Missing foreign implementations are execution
+limitations, not model bugs. Static-error tests have no schedules and are listed
+as excluded; compilation/resolution failures, runtime errors, step/time caps and
+unrun measurements remain visible. The language application examples share the
+inventory P model, so their Go/Python/Java harnesses do not create separate P
+schedule spaces. Time examples use the checker's default time options; missing
+profile/adapters remain explicit limitations of this quick pass.
+
+The per-commit workflow also appends the broad corpus results to `corpus.jsonl`
+on the `benchmarks` branch and uploads the complete Markdown per-case table.
+Verify accounting with `python3 -m unittest discover -s scripts -p test_bench_corpus.py`.

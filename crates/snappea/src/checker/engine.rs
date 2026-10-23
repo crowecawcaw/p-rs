@@ -301,6 +301,12 @@ fn percent(v: f64) -> String {
     format!("{:.2}%", v)
 }
 
+/// A stable failure site for discovery metrics, independent of formatted values and
+/// machine instance numbers. Assertion sites retain their source file, line and column.
+pub fn failure_site(bug: &str) -> String {
+    crate::checker::auto::failure_class(bug)
+}
+
 /// Receives the console output of a run as it is produced.
 pub trait Output {
     /// A normal line (`Logger.WriteLine`).
