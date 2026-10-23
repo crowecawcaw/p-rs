@@ -14,23 +14,28 @@ snappea replay PCheckerOutput/tcMyTest/bug.schedule
 ```
 
 `snappea check` type-checks the sources itself and reports errors as `p compile` does.
-It prints one line per test case and, for a bug, its report and the `snappea replay`
-command that reproduces it:
+It prints one line per test case with its coverage and, for a bug, its report and the
+`snappea replay` command that reproduces it. Then it lists the code no test case ran:
 
 ```
-$ snappea check -n 300
-Checking TwoPhaseCommit: 10 test cases
-ok    tcSingleClientNoFailure (300 schedules, 8 workers, 0.06s)
-FAIL  tcMultipleClientsWithFailure (bug found after 23 schedules, 8 workers, 0.02s)
-      Deadlock detected. Client(6) is waiting to receive an event, but no other controlled tasks are enabled.
-      Replay: snappea replay PCheckerOutput/tcMultipleClientsWithFailure/bug.schedule
-...
-5 of 10 test cases failed in 0.98s, peak memory 18 MB. Output: PCheckerOutput/
+$ snappea check -n 1000
+Checking Inventory: 2 test cases
+ok    tcAtomicReserve (1000 schedules, 4 workers, 0.07s)
+      Coverage: 41/49 statements, 6/10 branches, 6/9 event handlers
+FAIL  tcCheckThenReserve (bug found after 4 schedules, 4 workers, 0.00s)
+      Assertion Failed: PSpec/inventory.p:27:7 reservation exceeds available stock
+      Replay: snappea replay PCheckerOutput/tcCheckThenReserve/bug.schedule
+      Coverage: 43/49 statements, 5/10 branches, 8/9 event handlers
+Coverage of all test cases: 49/50 statements, 8/10 branches, 9/9 event handlers
+Not covered by any test case:
+  PSrc/Inventory.p:46  Inventory.Serving, on eReleaseReq: if (req.order in reservations) never false
+  PSrc/Inventory.p:85  OrderClient.Checking, on eAvailableResp: if (resp.units < units) never true
+1 of 2 test cases failed in 0.08s, peak memory 10 MB. Output: PCheckerOutput/
 ```
 
-Each test case's files go to `PCheckerOutput/<test>/`, replacing the previous run's:
-`bug.txt` (the buggy schedule's log), `bug.schedule`, `bug.trace.json`, `coverage.txt`,
-`summary.txt` and, for scenario monitors, `scenario_coverage.json`. `-v` adds
+A test case that finds a bug writes its files to `PCheckerOutput/<test>/`, replacing
+the previous run's: `bug.txt` (the buggy schedule's log), `bug.schedule` and
+`bug.trace.json`. Scenario monitors also write `scenario_coverage.json` there. `-v` adds
 upstream's progress and statistics. It exits with 0 when no bug is found, 1 when one
 is, and 2 on any other error. `snappea <command> --help` lists the options.
 
@@ -50,6 +55,23 @@ mode yet.
 
 Time tracking (`--latency <file>[:<profile>]`, `--timed`) checks timeouts and latency
 budgets; see [design/time](../design/time/RetryBudget/README.md).
+
+## Coverage
+
+Coverage counts what the explored schedules ran, in the machines and monitors each test
+case includes: statements, both outcomes of each `if`, and the `do` and `goto` event
+handlers of each state. Code that starts with `assert false` must never run, so it is
+not counted. A bug stops a test case early, so its coverage is partial.
+
+The list after the test cases names, for each piece of code that never ran, the
+outermost one: a handler that was never triggered rather than each of its statements.
+It shows the first 20 entries; `--coverage-file <FILE>` writes them all.
+
+Code that never runs is code the model was not checked on. Usually a test case is
+missing (no test sends the event, or none reaches the state), or a test driver never
+chooses the value that takes the branch; sometimes the code cannot run, which is worth
+knowing too. Uncovered code in a spec monitor means the property it checks was never
+exercised.
 
 For installation and a first model, see the [command line guide](https://snappea.dev/docs/cli.html).
 For checking application events and logs, see [snappea observe](observe.md).

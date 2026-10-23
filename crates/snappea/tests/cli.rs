@@ -81,8 +81,8 @@ fn check_finds_a_bug_that_replays() {
     );
     assert!(h.stdout.ends_with("\n1 of 1 test case failed in 0.00s. Output: PCheckerOutput/\n"), "{}", h.stdout);
     assert!(!h.stdout.contains("Checker found a bug."), "{}", h.stdout);
-    // the test case's folder, with fixed names and no .sci file
-    assert_eq!(names(&h, OUT), ["bug.schedule", "bug.trace.json", "bug.txt", "coverage.txt", "summary.txt"]);
+    // the test case's folder, with fixed names; coverage and the summary go to the console
+    assert_eq!(names(&h, OUT), ["bug.schedule", "bug.trace.json", "bug.txt"]);
     assert!(read(&h, &format!("{}/bug.txt", OUT)).contains("six heads"));
     let schedule = format!("{}/bug.schedule", OUT);
     assert!(read(&h, &schedule).contains("--test-method:tcCoins\n"));
@@ -94,7 +94,7 @@ fn check_finds_a_bug_that_replays() {
     // a run without a bug replaces the previous run's files
     h.add_file("coins.p", &COINS.replace("n < 6", "n < 60"));
     assert_eq!(snappea(&mut h, &["check", "coins.p", "tcCoins", "-n", "10"]), 0, "{}", h.stdout);
-    assert_eq!(names(&h, OUT), ["coverage.txt", "summary.txt"]);
+    assert!(names(&h, OUT).is_empty(), "{:?}", names(&h, OUT));
     assert!(h.stdout.contains("\nok    tcCoins (10 schedules, "), "{}", h.stdout);
     assert!(h.stdout.ends_with("\n🫛 The test case passed in 0.00s. Output: PCheckerOutput/\n"), "{}", h.stdout);
 }
@@ -253,8 +253,6 @@ fn one_worker_explores_the_schedules_of_snappea_compat() {
             ("bug.schedule", "generatedOutput_0_0.schedule"),
             ("bug.txt", "generatedOutput_0_0.txt"),
             ("bug.trace.json", "generatedOutput_0_0.trace.json"),
-            ("coverage.txt", "generatedOutput.coverage.txt"),
-            ("summary.txt", "generatedOutput_pchecker_summary.txt"),
         ] {
             let ours = a.read_to_string(Path::new(&format!("{}/{}", OUT, snappea_name))).ok();
             let theirs = b.read_to_string(Path::new(&format!("{}/{}", upstream, upstream_name))).ok();
@@ -283,8 +281,6 @@ fn workers_find_a_bug_that_replays() {
         let n = schedules(&h.stdout, "tcCoins");
         assert!(txt.contains(&format!("<StrategyLog> Explored {} schedules", n)), "{}\n{}", n, txt);
         assert!(n < 5000);
-        let summary = read(&h, &format!("{}/summary.txt", OUT));
-        assert!(summary.contains(&format!("\nschedules:{}\n", n)), "{}", summary);
         let schedule = format!("{}/bug.schedule", OUT);
         assert_eq!(snappea(&mut h, &["replay", &schedule]), 1, "{}", h.stdout);
         assert!(h.stdout.contains("Reproduced the bug"), "{}", h.stdout);
@@ -299,9 +295,8 @@ fn workers_share_the_schedule_count() {
     h.add_file("coins.p", &COINS.replace("n < 6", "n < 60"));
     assert_eq!(snappea(&mut h, &["check", "tcCoins", "-n", "1003", "--seed", "9"]), 0, "{}", h.stdout);
     assert!(h.stdout.contains("\nok    tcCoins (1003 schedules, 4 workers, "), "{}", h.stdout);
-    assert!(read(&h, &format!("{}/summary.txt", OUT)).contains("\nschedules:1003\n"));
-    // the coverage of all workers: every event handled
-    assert!(read(&h, &format!("{}/coverage.txt", OUT)).starts_with("Total event coverage: 100.0%"));
+    // the coverage of all workers: both branches of the coin flip
+    assert!(h.stdout.contains("\n      Coverage: 4/4 statements, 2/2 branches, 0/0 event handlers\n"), "{}", h.stdout);
     // fewer schedules than workers
     assert_eq!(snappea(&mut h, &["check", "tcCoins", "-n", "2", "--seed", "9"]), 0, "{}", h.stdout);
     assert!(h.stdout.contains("\nok    tcCoins (2 schedules, 2 workers, "), "{}", h.stdout);
@@ -558,4 +553,62 @@ fn observe_reports_a_misspelled_event_name() {
 
     assert_eq!(snappea(&mut h, &args("loud")), 2);
     assert!(h.stderr.contains("ignore, warn or error"), "{}", h.stderr);
+}
+
+const PING: &str = "event ePing: machine;\n\
+     event ePong;\n\
+     event eStop;\n\
+     machine Server {\n\
+       start state Ready {\n\
+         on ePing do (from: machine) {\n\
+           if (from == this) { print \"self\"; }\n\
+           send from, ePong;\n\
+         }\n\
+         on eStop goto Stopped;\n\
+         on ePong do { assert false, \"unexpected\"; }\n\
+       }\n\
+       state Stopped { entry { print \"stopped\"; } }\n\
+     }\n\
+     machine Client {\n\
+       start state Init {\n\
+         entry {\n\
+           var i: int;\n\
+           send new Server(), ePing, this;\n\
+           while (i > 0) {\n\
+             i = i - 1;\n\
+             print \"never\";\n\
+           }\n\
+         }\n\
+         ignore ePong;\n\
+       }\n\
+     }\n\
+     test tcPing [main=Client]: { Client, Server };\n";
+
+#[test]
+fn check_reports_what_never_ran() {
+    let mut h = host();
+    h.add_file("ping.p", PING);
+    assert_eq!(
+        snappea(&mut h, &["check", "ping.p", "-n", "20", "--coverage-file", "uncovered.txt"]),
+        0,
+        "{}",
+        h.stdout
+    );
+    // `assert false` marks code that must never run: it is neither counted nor listed
+    assert!(h.stdout.contains("\n      Coverage: 4/8 statements, 1/2 branches, 1/2 event handlers\n"), "{}", h.stdout);
+    let expected = "Not covered by the test case:\n  \
+         ping.p:7      Server.Ready, on ePing: if (from == this) never true\n  \
+         ping.p:10     Server.Ready, on eStop: goto Stopped never taken\n  \
+         ping.p:13     Server.Stopped entry: never ran\n  \
+         ping.p:21-22  Client.Init entry: not reached: i = i - 1;\n";
+    assert!(h.stdout.contains(expected), "{}", h.stdout);
+    assert_eq!(
+        read(&h, "uncovered.txt"),
+        "ping.p:7  Server.Ready, on ePing: if (from == this) never true\n\
+         ping.p:10  Server.Ready, on eStop: goto Stopped never taken\n\
+         ping.p:13  Server.Stopped entry: never ran\n\
+         ping.p:21-22  Client.Init entry: not reached: i = i - 1;\n"
+    );
+    // no coverage files
+    assert!(names(&h, "PCheckerOutput/tcPing").is_empty());
 }

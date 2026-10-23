@@ -9,6 +9,7 @@
 
 use std::path::Path;
 
+use crate::checker::code_coverage::{CodeCoverage, Count, Summary, Uncovered};
 use crate::checker::strategy::StrategyKind;
 use crate::checker::timeline::TimelineRepr;
 use crate::driver::check::{self, CheckConfig, Mode, Style};
@@ -79,12 +80,16 @@ Time:
 
 Output:
   -o, --out <DIR>           Output folder (default: PCheckerOutput)
+      --coverage-file <FILE>
+                            Write every statement, branch and event handler no test
+                            case ran to FILE
   -v, --verbose             Show progress and statistics, and log every schedule
 
-Prints one line per test case, and for a bug its report and the `snappea replay` command
-that reproduces it. Each test case's files go to <DIR>/<TEST>/, replacing the previous
-run's: bug.txt (the buggy schedule's log), bug.schedule, bug.trace.json, coverage.txt,
-summary.txt and, for scenario monitors, scenario_coverage.json.
+Prints one line per test case with its coverage, and for a bug its report and the
+`snappea replay` command that reproduces it; then the statements, branches and event
+handlers no test case ran. A bug's files go to <DIR>/<TEST>/, replacing the previous
+run's: bug.txt (the buggy schedule's log), bug.schedule and bug.trace.json; scenario
+monitors write scenario_coverage.json there too.
 ";
 
 const REPLAY_HELP: &str = "\
@@ -409,6 +414,7 @@ const CHECK_OPTS: &[Opt] = &[
     value("latency", None),
     flag("timed", None),
     value("out", Some('o')),
+    value("coverage-file", None),
     flag("verbose", Some('v')),
 ];
 
@@ -426,7 +432,7 @@ fn check(args: &[String], host: &mut dyn Host) -> i32 {
         Ok(p) => p,
         Err(m) => return usage_error(host, &m, Some("check")),
     };
-    match run_check(host, cfg, &patterns, parsed.get("latency")) {
+    match run_check(host, cfg, &patterns, parsed.get("latency"), parsed.get("coverage-file")) {
         Ok(code) => code,
         Err(Exit(_)) => ERROR,
     }
@@ -513,7 +519,7 @@ fn step_args(cfg: &CheckConfig) -> Vec<String> {
 /// A [`CheckConfig`] for snappea: its output folder layout, and `<IncludeProject>` paths
 /// resolved against the including project file.
 fn snappea_config() -> CheckConfig {
-    let mut cfg = CheckConfig { style: Style::Snappea, ..CheckConfig::default() };
+    let mut cfg = CheckConfig { style: Style::Snappea, code_coverage: true, ..CheckConfig::default() };
     cfg.input.includes = Includes::FromProject;
     cfg
 }
@@ -523,6 +529,7 @@ fn run_check(
     mut cfg: CheckConfig,
     patterns: &[String],
     latency: Option<&str>,
+    coverage_file: Option<&str>,
 ) -> Result<i32, Exit> {
     let start = host.now();
     // the upstream-style progress shows only with --verbose
@@ -544,6 +551,9 @@ fn run_check(
     let n = selected.len();
     con.inner.out_line(&format!("Checking {}: {} test case{}", cfg.project_name, n, plural(n)));
     let mut failed = 0;
+    let prog = &loaded.analysis.program;
+    let probes = crate::checker::compile::compile_program_with_probes(prog).probes;
+    let mut suite = CodeCoverage::default();
     for name in selected {
         cfg.test_case_name = name;
         check::set_output_directory(&mut con, &mut cfg)?;
@@ -552,6 +562,21 @@ fn run_check(
             failed += 1;
         }
         print_case(con.inner, &case, &cfg);
+        if let Some(cov) = &case.code_coverage {
+            con.inner.out_line(&format!("      Coverage: {}", coverage_counts(&cov.summary(prog, &probes))));
+            suite.merge(cov);
+        }
+    }
+    let sm = loaded.sources.source_map();
+    let uncovered = suite.uncovered(prog, &sm, &probes);
+    print_uncovered(con.inner, &uncovered, n, coverage_file.is_some(), &suite.summary(prog, &probes));
+    if let Some(f) = coverage_file {
+        let text: String = uncovered.iter().map(|u| format!("{}\n", uncovered_line(u, 0))).collect();
+        let path = full_path(&con.inner.cwd(), Path::new(f));
+        con.inner.write_file(&path, &text).map_err(|e| {
+            error(con.inner, &format!("cannot write {}: {}", f, e));
+            Exit(ERROR)
+        })?;
     }
     let elapsed = duration(con.inner.now() - start);
     let memory = memory(con.inner);
@@ -567,6 +592,46 @@ fn run_check(
         format!("{} of {} test case{} failed in {}{}. Output: {}/", failed, n, plural(n), elapsed, memory, out)
     });
     Ok(if failed > 0 { BUG } else { OK })
+}
+
+/// Uncovered entries shown on the console; `--coverage-file` lists them all.
+const MAX_UNCOVERED: usize = 20;
+
+/// `41/50 statements, 6/8 branches, 9/12 event handlers`.
+fn coverage_counts(s: &Summary) -> String {
+    let count = |c: Count, what: &str| format!("{}/{} {}", c.covered, c.total, what);
+    format!(
+        "{}, {}, {}",
+        count(s.statements, "statements"),
+        count(s.branches, "branches"),
+        count(s.handlers, "event handlers")
+    )
+}
+
+fn uncovered_line(u: &Uncovered, width: usize) -> String {
+    format!("{:width$}  {}: {}", u.location(), u.context, u.what, width = width)
+}
+
+/// The code no test case ran, after the test cases' lines.
+fn print_uncovered(host: &mut dyn Host, uncovered: &[Uncovered], cases: usize, to_file: bool, all: &Summary) {
+    if cases > 1 {
+        host.out_line(&format!("Coverage of all test cases: {}", coverage_counts(all)));
+    }
+    if uncovered.is_empty() {
+        return;
+    }
+    let by = if cases > 1 { "any test case" } else { "the test case" };
+    host.out_line(&format!("Not covered by {}:", by));
+    let shown = &uncovered[..uncovered.len().min(MAX_UNCOVERED)];
+    let width = shown.iter().map(|u| u.location().len()).max().unwrap_or(0);
+    for u in shown {
+        host.out_line(&format!("  {}", uncovered_line(u, width)));
+    }
+    if uncovered.len() > shown.len() {
+        let more = uncovered.len() - shown.len();
+        let hint = if to_file { "" } else { " (--coverage-file <FILE> lists all)" };
+        host.out_line(&format!("  ... {} more{}", more, hint));
+    }
 }
 
 /// One test case's result line, and for a bug its report and how to replay it.

@@ -698,6 +698,14 @@ impl<'p> Runtime<'p> {
             let op = &code.ops[pc];
             pc += 1;
             match op {
+                Op::Probe(id) => {
+                    // probes count no work (see `Op::Probe`); any bound the charge above
+                    // crossed, the next instruction would cross too
+                    *work -= 1;
+                    if let Some(c) = self.coverage.as_mut() {
+                        c.probe_hit(*id);
+                    }
+                }
                 Op::PushNull => stack.push(Value::Null),
                 Op::PushBool(b) => stack.push(Value::Bool(*b)),
                 Op::PushInt(i) => stack.push(Value::Int(*i)),
@@ -1544,7 +1552,7 @@ fn foreign_missing(name: &str) -> Exception {
 mod tests {
     use super::*;
 
-    use crate::checker::compile::{compile_program, compile_program_plain, Code};
+    use crate::checker::compile::{compile_program, compile_program_plain, compile_program_with_probes, Code};
     use crate::checker::runtime::{Config, Setup};
 
     fn analyze(src: &str) -> crate::sema::Analysis {
@@ -1560,16 +1568,65 @@ mod tests {
 
     /// [`run`], in Java semantics if `java`.
     fn run_with(prog: &Program, code: &Code, max_work_per_step: u64, java: bool) -> (Option<String>, Vec<String>, u64) {
+        run_full(prog, code, max_work_per_step, java).0
+    }
+
+    /// [`run_with`], collecting coverage; also returns the code coverage probes that ran.
+    fn run_full(
+        prog: &Program,
+        code: &Code,
+        max_work_per_step: u64,
+        java: bool,
+    ) -> ((Option<String>, Vec<String>, u64), crate::checker::coverage::ProbeSet) {
         let tc = prog.test_cases().into_iter().next().expect("a test case");
         let (module, main) = prog.test_case_module(&tc);
         let config = Config { max_work_per_step, ..Config::default() };
         let rng = Rc::new(std::cell::RefCell::new(crate::checker::random::RandomValueGenerator::new(0)));
         let mut strategy = crate::checker::strategy::RandomStrategy::new(1000, rng);
         let formatter = crate::checker::javafmt::JavaFormatter::new(prog);
-        let setup = Setup { java_semantics: java.then_some(&formatter), ..Setup::default() };
+        let tables = Rc::new(crate::checker::coverage::CoverageTables::new(prog));
+        let coverage = Some(crate::checker::coverage::Coverage::new(tables, Default::default()));
+        let setup = Setup { java_semantics: java.then_some(&formatter), coverage, ..Setup::default() };
         let mut rt = Runtime::new(prog, code, module, &config, &mut strategy, setup);
         rt.run_test(main.expect("a main machine"), &tc.name);
-        (rt.bug.clone(), rt.log.clone(), rt.step_work)
+        let probes = rt.coverage.take().map(|c| c.into_info().probes).unwrap_or_default();
+        ((rt.bug.clone(), rt.log.clone(), rt.step_work), probes)
+    }
+
+    /// Code compiled with coverage probes runs as without them, counting the same work,
+    /// and records the statements and branches that ran.
+    #[test]
+    fn probes_change_nothing_but_coverage() {
+        let src = "
+            machine Main {
+              var total: int;
+              start state S {
+                entry {
+                  var i: int;
+                  while (i < 50) {
+                    if (i % 2 == 0) { total = total + i; } else { total = total - 1; }
+                    if (i > 100) { print \"never\"; }
+                    print format(\"{0}\", total);
+                    i = i + 1;
+                  }
+                  assert total < 0, \"total\";
+                }
+              }
+            }
+            test tc [main=Main]: { Main };";
+        let a = analyze(src);
+        let (fused, probed) = (compile_program(&a.program), compile_program_with_probes(&a.program));
+        assert!(fused.probes.is_empty());
+        for bound in 1..1500 {
+            assert_eq!(run(&a.program, &fused, bound), run(&a.program, &probed, bound), "{}", bound);
+        }
+        let (_, hit) = run_full(&a.program, &probed, 0, false);
+        let missed: Vec<String> = (0..probed.probes.len() as u32)
+            .filter(|i| !hit.contains(*i))
+            .map(|i| format!("{:?}", probed.probes[i as usize].kind))
+            .collect();
+        // the second `if` is never true, so its branch and print never run
+        assert_eq!(missed, ["Then", "Stmt"]);
     }
 
     /// The specialized and fused instructions behave like the plain ones, and count the

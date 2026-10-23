@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::sema::{BinOp, Expr, ExprKind, FunDecl, FunId, PType, Program, Stmt, StmtKind, UnOp, VarId, VarRole};
 
-use crate::checker::bytecode::{CodeBlock, Op, Operand, PathElem, ReceiveCase, Root};
+use crate::checker::bytecode::{CodeBlock, Op, Operand, PathElem, Probe, ProbeKind, ReceiveCase, Root};
 
 fn is_comparison(op: BinOp) -> bool {
     matches!(op, BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge | BinOp::Eq | BinOp::Neq)
@@ -16,6 +16,8 @@ pub struct Code {
     pub funs: Vec<Option<Rc<CodeBlock>>>,
     /// Receive set (permissions) of every interface, indexed by `InterfaceId`.
     pub permissions: Vec<Rc<[crate::sema::EventId]>>,
+    /// Code coverage probes, indexed by [`Op::Probe`] (empty unless compiled with them).
+    pub probes: Vec<Probe>,
 }
 
 impl Code {
@@ -26,21 +28,31 @@ impl Code {
 
 /// Compiles every root function with a body.
 pub fn compile_program(prog: &Program) -> Code {
-    compile_program_with(prog, true)
+    compile_program_with(prog, true, false)
+}
+
+/// Compiles every root function with a body, with code coverage probes (see [`Op::Probe`]).
+pub fn compile_program_with_probes(prog: &Program) -> Code {
+    compile_program_with(prog, true, true)
 }
 
 /// Compiles without the specialized and fused instructions, which must behave exactly
 /// like the plain ones (see [`Op`]).
 #[cfg(test)]
 pub(crate) fn compile_program_plain(prog: &Program) -> Code {
-    compile_program_with(prog, false)
+    compile_program_with(prog, false, false)
 }
 
-fn compile_program_with(prog: &Program, fuse: bool) -> Code {
-    let compile_all = |unread: &[Vec<bool>]| -> Vec<Option<Rc<CodeBlock>>> {
+fn compile_program_with(prog: &Program, fuse: bool, probe: bool) -> Code {
+    let mut probes = Vec::new();
+    let mut compile_all = |unread: &[Vec<bool>]| -> Vec<Option<Rc<CodeBlock>>> {
+        probes.clear();
         let funs = prog.funs.iter().enumerate();
         funs.map(|(i, f)| {
-            (f.parent.is_none() && f.body.is_some()).then(|| Rc::new(compile_fun(prog, FunId(i as u32), fuse, unread)))
+            (f.parent.is_none() && f.body.is_some()).then(|| {
+                let probes = probe.then_some(&mut probes);
+                Rc::new(compile_fun(prog, FunId(i as u32), fuse, unread, probes))
+            })
         })
         .collect()
     };
@@ -56,7 +68,7 @@ fn compile_program_with(prog: &Program, fuse: bool) -> Code {
     let permissions = (0..prog.interfaces.len())
         .map(|i| Rc::from(prog.interface_receives(crate::sema::InterfaceId(i as u32))))
         .collect();
-    Code { funs, permissions }
+    Code { funs, permissions, probes }
 }
 
 /// For each parameter of `code`, whether the function never reads it, and cannot expose
@@ -150,7 +162,8 @@ fn unread_params(code: &CodeBlock) -> Vec<bool> {
             | Op::Return
             | Op::ReturnNull
             | Op::Assert
-            | Op::Print => Some([None, None]),
+            | Op::Print
+            | Op::Probe(_) => Some([None, None]),
         };
         let Some(reads) = reads else { return vec![false; unread.len()] };
         for slot in reads.into_iter().flatten() {
@@ -186,13 +199,36 @@ struct Compiler<'a> {
     /// The last position taken as a jump target: instructions from there on cannot be
     /// fused with earlier ones.
     barrier: usize,
+    /// The program's code coverage probes, when compiling with them.
+    probes: Option<&'a mut Vec<Probe>>,
+    /// The function whose code is being compiled (a receive case's inside its body).
+    fun: FunId,
+    /// The probe enclosing the code being compiled (see [`Probe::parent`]).
+    parent_probe: Option<u32>,
 }
 
-fn compile_fun(prog: &Program, id: FunId, fuse: bool, unread: &[Vec<bool>]) -> CodeBlock {
+fn compile_fun(
+    prog: &Program,
+    id: FunId,
+    fuse: bool,
+    unread: &[Vec<bool>],
+    probes: Option<&mut Vec<Probe>>,
+) -> CodeBlock {
     let f = prog.fun(id);
-    let mut c =
-        Compiler { prog, ops: Vec::new(), next_hidden: f.frame_size, loops: Vec::new(), fuse, unread, barrier: 0 };
+    let mut c = Compiler {
+        prog,
+        ops: Vec::new(),
+        next_hidden: f.frame_size,
+        loops: Vec::new(),
+        fuse,
+        unread,
+        barrier: 0,
+        probes,
+        fun: id,
+        parent_probe: None,
+    };
     c.init_locals(f);
+    c.parent_probe = c.probe(ProbeKind::Entry, f.span);
     if let Some(body) = &f.body {
         for s in &body.stmts {
             c.stmt(s);
@@ -206,6 +242,23 @@ fn compile_fun(prog: &Program, id: FunId, fuse: bool, unread: &[Vec<bool>]) -> C
 }
 
 impl<'a> Compiler<'a> {
+    /// Emits a code coverage probe when compiling with them; returns its id.
+    fn probe(&mut self, kind: ProbeKind, span: crate::syntax::Span) -> Option<u32> {
+        let probes = self.probes.as_mut()?;
+        let id = probes.len() as u32;
+        probes.push(Probe { kind, fun: self.fun, span, parent: self.parent_probe, asserts_false: false });
+        self.emit(Op::Probe(id));
+        Some(id)
+    }
+
+    /// Compiles `s` with `parent` as the enclosing probe.
+    fn stmt_under(&mut self, s: &Stmt, parent: Option<u32>) {
+        let inner = parent.or(self.parent_probe);
+        let outer = std::mem::replace(&mut self.parent_probe, inner);
+        self.stmt(s);
+        self.parent_probe = outer;
+    }
+
     /// Appends `op`, fused with the instructions before it where possible; returns its
     /// position.
     fn emit(&mut self, op: Op) -> usize {
@@ -316,6 +369,17 @@ impl<'a> Compiler<'a> {
     // ---- statements -------------------------------------------------------
 
     fn stmt(&mut self, s: &Stmt) {
+        let probe = match s.kind {
+            StmtKind::Block(_) | StmtKind::Nop => None,
+            _ => self.probe(ProbeKind::Stmt, s.span),
+        };
+        if let (Some(id), StmtKind::Assert { cond, .. }) = (probe, &s.kind) {
+            if matches!(cond.kind, ExprKind::BoolLit(false)) {
+                if let Some(p) = self.probes.as_mut() {
+                    p[id as usize].asserts_false = true;
+                }
+            }
+        }
         match &s.kind {
             StmtKind::Block(b) => {
                 for s in &b.stmts {
@@ -425,8 +489,22 @@ impl<'a> Compiler<'a> {
             StmtKind::If { cond, then_branch, else_branch } => {
                 self.expr(cond);
                 let jf = self.emit(Op::JumpIfFalse(0));
-                self.stmt(then_branch);
-                if matches!(else_branch.kind, StmtKind::Nop) {
+                let outer = std::mem::replace(&mut self.parent_probe, probe);
+                let then_probe = self.probe(ProbeKind::Then, s.span);
+                self.parent_probe = outer;
+                self.stmt_under(then_branch, then_probe);
+                if self.probes.is_some() {
+                    // an else probe, even for an empty else
+                    let j = self.emit(Op::Jump(0));
+                    let else_start = self.here();
+                    self.patch(jf, else_start);
+                    let outer = std::mem::replace(&mut self.parent_probe, probe);
+                    let else_probe = self.probe(ProbeKind::Else, s.span);
+                    self.parent_probe = outer;
+                    self.stmt_under(else_branch, else_probe);
+                    let end = self.here();
+                    self.patch(j, end);
+                } else if matches!(else_branch.kind, StmtKind::Nop) {
                     let end = self.here();
                     self.patch(jf, end);
                 } else {
@@ -476,11 +554,16 @@ impl<'a> Compiler<'a> {
                     let param_slot = f.params.first().map(|v| self.prog.var(*v).slot);
                     let target = self.here();
                     self.init_locals(f);
+                    let (outer_fun, outer_parent) = (self.fun, self.parent_probe);
+                    self.parent_probe = probe;
+                    self.fun = *fun;
+                    self.parent_probe = self.probe(ProbeKind::Entry, f.span);
                     if let Some(body) = &f.body {
                         for s in &body.stmts {
                             self.stmt(s);
                         }
                     }
+                    (self.fun, self.parent_probe) = (outer_fun, outer_parent);
                     end_jumps.push(self.emit(Op::Jump(0)));
                     compiled.push(ReceiveCase { event: *ev, param_slot, target });
                 }

@@ -42,6 +42,7 @@ const CHECK_OTHER: Option[] = [
   ["--timed", "Time-aware scheduling: never run a step that is certainly later than another."],
   ["--timeline <R>", "For the feedback strategies: pairwise (default), kgram[:<N>], causal, hybrid[:<N>]."],
   ["-o, --out <DIR>", "Output folder. Default PCheckerOutput."],
+  ["--coverage-file <FILE>", "Write every statement, branch and event handler no test case ran to FILE."],
   ["-v, --verbose", "Show progress and statistics, and log every schedule."],
 ];
 
@@ -206,8 +207,9 @@ snappea check [SOURCE...] [TEST...] [options]
         <p>
           Checks test cases by exploring schedules: orderings of messages between machines, and the choices the model
           leaves open. A <code>TEST</code> is a test case name or a glob (<code>tc*</code>); with none, every test
-          case is checked. It prints one line per test case and, for a bug, the failing assertion and a{" "}
-          <code>snappea replay</code> command.
+          case is checked. It prints one line per test case with its coverage and, for a bug, the failing assertion
+          and a <code>snappea replay</code> command. Then it lists the code no test case ran: handlers never
+          triggered, <code>if</code> conditions never true or never false, and statements never reached.
         </p>
         <h3>How much to explore</h3>
         <Options rows={CHECK_EXPLORATION} />
@@ -215,10 +217,9 @@ snappea check [SOURCE...] [TEST...] [options]
         <Options rows={CHECK_OTHER} />
         <h3>Output files</h3>
         <p>
-          Each test case writes to <code>&lt;DIR&gt;/&lt;TEST&gt;/</code>, replacing the previous run's files:{" "}
-          <code>bug.txt</code> (the log of the failing schedule), <code>bug.schedule</code>,{" "}
-          <code>bug.trace.json</code>, <code>coverage.txt</code>, <code>summary.txt</code> and, for scenario monitors,{" "}
-          <code>scenario_coverage.json</code>.
+          A test case that finds a bug writes to <code>&lt;DIR&gt;/&lt;TEST&gt;/</code>, replacing the previous
+          run's files: <code>bug.txt</code> (the log of the failing schedule), <code>bug.schedule</code> and{" "}
+          <code>bug.trace.json</code>. Scenario monitors also write <code>scenario_coverage.json</code> there.
         </p>
       </section>
 

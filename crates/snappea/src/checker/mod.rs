@@ -9,6 +9,7 @@
 //! [`observe_inputs::StdFiles`], so it compiles to `wasm32`.
 
 pub mod bytecode;
+pub mod code_coverage;
 pub mod compile;
 pub mod coverage;
 pub mod engine;

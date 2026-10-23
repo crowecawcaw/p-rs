@@ -89,6 +89,37 @@ pub struct CoverageInfo {
     pub monitor_states: FxHashSet<StateId>,
     /// Actual consecutive monitor state entries (not event graph links).
     pub monitor_transitions: FxHashSet<(StateId, StateId)>,
+    /// Code coverage probes that ran (see `Op::Probe`), as a bit set.
+    pub probes: ProbeSet,
+}
+
+/// A set of code coverage probe ids.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ProbeSet {
+    bits: Vec<u64>,
+}
+
+impl ProbeSet {
+    pub fn insert(&mut self, id: u32) {
+        let (word, bit) = (id as usize / 64, id % 64);
+        if word >= self.bits.len() {
+            self.bits.resize(word + 1, 0);
+        }
+        self.bits[word] |= 1 << bit;
+    }
+
+    pub fn contains(&self, id: u32) -> bool {
+        self.bits.get(id as usize / 64).is_some_and(|w| w & (1 << (id % 64)) != 0)
+    }
+
+    pub fn union(&mut self, other: &ProbeSet) {
+        if other.bits.len() > self.bits.len() {
+            self.bits.resize(other.bits.len(), 0);
+        }
+        for (a, b) in self.bits.iter_mut().zip(&other.bits) {
+            *a |= b;
+        }
+    }
 }
 
 impl CoverageInfo {
@@ -104,6 +135,7 @@ impl CoverageInfo {
         self.links.extend(other.links);
         self.monitor_states.extend(other.monitor_states);
         self.monitor_transitions.extend(other.monitor_transitions);
+        self.probes.union(&other.probes);
     }
 }
 
@@ -152,6 +184,12 @@ impl Coverage {
     /// The coverage accumulated so far.
     pub fn into_info(self) -> CoverageInfo {
         self.info
+    }
+
+    /// Records that code coverage probe `id` ran.
+    #[inline]
+    pub(crate) fn probe_hit(&mut self, id: u32) {
+        self.info.probes.insert(id);
     }
 
     fn add_event(&mut self, target: MachineId, entry: InboxEntry) {
