@@ -111,7 +111,8 @@ and 38 seconds with P 3.1.0, including compilation. See the
 [benchmark methodology](docs/development.md#benchmarks) and
 [comparison charts](https://snappea.dev/bench/) for context.
 
-See [coming from P](https://snappea.dev/docs/coming-from-p.html) and the
+See [coming from P](https://snappea.dev/docs/coming-from-p.html),
+[measured upstream parity](https://snappea.dev/docs/parity.html) and the
 [full compatibility reference](docs/compatibility.md). PVerifier and foreign code
 written in C# or Java are not supported.
 

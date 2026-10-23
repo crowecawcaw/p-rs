@@ -255,3 +255,8 @@
   .docs-menu .docs-index ul { margin-bottom: 16px; }
   .doc { margin: 0 auto; }
 }
+
+/* Wide fixture inventories and normalization patterns remain readable on phones. */
+.parity-table { overflow-x: auto; margin-bottom: 20px; }
+.parity-table .compare { margin-bottom: 0; }
+.parity-table caption { text-align: left; font-weight: 600; padding: 8px 10px; }

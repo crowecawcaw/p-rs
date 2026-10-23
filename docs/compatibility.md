@@ -66,6 +66,9 @@ to:
 
 ## How compatibility is checked
 
+The [upstream parity page](https://snappea.dev/docs/parity.html) derives its corpus counts,
+normalization rules and known differences from the committed fixtures at site build time.
+
 Upstream's outputs are recorded once and committed, so CI compares against them without
 running upstream P. Upstream is built from source at the commit in
 `tests/upstream/goldens/UPSTREAM` (newer than the latest NuGet release).
@@ -86,7 +89,7 @@ running upstream P. Upstream is built from source at the commit in
 | `.sci` coverage files | written, contents not compared | every run |
 | Schedules explored by other strategies (PCT, fair PCT, POS, probabilistic, feedback) and step limits | exact, through the traces and statistics they print | tutorial |
 | Help, usage errors, unknown options and test cases, project names, replay, `--list-tests` | exact | command line |
-| `observe`: exit code, console, replay logs, error files, metrics | exact after normalization | 192 PObserve runs ([below](#observe)) |
+| `observe`: exit code, console, replay logs, error files, metrics | exact after normalization | 96 vendored PObserve runs; 94 compare output ([below](#observe)) |
 
 Normalization (`tests/upstream/goldens/normalize.tsv`, applied to both tools):
 
@@ -146,5 +149,13 @@ UPSTREAM_P="dotnet $PWD/P/Bld/Drops/Release/Binaries/net8.0/p.dll" scripts/recor
 `tests/upstream/PObserve` holds upstream PObserve's outputs on its regression logs
 (`scripts/vendor-pobserve-goldens.py`). Normalized: colors, the output folder, the
 configuration lines naming jars and project files, timings, Java stack frames, and the
-order of error blocks (upstream checks keys in parallel). Six runs differ only in the
-message of a null dereference, which names a variable of upstream's generated Java code.
+order of error blocks (upstream checks keys in parallel). CI covers 96 vendored runs:
+94 compare exit codes, console and files; the two in `known-differences.tsv` compare only
+exit codes because the null-dereference message names a variable of upstream's generated
+Java code. The vendor script selects logs smaller than 8 KB, each run with and without
+`--assumeInputsAreSorted`.
+
+The separate manual comparison (`scripts/compare-pobserve.py`) covers the full upstream
+suite: 192 runs, all exit codes matching, 186 outputs identical after normalization,
+and six differing only in that null-dereference message. Those full-suite figures are
+not the vendored CI coverage.

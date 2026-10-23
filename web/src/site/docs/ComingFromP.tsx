@@ -1,5 +1,6 @@
 // Docs: Snap Pea for people who already know P well.
 import { REPO, links } from "../SiteHeader";
+import { observeTotals } from "./parityData";
 import { Code } from "./Code";
 
 const BLOB = `${REPO}/blob/main`;
@@ -215,12 +216,15 @@ $ snappea observe --spec BankBalanceCorrect logs/
           <li>The tutorials give the same results as upstream's tutorial CI.</li>
           <li>Readable and JSON traces match upstream's golden files.</li>
           <li>
-            <code>snappea-compat observe</code> and PObserve give the same exit code on all 192 runs of upstream's log suite, with
-            identical output on 186. The other 6 differ only in the null-dereference message.
+            <code>snappea-compat observe</code> and PObserve are compared in CI on {observeTotals.runs} vendored runs.
+            {" "}{observeTotals.identical} match after normalization; the remaining runs check only exit codes
+            because of a null-dereference message difference. The separate manual comparison of the full upstream
+            suite has 192 runs, with 186 outputs identical after normalization.
           </li>
         </ul>
         <p>
-          If Snap Pea disagrees with upstream on a model, that's a Snap Pea bug.{" "}
+          The <a href={l.parity}>upstream parity page</a> has the measured corpus, normalization rules,
+          known differences and reproduction commands. If Snap Pea disagrees with upstream on a model, that's a Snap Pea bug.{" "}
           <a href={`${REPO}/issues`}>Please report it.</a> <a href={`${BLOB}/docs/development.md#validation`}>Validation</a>{" "}
           and <a href={`${BLOB}/docs/development.md#benchmarks`}>benchmarks</a> have the details.
         </p>
