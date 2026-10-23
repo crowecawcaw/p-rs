@@ -486,3 +486,20 @@ fn auto_keeps_coverage_from_both_sides_of_the_feedback_handoff() {
     }
     panic!("fixture did not exercise distinct DFS/feedback coverage");
 }
+
+#[test]
+fn auto_keeps_small_recovery_models_in_exhaustive_search() {
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("prefix.p", include_str!("models/guided_prefix.p"));
+    let a = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let checker = Checker::new(&a.program);
+    for name in ["tcDataPrefix___depth_24", "tcSchedulePrefix___depth_12", "tcSchedulePrefix___depth_24"] {
+        let tc = a.program.test_cases().into_iter().find(|tc| tc.name == name).unwrap();
+        let result =
+            checker.check(&tc, &CheckerOptions { seed: 1, ..opts(StrategyKind::Auto, 200) }, &mut Quiet).unwrap();
+        assert_eq!(
+            result.report.num_bugs, 1,
+            "{name}: a small recovery model should stay exhaustive long enough to reach its deep bug"
+        );
+    }
+}

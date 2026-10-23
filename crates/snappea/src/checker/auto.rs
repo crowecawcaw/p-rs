@@ -13,6 +13,8 @@ use super::strategy::{OpInfo, Strategy};
 
 const WINDOW: u64 = 1_024;
 const MAX_WORK: u64 = 16_384;
+const SMALL_FRONTIER: usize = 256;
+const LOOKAHEAD_WORK: u64 = 4 * WINDOW;
 const MAX_STATES: usize = 100_000;
 const MAX_ALTERNATIVES: usize = 1_000_000;
 
@@ -134,7 +136,16 @@ impl Strategy for AutoStrategy {
             let prunes = stats.pruned_schedules.saturating_sub(self.window_prunes);
             // A shrinking frontier or more graph closures than discoveries supports
             // continuing DFS. Novel states/coverage alone can grow forever.
-            if frontier >= initial_frontier && (prunes == 0 || prunes < states) {
+            let closing = prunes > 0 && prunes >= states;
+            let shrinking = frontier < initial_frontier;
+            let decrease = initial_frontier.saturating_sub(frontier) as u64;
+            let remaining_work = MAX_WORK.saturating_sub(self.work).min(LOOKAHEAD_WORK);
+            let affordable = decrease > 0
+                && (frontier as u64).saturating_mul(self.window_work) <= decrease.saturating_mul(remaining_work);
+            // A narrow frontier gets the bounded probe to reach deeper recovery
+            // stages. A huge, slowly shrinking input range is still too expensive
+            // when its observed closure rate cannot finish inside the work budget.
+            if frontier > SMALL_FRONTIER && !closing && (!shrinking || !affordable) {
                 self.park();
             } else {
                 self.window_frontier = Some(frontier);
@@ -236,6 +247,21 @@ mod tests {
         assert!(auto.work > WINDOW);
         assert!(auto.search_complete());
         assert!(auto.exhaustive_stats().unwrap().finished);
+    }
+
+    #[test]
+    fn slowly_shrinking_large_input_range_hands_off_instead_of_enumerating_thousands() {
+        let mut auto = AutoStrategy::new(7, 0, 100, false, true);
+        for _ in 0..WINDOW {
+            auto.next_int(10_000);
+            assert!(auto.prepare_next_iteration());
+            if auto.is_fair() {
+                break;
+            }
+        }
+        assert!(auto.is_fair());
+        assert!(auto.work < MAX_WORK);
+        assert!(!auto.exhaustive_stats().unwrap().finished);
     }
 
     #[test]
