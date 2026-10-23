@@ -47,8 +47,36 @@ separate exploratory wide-input probe.
 
 ## Prepare isolated runs
 
-Solver runs require Docker and the pinned Python 3.12 image specified in
-`tools/run_sonnet.py`. Pull that image before starting network-disabled containers.
+Solver runs use a shared offline image based on
+`python:3.12-slim@sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2`
+with `pytest==8.4.2`. From this eval directory, download the pinned wheels and
+build the base and P images:
+
+```sh
+python -m pip download --only-binary=:all: --dest vendor/wheels pytest==8.4.2 pluggy==1.7.0 iniconfig==2.3.1 packaging==26.3 pygments==2.21.0
+python tools/build_eval_images.py --wheelhouse vendor/wheels
+export SNAPPEA_EVAL_IMAGE="$(docker image inspect snappea-eval:py312-pytest842-base --format '{{.Id}}')"
+export SNAPPEA_EVAL_P_IMAGE="$(docker image inspect snappea-eval:py312-pytest842-pysnappea-source-0.1.0 --format '{{.Id}}')"
+```
+
+The builder uses the local pytest wheelhouse at
+`vendor/wheels` by default; set
+`SNAPPEA_EVAL_WHEELHOUSE` or pass `--wheelhouse` to use another local copy. It
+does not access the network. The P image derives from the shared base and adds
+a pure-Python `pysnappea` 0.1.0 wheel made from `python/src/snappea` in this
+checkout, including its pytest entry point. Neither image contains the checker.
+The builder prints both immutable Docker image IDs; use the base ID for the
+Python arm and the P image ID for the P arm. The source wheel hash is printed
+as well, so metadata can identify the exact source package artifact.
+
+Smoke-check the P image with the currently patched checker mounted from the
+host. The smoke run has no network, confirms import and pytest plugin discovery,
+and passes one valid and one expected-failing `check_spec` scenario:
+
+```sh
+python tools/smoke_eval_image.py --checker ../../target/release/snappea
+```
+
 For P runs, stage the checker and docs:
 
 ```sh
@@ -60,7 +88,11 @@ python tools/bootstrap.py --binary ../../target/release/snappea --source ../..
 The default downloads the checksum-verified Linux x86-64 v0.1.0 release and links
 this checkout's docs/examples. Use `--source` to select a pinned checkout and record
 its commit when comparing runs. Downloaded binaries and staged sources are ignored.
-P provisioning checks that `snappea` resolves and executes on PATH.
+P provisioning checks that `snappea` resolves and executes on PATH and that
+`import snappea` and the `pysnappea` distribution are available. The grader and
+wide probe use each run's saved image so instrumentation imports still work. Solver
+containers receive the mounted checker at `/opt/snappea`; the image
+itself contains no checker binary. Keep solver containers network-disabled.
 
 ## Run independent agents
 
@@ -128,13 +160,18 @@ Prompt version 3 shares “Design and implement the service in Python.” The P 
 adds “First, model it with P/Snappea and check what could go wrong.” Tool paths
 are supplied separately; there is no extra testing advice for either arm.
 
-The completed output-comparison pilot used version 3. Fresh runs now use version 5:
+The completed output-comparison pilot used version 3. The next completed cohort used version 5:
 “Write a design and a P/Snappea model. Check and refine the model until you're happy
 with it, then implement it in Python.” The control says “Write a design. Then
 implement it in Python.” The P prompt adds “Use pysnappea in Python tests.” and
 the control adds “Add Python tests.” Shared deliverables appear after the task
 instruction, so the prompt no longer leads with writing the Python file. Versions
-4 and 5 have not been evaluated yet; keep their results separate from the completed pilot.
+4 was not evaluated. Version 5 added Python tests and a shared pytest image, with
+pysnappea available only to the P arm; keep this cohort separate from version 3.
+The current version 6 default is: “First write and check a P/Snappea model of the
+design. Only start the Python implementation after the model passes. Use pysnappea
+in Python tests.” It was selected after a small single-prompt wording screen;
+two runs per wording do not establish a reliable general ranking.
 
 To compare old and new output, use three independent cohorts: Python-only, P
 with the baseline binary, and P with the modified binary. Keep both P cohorts'
@@ -167,3 +204,35 @@ invalid variants, timeouts, other failures and markers reached within budget.
 This helper is a targeted research experiment, not a general semantic mutation
 feature in `snappea check`. The implementation proposal and current diversity
 signals are documented in [the investigation](../../design/check-quality/mutation-checking.md).
+
+## Screen single-prompt wording
+
+`SNAPPEA_EVAL_PROMPT_VARIANT` selects an experimental P-only prompt, recorded as
+prompt version 6. Variants are `design_process`, `before_file`, and `passing_first` (the default):
+
+```sh
+SNAPPEA_EVAL_PROMPT_VARIANT=design_process python tools/collaboration_run.py start --run-id wording-design-01 --arm p
+```
+
+Each agent receives a single prompt and works to completion. No phase gate blocks
+Python writes. Save the exact generated delegation, then inspect whether a P model
+actually passes before the first implementation write. Distinguish a passing
+synthetic event trace from a P test case exploring schedules, and both from tests
+that check actual service behavior. Use a few independent runs per wording for a
+screen; do not claim a reliable ranking from two samples per variant.
+
+## Probe authored tests after freezing
+
+```sh
+python tools/review_test_mutations.py luna-p-01 luna-python-01 --binary ../../target/release/snappea --output results/test-mutations.json
+```
+
+This isolated research diagnostic runs each submitted test suite against its own
+solution, the calibration reference, and nine known defective reference variants.
+It never changes frozen files or sends results to solvers. Reference-incompatible
+suites, instrumentation mismatches, timeouts, and execution errors are reported
+separately. In particular, tests using implementation-specific crash offsets may
+fail against a correct alternative layout. Only reference-compatible suites
+produce mutation outcomes; their different denominators are not comparable
+population scores. This diagnostic does not test arbitrary mutations of the
+submitted implementation or replace the primary hidden grader.
