@@ -14,7 +14,7 @@
 #                   pom, Go's snappeabin version and checksums), tags it v<version>, commits
 #                   Go and Java back to development versions, and pushes both commits
 #                   and the tag to main atomically.
-#   crates          publishes snappea to crates.io (trusted publishing, no stored token).
+#   crates          publishes the Rust crates to crates.io (trusted publishing, no stored token).
 #   github-release  creates the GitHub release with the archives and SHA256SUMS (Go
 #                   downloads them), then Claude's notes; GitHub's notes are the fallback.
 #   python          the Python wheels (python.yml).
@@ -75,7 +75,7 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked
       - run: cargo test --workspace --locked
-      - run: cargo publish -p snappea --locked --dry-run
+      - run: cargo publish -p snappea-syntax -p snappea-lint -p snappea --locked --dry-run
 
   version:
     name: Release version
@@ -289,13 +289,20 @@ jobs:
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' -A 'snappea release workflow (github.com/crowecawcaw/snappea)' \
-            "https://crates.io/api/v1/crates/snappea/${VERSION}")
-          if [ "$code" = 200 ]; then
-            echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "snappea ${VERSION} is already on crates.io; skipping publish." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "published=false" >> "$GITHUB_OUTPUT"
+          published=true
+          packages=""
+          for crate in snappea-syntax snappea-lint snappea; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -A 'snappea release workflow (github.com/crowecawcaw/snappea)' \
+              "https://crates.io/api/v1/crates/${crate}/${VERSION}")
+            if [ "$code" != 200 ]; then
+              published=false
+              packages="$packages $crate"
+            fi
+          done
+          echo "published=$published" >> "$GITHUB_OUTPUT"
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+          if [ "$published" = true ]; then
+            echo "All Rust crates at ${VERSION} are already on crates.io; skipping publish." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Authenticate with crates.io
@@ -305,8 +312,12 @@ jobs:
 
       - name: Publish
         if: steps.exists.outputs.published == 'false'
-        run: cargo +stable publish -p snappea --locked
+        run: |
+          args=()
+          for crate in $PACKAGES; do args+=(-p "$crate"); done
+          cargo +stable publish "${args[@]}" --locked
         env:
+          PACKAGES: ${{ steps.exists.outputs.packages }}
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
   github-release:

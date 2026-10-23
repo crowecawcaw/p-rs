@@ -31,6 +31,7 @@ Usage: snappea [output options] <command> [options]
 
 Commands:
   check      Check test cases by exploring schedules
+  lint       Check model quality without exploring schedules
   replay     Replay a .schedule file
   tests      List the test cases
   observe    Check logs against spec monitors
@@ -54,6 +55,8 @@ Usage: snappea check [SOURCE...] [TEST...] [options]
 
 Checks test cases by exploring schedules. A SOURCE is a .pproj or .p file, a TEST
 a test case name or a glob (`*`, `?`). Without tests, all test cases are checked.
+Sources are linted before exploration; findings fail the command with exit status 2.
+Run `snappea lint` for linting alone, or see docs/linting.md for suppression comments.
 
 Exploration:
       --timeout <DURATION>  Time limit per test case (default: 10s; accepts 90s, 5m, 1h)
@@ -218,6 +221,7 @@ fn dispatch(args: &[String], host: &mut dyn Host) -> i32 {
     };
     match cmd.as_str() {
         "check" => check(rest, host),
+        "lint" => lint(rest, host),
         "replay" => replay(rest, host),
         "tests" => tests(rest, host),
         "observe" => super::observe::observe(rest, host),
@@ -237,7 +241,7 @@ fn dispatch(args: &[String], host: &mut dyn Host) -> i32 {
                 host.write(Stream::Out, HELP, None);
                 OK
             }
-            Some(c @ ("check" | "replay" | "tests" | "observe" | "coverage")) => {
+            Some(c @ ("check" | "lint" | "replay" | "tests" | "observe" | "coverage")) => {
                 dispatch(&[c.to_string(), "--help".into()], host)
             }
             Some(c) => usage_error(host, &format!("unknown command '{}'", c), None),
@@ -531,6 +535,70 @@ fn select_tests(names: &[String], patterns: &[String]) -> Result<Vec<String>, St
 
 // ---- commands -----------------------------------------------------------------------------
 
+const LINT_HELP: &str = "\
+Usage: snappea lint [SOURCE...] [--list-rules]
+
+Type-checks and lints .p or .pproj sources without exploring schedules or writing
+checker output. The same lint rules run automatically before `snappea check`.
+Exit status: 0 clean, 2 unsuppressed findings or source errors.
+
+  --list-rules  List available rule IDs and descriptions without loading sources
+
+Suppress an intentional finding on the following declaration or statement:
+  // snappea-lint: allow unused-payload-field -- intentionally abstract this field
+See docs/linting.md for rule details and suppression scope.
+";
+
+fn lint(args: &[String], host: &mut dyn Host) -> i32 {
+    let a = match parse_args(args, &[flag("list-rules", None)]) {
+        Ok(a) => a,
+        Err(m) => return usage_error(host, &m, Some("lint")),
+    };
+    if a.help {
+        host.write(Stream::Out, LINT_HELP, None);
+        return OK;
+    }
+    if a.has("list-rules") && !a.positional.is_empty() {
+        return usage_error(host, "--list-rules does not take sources", Some("lint"));
+    }
+    let mut cfg = snappea_config();
+    match sources(&mut cfg, &a.positional) {
+        Ok(rest) if rest.is_empty() => {}
+        Ok(_) => return usage_error(host, "lint accepts sources (.p or .pproj), not test names", Some("lint")),
+        Err(m) => return usage_error(host, &m, Some("lint")),
+    }
+    with_output(host, &a, "lint", |host| {
+        if a.has("list-rules") {
+            let rules: Vec<_> = snappea_lint::Registry::builtins()
+                .rules()
+                .map(|r| {
+                    host.out_line(&format!("{}  {}", r.id(), r.description()));
+                    json!({"id": r.id(), "description": r.description()})
+                })
+                .collect();
+            return Ok((OK, json!({"rules": rules})));
+        }
+        let mut quiet = Buffered::new(host);
+        let loaded = check::resolve_sources(&mut quiet, &mut cfg).and_then(|_| check::load(&mut quiet, &cfg));
+        let Buffered { out, .. } = quiet;
+        match loaded {
+            Ok(loaded) => {
+                if crate::driver::lint::run(host, &loaded.sources)? != 0 {
+                    return Err(Exit(ERROR));
+                }
+                host.out_line("Lint passed.");
+                Ok((OK, json!({"findings": []})))
+            }
+            Err(e) => {
+                for (stream, text, color) in out {
+                    host.write(stream, &text, color);
+                }
+                Err(e)
+            }
+        }
+    })
+}
+
 const CHECK_OPTS: &[Opt] = &[
     value("timeout", None),
     value("time", None), // Existing spelling remains an unadvertised alias.
@@ -649,6 +717,9 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
     }
     check::resolve_sources(&mut con, &mut cfg)?;
     let loaded = check::load(&mut con, &cfg)?;
+    if crate::driver::lint::run(con.inner, &loaded.sources)? != 0 {
+        return Err(Exit(ERROR));
+    }
     let names: Vec<String> = loaded.analysis.program.test_cases().into_iter().map(|t| t.name).collect();
     let selected = select_tests(&names, patterns).map_err(|m| {
         error(con.inner, &m);

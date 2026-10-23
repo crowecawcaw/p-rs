@@ -1,6 +1,6 @@
 //! Tokens of the P language.
 
-use crate::syntax::span::Span;
+use crate::span::Span;
 
 /// Kinds of tokens produced by the lexer. Keyword tokens mirror `PLexer.g4` upstream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

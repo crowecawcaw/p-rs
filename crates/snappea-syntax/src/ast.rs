@@ -1,6 +1,6 @@
 //! Abstract syntax tree of a P program. The structure mirrors `PParser.g4` upstream.
 
-use crate::syntax::span::Span;
+use crate::span::Span;
 
 /// An identifier with its source span.
 #[derive(Debug, Clone, PartialEq, Eq)]

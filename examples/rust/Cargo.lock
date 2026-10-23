@@ -474,7 +474,20 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "snappea-lint",
+ "snappea-syntax",
 ]
+
+[[package]]
+name = "snappea-lint"
+version = "0.1.0"
+dependencies = [
+ "snappea-syntax",
+]
+
+[[package]]
+name = "snappea-syntax"
+version = "0.1.0"
 
 [[package]]
 name = "syn"

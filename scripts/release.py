@@ -108,7 +108,11 @@ def cmd_set(version, sums=None):
     parse(version)
     text = CARGO.read_text()
     m = CARGO_VERSION.search(text)
-    CARGO.write_text(text[: m.start(1)] + version + text[m.end(1) :], newline="")
+    text = text[: m.start(1)] + version + text[m.end(1) :]
+    # Workspace crates share a release version, including inter-crate requirements.
+    text = re.sub(r'^(snappea-(?:syntax|lint) = .*version = ")[^"]*(")',
+                  lambda m: m[1] + version + m[2], text, flags=re.M)
+    CARGO.write_text(text, newline="")
     replace(POM, POM_VERSION, version)
     replace(EXAMPLE_POM, EXAMPLE_VERSION, version)
     replace(GO_VERSION, GO_CONST, version)

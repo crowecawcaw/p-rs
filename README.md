@@ -87,6 +87,7 @@ Replay: snappea replay PCheckerOutput/tcCheckThenReserve/bug.schedule
 Run the printed replay command from the same directory to reproduce the bug. The
 [command line guide](https://snappea.dev/docs/cli.html) and
 [model-checking reference](docs/checking-models.md) cover options, output and search strategies.
+`snappea check` also runs [model lints](docs/linting.md); `snappea lint` runs them separately.
 
 ## Use it from your tests
 

@@ -90,7 +90,7 @@ jobs:
             exit 1
           fi
       - name: Check the published crate package
-        run: cargo package -p snappea --locked
+        run: cargo package -p snappea-syntax -p snappea-lint -p snappea --locked
 
   upstream-compat:
     name: upstream compat

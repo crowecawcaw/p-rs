@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
     "crates/snappea",
+    "crates/snappea-syntax",
+    "crates/snappea-lint",
     "crates/snappea-wasm",
 ]
 
@@ -13,6 +15,8 @@ repository = "https://github.com/crowecawcaw/snappea"
 rust-version = "1.87"
 
 [workspace.dependencies]
+snappea-syntax = { path = "crates/snappea-syntax", version = "0.1.0" }
+snappea-lint = { path = "crates/snappea-lint", version = "0.1.0" }
 snappea = { path = "crates/snappea", default-features = false }
 indexmap = "2"
 serde = { version = "1", features = ["derive"] }

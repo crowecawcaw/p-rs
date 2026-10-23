@@ -1,10 +1,10 @@
 //! Recursive descent parser for P, equivalent to `PParser.g4`.
 
-use crate::syntax::ast::*;
-use crate::syntax::lexer::error_display;
-use crate::syntax::span::{FileId, Span};
-use crate::syntax::token::TokenKind as T;
-use crate::syntax::token::{Token, TokenKind};
+use crate::ast::*;
+use crate::lexer::error_display;
+use crate::span::{FileId, Span};
+use crate::token::TokenKind as T;
+use crate::token::{Token, TokenKind};
 
 /// A syntax error. `message` follows the ANTLR style used upstream
 /// (`mismatched input 'x' expecting 'y'`).
@@ -26,7 +26,7 @@ pub const MAX_NESTING: usize = 128;
 
 /// Parses one file into a [`Program`].
 pub fn parse(file: FileId, text: &str) -> PResult<Program> {
-    let tokens = crate::syntax::lexer::lex(file, text).map_err(|e| ParseError { span: e.span, message: e.message })?;
+    let tokens = crate::lexer::lex(file, text).map_err(|e| ParseError { span: e.span, message: e.message })?;
     let mut p = Parser { text, tokens, pos: 0, depth: 0, too_deep: false };
     p.program()
 }
