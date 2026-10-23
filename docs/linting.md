@@ -1,0 +1,140 @@
+# Linting P models
+
+`snappea check` type-checks and lints all loaded sources before exploring schedules.
+An unsuppressed lint finding stops the command with exit status **2**, before it
+creates checker output. A model bug found during exploration still exits with 1.
+
+To run linting alone:
+
+```sh
+snappea lint                         # discover local .pproj or .p sources
+snappea lint Model.pproj
+snappea lint events.p model.p tests.p
+snappea lint --list-rules
+```
+
+`lint` loads and type-checks sources, prints every unsuppressed finding with its
+file, line, column, and rule ID, and exits with 0 when clean or 2 on findings or
+source errors. It does not explore schedules or write checker artifacts. Test-name
+filters are not accepted: selection checks need the complete loaded project.
+`check` also lints the whole loaded project, even when you select one test to run.
+
+Linting identifies common weak checks. A clean result does not establish that the
+model covers every requirement or faithfully represents the implementation.
+`snappea-compat` retains upstream behavior and does not apply these lint rules.
+
+## Rules
+
+| Rule ID | Finding | Suggested fix |
+| --- | --- | --- |
+| `permissive-monitor` | A spec accepts every sequence of its observed events through empty handlers, ignores, or unconditional state transitions, with no hot-state obligation. | Check an invariant, reject invalid event ordering, or express a progress obligation. |
+| `unselected-spec` | A spec is selected by no test or runnable implementation in the loaded project. | Add `assert MySpec in ...` to a test/module, or suppress for an observation-only spec. |
+| `tautological-assert` | A scalar assertion is guaranteed true by its expression or preceding assignments. | Compare against independently observed state or an independent expected result. |
+| `unused-payload-field` | An event handler in a spec declares a named payload field but never reads it. | Validate or use the field, or suppress an intentional abstraction. |
+
+### Permissive monitors
+
+This spec observes activity but cannot reject a trace:
+
+```p
+spec BundleTrace observes ePublish, eResult {
+  start state Active {
+    on ePublish goto Active;
+    on eResult goto Active;
+  }
+}
+```
+
+The rule checks reachable states and follows named event handlers. It does not
+flag a spec merely because it has no assertions: missing event handlers can reject
+invalid traces, and hot states can express liveness. Its initial analysis recognizes
+simple passive bodies; arbitrary helper calls are not proven permissive.
+
+### Unselected specs
+
+Defining a spec does not select it. The implicit `Main`/`DefaultImpl` model does
+not automatically enable all specs. Write a test such as:
+
+```p
+test tcPublish [main=Main]: assert AtomicCommit in { Main, Store, Publisher };
+```
+
+The rule resolves named modules across files, including compositions, wrappers,
+and runnable `implementation` declarations. Load the test files along with the
+spec; linting the spec file alone will report it as unselected. A spec used only
+by Python tests or `snappea observe` needs an explicit suppression.
+
+### Tautological assertions
+
+This assertion checks assignments made by the monitor itself:
+
+```p
+x = p.newX;
+y = p.newY;
+assert x == p.newX && y == p.newY, "partial bundle update";
+```
+
+The initial rule tracks local scalar copies and literals for integers, booleans,
+and strings. It forgets uncertain facts at branch joins, loops, receives, and
+calls with possible side effects. It does not assume float self-equality, prove
+arbitrary arithmetic identities, or perform whole-program symbolic execution.
+
+### Unused payload fields
+
+A handler that receives `(revision, digest)` but checks only `revision` does not
+validate digest binding. The rule checks anonymous and named event handlers,
+resolves tuple type aliases, and reports unused fields separately. A direct write
+to a field does not count as reading it. Passing or copying the whole payload is
+conservatively treated as using every field; this is not interprocedural dataflow
+analysis. Reading a field also does not prove it contributes to a useful property.
+
+## Suppress intentional findings
+
+Put a standalone comment immediately before the declaration or statement:
+
+```p
+// snappea-lint: allow unselected-spec -- checked by Python check_spec tests
+spec AtomicCommit observes eCommitted {
+  start state Ready {
+    // snappea-lint: allow unused-payload-field -- this abstraction checks counts
+    on eCommitted do (p: (bundle: string, changed: int, expected: int)) {
+      assert p.changed == p.expected;
+    }
+  }
+}
+```
+
+The comment allows only the named rule within the following machine, state,
+handler, function, or statement, including its nested code. It does not suppress
+sibling declarations or statements. Multiple rule IDs are comma-separated:
+
+```p
+// snappea-lint: allow permissive-monitor, unselected-spec -- passive trace fixture
+```
+
+The `-- reason` suffix is optional, but explains the abstraction to reviewers.
+Comments must be on their own line. Unknown IDs, malformed directives, and
+directives without an eligible following node produce an `invalid-suppression`
+finding; a misspelling cannot silently disable a check. Text inside strings and
+block comments is not a directive. There is no global command-line lint bypass.
+
+## Add a rule
+
+The `snappea-lint` crate has no I/O or scheduling dependency. Implement its `Rule`
+trait (`id`, `description`, and `check`), emit `Finding` values with source spans,
+and register the rule in `Registry::builtins`. Custom registries can register
+additional rules without changing the execution or suppression pipeline. Rule IDs
+must be unique. Diagnostics are sorted by source position and rule ID.
+
+The parser lives in `snappea-syntax`, re-exported as `snappea::syntax` for existing
+callers. Lint rules share the same parser and source positions as the checker.
+
+Run validation with:
+
+```sh
+cargo test -p snappea-lint
+cargo test -p snappea --test lint_cli
+```
+
+Tests include frozen agent-produced models, clean models, named handlers, module
+selection across files, local dataflow boundaries, and suppression scope.

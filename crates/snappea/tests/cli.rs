@@ -92,7 +92,7 @@ fn check_finds_a_bug_that_replays() {
         "Replaying tcCoins from PCheckerOutput/tcCoins/bug.schedule\nReproduced the bug (0.00s):\n      Assertion Failed: coins.p:8:1 six heads\nRun with --verbose to see the schedule's log.\n"
     );
     // a run without a bug replaces the previous run's files
-    h.add_file("coins.p", &COINS.replace("assert false", "assert true"));
+    h.add_file("coins.p", &COINS.replace("assert false, \"six heads\";", ""));
     assert_eq!(snappea(&mut h, &["check", "coins.p", "tcCoins"]), 0, "{}", h.stdout);
     assert!(names(&h, OUT).is_empty());
     assert!(h.stdout.contains("\nok    tcCoins (all "), "{}", h.stdout);

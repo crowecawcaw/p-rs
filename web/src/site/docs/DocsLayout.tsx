@@ -25,6 +25,7 @@ const LANGUAGES: Page[] = [
 
 /** Guides that still live in the repository. */
 const GUIDES = [
+  { title: "Linting models", href: `${BLOB}/docs/linting.md` },
   { title: "Checking logs (snappea observe)", href: `${BLOB}/docs/observe.md` },
   { title: "Testing and production", href: `${BLOB}/docs/production.md` },
   { title: "Rust library", href: `${BLOB}/docs/library.md` },

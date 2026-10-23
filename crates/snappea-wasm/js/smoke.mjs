@@ -18,7 +18,7 @@ const trace = r.files["/work/PCheckerOutput/DefaultImpl/bug.txt"] ?? "";
 if (r.exitCode !== 1 || !trace.includes("<ErrorLog> Assertion Failed")) throw new Error("expected a bug");
 // A finite safe model should finish its exhaustive search before the deadline.
 const safe = p.run(["check", "safe.p", "--timeout", "1s"], {
-  "/work/safe.p": "machine Main { start state Init { entry { assert true; } } }",
+  "/work/safe.p": "machine Main { start state Init { } }",
 }, { seed: 1 });
 if (safe.exitCode !== 0 || !/\(all \d+ schedules?/.test(safe.stdout)) {
   throw new Error(`expected exhaustive completion: ${safe.stdout}${safe.stderr}`);
@@ -26,7 +26,7 @@ if (safe.exitCode !== 0 || !/\(all \d+ schedules?/.test(safe.stdout)) {
 // Timed models use sampling, so a safe run must stop at the deadline as incomplete.
 const started = performance.now();
 const busy = p.run(["check", "busy.p", "--timed", "--timeout", "1s"], {
-  "/work/busy.p": "machine Main { start state Init { entry { assert true; } } }",
+  "/work/busy.p": "machine Main { start state Init { } }",
 }, { seed: 1 });
 if (busy.exitCode !== 0 || !busy.stdout.includes("Search incomplete") || performance.now() - started > 5000) {
   throw new Error(`expected bounded incomplete search: ${busy.stdout}${busy.stderr}`);

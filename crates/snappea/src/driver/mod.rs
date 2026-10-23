@@ -8,6 +8,7 @@
 //! [`Host`]: crate::host::Host
 
 pub mod check;
+pub mod lint;
 pub mod observe;
 pub mod scenario;
 mod sci;
