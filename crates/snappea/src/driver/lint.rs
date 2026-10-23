@@ -13,10 +13,14 @@ pub fn run(host: &mut dyn Host, sources: &Sources) -> Result<usize, Exit> {
         Exit(2)
     })?;
     for f in &findings {
-        let help = format!(
-            "if this is intended, suppress it with `// snappea-lint: allow {} -- reason` just before the declaration or statement",
-            f.rule
-        );
+        let help = if f.rule == "no-model-machine" {
+            "put modeled behavior in a separate `machine` and include it with the entry driver in the test module; for an intentional trace-only configuration, suppress this rule immediately before its test or implementation declaration, or before `machine Main` for the implicit default configuration".to_string()
+        } else {
+            format!(
+                "if this is intended, suppress it with `// snappea-lint: allow {} -- reason` just before the declaration or statement",
+                f.rule
+            )
+        };
         host.write(
             Stream::Err,
             &render_coded(&sm, Some(f.rule), Some(f.span), &f.message, Some(&help)),

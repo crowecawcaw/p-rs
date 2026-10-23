@@ -143,14 +143,14 @@ mod tests {
         let mut files = BTreeMap::new();
         files.insert(
             "/work/m.p".to_string(),
-            "machine Main { start state S { entry { assert false, \"no\"; } } }".to_string(),
+            "// snappea-lint: allow no-model-machine -- Wasm round-trip fixture checks failure output from the entry machine\nmachine Main { start state S { entry { assert false, \"no\"; } } }".to_string(),
         );
         let r = run(Request { args: vec!["check".into(), "m.p".into()], files, cwd: None, seed: Some(7) });
         assert_eq!(r.exit_code, 1, "{}", r.stdout);
         assert!(r.stdout.contains("\nFAIL  "), "{}", r.stdout);
         assert!(r.stdout.contains("Replay: snappea replay PCheckerOutput/"), "{}", r.stdout);
         let trace = r.files.iter().find(|(k, _)| k.ends_with("/bug.txt")).map(|(_, v)| v.clone()).unwrap();
-        assert!(trace.contains("<ErrorLog> Assertion Failed: m.p:1:40 no"), "{}", trace);
+        assert!(trace.contains("<ErrorLog> Assertion Failed: m.p:2:40 no"), "{}", trace);
         assert!(r.files.keys().any(|k| k.ends_with(".trace.json")));
     }
 

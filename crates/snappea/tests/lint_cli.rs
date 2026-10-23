@@ -7,7 +7,7 @@ fn run(host: &mut MemHost, args: &[&str]) -> i32 {
     host.stderr.clear();
     snappea::cli::run(&args.iter().map(|s| s.to_string()).collect::<Vec<_>>(), host)
 }
-const MODEL: &str = "event E;\nspec Passive observes E { start state S { on E goto S; } }\nmachine Main { start state S {} }\ntest t [main=Main]: assert Passive in { Main };";
+const MODEL: &str = "event E;\nspec Passive observes E { start state S { on E goto S; } }\nmachine Main { start state S {} } machine Worker { start state S {} }\ntest t [main=Main]: assert Passive in { Main, Worker };";
 
 #[test]
 fn lint_uses_the_shared_json_output_for_results_rules_and_failures() {
@@ -22,8 +22,11 @@ fn lint_uses_the_shared_json_output_for_results_rules_and_failures() {
     }
     assert_eq!(run(&mut h, &["check", "lint", "--list-rules"]), 0);
     let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
-    assert_eq!(result["rules"].as_array().unwrap().len(), 4);
-    h.add_file("model.p", "machine Main { start state S {} }");
+    assert_eq!(result["rules"].as_array().unwrap().len(), 5);
+    h.add_file(
+        "model.p",
+        "// snappea-lint: allow no-model-machine -- CLI lint success fixture\nmachine Main { start state S {} }",
+    );
     assert_eq!(run(&mut h, &["check", "lint", "model.p", "--json-report", "lint.json"]), 0);
     let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
     assert_eq!(result["findings"], serde_json::json!([]));
@@ -79,6 +82,22 @@ fn scoped_suppression_allows_check_but_does_not_hide_model_bugs() {
 }
 
 #[test]
+fn no_model_machine_reports_the_entry_and_suggests_a_separate_machine() {
+    let mut h = MemHost::new("/w");
+    h.add_file("model.p", "machine Main { start state S {} }\ntest t [main=Main]: { Main };");
+    assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 2);
+    assert!(h.stderr.contains("error[no-model-machine]"), "{}", h.stderr);
+    assert!(h.stderr.contains("--> model.p:2:14"), "{}", h.stderr);
+    assert!(h.stderr.contains("put modeled behavior in a separate `machine`"), "{}", h.stderr);
+
+    h.add_file(
+        "model.p",
+        "machine Main { start state S {} }\n// snappea-lint: allow no-model-machine -- fixed trace\ntest t [main=Main]: { Main };",
+    );
+    assert_eq!(run(&mut h, &["check", "lint", "model.p"]), 0);
+}
+
+#[test]
 fn source_discovery_pproj_and_parse_errors_work_without_running_schedules() {
     let mut h = MemHost::new("/w");
     h.add_file(
@@ -102,7 +121,7 @@ fn source_discovery_pproj_and_parse_errors_work_without_running_schedules() {
 fn help_rules_and_bad_options_do_not_need_sources() {
     let mut h = MemHost::new("/empty");
     assert_eq!(run(&mut h, &["check", "lint", "--list-rules"]), 0);
-    assert_eq!(h.stdout.lines().count(), 4);
+    assert_eq!(h.stdout.lines().count(), 5);
     assert!(h.stdout.contains("unused-payload-field"));
     assert_eq!(run(&mut h, &["check", "lint", "--help"]), 0);
     assert!(h.stdout.contains("Usage: snappea check lint"));

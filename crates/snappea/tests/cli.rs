@@ -26,7 +26,9 @@ const COINS: &str = "machine M {\n\
        state Done { }\n\
      }\n\
      machine Fine { start state S { } }\n\
+     // snappea-lint: allow no-model-machine -- CLI regression fixture keeps behavior in the entry machine\n\
      test tcCoins [main=M]: { M };\n\
+     // snappea-lint: allow no-model-machine -- CLI regression fixture keeps behavior in the entry machine\n\
      test tcFine [main=Fine]: { Fine };\n";
 
 /// A host with four threads and `coins.p`.
@@ -731,8 +733,9 @@ fn check_lists_loaded_components_outside_selected_tests() {
         "model.p",
         "machine Main { start state S { } }\n\
         machine Other { start state S { entry { print \"other\"; } } }\n\
-        test tcMain [main=Main]: { Main };\n\
-        test tcOther [main=Other]: { Other };\n",
+        machine MainModel { start state S { } }\n\
+        test tcMain [main=Main]: { Main, MainModel };\n\
+        test tcOther [main=Other]: { Other, MainModel };\n",
     );
     assert_eq!(snappea(&mut h, &["check", "model.p", "tcMain", "--json-report", "r.json"]), 0, "{}", h.stdout);
     assert!(h.stdout.contains("Outside the selected tests (excluded from coverage totals):"));
