@@ -14,7 +14,7 @@ snappea replay PCheckerOutput/tcMyTest/bug.schedule
 ```
 
 `snappea check` type-checks the sources itself and reports errors as `p compile` does.
-It prints a result per test case and, for a bug, its report and the `snappea replay`
+It prints one line per test case and, for a bug, its report and the `snappea replay`
 command that reproduces it:
 
 ```
@@ -27,12 +27,6 @@ FAIL  tcMultipleClientsWithFailure (bug found after 23 schedules, 8 workers, 0.0
 ...
 5 of 10 test cases failed in 0.98s, peak memory 18 MB. Output: PCheckerOutput/
 ```
-
-After a successful run, it also reports the number of distinct abstract timelines observed
-across the schedules, plus event-handler coverage and source locations for `do`/`goto`
-handlers not exercised by those schedules. The timeline count uses the selected
-`--timeline-repr` abstraction; the handler count does not measure statement, expression,
-or path coverage.
 
 Each test case's files go to `PCheckerOutput/<test>/`, replacing the previous run's:
 `bug.txt` (the buggy schedule's log), `bug.schedule`, `bug.trace.json`, `coverage.txt`,

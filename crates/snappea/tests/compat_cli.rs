@@ -88,8 +88,6 @@ fn project_file_and_test_case_listing() {
 
     assert_eq!(run(&mut h, &["check", "-tc", "tcPasses", "-s", "10"]), 0, "{}", h.stdout);
     assert!(h.stdout.contains("..... Explored 10 schedules"));
-    assert!(!h.stdout.contains("Distinct timelines:"), "{}", h.stdout);
-    assert!(!h.stdout.contains("Handler coverage:"), "{}", h.stdout);
     assert_eq!(run(&mut h, &["check", "-tc", "tcFails"]), 1);
     let trace = h.read_to_string(Path::new("PCheckerOutput/tcFails/BugFinding/Demo_0_0.txt")).unwrap();
     assert!(trace.contains("<ErrorLog> Assertion Failed: PSrc/demo.p:1:37 boom"), "{}", trace);

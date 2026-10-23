@@ -547,14 +547,11 @@ fn run_check(
     for name in selected {
         cfg.test_case_name = name;
         check::set_output_directory(&mut con, &mut cfg)?;
-        let (case, coverage_summary) = check::testing_process_with_summary(&mut con, &loaded, &cfg)?;
+        let case = check::testing_process(&mut con, &loaded, &cfg)?;
         if case.bugs > 0 {
             failed += 1;
         }
         print_case(con.inner, &case, &cfg);
-        for line in coverage_summary {
-            con.inner.out_line(&line);
-        }
     }
     let elapsed = duration(con.inner.now() - start);
     let memory = memory(con.inner);

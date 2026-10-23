@@ -194,20 +194,6 @@ coverage feedback causes scenario changes. Handler coverage and distinct abstrac
 timelines measure the P model's exploration, not Python correctness or requirement
 coverage. Preserve negative results and keep wide-input probes separate.
 
-## Automatic reachability research probe
-
-```sh
-python tools/probe_reachability.py --binary vendor/bin/snappea-v0.1.0-x86_64-unknown-linux-gnu/snappea --output-dir results/reachability-probe
-```
-
-This copies two small calibration fixtures and automatically inserts a failing
-sentinel in each commit handler. The known vacuous handler remains unexercised;
-the exercised monitor fails with its unique marker. The JSON report separates
-invalid variants, timeouts, other failures and markers reached within budget.
-This helper is a targeted research experiment, not a general semantic mutation
-feature in `snappea check`. The implementation proposal and current diversity
-signals are documented in [the investigation](../../design/check-quality/mutation-checking.md).
-
 ## Screen single-prompt wording
 
 `SNAPPEA_EVAL_PROMPT_VARIANT` selects an experimental P-only prompt, recorded as
@@ -223,19 +209,3 @@ actually passes before the first implementation write. Distinguish a passing
 synthetic event trace from a P test case exploring schedules, and both from tests
 that check actual service behavior. Use a few independent runs per wording for a
 screen; do not claim a reliable ranking from two samples per variant.
-
-## Probe authored tests after freezing
-
-```sh
-python tools/review_test_mutations.py luna-p-01 luna-python-01 --binary ../../target/release/snappea --output results/test-mutations.json
-```
-
-This isolated research diagnostic runs each submitted test suite against its own
-solution, the calibration reference, and nine known defective reference variants.
-It never changes frozen files or sends results to solvers. Reference-incompatible
-suites, instrumentation mismatches, timeouts, and execution errors are reported
-separately. In particular, tests using implementation-specific crash offsets may
-fail against a correct alternative layout. Only reference-compatible suites
-produce mutation outcomes; their different denominators are not comparable
-population scores. This diagnostic does not test arbitrary mutations of the
-submitted implementation or replace the primary hidden grader.
