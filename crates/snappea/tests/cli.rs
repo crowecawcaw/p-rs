@@ -742,6 +742,8 @@ fn check_reports_mutants_no_test_case_detects() {
     );
     assert_eq!(m["undetected"][0]["test_cases"], serde_json::json!(["tcCount"]));
     assert_eq!(m["undetected"][0]["search_complete"], true);
+    assert_eq!(m["undetected"][0]["schedules"], 5);
+    assert_eq!(m["suppressed"], 0);
     assert_eq!(m["time_limit_reached"], false);
     // the same verdicts every run
     assert_eq!(snappea(&mut h, &["check", "counter.p", "--json"]), 0);
@@ -751,6 +753,25 @@ fn check_reports_mutants_no_test_case_detects() {
     assert_eq!(snappea(&mut h, &["check", "counter.p", "--format", "text"]), 0);
     assert!(h.stdout.contains("Mutation testing: 1 of 3 mutants detected"), "{}", h.stdout);
     assert!(h.stdout.contains("  counter.p:7  Counter.S, on eAdd: removed `total = total + n;`\n"), "{}", h.stdout);
+    // a suppression comment excludes the mutants of the next statement, of one kind or all
+    let suppressed = COUNTER.replace(
+        "announce eTotal",
+        "// snappea-lint: allow mutation:remove-statement -- the spec reads every total\nannounce eTotal",
+    );
+    h.add_file("counter.p", &suppressed);
+    assert_eq!(snappea(&mut h, &["check", "counter.p", "--json"]), 0, "{}", h.stdout);
+    let v: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!((v["mutation"]["mutants"].as_u64(), v["mutation"]["suppressed"].as_u64()), (Some(2), Some(1)));
+    assert_eq!(v["mutation"]["undetected"].as_array().unwrap().len(), 1);
+    h.add_file("counter.p", &suppressed.replace("mutation:remove-statement", "mutation"));
+    assert_eq!(snappea(&mut h, &["check", "counter.p", "--json"]), 0, "{}", h.stdout);
+    let v: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
+    assert_eq!(v["mutation"]["suppressed"], 1);
+    // a misspelled kind fails linting rather than suppressing nothing
+    h.add_file("counter.p", &suppressed.replace("remove-statement", "remove-statment"));
+    assert_eq!(snappea(&mut h, &["check", "counter.p", "--format", "text"]), 2);
+    assert!(h.stderr.contains("error[invalid-suppression]"), "{}", h.stderr);
+    h.add_file("counter.p", COUNTER);
     // skipped on request, and when a test case fails
     assert_eq!(snappea(&mut h, &["check", "counter.p", "--no-mutation", "--json"]), 0);
     let v: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();

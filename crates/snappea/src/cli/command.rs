@@ -94,6 +94,8 @@ When every test case passes, mutation testing follows: small changes to the mode
 code (a removed statement, a forced `if`, a swapped operator) that the test cases
 are run against. A change no test case detects marks code whose effect no spec or
 assertion checks. Undetected changes are listed; they do not change the exit status.
+`// snappea-lint: allow mutation[:<kind>] -- reason` before a statement suppresses its
+changes (see docs/checking-models.md).
 ";
 
 const REPLAY_HELP: &str = "\
@@ -833,7 +835,9 @@ fn run_check(
             json!({"skipped": "a test case failed"})
         }
         Some(limit) => {
-            let report = crate::driver::mutation::run(con.inner, prog, &cfg, &passed, f64::from(limit));
+            // the sources parsed when they were loaded
+            let suppressed = snappea_lint::mutation_suppressions(&loaded.sources.source_map()).unwrap_or_default();
+            let report = crate::driver::mutation::run(con.inner, prog, &cfg, &passed, &suppressed, f64::from(limit));
             for l in report.lines(SHOWN_UNCOVERED) {
                 con.inner.out_line(&l);
             }

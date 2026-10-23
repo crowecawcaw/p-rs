@@ -155,24 +155,46 @@ A mutant changes one place in the code of the machines under test:
 | `flip-boolean` | `true` becomes `false` and back |
 
 Spec monitors and each test case's main machine are the tests, so they are not mutated,
-and neither are assertions, `print` or format strings. Only code a passing test case ran
+and neither are assertions, `print` or format strings. Conditions on a choice (`$`,
+`$$`, `choose`) are not forced, swapped or negated: the checker already explores every
+choice, so that only relabels the branches. Only code a passing test case ran
 is mutated (coverage lists the rest), and an `if` is forced only to the outcome a test
 case did not take: forcing a condition that was always true changes nothing.
 
-Each mutant runs only the test cases that ran the changed code, for 1000 schedules
-shared between them (at least 100 each) and a fixed seed, so a mutant gets the same
-verdict on every run and machine. A mutant can survive because no test case reached the
-failing schedule within that budget; `search_complete: true` in JSON means every one of
-its test cases explored all of its schedules, so no test case can detect it as written.
-Some mutants cannot be detected by any test: `x < n` and `x <= n` behave the same if `x`
-never equals `n`.
+Each mutant runs only the test cases that ran the changed code. They share 1000
+schedules, in turns of 100: each round gives every mutant not yet detected one turn on
+the next of its test cases (and every test case gets at least one turn). The seed is
+fixed, so a mutant gets the same verdict on every run and machine. A mutant can survive
+because no test case reached the failing schedule within its schedules;
+`search_complete: true` in JSON means every one of its test cases explored all of its
+schedules, so no test case can detect it as written. Some mutants cannot be detected by
+any test: `x < n` and `x <= n` behave the same if `x` never equals `n`.
 
 Mutation testing stops at its time limit, 30 seconds by default
-(`--mutation-timeout 2m` changes it, `--no-mutation` skips it); mutants are tested in a
-fixed shuffled order, so a run cut short samples the whole model. It is skipped when a
-test case fails: fix the bug first. Undetected mutants never change the exit status.
-The JSON result has every undetected mutant under `mutation.undetected`, with its
-`file`, `line`, `context`, `mutation`, `change`, `test_cases` and `search_complete`.
+(`--mutation-timeout 2m` changes it, `--no-mutation` skips it). Because the schedules
+go round robin, a run the time limit stops has given every mutant about the same share:
+on a large model, each may get only its first turn. Undetected mutants with fewer than
+1000 schedules are marked `(only 100 schedules)` in the console and have a smaller
+`schedules` in JSON; raise the limit for a stronger result. Mutation testing is skipped
+when a test case fails: fix the bug first. Undetected mutants never change the exit
+status. The JSON result has every undetected mutant under `mutation.undetected`, with
+its `file`, `line`, `context`, `mutation`, `change`, `test_cases`, `schedules` and
+`search_complete`.
+
+### Suppressing a mutant
+
+When a change cannot or need not be detected, say so with the
+[lint suppression comment](linting.md#suppress-intentional-findings), on its own line
+before the statement, handler, function or machine:
+
+```p
+// snappea-lint: allow mutation:swap-operator -- units never equals stock in any test
+if (req.units <= stock && !(req.order in reservations)) {
+```
+
+`mutation` allows every mutant in the code that follows; `mutation:<kind>` allows one
+kind (the IDs in the table above). Suppressed mutants do not run and are counted as
+suppressed. A misspelled kind fails linting, so it cannot silently allow nothing.
 
 For installation and a first model, see the [command line guide](https://snappea.dev/docs/cli.html).
 For checking application events and logs, see [snappea observe](observe.md).

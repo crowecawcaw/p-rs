@@ -240,8 +240,10 @@ snappea check [SOURCE...] [TEST...] [options]
           one small change, such as a removed statement, an <code>if</code> forced one way, or <code>&lt;</code>{" "}
           swapped for <code>&lt;=</code>. A change no test case detects is listed with its line: the code ran, but no
           spec or assertion depends on what it does. Add a spec, an assertion or a test case that would fail with the
-          change. Specs and test drivers are not mutated, and undetected mutants do not change the exit status. JSON
-          results list them under <code>mutation.undetected</code>.
+          change, or suppress it with <code>// snappea-lint: allow mutation[:kind] -- reason</code> on the line before.
+          Specs and test drivers are not mutated, and undetected mutants do not change the exit status. JSON results
+          list them under <code>mutation.undetected</code>. Changes share the time limit round robin, so a run cut
+          short gives each about the same number of schedules.
         </p>
         <h3>How much to explore</h3>
         <Options rows={CHECK_EXPLORATION} />

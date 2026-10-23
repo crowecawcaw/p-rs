@@ -112,6 +112,12 @@ sibling declarations or statements. Multiple rule IDs are comma-separated:
 // snappea-lint: allow permissive-monitor, unselected-spec -- passive trace fixture
 ```
 
+The same comment excludes code from `snappea check`'s mutation testing:
+`allow mutation` for every mutant of the following code, or `allow mutation:<kind>`
+(`remove-statement`, `condition-true`, `condition-false`, `swap-operator`, `remove-not`,
+`flip-boolean`) for one kind. See
+[mutation testing](checking-models.md#suppressing-a-mutant).
+
 The `-- reason` suffix is optional, but explains the abstraction to reviewers.
 Comments must be on their own line. Unknown IDs, malformed directives, and
 directives without an eligible following node produce an `invalid-suppression`

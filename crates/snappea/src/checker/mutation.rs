@@ -13,6 +13,10 @@
 //! - removes a `!`;
 //! - flips a `true` or `false` literal.
 //!
+//! Conditions on a nondeterministic choice (`$`, `$$`, `choose`) are not forced, swapped
+//! or negated: that only changes which choices take which branch, and the checker
+//! explores every choice anyway.
+//!
 //! Mutants are found by walking function bodies in a fixed order; [`apply`] walks the
 //! same way to find the place again, so a [`Mutant`] needs no pointer into the IR.
 //! Assertions, `print` and format strings are never changed.
@@ -42,6 +46,8 @@ pub enum Change {
 }
 
 impl Change {
+    /// The mutation's ID, as JSON results and `mutation:<id>` suppressions name it (see
+    /// [`snappea_lint::MUTATIONS`]).
     pub fn name(self) -> &'static str {
         match self {
             Change::Remove => "remove-statement",
@@ -65,6 +71,8 @@ pub struct Mutant {
     /// The code coverage probe (see [`Probe`]) that runs whenever the changed code does:
     /// only a test case that ran it can notice the change.
     pub probe: u32,
+    /// The changed code.
+    pub span: Span,
     pub file: String,
     pub line: u32,
     /// Where the code is, e.g. `Server.Serving, on eRequest`.
@@ -148,6 +156,7 @@ pub fn mutants(prog: &Program, funs: &[bool], probes: &[Probe]) -> Vec<Mutant> {
                 site: this,
                 change,
                 probe,
+                span: at,
                 file: loc.file.unwrap_or_default(),
                 line: loc.line.max(0) as u32,
                 context: context.clone(),
@@ -234,7 +243,7 @@ fn walk_stmt(prog: &Program, s: &mut Stmt, visit: &mut dyn FnMut(Span, Target<'_
     if removable {
         visit(span, Target::Stmt(s, Change::Remove));
     }
-    if matches!(&s.kind, StmtKind::If { cond, .. } if !matches!(cond.kind, ExprKind::BoolLit(_))) {
+    if matches!(&s.kind, StmtKind::If { cond, .. } if !matches!(cond.kind, ExprKind::BoolLit(_)) && !has_choice(cond)) {
         visit(span, Target::Stmt(s, Change::Force(true)));
         visit(span, Target::Stmt(s, Change::Force(false)));
     }
@@ -299,13 +308,54 @@ fn swapped(prog: &Program, op: BinOp, e: &Expr) -> Option<BinOp> {
     })
 }
 
-fn walk_expr(prog: &Program, e: &mut Expr, stmt: Span, visit: &mut dyn FnMut(Span, Target<'_>)) {
+/// Whether `e` contains a nondeterministic choice (`$`, `$$` or `choose`).
+fn has_choice(e: &Expr) -> bool {
+    let mut found = false;
+    visit_expr(e, &mut |e| found |= matches!(e.kind, ExprKind::Nondet | ExprKind::FairNondet | ExprKind::Choose(_)));
+    found
+}
+
+/// Calls `f` with `e` and each expression in it.
+fn visit_expr(e: &Expr, f: &mut dyn FnMut(&Expr)) {
+    f(e);
     match &e.kind {
+        ExprKind::Tuple(es) | ExprKind::NamedTuple(es) | ExprKind::FunCall { args: es, .. } => {
+            es.iter().for_each(|e| visit_expr(e, f))
+        }
+        ExprKind::Str { args, .. } => args.iter().for_each(|e| visit_expr(e, f)),
+        ExprKind::TupleAccess { base: x, .. }
+        | ExprKind::NamedTupleAccess { base: x, .. }
+        | ExprKind::Keys(x)
+        | ExprKind::Values(x)
+        | ExprKind::Sizeof(x)
+        | ExprKind::Cast(x)
+        | ExprKind::Coerce(x)
+        | ExprKind::Unary { operand: x, .. } => visit_expr(x, f),
+        ExprKind::SeqAccess { base: a, index: b }
+        | ExprKind::SetAccess { base: a, index: b }
+        | ExprKind::MapAccess { base: a, key: b }
+        | ExprKind::Binary { lhs: a, rhs: b, .. }
+        | ExprKind::Contains { item: a, collection: b } => {
+            visit_expr(a, f);
+            visit_expr(b, f);
+        }
+        ExprKind::Ctor { payload, .. } | ExprKind::Choose(payload) => payload.iter().for_each(|x| visit_expr(x, f)),
+        _ => {}
+    }
+}
+
+fn walk_expr(prog: &Program, e: &mut Expr, stmt: Span, visit: &mut dyn FnMut(Span, Target<'_>)) {
+    // swapping a comparison or a logical operator on a choice, or removing a `!` from one,
+    // only changes which choices take which branch: the checker explores them all anyway
+    let logic = |op: BinOp| !matches!(op, BinOp::Add | BinOp::Sub);
+    match &e.kind {
+        ExprKind::Binary { op, .. } if logic(*op) && has_choice(e) => {}
         ExprKind::Binary { op, .. } => {
             if let Some(new) = swapped(prog, *op, e) {
                 visit(stmt, Target::Expr(e, Change::Operator(new)));
             }
         }
+        ExprKind::Unary { op: UnOp::Not, .. } if has_choice(e) => {}
         ExprKind::Unary { op: UnOp::Not, .. } => visit(stmt, Target::Expr(e, Change::DropNot)),
         ExprKind::BoolLit(_) => visit(stmt, Target::Expr(e, Change::FlipBool)),
         _ => {}
@@ -463,6 +513,35 @@ mod tests {
             ]
         );
         assert!(ms.iter().all(|m| m.context == "Server.S, on eReq"));
+    }
+
+    #[test]
+    fn leaves_choices_alone() {
+        let src = MODEL.replace("if (n < 3 && !(n == 0))", "if ($ && choose(3) == 0)");
+        let mut sm = crate::syntax::SourceMap::new();
+        sm.add("model.p", src);
+        let prog = crate::sema::compile(&sm, &crate::sema::Options::default()).unwrap_or_else(|_| panic!()).program;
+        let funs = mutable_funs(&prog, &prog.test_cases());
+        let probes = crate::checker::compile::compile_program_with_probes(&prog).probes;
+        let names: Vec<_> = mutants(&prog, &funs, &probes).iter().map(|m| m.description.clone()).collect();
+        assert_eq!(
+            names,
+            ["removed `total = total + n;`", "`total + n` → `total - n`", "removed `announce eSeen, total;`"]
+        );
+    }
+
+    #[test]
+    fn change_names_are_the_suppressible_mutations() {
+        let names = [
+            Change::Remove,
+            Change::Force(true),
+            Change::Force(false),
+            Change::Operator(BinOp::Lt),
+            Change::DropNot,
+            Change::FlipBool,
+        ]
+        .map(Change::name);
+        assert_eq!(names.as_slice(), snappea_lint::MUTATIONS);
     }
 
     #[test]
