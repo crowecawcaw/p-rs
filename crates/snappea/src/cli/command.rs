@@ -775,6 +775,12 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
     for l in uncovered_lines(heading, &suite.uncovered(), " (--json lists all)") {
         con.inner.out_line(&l);
     }
+    let excluded = scope.excluded(prog);
+    for l in
+        uncovered_lines("Outside the selected tests (excluded from coverage totals):", &excluded, " (--json lists all)")
+    {
+        con.inner.out_line(&l);
+    }
     if failed > 0 {
         con.inner.out_line("Coverage includes partial results from test cases stopped at their first bug.");
     }
@@ -804,6 +810,7 @@ fn run_check(host: &mut dyn Host, mut cfg: CheckConfig, patterns: &[String], lat
         format!("{} of {} test case{} failed in {}{}. Output: {}/", failed, n, plural(n), elapsed, memory, out)
     });
     let mut coverage = suite.to_json(false);
+    coverage["excluded_components"] = excluded.iter().map(|u| u.to_json()).collect();
     coverage["partial"] = json!(failed > 0);
     let result = json!({
         "project": cfg.project_name,

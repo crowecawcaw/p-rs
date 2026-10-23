@@ -1704,6 +1704,7 @@ impl<'p> Runtime<'p> {
     }
 
     fn enter_state(&mut self, m: usize, e: Event) {
+        self.cov_machine_enter(m);
         let name = self.machines[m].name.clone();
         let state = self.log_state_name(m);
         self.log(|_| format!("<StateLog> {} enters state '{}'.", name, state));

@@ -15,7 +15,7 @@ use serde_json::{json, Value};
 
 use crate::checker::bytecode::{Probe, ProbeKind};
 use crate::checker::coverage::{CoverageInfo, CoverageTables, ProbeSet};
-use crate::sema::{EventId, FunId, HandlerAction, MachineId, Program, StateId, TestCase};
+use crate::sema::{EventId, FunId, HandlerAction, MachineId, Program, StateId, Stmt, StmtKind, TestCase};
 use crate::syntax::{SourceMap, Span};
 
 /// What a coverage point is.
@@ -30,6 +30,10 @@ pub enum PointKind {
     Then,
     /// The `if` condition was false.
     Else,
+    ConditionTrue,
+    ConditionFalse,
+    /// Two consecutive state transitions, on one instance in one execution.
+    TransitionPair,
 }
 
 impl PointKind {
@@ -40,13 +44,25 @@ impl PointKind {
             PointKind::Statement => "statement",
             PointKind::Then => "then",
             PointKind::Else => "else",
+            PointKind::ConditionTrue => "condition_true",
+            PointKind::ConditionFalse => "condition_false",
+            PointKind::TransitionPair => "transition_pair",
         }
     }
 
     fn from_name(s: &str) -> Option<PointKind> {
-        [PointKind::Handler, PointKind::Entry, PointKind::Statement, PointKind::Then, PointKind::Else]
-            .into_iter()
-            .find(|k| k.name() == s)
+        [
+            PointKind::Handler,
+            PointKind::Entry,
+            PointKind::Statement,
+            PointKind::Then,
+            PointKind::Else,
+            PointKind::ConditionTrue,
+            PointKind::ConditionFalse,
+            PointKind::TransitionPair,
+        ]
+        .into_iter()
+        .find(|k| k.name() == s)
     }
 }
 
@@ -115,23 +131,33 @@ pub struct Summary {
     pub statements: Count,
     pub branches: Count,
     pub handlers: Count,
+    pub conditions: Count,
+    pub transition_pairs: Count,
 }
 
 impl Summary {
     pub fn to_json(self) -> Value {
-        json!({"statements": self.statements.to_json(), "branches": self.branches.to_json(), "handlers": self.handlers.to_json()})
+        json!({"statements": self.statements.to_json(), "branches": self.branches.to_json(), "handlers": self.handlers.to_json(),
+            "conditions": self.conditions.to_json(), "transition_pairs": self.transition_pairs.to_json()})
     }
 }
 
 impl std::fmt::Display for Summary {
     /// `41/50 statements, 6/8 branches, 9/12 event handlers`.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Summary { statements: s, branches: b, handlers: h } = self;
+        let Summary { statements: s, branches: b, handlers: h, conditions: c, transition_pairs: t } = self;
         write!(
             f,
             "{}/{} statements, {}/{} branches, {}/{} event handlers",
             s.covered, s.total, b.covered, b.total, h.covered, h.total
-        )
+        )?;
+        if c.total > 0 {
+            write!(f, ", {}/{} condition outcomes", c.covered, c.total)?;
+        }
+        if t.total > 0 {
+            write!(f, ", {}/{} transition pairs", t.covered, t.total)?;
+        }
+        Ok(())
     }
 }
 
@@ -143,6 +169,27 @@ pub struct Scope {
 }
 
 impl Scope {
+    /// Loaded components outside the selected tests' modules, excluded from totals.
+    pub fn excluded(&self, prog: &Program) -> Vec<Uncovered> {
+        prog.machines
+            .iter()
+            .enumerate()
+            .filter_map(|(i, m)| {
+                if self.machines.get(i).copied().unwrap_or(false) || m.span.is_dummy() {
+                    return None;
+                }
+                let loc = prog.sources.location(m.span);
+                Some(Uncovered {
+                    file: loc.file.unwrap_or_default(),
+                    line: loc.line.max(0) as u32,
+                    end_line: loc.line.max(0) as u32,
+                    context: m.name.clone(),
+                    what: "not included in selected test cases".into(),
+                })
+            })
+            .collect()
+    }
+
     /// The machines and monitors of test case `tc`, and the functions they call.
     pub fn test_case(prog: &Program, tc: &TestCase) -> Scope {
         let (module, main) = prog.test_case_module(tc);
@@ -196,6 +243,7 @@ impl Scope {
 pub struct Hits {
     probes: ProbeSet,
     handled: FxHashSet<(StateId, EventId)>,
+    transition_pairs: FxHashSet<(StateId, StateId, StateId)>,
 }
 
 impl Hits {
@@ -210,12 +258,13 @@ impl Hits {
                 }
             }
         }
-        Hits { probes: info.probes.clone(), handled }
+        Hits { probes: info.probes.clone(), handled, transition_pairs: info.transition_pairs.clone() }
     }
 
     pub fn add(&mut self, other: &Hits) {
         self.probes.union(&other.probes);
         self.handled.extend(other.handled.iter().copied());
+        self.transition_pairs.extend(other.transition_pairs.iter().copied());
     }
 }
 
@@ -227,6 +276,7 @@ pub struct CodeMap {
     /// Point of each probe, by probe id.
     probe_point: Vec<Option<u32>>,
     handler_point: FxHashMap<(StateId, EventId), u32>,
+    transition_point: FxHashMap<(StateId, StateId, StateId), u32>,
 }
 
 impl CodeMap {
@@ -294,8 +344,30 @@ impl CodeMap {
                 ProbeKind::Stmt => (PointKind::Statement, format!("not reached: {}", snippet(sm, p.span))),
                 ProbeKind::Then => (PointKind::Then, format!("{} never true", condition(sm, p.span))),
                 ProbeKind::Else => (PointKind::Else, format!("{} never false", condition(sm, p.span))),
+                ProbeKind::ConditionTrue => {
+                    (PointKind::ConditionTrue, format!("condition {} never true", snippet(sm, p.span)))
+                }
+                ProbeKind::ConditionFalse => {
+                    (PointKind::ConditionFalse, format!("condition {} never false", snippet(sm, p.span)))
+                }
             };
             map.probe_point[id] = map.push(sm, kind, p.span, fun_context(prog, p.fun), missed, parent);
+        }
+        let edges = transition_edges(prog, scope);
+        for (a, b) in &edges {
+            for (_, c) in edges.range((*b, StateId(0))..=(*b, StateId(u32::MAX))) {
+                let st = prog.state(*b);
+                let context = prog.machine(st.machine).name.clone();
+                let missed = format!(
+                    "{} -> {} -> {} never taken consecutively",
+                    prog.state(*a).name,
+                    st.name,
+                    prog.state(*c).name
+                );
+                if let Some(p) = map.push(sm, PointKind::TransitionPair, st.span, context, missed, None) {
+                    map.transition_point.insert((*a, *b, *c), p);
+                }
+            }
         }
         map
     }
@@ -342,6 +414,11 @@ impl CodeMap {
                 c.hit.insert(*p);
             }
         }
+        for (t, p) in &self.transition_point {
+            if hits.transition_pairs.contains(t) {
+                c.hit.insert(*p);
+            }
+        }
     }
 }
 
@@ -368,6 +445,8 @@ impl CodeCoverage {
                 PointKind::Statement => s.statements.add(hit),
                 PointKind::Then | PointKind::Else => s.branches.add(hit),
                 PointKind::Handler => s.handlers.add(hit),
+                PointKind::ConditionTrue | PointKind::ConditionFalse => s.conditions.add(hit),
+                PointKind::TransitionPair => s.transition_pairs.add(hit),
                 PointKind::Entry => {}
             }
         }
@@ -481,6 +560,74 @@ impl CodeCoverage {
         }
         Ok(out)
     }
+}
+
+/// Syntactic state edges, including gotos in entry/exit actions and called helpers.
+/// Composing these edges gives structural targets, not a reachability proof: guards
+/// and payload constraints can make a pair infeasible.
+fn transition_edges(prog: &Program, scope: &Scope) -> BTreeSet<(StateId, StateId)> {
+    fn scan(s: &Stmt, targets: &mut BTreeSet<StateId>, calls: &mut Vec<FunId>) {
+        match &s.kind {
+            StmtKind::Goto { state, .. } => {
+                targets.insert(*state);
+            }
+            StmtKind::Block(b) => {
+                for s in &b.stmts {
+                    if matches!(&s.kind, StmtKind::Assert { cond, .. } if matches!(cond.kind, crate::sema::ExprKind::BoolLit(false)))
+                    {
+                        break;
+                    }
+                    scan(s, targets, calls);
+                }
+            }
+            StmtKind::If { then_branch, else_branch, .. } => {
+                scan(then_branch, targets, calls);
+                scan(else_branch, targets, calls);
+            }
+            StmtKind::While { body, .. } | StmtKind::Foreach { body, .. } => scan(body, targets, calls),
+            StmtKind::Receive { cases } => calls.extend(cases.iter().map(|(_, f)| *f)),
+            _ => {}
+        }
+    }
+    let mut edges = BTreeSet::new();
+    for (i, st) in prog.states.iter().enumerate() {
+        if !scope.machines.get(st.machine.idx()).copied().unwrap_or(false) {
+            continue;
+        }
+        let mut targets = BTreeSet::new();
+        let mut work: Vec<FunId> = st.entry.into_iter().chain(st.exit).collect();
+        for h in &st.handlers {
+            match h.action {
+                HandlerAction::Goto { target, with } => {
+                    targets.insert(target);
+                    work.extend(with);
+                }
+                HandlerAction::Do(f) => work.push(f),
+                _ => {}
+            }
+        }
+        let mut visited = FxHashSet::default();
+        while let Some(f) = work.pop() {
+            if !visited.insert(f) {
+                continue;
+            }
+            let f = prog.fun(f);
+            work.extend(f.callees.iter().copied());
+            if let Some(body) = &f.body {
+                for s in &body.stmts {
+                    if matches!(&s.kind, StmtKind::Assert { cond, .. } if matches!(cond.kind, crate::sema::ExprKind::BoolLit(false)))
+                    {
+                        break;
+                    }
+                    scan(s, &mut targets, &mut work);
+                }
+            }
+        }
+        edges.extend(
+            targets.into_iter().filter(|t| prog.state(*t).machine == st.machine).map(|t| (StateId(i as u32), t)),
+        );
+    }
+    edges
 }
 
 /// Uncovered entries shown on the console.

@@ -205,6 +205,12 @@ pub enum Op {
     /// ran. Emitted only when compiling for code coverage; counts no work, so a run explores
     /// the same schedules with or without probes.
     Probe(u32),
+    /// Records the evaluated Boolean on top of the stack without consuming it.
+    /// Like `Probe`, this counts no work and is emitted only for coverage.
+    ConditionProbe {
+        yes: u32,
+        no: u32,
+    },
 }
 
 /// The right operand of an [`Op::IntBin`].
@@ -252,6 +258,9 @@ pub enum ProbeKind {
     Then,
     /// The `else` branch (possibly empty) of the `if` at `span`.
     Else,
+    /// An atomic condition in an `if` or `while` evaluated to true / false.
+    ConditionTrue,
+    ConditionFalse,
 }
 
 /// A code coverage probe: a point in the source whose execution is recorded.

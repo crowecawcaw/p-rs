@@ -222,6 +222,8 @@ snappea check [SOURCE...] [TEST...] [options]
           Coverage from a test case stopped at its first bug is marked partial in the console and with
           <code>coverage.partial: true</code> in JSON, including the combined total. Scenario coverage appears
           as a console summary and as <code>scenarios</code> artifacts in suite and test case JSON results.
+          {" "}The <a href={links(root).coverage}>coverage guide</a> explains condition outcomes,
+          transition pairs, and components excluded from the selected tests.
         </p>
         <p>
           Search is automatic: exhaustive, random, guided, and priority scheduling retain their state between

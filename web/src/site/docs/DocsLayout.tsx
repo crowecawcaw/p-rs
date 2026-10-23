@@ -12,6 +12,7 @@ const PAGES: Page[] = [
   { id: "coming-from-p", title: "Coming from P", href: (root) => links(root).comingFromP },
   { id: "parity", title: "Upstream parity", href: (root) => links(root).parity },
   { id: "cli", title: "Command line", href: (root) => links(root).cli },
+  { id: "coverage", title: "Coverage", href: (root) => links(root).coverage },
   { id: "github-actions", title: "GitHub Actions", href: (root) => links(root).githubActions },
 ];
 
