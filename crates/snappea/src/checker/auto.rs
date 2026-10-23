@@ -73,10 +73,10 @@ impl AutoStrategy {
         }
     }
     fn choice(&mut self, alternatives: usize) -> bool {
-        if self.dfs.is_some() {
+        if let Some(dfs) = &self.dfs {
             self.work += 1;
             self.window_work += 1;
-            let retained = self.dfs.as_ref().unwrap().retained_alternatives();
+            let retained = dfs.retained_alternatives();
             // Check before DFS materializes a potentially huge choice vector. Keep
             // DFS active until the schedule ends, so fairness and divergence describe
             // the schedule that actually ran.
