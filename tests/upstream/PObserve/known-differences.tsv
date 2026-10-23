@@ -1,0 +1,4 @@
+# Runs of tests/upstream/PObserve/expected where only the exit code is compared.
+# One per line: <run><TAB><reason>. Read by crates/snappea/tests/compat_observe_upstream.rs.
+test_case_7_log_11_1_happy_unsorted.sorted	the NullPointerException message names a variable of the generated Java code ("TMP_tmp2_12" is null)
+test_case_7_log_12_2_happy_unsorted.sorted	the NullPointerException message names a variable of the generated Java code ("TMP_tmp2_12" is null)
