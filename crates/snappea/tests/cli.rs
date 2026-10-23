@@ -646,6 +646,7 @@ fn check_requires_aggregate_coverage_and_supports_scoped_suppressions() {
         "coverage.p",
         "event ePing;\n\
          machine Main { start state S { entry { print \"entry\"; } on ePing do { print \"ping\"; } } }\n\
+         // snappea-lint: allow no-model-machine -- single-machine fixture isolates coverage behavior\n\
          test tcMain [main=Main]: { Main };\n",
     );
     assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation", "--json-report", "r.json"]), 1);
@@ -672,6 +673,7 @@ fn check_requires_aggregate_coverage_and_supports_scoped_suppressions() {
          machine Main { start state S { entry { print \"entry\"; }\n\
            // snappea-lint: allow coverage, unused-payload-field -- exercised by a separate integration suite\n\
            on ePing do { print \"ping\"; } } }\n\
+         // snappea-lint: allow no-model-machine -- single-machine fixture isolates coverage behavior\n\
          test tcMain [main=Main]: { Main };\n",
     );
     assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation", "--json"]), 0, "{}", h.stderr);
@@ -684,6 +686,7 @@ fn check_requires_aggregate_coverage_and_supports_scoped_suppressions() {
         "helper.p",
         "machine Main { fun Helper(): int { print \"helper\"; return 1; }\n\
          start state S { entry { print \"entry\"; } } }\n\
+         // snappea-lint: allow no-model-machine -- single-machine fixture isolates coverage behavior\n\
          test tcMain [main=Main]: { Main };\n",
     );
     assert_eq!(snappea(&mut h, &["check", "helper.p", "--no-mutation", "--json"]), 1);
@@ -691,12 +694,14 @@ fn check_requires_aggregate_coverage_and_supports_scoped_suppressions() {
     assert_eq!(result["coverage_failed"], true);
     assert!(result["coverage"]["uncovered_required"].as_array().unwrap().iter().any(|p| p["context"] == "Main.Helper"));
 
-    h.add_file("coverage.p", "event ePing;\n// snappea-lint: allow coverage:nope -- typo\nmachine Main { start state S { } }\ntest tcMain [main=Main]: { Main };\n");
+    h.add_file("coverage.p", "event ePing;\n// snappea-lint: allow coverage:nope -- typo\nmachine Main { start state S { } }\n// snappea-lint: allow no-model-machine -- single-machine fixture isolates coverage behavior\n\
+         test tcMain [main=Main]: { Main };\n");
     assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation"]), 2);
     assert!(h.stderr.contains("unknown or empty lint rule ID"), "{}", h.stderr);
     h.add_file(
         "coverage.p",
-        "// snappea-lint: allow coverage\nmachine Main { start state S { } }\ntest tcMain [main=Main]: { Main };\n",
+        "// snappea-lint: allow coverage\nmachine Main { start state S { } }\n// snappea-lint: allow no-model-machine -- single-machine fixture isolates coverage behavior\n\
+         test tcMain [main=Main]: { Main };\n",
     );
     assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation"]), 2);
     assert!(h.stderr.contains("coverage suppression needs a reason"), "{}", h.stderr);
@@ -709,7 +714,9 @@ fn selected_test_coverage_aggregates_and_forbidden_paths_stay_excluded() {
         "coverage.p",
         "machine A { start state S { entry { print \"a\"; } } }\n\
          machine B { start state S { entry { print \"b\"; } } }\n\
+         // snappea-lint: allow no-model-machine -- single-machine fixture isolates coverage behavior\n\
          test tcA [main=A]: { A };\n\
+         // snappea-lint: allow no-model-machine -- single-machine fixture isolates coverage behavior\n\
          test tcB [main=B]: { B };\n",
     );
     assert_eq!(snappea(&mut h, &["check", "coverage.p", "--no-mutation", "--json"]), 0, "{}", h.stderr);
@@ -719,7 +726,8 @@ fn selected_test_coverage_aggregates_and_forbidden_paths_stay_excluded() {
 
     h.add_file(
         "forbidden.p",
-        "event eNever;\nmachine Main { start state S { on eNever do { assert false, \"forbidden\"; } } }\ntest tcMain [main=Main]: { Main };\n",
+        "event eNever;\nmachine Main { start state S { on eNever do { assert false, \"forbidden\"; } } }\n// snappea-lint: allow no-model-machine -- single-machine fixture isolates coverage behavior\n\
+         test tcMain [main=Main]: { Main };\n",
     );
     assert_eq!(snappea(&mut h, &["check", "forbidden.p", "--no-mutation", "--json"]), 0, "{}", h.stderr);
     let result: serde_json::Value = serde_json::from_str(&h.stdout).unwrap();
