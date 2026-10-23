@@ -11,45 +11,6 @@ use crate::checker::random::DotNetRandom;
 use crate::checker::runtime::SchedKind;
 use crate::checker::strategy::{OpInfo, SharedRandom, Strategy};
 
-/// Bounded prefix-context exploration. Counts are hints, never reasons to prune:
-/// revisiting the same prefix can still discover a different continuation.
-struct ChoiceGuide {
-    prefix: u64,
-    visits: rustc_hash::FxHashMap<(u64, u8, i32), Vec<u32>>,
-    counters: usize,
-    random: DotNetRandom,
-}
-
-impl ChoiceGuide {
-    fn new(seed: u32) -> Self {
-        Self { prefix: 0, visits: Default::default(), counters: 0, random: DotNetRandom::new(seed as i32) }
-    }
-
-    fn choose(&mut self, channel: u8, max: i32, proposed: i32, fresh: bool) -> i32 {
-        let key = (self.prefix, channel, max);
-        let mut chosen = proposed;
-        if !self.visits.contains_key(&key) && self.counters + max as usize <= 262_144 {
-            self.visits.insert(key, vec![0; max as usize]);
-            self.counters += max as usize;
-        }
-        if let Some(counts) = self.visits.get_mut(&key) {
-            // Preserve recorded prefixes; occasionally guide a fresh continuation.
-            if fresh && self.random.next_below(4) == 0 {
-                let least = *counts.iter().min().unwrap();
-                let ties = counts.iter().filter(|n| **n == least).count();
-                let rank = self.random.next_below(ties as i32) as usize;
-                chosen = counts.iter().enumerate().filter(|(_, n)| **n == least).nth(rank).unwrap().0 as i32;
-            }
-            counts[chosen as usize] = counts[chosen as usize].saturating_add(1);
-        }
-        // Include domain and stream identity: input and scheduler indices differ.
-        for value in [u64::from(channel), max as u64, chosen as u64] {
-            self.prefix = (self.prefix ^ value.wrapping_add(1)).wrapping_mul(0x100000001b3);
-        }
-        chosen
-    }
-}
-
 /// A failure site, independent of formatted values and machine instance numbers.
 pub(crate) fn failure_class(bug: &str) -> String {
     if let Some(rest) = bug.strip_prefix("Assertion Failed: ") {
@@ -97,6 +58,16 @@ struct RandomChoices<T: Copy> {
 impl<T: Copy> RandomChoices<T> {
     fn new(random: Rc<RefCell<DotNetRandom>>, generate: fn(&mut DotNetRandom) -> T) -> Self {
         RandomChoices { random, pos: 0, data: Vec::new(), generate }
+    }
+
+    /// The consumed choices, at their end or (`rewind`) their start.
+    fn prefix(&self, rewind: bool) -> Self {
+        RandomChoices {
+            random: self.random.clone(),
+            pos: if rewind { 0 } else { self.pos },
+            data: self.data[..self.pos].to_vec(),
+            generate: self.generate,
+        }
     }
 
     fn next(&mut self) -> T {
@@ -178,7 +149,6 @@ pub struct ControlledRandom {
     doubles: RandomChoices<f64>,
     legacy_mutations: bool,
     local_mutations: bool,
-    guide: Option<(Rc<RefCell<ChoiceGuide>>, u8)>,
 }
 
 impl ControlledRandom {
@@ -193,7 +163,6 @@ impl ControlledRandom {
             doubles: RandomChoices::new(r, |r| r.next_double()),
             legacy_mutations: false,
             local_mutations: false,
-            guide: None,
         }
     }
 
@@ -201,19 +170,7 @@ impl ControlledRandom {
         if max == 0 {
             return 0;
         }
-        let fresh = self.ints.pos == self.ints.data.len();
-        let proposed = self.ints.next() % max;
-        if let Some((guide, channel)) = &self.guide {
-            let chosen = guide.borrow_mut().choose(*channel, max, proposed, fresh);
-            // Retain the actual guided decision so corpus mutations start from
-            // the choices that ran, rather than the discarded proposal.
-            if chosen != proposed {
-                self.ints.data[self.ints.pos - 1] = chosen;
-            }
-            chosen
-        } else {
-            proposed
-        }
+        self.ints.next() % max
     }
 
     /// Fresh choices drawing from the same underlying generator.
@@ -221,7 +178,6 @@ impl ControlledRandom {
         let mut out =
             ControlledRandom::from_random(self.ints.random.clone()).with_legacy_mutations(self.legacy_mutations);
         out.local_mutations = self.local_mutations;
-        out.guide = self.guide.clone();
         out
     }
 
@@ -241,19 +197,23 @@ impl ControlledRandom {
             ),
             legacy_mutations: self.legacy_mutations,
             local_mutations: self.local_mutations,
-            guide: self.guide.clone(),
         }
     }
 
+    /// The consumed choices only (copied, not the unconsumed suffix), positioned at their
+    /// end or, with `rewind`, at their start for a replay.
     fn prefix(&self, rewind: bool) -> Self {
-        let mut out = self.clone();
-        out.ints.data.truncate(out.ints.pos);
-        out.doubles.data.truncate(out.doubles.pos);
-        if rewind {
-            out.ints.pos = 0;
-            out.doubles.pos = 0;
+        ControlledRandom {
+            ints: self.ints.prefix(rewind),
+            doubles: self.doubles.prefix(rewind),
+            legacy_mutations: self.legacy_mutations,
+            local_mutations: self.local_mutations,
         }
-        out
+    }
+
+    /// Choices consumed so far: the size of [`ControlledRandom::prefix`].
+    fn consumed(&self) -> usize {
+        self.ints.pos + self.doubles.pos
     }
 
     fn choice_count(&self) -> usize {
@@ -310,6 +270,10 @@ pub trait Scheduler {
     fn checkpoint(&self, _rewind: bool) -> Option<(Box<dyn Scheduler>, usize)> {
         None
     }
+    /// The number of choices [`Scheduler::checkpoint`] would retain, without copying them.
+    fn consumed_choices(&self) -> Option<usize> {
+        None
+    }
 }
 
 fn highest_priority(prioritized: &[u64], choices: &[&OpInfo]) -> Option<u64> {
@@ -329,11 +293,12 @@ impl RandomScheduler {
 
 impl Scheduler for RandomScheduler {
     fn next_operation(&mut self, _current: u64, ops: &[OpInfo]) -> Option<u64> {
-        let enabled: Vec<&OpInfo> = ops.iter().filter(|o| o.enabled).collect();
-        match enabled.len() {
+        // no allocation: this runs at every scheduling step
+        let mut enabled = ops.iter().filter(|o| o.enabled);
+        match ops.iter().filter(|o| o.enabled).count() {
             0 => None,
-            1 => Some(enabled[0].id),
-            n => Some(enabled[self.rng.next_below(n as i32) as usize].id),
+            1 => enabled.next().map(|o| o.id),
+            n => enabled.nth(self.rng.next_below(n as i32) as usize).map(|o| o.id),
         }
     }
     fn prepare_next_iteration(&mut self) -> bool {
@@ -350,6 +315,10 @@ impl Scheduler for RandomScheduler {
         let prefix = random.prefix(rewind);
         let count = prefix.choice_count();
         Some((Box::new(RandomScheduler::new(Source::Controlled(prefix))), count))
+    }
+    fn consumed_choices(&self) -> Option<usize> {
+        let Source::Controlled(random) = &self.rng else { return None };
+        Some(random.consumed())
     }
 }
 
@@ -575,8 +544,9 @@ struct FrontierRecord {
     key: FrontierKey,
     count: usize,
     choices: usize,
-    generator: Generator,
-    exhausted: bool,
+    /// `None` once the prefix has no continuation left to sample: the record then only
+    /// keeps the same prefix from being saved again, and gives its slot to a new key.
+    generator: Option<Generator>,
 }
 
 #[derive(Default)]
@@ -619,7 +589,6 @@ pub struct FeedbackGuidedStrategy {
     native_features: HashSet<String>,
     failures: HashSet<String>,
     failure_seeds: Vec<Generator>,
-    choice_guide: Option<Rc<RefCell<ChoiceGuide>>>,
     frontiers: Option<Frontiers>,
 }
 
@@ -647,7 +616,6 @@ impl FeedbackGuidedStrategy {
             native_features: HashSet::new(),
             failures: HashSet::new(),
             failure_seeds: Vec::new(),
-            choice_guide: None,
             frontiers: None,
         }
     }
@@ -669,21 +637,6 @@ impl FeedbackGuidedStrategy {
     pub fn with_code_guidance(mut self, enabled: bool) -> Self {
         self.code_guidance = enabled;
         self.generator.borrow_mut().input.local_mutations = enabled;
-        self
-    }
-
-    /// Experimental next-choice exploration for random-scheduler feedback.
-    /// Prefix contexts distinguish paths, not complete semantic program states.
-    /// Call before running: replaces the scheduler with a controlled random one.
-    pub fn with_choice_guidance(mut self, seed: u32) -> Self {
-        let guide = Rc::new(RefCell::new(ChoiceGuide::new(seed)));
-        let mut scheduler_random = ControlledRandom::new(seed);
-        scheduler_random.guide = Some((guide.clone(), 0));
-        let mut generator = self.generator.borrow_mut();
-        generator.input.guide = Some((guide.clone(), 1));
-        generator.scheduler = Box::new(RandomScheduler::new(Source::Controlled(scheduler_random)));
-        drop(generator);
-        self.choice_guide = Some(guide);
         self
     }
 
@@ -724,21 +677,24 @@ impl FeedbackGuidedStrategy {
         if let Some(frontiers) = &mut self.frontiers {
             if let Some((key, count, prefix_choices)) = frontiers.parent.take() {
                 let generator = self.generator.borrow();
-                let (_, scheduling_choices) = generator.scheduler.checkpoint(false).expect("checkpoint scheduler");
-                let choices = scheduling_choices + generator.input.ints.pos + generator.input.doubles.pos;
+                let scheduling_choices = generator.scheduler.consumed_choices().expect("checkpoint scheduler");
+                let choices = scheduling_choices + generator.input.consumed();
                 if choices == prefix_choices {
-                    // A prefix with no further choices has no continuation to sample.
+                    // A prefix with no further choices has no continuation to sample:
+                    // release its choices and keep the record so it is not saved again.
                     if let Some(record) = frontiers.saved.iter_mut().find(|r| r.key == key && r.count == count) {
-                        record.exhausted = true;
+                        frontiers.retained -= record.choices;
+                        record.choices = 0;
+                        record.generator = None;
                     }
                 }
             }
             frontiers.counts.clear();
-            let available: Vec<_> = frontiers.saved.iter().filter(|record| !record.exhausted).collect();
+            let available: Vec<_> = frontiers.saved.iter().filter(|record| record.generator.is_some()).collect();
             if !available.is_empty() && self.rnd.next_below(2) == 0 {
                 let record = available[self.rnd.next_below(available.len() as i32) as usize];
                 frontiers.parent = Some((record.key, record.count, record.choices));
-                let parent = record.generator.borrow();
+                let parent = record.generator.as_ref().unwrap().borrow();
                 self.generator = Rc::new(RefCell::new(GeneratorState {
                     input: parent.input.prefix(true),
                     scheduler: parent.scheduler.checkpoint(true).expect("frontier scheduler has checkpoints").0,
@@ -829,30 +785,35 @@ impl Strategy for FeedbackGuidedStrategy {
             return;
         }
         let old = frontiers.saved.iter().position(|record| record.key == key);
-        if old.is_some_and(|index| frontiers.saved[index].count >= *count)
-            || (old.is_none() && frontiers.saved.len() == 256)
-        {
+        if old.is_some_and(|index| frontiers.saved[index].count >= *count) {
             return;
         }
+        // a full table reuses the slot of a prefix with nothing left to sample
+        let slot = old.or_else(|| {
+            (frontiers.saved.len() == 256).then(|| frontiers.saved.iter().position(|r| r.generator.is_none())).flatten()
+        });
+        if slot.is_none() && frontiers.saved.len() == 256 {
+            return;
+        }
+        // count before copying: this runs on every counted event
         let generator = self.generator.borrow();
-        let Some((scheduler, scheduling_choices)) = generator.scheduler.checkpoint(false) else { return };
-        let input = generator.input.prefix(false);
-        let choices = scheduling_choices + input.choice_count();
-        let retained = frontiers.retained - old.map_or(0, |index| frontiers.saved[index].choices) + choices;
+        let Some(scheduling_choices) = generator.scheduler.consumed_choices() else { return };
+        let choices = scheduling_choices + generator.input.consumed();
+        let retained = frontiers.retained - slot.map_or(0, |index| frontiers.saved[index].choices) + choices;
         if retained > 262_144 {
             return;
         }
+        let Some((scheduler, _)) = generator.scheduler.checkpoint(false) else { return };
+        let input = generator.input.prefix(false);
         let record = FrontierRecord {
             key,
             count: *count,
             choices,
-            generator: Rc::new(RefCell::new(GeneratorState { input, scheduler })),
-            exhausted: false,
+            generator: Some(Rc::new(RefCell::new(GeneratorState { input, scheduler }))),
         };
-        if let Some(index) = old {
-            frontiers.saved[index] = record;
-        } else {
-            frontiers.saved.push(record);
+        match slot {
+            Some(index) => frontiers.saved[index] = record,
+            None => frontiers.saved.push(record),
         }
         frontiers.retained = retained;
     }
@@ -874,9 +835,6 @@ impl Strategy for FeedbackGuidedStrategy {
     fn prepare_next_iteration(&mut self) -> bool {
         self.steps = 0;
         self.prepare_next_input();
-        if let Some(guide) = &self.choice_guide {
-            guide.borrow_mut().prefix = 0;
-        }
         true
     }
     fn scheduled_steps(&self) -> usize {
@@ -935,7 +893,7 @@ impl Strategy for FeedbackGuidedStrategy {
         if self.code_guidance {
             let mut progress = false;
             for token in timeline.split(';').filter(|s| !s.is_empty()) {
-                if self.native_features.len() < 100_000 {
+                if self.native_features.len() < 100_000 && !self.native_features.contains(token) {
                     progress |= self.native_features.insert(token.to_string());
                 }
             }
@@ -1051,46 +1009,9 @@ mod mutation_tests {
             strategy.prepare_next_iteration();
             strategy.next_int(2);
         }
-        assert!(strategy.frontiers.as_ref().unwrap().saved.iter().all(|record| record.exhausted));
-    }
-
-    #[test]
-    fn choice_guide_explores_repeated_contexts_and_bounds_memory() {
-        let mut guide = ChoiceGuide::new(7);
-        for _ in 0..128 {
-            guide.prefix = 0;
-            guide.choose(1, 3, 0, true);
-        }
-        assert!(guide.visits[&(0, 1, 3)].iter().all(|count| *count > 0));
-        for prefix in 1..100 {
-            guide.prefix = prefix;
-            assert!((0..10_000).contains(&guide.choose(1, 10_000, 17, true)));
-        }
-        assert!(guide.counters <= 262_144);
-        assert_eq!(guide.choose(1, 0x7fffffff, 17, true), 17);
-    }
-
-    #[test]
-    fn guided_random_records_executed_choices_and_keeps_guide_when_mutated() {
-        let guide = Rc::new(RefCell::new(ChoiceGuide::new(7)));
-        let mut source = ControlledRandom::new(1);
-        source.guide = Some((guide.clone(), 1));
-        for _ in 0..100 {
-            let value = source.next_below(13);
-            assert_eq!(source.ints.data[source.ints.pos - 1] % 13, value);
-        }
-        for next in [source.new_like(), source.mutate()] {
-            assert!(Rc::ptr_eq(&next.guide.unwrap().0, &guide));
-        }
-        // Corpus replay preserves a productive prefix even as visit counts grow.
-        let recorded = source.ints.data.clone();
-        for _ in 0..20 {
-            source.ints.pos = 0;
-            guide.borrow_mut().prefix = 0;
-            for expected in &recorded {
-                assert_eq!(source.next_below(13), expected % 13);
-            }
-        }
+        let frontiers = strategy.frontiers.as_ref().unwrap();
+        assert!(frontiers.saved.iter().all(|record| record.generator.is_none()));
+        assert_eq!(frontiers.retained, 0, "exhausted prefixes release their choices");
     }
 
     #[test]

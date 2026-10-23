@@ -115,8 +115,7 @@ The per-commit workflow also appends the broad corpus results to `corpus.jsonl`
 on the `benchmarks` branch and uploads the complete Markdown per-case table.
 Verify accounting with `python3 -m unittest discover -s scripts -p test_bench_corpus.py`.
 
-The checked-in [previous per-case corpus report](corpus-before-auto.md) and
-[compressed raw measurements](corpus-before-auto.json.gz) record a three-seed quick pass at
+The checked-in [compressed raw measurements](corpus-before-auto.json.gz) record a three-seed quick pass at
 commit `befd956` (clean working tree). All 459 model inputs were inventoried:
 289 resolved/compiled projects supplied **495 expanded test cases**; 148 static
 error inputs were excluded as not schedulable, and 22 inputs had explicit
@@ -140,7 +139,9 @@ python3 scripts/bench-corpus.py --seeds 3 --out corpus.json --report corpus.md
 ```
 
 The gzip file contains ordinary JSON and can be read with `gzip -dc
-benchmarks/search/corpus.json.gz` or Python's `gzip.open`.
+benchmarks/search/corpus.json.gz` or Python's `gzip.open`. Print the per-case
+report of any checked-in corpus result with
+`python3 scripts/bench-corpus.py --report-from benchmarks/search/<file>.json.gz`.
 
 
 Automatic search now exhausts small models first, then permanently hands off to
@@ -154,7 +155,7 @@ that regressed when every search was cut off after the first probe window.
 
 The new raw measurements are [auto.json.gz](auto.json.gz),
 [auto-holdout.json.gz](auto-holdout.json.gz), and the
-[full per-case corpus report](corpus.md) with [raw data](corpus.json.gz).
+full corpus pass, [corpus.json.gz](corpus.json.gz).
 Their metadata records the exact measured revision and clean working tree.
 
 | Synthetic result | Previous auto | Exhaustive-first auto |
@@ -212,8 +213,7 @@ both randomized DFS and auto complete within 30,000 schedules with no bug.
 
 The rerun at `bf0fae4` is recorded in [convergence.json.gz](convergence.json.gz),
 [convergence-holdout.json.gz](convergence-holdout.json.gz), and
-[convergence-corpus.json.gz](convergence-corpus.json.gz), with the complete
-[per-case report](convergence-corpus.md). The initial `auto` files above remain
+[convergence-corpus.json.gz](convergence-corpus.json.gz). The initial `auto` files above remain
 available to compare the convergence fix's discovery tradeoff.
 
 Both synthetic seed sets still complete 100/100 runs. Five-client auto medians
@@ -225,3 +225,15 @@ claiming small-model completeness while abandoning the inventory example.
 Standalone feedback results are unchanged. The broad corpus retains the same
 catalog digest and completion counts: auto 420/435, feedback 421/435, random
 415/435, DFS 408/435; 404 catalogs are exhaustively certified.
+
+## Later experiments
+
+- [Progress checkpoints](frontier-guidance.md) for feedback search: saved prefixes
+  at increasing event counts. On by default since `5c2d0e6`.
+- [Next-choice guidance](choice-guidance.md): a negative result. The code was
+  removed after it; the write-up and raw data remain.
+
+Since those experiments, `auto` also splits its exhaustive phase across workers:
+each worker explores its own part of the search tree, all of them share one
+explored-state cache, and the search is complete only when every part is (see
+`crates/snappea/src/checker/exhaustive.rs`).

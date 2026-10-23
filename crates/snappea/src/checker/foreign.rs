@@ -108,4 +108,13 @@ pub trait ForeignFunctions {
         args: &[Value],
         cx: &mut ForeignCx,
     ) -> Option<Result<Value, ForeignError>>;
+
+    /// Whether exhaustive search can rely on these functions: they keep no state between
+    /// calls (a result depends only on the arguments and the checker's random choices),
+    /// and [`ForeignValue::hash_value`] tells unequal values apart. Off by default, since
+    /// the search cannot check either: `snappea check` then samples schedules only, and an
+    /// exhaustive search that finishes does not claim the test is correct.
+    fn searchable(&self) -> bool {
+        false
+    }
 }

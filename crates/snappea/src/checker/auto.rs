@@ -6,7 +6,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::exhaustive::{ExhaustiveStrategy, SearchStats};
+use super::exhaustive::{ExhaustiveStrategy, SearchStats, Split};
 use super::feedback::{ControlledRandom, FeedbackGuidedStrategy, RandomScheduler, Source};
 use super::random::RandomValueGenerator;
 use super::strategy::{OpInfo, Strategy};
@@ -32,13 +32,31 @@ pub(crate) struct AutoStrategy {
     has_hot: bool,
     interrupted: bool,
     complete: bool,
+    /// This worker explores part of a split search: when its part is done, it keeps
+    /// looking for bugs with feedback until the other parts are done too, and leaves
+    /// its unused exhaustive work to workers whose parts are larger.
+    split: Option<std::sync::Arc<super::exhaustive::Shared>>,
 }
 impl AutoStrategy {
-    pub(crate) fn new(seed: u32, unfair_steps: usize, fair_steps: usize, has_hot: bool, exhaustive: bool) -> Self {
+    /// `exhaustive` starts with exhaustive search, of this worker's part of the tree
+    /// when `split` is given.
+    pub(crate) fn new(
+        seed: u32,
+        unfair_steps: usize,
+        fair_steps: usize,
+        has_hot: bool,
+        exhaustive: bool,
+        split: Option<Split>,
+    ) -> Self {
+        let shared = split.as_ref().map(|s| s.shared_state());
         Self {
             dfs: exhaustive.then(|| {
                 let rng = Rc::new(RefCell::new(RandomValueGenerator::new(seed)));
-                ExhaustiveStrategy::new(unfair_steps, Some(rng))
+                let dfs = ExhaustiveStrategy::new(unfair_steps, Some(rng));
+                match split {
+                    Some(split) => dfs.with_split(split),
+                    None => dfs,
+                }
             }),
             feedback: FeedbackGuidedStrategy::new(
                 fair_steps,
@@ -58,6 +76,7 @@ impl AutoStrategy {
             has_hot,
             interrupted: false,
             complete: false,
+            split: shared,
         }
     }
     fn active(&self) -> &dyn Strategy {
@@ -83,6 +102,11 @@ impl AutoStrategy {
             self.work += 1;
             self.window_work += 1;
             let retained = dfs.retained_alternatives();
+            if self.work > self.work_deadline {
+                // work other workers of a split search did not need
+                let spare = self.split.as_ref().map_or(0, |s| s.take_spare_work(MAX_WORK));
+                self.work_deadline = self.work_deadline.saturating_add(spare);
+            }
             // Check before DFS materializes a potentially huge choice vector. Keep
             // DFS active until the schedule ends, so fairness and divergence describe
             // the schedule that actually ran.
@@ -128,11 +152,19 @@ impl Strategy for AutoStrategy {
         let dfs = self.dfs.as_mut().unwrap();
         let more = dfs.prepare_next_iteration();
         let stats = dfs.exhaustive_stats().unwrap();
-        if !more && stats.finished && self.dfs_bounds == 0 && (!self.has_hot || stats.cycle_prunes == 0) {
+        // a program that does not repeat itself given the same choices cannot be exhausted
+        let repeatable = dfs.replay_error().is_none();
+        if !more && stats.finished && self.dfs_bounds == 0 && (!self.has_hot || stats.cycle_prunes == 0) && repeatable {
             self.complete = true;
-            return false;
+            let Some(shared) = &self.split else {
+                return false;
+            };
+            shared.give_spare_work(self.work_deadline.saturating_sub(self.work));
+            self.parked = Some(SearchStats { depth_bound_hits: 0, ..stats });
+            self.dfs = None;
+            return true;
         }
-        if !more || self.dfs_bounds > 0 {
+        if !more || self.dfs_bounds > 0 || !repeatable {
             self.park();
             return true;
         }
@@ -148,7 +180,14 @@ impl Strategy for AutoStrategy {
                 // Cache closures show convergence even if a narrow DFS frontier
                 // fluctuates. Renew the stall budget while that evidence continues;
                 // absolute state and retained-choice bounds still cap memory.
-                self.work_deadline = self.work.saturating_add(MAX_WORK);
+                let renewed = self.work.saturating_add(MAX_WORK);
+                // the workers of a split search share one state cache, so its closure
+                // is evidence for all of them: a worker that has not seen any yet can
+                // draw on it instead of giving up
+                if let Some(shared) = &self.split {
+                    shared.give_spare_work(renewed.saturating_sub(self.work_deadline));
+                }
+                self.work_deadline = renewed;
             }
             let shrinking = frontier < initial_frontier;
             let decrease = initial_frontier.saturating_sub(frontier) as u64;
@@ -239,7 +278,7 @@ mod tests {
 
     #[test]
     fn timed_search_starts_with_feedback_and_does_not_claim_exhaustion() {
-        let auto = AutoStrategy::new(7, 100, 100, false, false);
+        let auto = AutoStrategy::new(7, 100, 100, false, false, None);
         assert!(auto.is_fair());
         assert!(auto.wants_feedback());
         assert!(!auto.wants_minhash());
@@ -249,7 +288,7 @@ mod tests {
 
     #[test]
     fn shrinking_finite_frontier_keeps_exhausting_past_the_probe_window() {
-        let mut auto = AutoStrategy::new(7, 100, 100, false, true);
+        let mut auto = AutoStrategy::new(7, 100, 100, false, true, None);
         let mut schedules = 0;
         loop {
             for _ in 0..8 {
@@ -270,7 +309,7 @@ mod tests {
 
     #[test]
     fn slowly_shrinking_large_input_range_hands_off_instead_of_enumerating_thousands() {
-        let mut auto = AutoStrategy::new(7, 0, 100, false, true);
+        let mut auto = AutoStrategy::new(7, 0, 100, false, true, None);
         for _ in 0..WINDOW {
             auto.next_int(10_000);
             assert!(auto.prepare_next_iteration());
@@ -285,7 +324,7 @@ mod tests {
 
     #[test]
     fn oversized_choice_hands_off_between_schedules_and_releases_dfs() {
-        let mut auto = AutoStrategy::new(7, 0, 100, false, true);
+        let mut auto = AutoStrategy::new(7, 0, 100, false, true, None);
         assert!(!auto.is_fair());
         auto.next_int(MAX_ALTERNATIVES as i32 + 1);
         assert!(auto.diverged());
@@ -304,7 +343,7 @@ mod tests {
 
     #[test]
     fn ever_growing_input_tree_stalls_even_without_state_hashes_or_depth_bounds() {
-        let mut auto = AutoStrategy::new(7, 0, 100, false, true);
+        let mut auto = AutoStrategy::new(7, 0, 100, false, true, None);
         for _ in 0..2 {
             for _ in 0..WINDOW {
                 auto.next_bool(2);

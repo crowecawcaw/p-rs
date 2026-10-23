@@ -28,3 +28,10 @@ Foreign types and functions are supplied through
 `snappea::checker::foreign::ForeignFunctions`. `crates/snappea/tests/checker_foreign.rs` is an
 example; it ports the PriorityQueue tutorial's C# code. `crates/snappea/tests/checker_library.rs`
 runs the example above.
+
+Exhaustive search hashes program states to skip repeated ones, and it cannot see inside
+foreign values or functions. By default a program with foreign functions is only sampled,
+and a finished exhaustive search over it says it proves nothing. Return `true` from
+`ForeignFunctions::searchable` when the functions keep no state between calls and
+`ForeignValue::hash_value` tells unequal values apart; exhaustive search then treats
+the program like any other.

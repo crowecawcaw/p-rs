@@ -1,4 +1,5 @@
-//! The exhaustive search (`dfs`, `random-dfs`) and the Q-learning strategy (`rl`).
+//! Search strategies: coverage feedback and its progress checkpoints, auto mode, the
+//! exhaustive search (`dfs`, `random-dfs`) and the Q-learning strategy (`rl`).
 
 use snappea::checker::engine::{CheckResult, Checker, CheckerOptions, Output};
 use snappea::checker::strategy::{ScheduleTrace, StrategyKind};
@@ -7,25 +8,6 @@ struct Quiet;
 impl Output for Quiet {
     fn line(&mut self, _: &str) {}
     fn error(&mut self, _: &str) {}
-}
-
-#[test]
-fn next_choice_feedback_is_deterministic_and_replays_inputs_and_deliveries() {
-    let src = clients("assert got[0] != choose(4), \"guided delivery\";");
-    let options = CheckerOptions { feedback_choice_guidance: true, ..opts(StrategyKind::Feedback, 200) };
-    let first = check(&src, &options);
-    let second = check(&src, &options);
-    assert_eq!(first.report.num_bugs, 1);
-    assert_eq!(first.schedule_trace, second.schedule_trace);
-    let trace = ScheduleTrace::parse(first.schedule_trace.as_ref().unwrap()).unwrap();
-    let replay = check(&src, &CheckerOptions { replay: Some(trace), ..opts(StrategyKind::Replay, 1) });
-    assert_eq!(replay.report.num_bugs, 1);
-    assert!(replay.replay_error.is_none());
-
-    // The experiment must not change compatibility's seeded stream.
-    let compat = CheckerOptions { upstream_feedback: true, ..options };
-    let baseline = check(&src, &CheckerOptions { feedback_choice_guidance: false, ..compat.clone() });
-    assert_eq!(check(&src, &compat).schedule_trace, baseline.schedule_trace);
 }
 
 #[test]

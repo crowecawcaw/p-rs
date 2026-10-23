@@ -3,6 +3,7 @@
 import argparse
 import concurrent.futures
 import datetime
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -113,6 +114,8 @@ def run_project(index, project, manifest_path, opts):
 
 
 def report(data):
+    # the strategies this result measured, in order (older results do not list them)
+    strategies = data.get('strategies') or list(dict.fromkeys(r['strategy'] for c in data['cases'] for r in c['runs']))
     cases = data['cases']
     positive = [c for c in cases if c['known_issues']]
     lines = [f"Measured {len(cases)} cases across {len(data['projects'])} project inputs; {len(positive)} cases have observed issues.",
@@ -124,14 +127,14 @@ def report(data):
              'Counts are first-discovery schedule indexes, computed after the shared catalog is formed; successful schedules count too.',
              'Temperature-based potential liveness warnings are recorded separately and excluded from the common issue catalog: unfair DFS does not perform that check.',
              '', '| Strategy | Runs finding all observed issues (issue-bearing cases) |', '|---|---:|']
-    for strategy in STRATEGIES:
+    for strategy in strategies:
         rows = [r for c in positive for r in c['runs'] if r['strategy'] == strategy]
         lines.append(f"| {strategy} | {sum(r['schedules_to_all_known'] is not None for r in rows)}/{len(rows)} |")
-    lines += ['', '| Case | Known issues | Potential liveness | Catalog complete | ' + ' | '.join(STRATEGIES) + ' |',
-              '|---|---:|---:|---|' + '---:|'*len(STRATEGIES)]
+    lines += ['', '| Case | Known issues | Potential liveness | Catalog complete | ' + ' | '.join(strategies) + ' |',
+              '|---|---:|---:|---|' + '---:|'*len(strategies)]
     for case in cases:
         cells = []
-        for strategy in STRATEGIES:
+        for strategy in strategies:
             rows = [r for r in case['runs'] if r['strategy'] == strategy]
             complete = [r['schedules_to_all_known'] for r in rows if r['schedules_to_all_known'] is not None]
             tested = sum(r.get('schedules_tested', 0) for r in rows)
@@ -157,8 +160,9 @@ def report(data):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--out', required=True)
+    parser.add_argument('--out')
     parser.add_argument('--report')
+    parser.add_argument('--report-from', metavar='JSON', help='print the per-case report of a saved result (.json or .json.gz) and exit')
     parser.add_argument('--scope', choices=['all', 'examples'], default='all')
     parser.add_argument('--filter', default='')
     parser.add_argument('--budget', type=int, default=200)
@@ -168,13 +172,17 @@ def main():
     parser.add_argument('--seconds-per-run', type=float, default=0.1)
     parser.add_argument('--project-timeout', type=float, default=60)
     parser.add_argument('--jobs', type=int, default=2)
-    parser.add_argument('--choice-guidance', action='store_true', help='also measure experimental next-choice feedback')
     parser.add_argument('--plain-feedback', action='store_true', help='also measure feedback without progress checkpoints (on by default)')
     opts = parser.parse_args()
+    if opts.report_from:
+        opener = gzip.open if opts.report_from.endswith('.gz') else open
+        with opener(opts.report_from, 'rt') as f:
+            print(report(json.load(f)), end='')
+        return
+    if not opts.out:
+        parser.error('--out is required')
     if opts.plain_feedback:
         STRATEGIES.insert(2, 'feedback-plain')
-    if opts.choice_guidance:
-        STRATEGIES.insert(2, 'feedback-choice')
     if min(opts.budget, opts.steps, opts.seeds, opts.seconds_per_run, opts.project_timeout, opts.jobs) <= 0:
         parser.error('budgets, bounds, seeds, timeouts and jobs must be positive')
     if opts.seed_start < 0 or opts.seed_start + opts.seeds > 2**32:
@@ -185,7 +193,7 @@ def main():
     subprocess.run(['cargo', 'build', '--release', '--locked', '-p', 'snappea', '--example', 'corpus_bench'], cwd=ROOT, check=True)
     projects, files = inventory(opts.scope)
     projects = [p for p in projects if opts.filter in p['id']]
-    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'choice_guidance', 'plain_feedback']}
+    settings = {k: getattr(opts, k) for k in ['budget', 'steps', 'seeds', 'seed_start', 'seconds_per_run', 'scope', 'plain_feedback']}
     manifest = dict(settings, root=str(ROOT), strategies=STRATEGIES, projects=projects, files=files)
     results = [None]*len(projects)
     with tempfile.TemporaryDirectory(prefix='snappea-corpus-') as temp:
@@ -200,7 +208,7 @@ def main():
                     print(f'{done}/{len(projects)} projects measured', flush=True)
     cases = analyze(results)
     catalog = [(c['project'], c['case'], c['known_issues']) for c in cases]
-    data = dict(settings, suite_version=1, commit=commit, dirty=dirty, projects=results, cases=cases,
+    data = dict(settings, strategies=STRATEGIES, suite_version=1, commit=commit, dirty=dirty, projects=results, cases=cases,
                 catalog_sha256=hashlib.sha256(json.dumps(catalog, sort_keys=True).encode()).hexdigest(),
                 timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat())
     Path(opts.out).write_text(json.dumps(data, indent=2)+'\n')

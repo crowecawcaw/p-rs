@@ -93,8 +93,7 @@ fn main() {
         for name in manifest["strategies"].as_array().unwrap() {
             let label = name.as_str().unwrap();
             // `feedback` and `auto` measure the defaults (checkpoints on); `feedback-plain`
-            // turns checkpoints off and `feedback-choice` adds next-choice guidance.
-            let choice_guidance = label == "feedback-choice";
+            // turns checkpoints off.
             let frontier_guidance = label != "feedback-plain";
             let strategy: StrategyKind =
                 if label.starts_with("feedback-") { StrategyKind::Feedback } else { label.parse().unwrap() };
@@ -108,7 +107,6 @@ fn main() {
                     &tc,
                     &CheckerOptions {
                         strategy,
-                        feedback_choice_guidance: choice_guidance,
                         feedback_frontier_guidance: frontier_guidance,
                         seed,
                         iterations: budget,
@@ -122,10 +120,7 @@ fn main() {
                 );
                 match result {
                     Ok(r) => {
-                        let certified = !r.cancelled
-                            && r.exhaustive.as_ref().is_some_and(|s| {
-                                s.finished && s.depth_bound_hits == 0 && (!has_hot || s.cycle_prunes == 0)
-                            });
+                        let certified = !r.cancelled && r.exhaustive.as_ref().is_some_and(|s| s.complete());
                         emit(json!({"kind":"run", "case":tc.name, "strategy":label, "seed":seed,
                             "schedules_tested":out.tested, "first_issue_schedules":out.first,
                             "cancelled":r.cancelled, "exhaustive_complete":certified,

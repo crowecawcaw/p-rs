@@ -146,3 +146,105 @@ fn simultaneous_bugs_report_one() {
     assert_eq!(result.report.bug_reports.len(), 1);
     assert!(result.readable_trace.is_some());
 }
+
+/// Two clients each pick one of five values and send it; the server fails on one
+/// order of values (`bug`), or never (`None`). Small enough for auto mode to exhaust.
+fn split_model(bug: Option<(i32, i32)>) -> String {
+    let (a, b) = bug.unwrap_or((-1, -1));
+    format!(
+        "
+        event eV: int;
+        machine Main {{
+            start state Init {{
+                entry {{
+                    var s: Server;
+                    s = new Server();
+                    new Client((s, 1));
+                    new Client((s, 2));
+                }}
+            }}
+        }}
+        machine Client {{
+            start state S {{ entry (p: (Server, int)) {{ send p.0, eV, p.1 * 10 + choose(5); }} }}
+        }}
+        machine Server {{
+            var log: seq[int];
+            start state R {{
+                on eV do (v: int) {{
+                    log += (sizeof(log), v);
+                    if (sizeof(log) == 2) {{
+                        assert !(log[0] == {a} && log[1] == {b}), \"the planted bug\";
+                    }}
+                }}
+            }}
+        }}
+        test tc [main = Main]: {{ Main, Client, Server }};
+        "
+    )
+}
+
+fn split_checker_run(
+    bug: Option<(i32, i32)>,
+    f: impl FnOnce(&Checker, &snappea::sema::TestCase) -> CheckResult,
+) -> CheckResult {
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add("model.p", split_model(bug));
+    let analysis = snappea::sema::compile(&sm, &snappea::sema::Options::default()).expect("compiles");
+    let tc = analysis.program.test_cases().remove(0);
+    f(&Checker::new(&analysis.program), &tc)
+}
+
+/// Auto mode on `workers` workers, one after the other.
+fn split_run(bug: Option<(i32, i32)>, workers: usize) -> CheckResult {
+    split_checker_run(bug, |checker, tc| {
+        // enough schedules for each worker to finish its part
+        let opts =
+            CheckerOptions { strategy: StrategyKind::Auto, iterations: 4_000 * workers, seed: 3, ..Default::default() };
+        let pool = WorkerPool::new(workers);
+        let parts = (0..workers).map(|w| checker.explore(tc, &opts, &pool, w, &mut Vec::new()).unwrap()).collect();
+        checker.finish(tc, &opts, parts)
+    })
+}
+
+#[test]
+fn split_exhaustive_search_completes_only_when_every_part_does() {
+    for workers in [1, 2, 3, 4, 7] {
+        let r = split_run(None, workers);
+        assert_eq!(r.report.num_bugs, 0);
+        let stats = r.exhaustive.unwrap();
+        assert!(stats.complete(), "{workers} workers: {stats:?}");
+    }
+}
+
+#[test]
+fn split_exhaustive_search_finds_a_bug_in_any_part() {
+    for workers in [1, 4] {
+        for (p, q) in [(1, 2), (2, 1)] {
+            for x in 0..5 {
+                for y in 0..5 {
+                    let bug = (p * 10 + x, q * 10 + y);
+                    let r = split_run(Some(bug), workers);
+                    assert_eq!(r.report.num_bugs, 1, "{workers} workers missed {bug:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn split_exhaustive_search_explores_each_state_once() {
+    let one = split_run(None, 1).exhaustive.unwrap().distinct_states;
+    split_checker_run(None, |checker, tc| {
+        let opts = CheckerOptions { strategy: StrategyKind::Auto, iterations: 16_000, seed: 3, ..Default::default() };
+        let pool = WorkerPool::new(4);
+        let mut total = 0;
+        for w in 0..4 {
+            let part = checker.explore(tc, &opts, &pool, w, &mut Vec::new()).unwrap();
+            total += checker.finish(tc, &opts, vec![part]).exhaustive.unwrap().distinct_states;
+        }
+        // the workers share explored states, and the split walk records none
+        assert!(total <= one, "4 workers explored {total} states, one worker {one}");
+        assert!(total * 10 >= one * 9, "4 workers explored {total} states, one worker {one}");
+        CheckResult::default()
+    });
+}

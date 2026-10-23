@@ -147,3 +147,41 @@ fn random_int_with_a_negative_maximum_throws() {
     assert!(bug.contains("maxValue ('-1') must be a non-negative value."), "{}", bug);
     assert!(bug.contains("from location 'System.Private.CoreLib'"), "{}", bug);
 }
+
+/// The same functions, declared safe for exhaustive search.
+struct Searchable;
+
+impl ForeignFunctions for Searchable {
+    fn call(
+        &self,
+        name: &str,
+        owner: Option<&str>,
+        args: &[Value],
+        cx: &mut ForeignCx,
+    ) -> Option<Result<Value, ForeignError>> {
+        Functions.call(name, owner, args, cx)
+    }
+    fn searchable(&self) -> bool {
+        true
+    }
+}
+
+#[test]
+fn exhaustive_search_proves_nothing_about_foreign_code_unless_it_is_searchable() {
+    use snappea::checker::strategy::StrategyKind;
+    let a = load();
+    let tc = a.program.test_cases().into_iter().find(|t| t.name == "tcCheck_PriorityQueue").unwrap();
+    let run = |functions: Rc<dyn ForeignFunctions>, strategy| {
+        let opts = CheckerOptions { strategy, iterations: 2_000, ..Default::default() };
+        Checker::new(&a.program).with_foreign(functions).check(&tc, &opts, &mut Vec::<String>::new()).unwrap()
+    };
+    // auto mode only samples
+    assert!(run(Rc::new(Functions), StrategyKind::Auto).exhaustive.is_none());
+    // a finished exhaustive search says so, but does not claim completeness
+    let dfs = run(Rc::new(Functions), StrategyKind::Dfs).exhaustive.unwrap();
+    assert!(dfs.finished && !dfs.complete(), "{dfs:?}");
+    assert!(dfs.unverifiable.is_some());
+    let searchable = run(Rc::new(Searchable), StrategyKind::Dfs).exhaustive.unwrap();
+    assert!(searchable.complete(), "{searchable:?}");
+    assert!(run(Rc::new(Searchable), StrategyKind::Auto).exhaustive.is_some());
+}

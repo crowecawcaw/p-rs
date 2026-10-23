@@ -14,12 +14,14 @@ snappea replay PCheckerOutput/tcMyTest/bug.schedule
 `snappea check` type-checks and [lints](linting.md) the sources before exploring
 schedules. Unsuppressed lint findings stop the check with exit status 2; run
 `snappea check lint` to inspect them without exploration. It selects search strategies automatically.
-Each worker starts with exhaustive search so small finite models can finish.
+It starts with exhaustive search so small finite models can finish; with several
+workers, each explores its own part of the schedules.
 After each 1,024 controlled choices it checks whether the unexplored frontier is
 small, state-cache pruning is keeping up with new states, or a shrinking frontier
 is projected to finish within another 4,096 choices. If none applies, it releases
 the exhaustive search and continues with coverage-guided feedback. Narrow frontiers
-(up to 256 untried alternatives) get the bounded probe to reach deeper recovery stages. The 16,384-choice stall budget renews while cache pruning keeps up with new states.
+(up to 256 untried alternatives) get the bounded probe to reach deeper recovery stages. The 16,384-choice stall budget renews while cache pruning keeps up with new states;
+workers share renewals and unused budget, since they share the state cache.
 Memory is limited to 100,000 cached states and 1,000,000 retained choice
 alternatives; hitting a step bound also starts feedback.
 There are no separate random or PCT arms in automatic mode. Feedback retains its
@@ -51,7 +53,9 @@ enabled for native random feedback, including automatic search after its
 exhaustive phase. Compatibility mode retains its original behavior.
 
 A completed exhaustive search ends the run early. Timed models start directly
-with feedback because exhaustive time tracking is not supported. Cyclic hot
+with feedback because exhaustive time tracking is not supported, and so do models
+with foreign functions, unless their implementation declares itself searchable
+(`ForeignFunctions::searchable` in the [Rust library](library.md)). Cyclic hot
 monitors also continue through fair feedback: closing a repeated state is not a
 liveness proof. Stalling changes strategy; it never certifies a model as safe.
 
@@ -65,9 +69,11 @@ gap was found, 1 for a bug or coverage gap, and 2 on an error. The result distin
 exhaustive completion from an incomplete search.
 
 Workers run in parallel, one per available CPU core by default; `-j N` limits resource
-use. The first bug or a valid exhaustive completion stops the other workers. `--seed`
-sets their starting seeds, but worker interleaving can change which bug wins. Bug
-schedules record the choices and replay independently of the automatic policy.
+use. Workers split exhaustive search between them, each taking its own part of the
+schedules, and share the states already explored. The first bug, or every worker
+completing its part, stops the run. `--seed` sets their starting seeds, but worker
+timing can change which bug wins and how many schedules run. Bug schedules record the
+choices and replay exactly, whatever the worker count.
 `-v` shows progress and statistics and uses one worker.
 
 Each test case's files go to `PCheckerOutput/<test>/`, replacing the previous run's:

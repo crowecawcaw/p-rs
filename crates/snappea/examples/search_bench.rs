@@ -92,19 +92,16 @@ fn main() {
         let tc = compiled.program.test_cases().remove(0);
         let checker = Checker::with_code_coverage(&compiled.program);
         let mut strategies = vec![
-            ("random", StrategyKind::Random, false),
-            ("feedback", StrategyKind::Feedback, false),
-            ("dfs", StrategyKind::Dfs, false),
-            ("random-dfs", StrategyKind::RandomDfs, false),
-            ("auto", StrategyKind::Auto, false),
+            ("random", StrategyKind::Random),
+            ("feedback", StrategyKind::Feedback),
+            ("dfs", StrategyKind::Dfs),
+            ("random-dfs", StrategyKind::RandomDfs),
+            ("auto", StrategyKind::Auto),
         ];
-        if std::env::var("SEARCH_CHOICE_GUIDANCE").as_deref() == Ok("1") {
-            strategies.insert(2, ("feedback-choice", StrategyKind::Feedback, true));
-        }
         if std::env::var("SEARCH_PLAIN_FEEDBACK").as_deref() == Ok("1") {
-            strategies.insert(2, ("feedback-plain", StrategyKind::Feedback, false));
+            strategies.insert(2, ("feedback-plain", StrategyKind::Feedback));
         }
-        for (label, strategy, choice_guidance) in strategies {
+        for (label, strategy) in strategies {
             for seed in seed_start..seed_start.checked_add(seeds).expect("seed range overflow") {
                 let start = std::time::Instant::now();
                 let mut out = Discoveries::default();
@@ -113,7 +110,6 @@ fn main() {
                         &tc,
                         &CheckerOptions {
                             strategy,
-                            feedback_choice_guidance: choice_guidance,
                             // `feedback` and `auto` measure the defaults (checkpoints on);
                             // `feedback-plain` turns them off for comparison.
                             feedback_frontier_guidance: label != "feedback-plain",

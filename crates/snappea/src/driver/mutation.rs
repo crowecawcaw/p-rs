@@ -392,7 +392,7 @@ impl Mutants<'_> {
         Some(TurnResult {
             bug: res.report.num_bugs > 0,
             schedules: res.report.explored_fair_schedules + res.report.explored_unfair_schedules,
-            complete: res.exhaustive.as_ref().is_some_and(|x| x.finished),
+            complete: res.exhaustive.as_ref().is_some_and(|x| x.complete()),
         })
     }
 
