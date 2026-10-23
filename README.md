@@ -130,6 +130,7 @@ tests, 249 checker tests, tutorials, golden traces and PObserve outputs.
 - [GitHub Actions](https://snappea.dev/docs/github-actions.html): check models in CI.
 - [Observe reference](docs/observe.md): check events and logs, including live input.
 - [Rust library](docs/library.md): embed the checker in your own tools.
+- [Benchmarks](https://snappea.dev/bench/): speed and search effectiveness on every main commit.
 - [P language manual](https://p-org.github.io/P/): upstream language documentation and tutorials.
 
 ## Contributing

@@ -11,8 +11,10 @@
 //! collisions), which is what the exhaustive search relies on to skip repeated states;
 //! the Q-learning strategy uses the same hash to recognise states it has seen before.
 //!
-//! Hashes are computed with FNV-1a, so they do not depend on the process, the platform or
-//! the Rust version: a seed reproduces the same search everywhere.
+//! Hashes are computed with FNV-1a, so they do not depend on the process or the platform:
+//! a seed reproduces the same search everywhere. Strings, options and slices are fed in
+//! through std's `Hash` impls, whose byte layout std does not promise to keep, so a Rust
+//! upgrade could in principle change hashes (and so which states a search visits first).
 
 use std::hash::{Hash, Hasher};
 

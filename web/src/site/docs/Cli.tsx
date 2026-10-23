@@ -28,7 +28,7 @@ function Options({ rows }: { rows: Option[] }) {
 const CHECK_EXPLORATION: Option[] = [
   ["--timeout <DURATION>", "Time limit per test case. Default 10s; accepts seconds or units (90s, 5m, 1h)."],
   ["-j, --workers <N>", "Worker limit. Default: one per CPU core."],
-  ["--seed <N>", "Seed for the workers. Recorded bug schedules replay independently of allocation."],
+  ["--seed <N>", "Seed for reproducible choices. Not needed to reproduce a bug: its .schedule replays exactly."],
 ];
 
 const CHECK_OTHER: Option[] = [

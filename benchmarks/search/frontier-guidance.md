@@ -8,7 +8,7 @@ Saving a successful execution prefix at the moment it reaches new progress subst
 
 The strategy tracks how often each such handler executes within a run, across machine instances. A new maximum count retains the consumed scheduling and input choices at that exact point. Counts 1–64 are individual milestones; larger powers of two are milestones. Half of subsequent schedules sample a saved checkpoint, replay its prefix, and draw a fresh continuation. The other half use existing feedback selection and mutation. The runtime still restarts from the beginning; this is replay, not a cloned VM state.
 
-Checkpoints discard unconsumed mutation suffixes and preserve the choices already executed. A checkpoint whose replay has no further random choices is retired from sampling. At most 256 checkpoints and 262,144 random choices are retained. This avoids repeatedly destroying a long successful prefix and avoids wasting attempts on deterministic terminal prefixes. Existing choice-count guidance remains experimental and off by default. It is independent and was not enabled for these measurements.
+Checkpoints discard unconsumed mutation suffixes and preserve the choices already executed. A checkpoint whose replay has no further random choices is retired from sampling. At most 256 checkpoints and 262,144 random choices are retained. This avoids repeatedly destroying a long successful prefix and avoids wasting attempts on deterministic terminal prefixes. Next-choice guidance (since removed) was independent and was not enabled for these measurements.
 
 ## Same-budget results
 
@@ -37,7 +37,7 @@ Both use 200 schedules and 1,000 steps, with a 1-second safety cap in these focu
 
 ## What is still hard
 
-At 2,000 schedules, all three OSR seeds found its three observed sites with both baseline and checkpoint feedback. This is a budget improvement, not evidence that the checkpoint policy wins on OSR. On Multi-Paxos at 2,000 schedules, baseline completed 2/3 seeds and checkpoints 1/3 against the four-site catalog: checkpoint feedback still misses the rare `accept` site on seeds 1 and 2. Adding next-choice frequency guidance to checkpoints did not fix these two models at 200 schedules; those negative trials are retained.
+At 2,000 schedules, all three OSR seeds found its three observed sites with both baseline and checkpoint feedback. This is a budget improvement, not evidence that the checkpoint policy wins on OSR. On Multi-Paxos at 2,000 schedules, baseline completed 2/3 seeds and checkpoints 1/3 against the four-site catalog: checkpoint feedback still misses the rare `accept` site on seeds 1 and 2. Adding next-choice frequency guidance to checkpoints did not fix these two models at 200 schedules.
 
 The five-model synthetic suite found every site in every feedback and checkpoint run on seeds 0–39. Mean schedules to all sites were:
 
@@ -59,15 +59,18 @@ A separate diagnostic added an explicit test asserting each file's declared moni
 
 ## Reproduction and artifacts
 
-Base revision: `b33f3ad408073f046ee6ab1c3866cf45ae201bed`; Rust 1.99.1; dirty working tree. [Source patch](frontier.patch) applies independently to that base and includes the earlier choice experiment. Compressed JSON files record the source-patch hash and policy. The combined report merges measurements already made; its seed values are explicitly listed.
+Base revision: `b33f3ad408073f046ee6ab1c3866cf45ae201bed`; Rust 1.99.1; dirty working tree. The measured source is commit `5c2d0e6` with checkpoints off by default. Compressed JSON files record the source-patch hash and policy. The shared corpus result merges the two corpus passes; its seed values are explicitly listed. Print a per-case report with `scripts/bench-corpus.py --report-from <file>.json.gz`.
 
-- [Shared per-case report](frontier-corpus-shared.md) and [raw measurements](frontier-corpus-shared.json.gz).
-- Individual corpus passes: [seeds 0–2](frontier-corpus.json.gz), [seeds 20–22](frontier-corpus-holdout.json.gz).
+- [Shared corpus measurements](frontier-corpus-shared.json.gz) (seeds 0–2 and 20–22).
 - Repeated-stage runs: [seeds 0–2](frontier-prefix.json.gz), [seeds 20–39](frontier-prefix-holdout.json.gz).
 - Synthetic runs: [seeds 0–19](frontier-synthetic.json.gz), [seeds 20–39](frontier-synthetic-holdout.json.gz).
 - Deeper runs: [OSR](frontier-osr-deep.json.gz), [Multi-Paxos](frontier-paxos-deep.json.gz).
-- Combined-policy negative trials: [OSR](frontier-osr-combined.json.gz), [Multi-Paxos](frontier-paxos-combined.json.gz).
-- [Explicit-monitor diagnostic](frontier-liveness-diagnostic.json.gz) and [diagnostic script](frontier-liveness-diagnostic.py).
+- The combined-policy trials and the explicit-monitor diagnostic were one-off runs; their findings are above.
+
+These commands ran at b33f3ad, where checkpoints were off by default and
+`--frontier-guidance` added a `feedback-frontier` arm. The scripts on main now
+measure the defaults: `feedback` and `auto` include checkpoints, and
+`--plain-feedback` adds a `feedback-plain` arm without them.
 
 ```sh
 python3 scripts/bench-corpus.py --frontier-guidance --seeds 3 --seconds-per-run 0.25 \
@@ -78,7 +81,6 @@ python3 scripts/bench-corpus.py --frontier-guidance --filter guided_prefix --see
   --seconds-per-run 1 --out /tmp/frontier-prefix.json
 python3 scripts/bench-search.py --frontier-guidance --out /tmp/frontier-synthetic.json
 python3 scripts/bench-search.py --frontier-guidance --seed-start 20 --out /tmp/frontier-synthetic-holdout.json
-python3 benchmarks/search/frontier-liveness-diagnostic.py
 ```
 
 Workspace tests, Clippy across all targets, formatting, workspace and emit-only builds, and Python corpus-accounting tests passed. New tests exercise prefix truncation, checkpoint retirement, bounded retention, staged data and delivery discovery, and replay of every staged failure across three seeds.

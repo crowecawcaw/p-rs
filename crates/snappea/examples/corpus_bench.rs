@@ -92,10 +92,11 @@ fn main() {
     for tc in cases {
         for name in manifest["strategies"].as_array().unwrap() {
             let label = name.as_str().unwrap();
-            let choice_guidance = matches!(label, "feedback-choice" | "feedback-frontier-choice");
-            let frontier_guidance = matches!(label, "feedback-frontier" | "feedback-frontier-choice");
+            // `feedback` and `auto` measure the defaults (checkpoints on); `feedback-plain`
+            // turns checkpoints off.
+            let frontier_guidance = label != "feedback-plain";
             let strategy: StrategyKind =
-                if choice_guidance || frontier_guidance { StrategyKind::Feedback } else { label.parse().unwrap() };
+                if label.starts_with("feedback-") { StrategyKind::Feedback } else { label.parse().unwrap() };
             let seed_start = manifest["seed_start"].as_u64().unwrap_or(0);
             for seed in seed_start..seed_start + manifest["seeds"].as_u64().unwrap() {
                 let seed = seed as u32;
@@ -106,7 +107,6 @@ fn main() {
                     &tc,
                     &CheckerOptions {
                         strategy,
-                        feedback_choice_guidance: choice_guidance,
                         feedback_frontier_guidance: frontier_guidance,
                         seed,
                         iterations: budget,
@@ -120,10 +120,7 @@ fn main() {
                 );
                 match result {
                     Ok(r) => {
-                        let certified = !r.cancelled
-                            && r.exhaustive.as_ref().is_some_and(|s| {
-                                s.finished && s.depth_bound_hits == 0 && (!has_hot || s.cycle_prunes == 0)
-                            });
+                        let certified = !r.cancelled && r.exhaustive.as_ref().is_some_and(|s| s.complete());
                         emit(json!({"kind":"run", "case":tc.name, "strategy":label, "seed":seed,
                             "schedules_tested":out.tested, "first_issue_schedules":out.first,
                             "cancelled":r.cancelled, "exhaustive_complete":certified,

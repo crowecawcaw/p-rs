@@ -419,10 +419,13 @@ pub(super) fn parse_args(args: &[String], spec: &[Opt]) -> Result<Args, String> 
             };
             (spec.iter().chain(OUTPUT_OPTS).find(|o| o.long == name), inline)
         } else {
+            // `-j 4` or `-j4`
             let mut chars = a[1..].chars();
             let c = chars.next();
-            let opt = if chars.next().is_none() { spec.iter().chain(OUTPUT_OPTS).find(|o| o.short == c) } else { None };
-            (opt, None)
+            let rest = chars.as_str();
+            let opt =
+                spec.iter().chain(OUTPUT_OPTS).find(|o| o.short == c).filter(|o| rest.is_empty() || o.takes_value);
+            (opt, (!rest.is_empty()).then(|| rest.to_string()))
         };
         let Some(opt) = opt else {
             return Err(format!("unknown option '{}'", a));
@@ -1427,6 +1430,16 @@ mod tests {
         assert!(!glob_match("tc", "tcA"));
         assert!(glob_match("*a*b*", "xxaYYbzz"));
         assert!(!glob_match("*a*b", "xxaYYbzz"));
+    }
+
+    #[test]
+    fn short_options_take_attached_values() {
+        let spec = [value("workers", Some('j')), Opt { long: "verbose", short: Some('v'), takes_value: false }];
+        let args = |v: &[&str]| parse_args(&v.iter().map(|s| s.to_string()).collect::<Vec<_>>(), &spec);
+        assert_eq!(args(&["-j4"]).unwrap().get("workers"), Some("4"));
+        assert_eq!(args(&["-j", "4"]).unwrap().get("workers"), Some("4"));
+        assert!(args(&["-v"]).unwrap().has("verbose"));
+        assert!(args(&["-vx"]).is_err());
     }
 
     #[test]

@@ -1,12 +1,13 @@
 # Next-choice feedback experiment
 
-Follow-up: [frontier checkpoints](frontier-guidance.md) recover the staged-prefix misses and improve the broad-corpus result.
+This experiment's code was removed after it, since it did not justify a default; its
+source is in the history up to `5c2d0e6`. Follow-up: [frontier checkpoints](frontier-guidance.md) recover the staged-prefix misses and improve the broad-corpus result.
 
 Keep the existing defaults. Prefix-guided exploration gives mixed results: it ties the broad corpus discovery rate and regresses the largest delivery workload. This tests one inexpensive context and policy, not all forms of online guidance.
 
 ## Policy
 
-The opt-in `CheckerOptions.feedback_choice_guidance` applies to native `Feedback` with a random scheduler. At each newly generated input or scheduler random choice, a 25% exploration branch selects uniformly among the least-tried alternatives for that context. Other choices retain the existing proposal. Context is a rolling hash of the controlled-choice prefix, the input/scheduler stream identity, and the domain size. It is not a complete program-state hash or a measure of coverage reward.
+The opt-in `CheckerOptions.feedback_choice_guidance` (since removed) applied to native `Feedback` with a random scheduler. At each newly generated input or scheduler random choice, a 25% exploration branch selects uniformly among the least-tried alternatives for that context. Other choices retain the existing proposal. Context is a rolling hash of the controlled-choice prefix, the input/scheduler stream identity, and the domain size. It is not a complete program-state hash or a measure of coverage reward.
 
 Visit counts persist between schedules, the prefix resets each schedule, and at most 262,144 alternative counters are retained. Once the cap is reached, existing contexts still get guidance and new contexts follow their original proposals. Recorded prefixes remain intact; mutations can change them through the existing mutation operators. Executed overrides are recorded in the corpus. No choices are rejected and no runs are pruned. Compatibility behavior and automatic search defaults are unchanged.
 
@@ -40,10 +41,12 @@ Elapsed-time evidence does not establish a gain. In the separate-seed synthetic 
 
 Base revision: `b33f3ad408073f046ee6ab1c3866cf45ae201bed`; Rust 1.99.1. Measurements were made in a dirty working tree. Each compressed JSON file records its policy and the SHA-256 of a source patch against the base revision. Patches include the benchmark harness and tests. Decompress with Python `gzip.open` or `gzip -dc`.
 
-- [Refined corpus raw data](choice-corpus.json.gz) and [per-case report](choice-corpus.md).
+- [Refined corpus raw data](choice-corpus.json.gz) (per-case report: `scripts/bench-corpus.py --report-from`).
 - [Refined synthetic seeds 0–19](choice-synthetic.json.gz) and [seeds 20–39](choice-holdout.json.gz).
-- Initial all-choice policy: [corpus](choice-all-corpus.json.gz), [per-case report](choice-all-corpus.md), and [synthetic](choice-all-synthetic.json.gz).
-- Reproducible source diffs: [initial](choice-all.patch) and [refined](choice-fresh.patch), each applied to the base revision separately.
+- The initial all-choice policy's results and both source diffs were removed; the
+  refined policy shipped (off by default) in `3fa5c63`..`5c2d0e6`.
+
+At `5c2d0e6` (the flag no longer exists):
 
 ```sh
 python3 scripts/bench-corpus.py --choice-guidance --seeds 3 --seconds-per-run 0.25 \

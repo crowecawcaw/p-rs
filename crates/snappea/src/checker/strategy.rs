@@ -85,8 +85,9 @@ impl StrategyKind {
     /// Whether workers with their own seeds can explore schedules with this strategy
     /// side by side: it learns nothing from other schedules that would make one worker's
     /// schedules worth less than a single checker's. The feedback strategies and `rl` learn
-    /// from earlier schedules, exhaustive search splits one search space and a replay
-    /// follows one schedule.
+    /// from earlier schedules, `dfs`/`random-dfs` keep one search on one worker and a
+    /// replay follows one schedule. `auto` qualifies: its workers split the exhaustive
+    /// phase between them (see [`crate::checker::exhaustive::Split`]).
     pub fn explores_independently(self) -> bool {
         matches!(
             self,

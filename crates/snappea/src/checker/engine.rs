@@ -39,14 +39,11 @@ pub struct CheckerOptions {
     /// Preserve upstream's zero-length feedback mutations and unfair step bound for
     /// seed compatibility. Native feedback uses productive mutations and the fair bound.
     pub upstream_feedback: bool,
-    /// Experimental prefix-based next-choice guidance for native random feedback.
-    pub feedback_choice_guidance: bool,
     /// Preserve prefixes at increasing event counts in native feedback and auto's
     /// feedback phase. Enabled by default; ignored by upstream compatibility mode.
     pub feedback_frontier_guidance: bool,
     /// Keep exploring after the first bug (`--explore`).
     pub full_exploration: bool,
-    pub incremental_seed: bool,
     /// The schedule to replay with [`StrategyKind::Replay`].
     pub replay: Option<ScheduleTrace>,
     /// Replaying, report the step bound as reached at the end of the schedule, so a bug
@@ -97,10 +94,8 @@ impl Default for CheckerOptions {
             fail_on_max_steps: false,
             strategy_bound: 0,
             upstream_feedback: false,
-            feedback_choice_guidance: false,
             feedback_frontier_guidance: true,
             full_exploration: false,
-            incremental_seed: false,
             replay: None,
             replay_bound_at_end: false,
             max_work_per_step: crate::checker::runtime::DEFAULT_MAX_WORK_PER_STEP,
@@ -399,6 +394,7 @@ fn build_strategy(
     rng: &SharedRandom,
     has_hot: bool,
     exhaustive: bool,
+    split: Option<crate::checker::exhaustive::Split>,
 ) -> Result<Box<dyn Strategy>, String> {
     use crate::checker::feedback::{
         ControlledRandom, FeedbackGuidedStrategy, PctScheduler, PosScheduler, RandomScheduler, Scheduler, Source,
@@ -412,13 +408,7 @@ fn build_strategy(
         if opts.feedback_frontier_guidance && !opts.upstream_feedback && opts.strategy == StrategyKind::Feedback {
             strategy = strategy.with_frontier_guidance();
         }
-        Box::new(
-            if opts.feedback_choice_guidance && !opts.upstream_feedback && opts.strategy == StrategyKind::Feedback {
-                strategy.with_choice_guidance(opts.seed)
-            } else {
-                strategy
-            },
-        )
+        Box::new(strategy)
     };
     let controlled =
         || Source::Controlled(ControlledRandom::new(opts.seed).with_legacy_mutations(opts.upstream_feedback));
@@ -430,6 +420,7 @@ fn build_strategy(
                 opts.max_fair_steps,
                 has_hot,
                 exhaustive,
+                split,
             )
             .with_frontier_guidance(opts.feedback_frontier_guidance && !opts.upstream_feedback),
         ),
@@ -494,6 +485,10 @@ pub struct WorkerPool {
     started: AtomicUsize,
     /// Buggy schedules found by all workers (numbers the `--explore` bug lines).
     bugs: AtomicUsize,
+    /// Workers whose part of a split exhaustive search is complete.
+    exhausted: AtomicUsize,
+    /// What the workers of a split exhaustive search share.
+    shared: std::sync::Arc<crate::checker::exhaustive::Shared>,
 }
 
 impl WorkerPool {
@@ -504,6 +499,8 @@ impl WorkerPool {
             winner: AtomicUsize::new(usize::MAX),
             started: AtomicUsize::new(0),
             bugs: AtomicUsize::new(0),
+            exhausted: AtomicUsize::new(0),
+            shared: Default::default(),
         }
     }
 
@@ -512,9 +509,9 @@ impl WorkerPool {
     }
 
     /// How many workers a run with `opts` can use when `requested` are asked for: one for
-    /// strategies that learn across schedules (feedback, rl), exhaustive search, replays
+    /// strategies that learn across schedules (feedback, rl), `dfs`/`random-dfs`, replays
     /// and verbose runs (which stream every schedule's log); otherwise at most one per
-    /// schedule.
+    /// schedule. Auto mode's workers split its exhaustive phase.
     pub fn workers_for(opts: &CheckerOptions, requested: usize) -> usize {
         if !opts.strategy.explores_independently() || opts.replay.is_some() || opts.verbose || opts.log_every_schedule {
             return 1;
@@ -536,6 +533,14 @@ impl WorkerPool {
         };
         let seed = opts.seed.wrapping_add(673u32.wrapping_mul(index as u32));
         CheckerOptions { seed, iterations, ..opts.clone() }
+    }
+
+    /// Records that a worker completed its part of the exhaustive search; when every
+    /// worker has, the whole search is complete and the run ends.
+    fn exhausted(&self) {
+        if self.exhausted.fetch_add(1, Ordering::AcqRel) + 1 == self.count {
+            self.stop.store(true, Ordering::Relaxed);
+        }
     }
 
     /// Whether another worker found the bug that ends the run.
@@ -718,7 +723,7 @@ impl<'p> Checker<'p> {
         };
         let assignment = prog.test_case_assignment(tc);
         // reports a replay without a schedule before anything else
-        build_strategy(opts, &Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed))), false, false)?;
+        build_strategy(opts, &Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed))), false, false, None)?;
         let is_replay = opts.strategy == StrategyKind::Replay;
         // a replay takes its time settings from the schedule file
         let time = match opts.replay.as_ref().filter(|_| is_replay).and_then(|t| t.time.as_ref().map(|h| (h, t))) {
@@ -757,17 +762,19 @@ impl<'p> Checker<'p> {
         let interrupted = || out.borrow_mut().cancelled() || pool.stopped();
         // a worker of a pool larger than the schedule count may have none to explore
         let worker_opts = pool.worker_options(index, opts);
+        // every worker of a split exhaustive search orders the shared choices alike
+        let run_seed = opts.seed;
         let idle = opts.iterations > 0 && worker_opts.iterations == 0;
         let opts = &worker_opts;
         let prog = self.prog;
         let Prepared { module, main, assignment, time, config } = self.prepare(tc, opts)?;
         let rng: SharedRandom = Rc::new(RefCell::new(RandomValueGenerator::new(opts.seed)));
-        let mut strategy = build_strategy(
-            opts,
-            &rng,
-            prog.states.iter().any(|s| s.temperature == crate::sema::Temperature::Hot),
-            time.is_none(),
-        )?;
+        let has_hot = prog.states.iter().any(|s| s.temperature == crate::sema::Temperature::Hot);
+        let searchable = self.foreign.as_ref().is_none_or(|f| f.searchable());
+        let split = (pool.count > 1)
+            .then(|| crate::checker::exhaustive::Split::new(pool.count, index, run_seed, pool.shared.clone()));
+        // auto mode skips exhaustive search when it could not prove anything
+        let mut strategy = build_strategy(opts, &rng, has_hot, time.is_none() && searchable, split)?;
         let is_replay = opts.strategy == StrategyKind::Replay;
 
         let mut result = CheckResult { strategy_description: strategy.description(), ..Default::default() };
@@ -803,6 +810,7 @@ impl<'p> Checker<'p> {
         let mut depth_bound_hits = 0usize;
         let mut coverage_epoch = strategy.coverage_epoch();
         let mut earlier_coverage: Option<crate::checker::coverage::CoverageInfo> = None;
+        let mut reported_complete = false;
         while !idle && (max_iterations == 0 || i < max_iterations) {
             if out.borrow_mut().cancelled() {
                 result.cancelled = true;
@@ -958,23 +966,24 @@ impl<'p> Checker<'p> {
                     result.coverage = Some(c.into_info());
                 }
             }
-            if opts.strategy == StrategyKind::Auto {
+            // a bug that ends the run ends it, deadline or not
+            let ended_by_bug = !opts.full_exploration && result.report.num_bugs > 0;
+            if opts.strategy == StrategyKind::Auto && !ended_by_bug {
+                // the deadline may have cut this schedule short, so it must not count as
+                // an explored branch of the exhaustive search
                 let cancelled = out.borrow_mut().cancelled();
                 if cancelled || pool.stopped() {
                     result.cancelled = cancelled;
                     break;
                 }
             }
-            if is_replay || (!opts.full_exploration && result.report.num_bugs > 0) || !strategy.prepare_next_iteration()
-            {
-                if strategy.search_complete() {
-                    pool.stop.store(true, Ordering::Relaxed);
-                }
-                break;
+            let more = !is_replay && !ended_by_bug && strategy.prepare_next_iteration();
+            if !reported_complete && strategy.search_complete() {
+                reported_complete = true;
+                pool.exhausted();
             }
-            if opts.incremental_seed {
-                let s = rng.borrow().seed.wrapping_add(1);
-                rng.borrow_mut().set_seed(s);
+            if !more {
+                break;
             }
             i += 1;
         }
@@ -984,16 +993,17 @@ impl<'p> Checker<'p> {
             }
             result.coverage = Some(earlier);
         }
-        result.exhaustive = strategy.exhaustive_stats().map(|s| {
-            if opts.strategy == StrategyKind::Auto {
-                s
-            } else {
-                crate::checker::exhaustive::SearchStats { depth_bound_hits, ..s }
-            }
+        let unverifiable = if !searchable {
+            Some("the program's foreign functions may keep state or values the search cannot hash (see ForeignFunctions::searchable).".to_string())
+        } else {
+            result.replay_error.clone().filter(|_| !is_replay)
+        };
+        result.exhaustive = strategy.exhaustive_stats().map(|s| crate::checker::exhaustive::SearchStats {
+            depth_bound_hits: if opts.strategy == StrategyKind::Auto { s.depth_bound_hits } else { depth_bound_hits },
+            hot_monitors: has_hot,
+            unverifiable,
+            ..s
         });
-        if opts.strategy == StrategyKind::Auto && out.borrow_mut().cancelled() {
-            result.cancelled = true;
-        }
         result.verbose_json_trace = verbose_json.map(|v| crate::checker::jsonlog::Json::Arr(v).to_pretty());
         Ok(Exploration { result, first_bug, won, time })
     }
@@ -1081,8 +1091,14 @@ fn merge(parts: Vec<Exploration>) -> Exploration {
         let r = p.result;
         result.report.merge(r.report);
         result.cancelled |= r.cancelled;
-        if r.exhaustive.as_ref().is_some_and(|s| s.finished && s.depth_bound_hits == 0) {
-            result.exhaustive = r.exhaustive;
+        // workers split one exhaustive search: complete only when every part is
+        match (&mut result.exhaustive, &r.exhaustive) {
+            (Some(a), Some(b)) => a.combine(b),
+            (Some(a), None) => a.finished = false,
+            (None, Some(b)) => {
+                result.exhaustive = Some(crate::checker::exhaustive::SearchStats { finished: false, ..b.clone() })
+            }
+            (None, None) => {}
         }
         result.coverage = match (result.coverage.take(), r.coverage) {
             (Some(mut a), Some(b)) => {
