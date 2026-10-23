@@ -78,6 +78,20 @@ impl SourceFile {
         LineCol { line: line as u32 + 1, col: col as u32 + 1 }
     }
 
+    /// Number of lines (a final line without a newline counts).
+    pub fn line_count(&self) -> u32 {
+        self.line_starts.len() as u32
+    }
+
+    /// Text of 1-based `line`, without its line break. Empty past the end.
+    pub fn line_text(&self, line: u32) -> &str {
+        let Some(&start) = self.line_starts.get(line.wrapping_sub(1) as usize) else {
+            return "";
+        };
+        let end = self.line_starts.get(line as usize).map_or(self.text.len(), |&e| e as usize);
+        self.text[start as usize..end].trim_end_matches(['\n', '\r'])
+    }
+
     pub fn slice(&self, span: Span) -> &str {
         &self.text[span.start as usize..span.end as usize]
     }
@@ -142,6 +156,16 @@ impl fmt::Display for Location {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn line_text_strips_line_breaks() {
+        let f = SourceFile::new("t.p", "a\r\nbc\nd");
+        assert_eq!(f.line_count(), 3);
+        assert_eq!(
+            [f.line_text(1), f.line_text(2), f.line_text(3), f.line_text(4), f.line_text(0)],
+            ["a", "bc", "d", "", ""]
+        );
+    }
 
     #[test]
     fn columns_count_utf16_code_units() {

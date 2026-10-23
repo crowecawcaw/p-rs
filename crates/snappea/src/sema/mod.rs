@@ -53,12 +53,14 @@ pub struct AnalysisError {
 impl AnalysisError {
     /// Messages in print order (sorted by location, thrown error first).
     pub fn messages(&self, sm: &SourceMap) -> Vec<String> {
-        let mut out = Vec::new();
-        if let Some(t) = &self.thrown {
-            out.push(t.render(sm));
-        }
+        self.diagnostics(sm).iter().map(|e| e.render(sm)).collect()
+    }
+
+    /// The errors in print order (sorted by location, thrown error first).
+    pub fn diagnostics(&self, sm: &SourceMap) -> Vec<Diagnostic> {
+        let mut out: Vec<Diagnostic> = self.thrown.iter().cloned().collect();
         let d = Diagnostics { errors: self.collected.clone(), warnings: Vec::new(), continue_on_error: true };
-        out.extend(d.sorted_errors(sm).iter().map(|e| e.render(sm)));
+        out.extend(d.sorted_errors(sm));
         out
     }
 }
@@ -80,6 +82,8 @@ pub enum CompileError {
         file: FileId,
         message: String,
         lexer: bool,
+        /// Where the error is.
+        span: crate::syntax::Span,
     },
     /// PVerifier-only syntax used with the checker backend (`NotSupportedException` upstream).
     NotSupported {
@@ -102,6 +106,7 @@ pub fn compile(sm: &SourceMap, opts: &Options) -> Result<Analysis, CompileError>
                 file: id,
                 message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message),
                 lexer: true,
+                span: e.span,
             }
         })?;
         if !opts.verifier {
@@ -121,6 +126,7 @@ pub fn compile(sm: &SourceMap, opts: &Options) -> Result<Analysis, CompileError>
                 file: id,
                 message: format!("line {}:{} {}", lc.line, lc.col - 1, e.message),
                 lexer: false,
+                span: e.span,
             }
         })?;
         programs.push(p);

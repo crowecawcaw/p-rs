@@ -16,7 +16,9 @@ use crate::checker::engine::{CheckResult, Checker, CheckerOptions, Exploration, 
 use crate::checker::strategy::{ScheduleTrace, StrategyKind};
 
 use crate::driver::format_0_00;
-use crate::host::{full_path, report_and_exit, write_output, Color, Exit, Host, HostExt, Job, Stream, Threads};
+use crate::host::{
+    full_path, report_and_exit, report_and_exit_hint, write_output, Color, Exit, Host, HostExt, Job, Stream, Threads,
+};
 use crate::project::{self, Sources};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -181,11 +183,21 @@ pub fn load_latency(host: &mut dyn Host, file: &str) -> Result<std::sync::Arc<cr
     let path = full_path(&host.cwd(), Path::new(file));
     let text = match host.read_to_string(&path) {
         Ok(t) => t,
-        Err(e) => return Err(report_and_exit(host, &format!("Cannot read latency file '{}': {}", file, e))),
+        Err(e) => {
+            return Err(report_and_exit_hint(
+                host,
+                &format!("Cannot read latency file '{}': {}", file, e),
+                "check the path given to --latency; it is relative to the current folder",
+            ))
+        }
     };
     match crate::checker::time::ProfileSet::parse(&text) {
         Ok(set) => Ok(std::sync::Arc::new(set)),
-        Err(e) => Err(report_and_exit(host, &format!("Latency file '{}': {}", file, e))),
+        Err(e) => Err(report_and_exit_hint(
+            host,
+            &format!("Latency file '{}': {}", file, e),
+            "fix the file at the place named; see docs/checking-models.md for the latency file format",
+        )),
     }
 }
 
@@ -199,7 +211,11 @@ fn sanitize_segment(name: &str) -> String {
 /// files of the previous run.
 pub fn set_output_directory(host: &mut dyn Host, cfg: &mut CheckConfig) -> Result<(), Exit> {
     let fail = |host: &mut dyn Host, path: &str, e: std::io::Error| {
-        report_and_exit(host, &format!("Cannot prepare output directory '{}': {}", path, e))
+        report_and_exit_hint(
+            host,
+            &format!("Cannot prepare output directory '{}': {}", path, e),
+            "check that the folder is writable, or pick another with --out",
+        )
     };
     if cfg.style == Style::Snappea {
         let out = if cfg.output_path.is_empty() { "." } else { cfg.output_path.trim_end_matches('/') };
@@ -290,9 +306,21 @@ pub fn load(host: &mut dyn Host, cfg: &CheckConfig) -> Result<Loaded, Exit> {
 pub fn read_schedule(host: &mut dyn Host, schedule_file: &str) -> Result<ScheduleTrace, Exit> {
     let text = match host.read_to_string(&full_path(&host.cwd(), Path::new(schedule_file))) {
         Ok(t) => t,
-        Err(e) => return Err(report_and_exit(host, &format!("Cannot read schedule file '{}': {}", schedule_file, e))),
+        Err(e) => {
+            return Err(report_and_exit_hint(
+                host,
+                &format!("Cannot read schedule file '{}': {}", schedule_file, e),
+                "pass a bug's schedule as `snappea check` prints it, e.g. PCheckerOutput/<test>/bug.schedule",
+            ))
+        }
     };
-    ScheduleTrace::parse(&text).map_err(|e| report_and_exit(host, &e))
+    ScheduleTrace::parse(&text).map_err(|e| {
+        report_and_exit_hint(
+            host,
+            &e,
+            "the file is not a schedule `snappea check` wrote, or was edited; re-run `snappea check` to write a fresh one",
+        )
+    })
 }
 
 /// What replaying a schedule found.
@@ -324,7 +352,11 @@ pub fn replay(
     let (res, _) = run_engine(host, loaded, tc, &opts, None, Some(1), false)?;
     // `ReplayStrategy` reports a schedule it cannot follow with `Error.ReportAndExit`
     if let Some(e) = &res.replay_error {
-        return Err(report_and_exit(host, e));
+        return Err(report_and_exit_hint(
+            host,
+            e,
+            "the model changed since the schedule was written; re-run `snappea check` to find the bug again",
+        ));
     }
     let elapsed = host.now() - start;
     let n = res.report.num_bugs;
@@ -365,9 +397,10 @@ pub fn select_test_case(host: &mut dyn Host, loaded: &Loaded, name: &str) -> Res
             host,
             &format!("Cannot find a P test case that contains {}. Possible options are: \n{}", name, options),
         )),
-        [] => Err(report_and_exit(
+        [] => Err(report_and_exit_hint(
             host,
             "Cannot detect a P test case to check.\n -- If you have a test case specified and P checker is not finding it, please report this error to the P team --",
+            "declare a test case, e.g. `test tcMain [main=Main]: { Main };`",
         )),
     }
 }

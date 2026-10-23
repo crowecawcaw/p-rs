@@ -195,7 +195,9 @@ fn tests_lists_test_cases() {
     assert_eq!(h.stdout, "tcCoins\ntcFine\n");
     h.add_file("coins.p", "machine M { start state S { entry { x = 1; } } }");
     assert_eq!(snappea(&mut h, &["tests", "coins.p"]), 2);
-    assert!(h.stdout.contains("[Error:]"), "{}", h.stdout);
+    assert!(h.stdout.starts_with("error: could not find variable 'x'\n  --> coins.p:1:37\n"), "{}", h.stdout);
+    assert!(h.stdout.contains("= help: declare the variable before using it"), "{}", h.stdout);
+    assert!(h.stdout.ends_with("The model has 1 error; fix it and run the command again.\n"), "{}", h.stdout);
 }
 
 #[test]

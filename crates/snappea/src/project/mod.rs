@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::host::{full_path, is_hidden, relative_path, report_and_exit, Color, Exit, Host, HostExt};
+use crate::host::{full_path, is_hidden, relative_path, report_and_exit_hint, Color, Exit, Host, HostExt};
 
 pub mod pproj;
 
@@ -90,7 +90,11 @@ pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, Exit> {
     }
     for f in &input.pfiles {
         let Some(full) = pproj::legal_p_file(host, f) else {
-            return Err(report_and_exit(host, &format!("P file {} not found.", f)));
+            return Err(report_and_exit_hint(
+                host,
+                &format!("P file {} not found.", f),
+                "check the path; with no files given, the command uses the .pproj or .p files in the current folder",
+            ));
         };
         add(&mut r, full);
     }
@@ -107,13 +111,21 @@ pub fn resolve(host: &mut dyn Host, input: &Input) -> Result<Resolved, Exit> {
         }
     }
     if r.p_files.is_empty() {
-        return Err(report_and_exit(host, "Could not find any *.p file."));
+        return Err(report_and_exit_hint(
+            host,
+            "Could not find any *.p file.",
+            "run the command in the model's folder, or pass its files: `snappea check model.pproj` or `snappea check src/*.p`",
+        ));
     }
     if let Some(n) = &input.project_name {
         r.project_name = n.clone();
     }
     if !pproj::is_legal_project_name(&r.project_name) {
-        return Err(report_and_exit(host, &format!("{} is not a legal project name", r.project_name)));
+        return Err(report_and_exit_hint(
+            host,
+            &format!("{} is not a legal project name", r.project_name),
+            "use letters, digits and '_', starting with a letter or '_'",
+        ));
     }
     Ok(r)
 }
@@ -133,8 +145,8 @@ fn write_error(host: &mut dyn Host, msg: &str) {
     host.out_colored_line(msg, Color::Red);
 }
 
-/// Prints front-end diagnostics the way upstream's `Compiler.Compile` does; returns true on
-/// success. `upstream` adds upstream's notice that a syntax error makes it retry parsing.
+/// Prints front-end diagnostics; returns true on success. With `upstream` they are printed
+/// as upstream's `Compiler.Compile` prints them, else as [`report_native`] does.
 pub fn report_result(
     host: &mut dyn Host,
     src: &Sources,
@@ -143,8 +155,11 @@ pub fn report_result(
     upstream: bool,
 ) -> bool {
     use crate::sema::CompileError;
+    if !upstream {
+        return report_native(host, sm, r);
+    }
     match r {
-        Err(CompileError::Parse { file, message, lexer }) => {
+        Err(CompileError::Parse { file, message, lexer, .. }) => {
             if !*lexer && upstream {
                 // Upstream first parses with SLL prediction and a bail-out strategy;
                 // any syntax error makes it announce the LL(*) retry.
@@ -193,4 +208,88 @@ pub fn report_result(
             true
         }
     }
+}
+
+/// Prints front-end diagnostics as `snappea` does: each error with its location, the source
+/// around it and a suggested fix, then a count. Returns true on success.
+fn report_native(
+    host: &mut dyn Host,
+    sm: &crate::syntax::SourceMap,
+    r: &Result<crate::sema::Analysis, crate::sema::CompileError>,
+) -> bool {
+    use crate::sema::diag::render_snippet;
+    use crate::sema::CompileError;
+    let errors: Vec<String> = match r {
+        Ok(a) => {
+            for w in &a.warnings {
+                host.out_colored_line(w, Color::Yellow);
+            }
+            return true;
+        }
+        Err(CompileError::Parse { message, span, .. }) => {
+            // `message` is `line L:C detail`; the location is shown separately
+            let detail =
+                message.split_once(' ').and_then(|(_, m)| m.split_once(' ')).map_or(message.as_str(), |(_, m)| m);
+            vec![render_snippet(sm, Some(*span), &format!("syntax error: {}", detail), Some(&parse_help(detail)))]
+        }
+        Err(CompileError::NotSupported { file, line, col, keyword }) => {
+            let help = format!(
+                "'{}' is PVerifier syntax, which snappea does not support yet; remove it to check the model",
+                keyword
+            );
+            let at = format!("{}:{}:{}", sm.file(*file).name, line, col + 1);
+            vec![render_snippet(sm, None, &format!("'{}' is not supported, at {}", keyword, at), Some(&help))]
+        }
+        Err(CompileError::Analysis(a)) => {
+            for w in &a.warnings {
+                host.out_colored_line(w, Color::Yellow);
+            }
+            a.diagnostics(sm).iter().map(|d| render_snippet(sm, d.span, &d.message, d.help.as_deref())).collect()
+        }
+    };
+    for (i, e) in errors.iter().enumerate() {
+        if i > 0 {
+            write_error(host, "");
+        }
+        write_error(host, e.trim_end());
+    }
+    let n = errors.len();
+    write_error(host, "");
+    write_error(
+        host,
+        &format!(
+            "The model has {} error{}; fix {} and run the command again.",
+            n,
+            if n == 1 { "" } else { "s" },
+            if n == 1 { "it" } else { "them" }
+        ),
+    );
+    false
+}
+
+/// A suggested fix for a syntax error, from its message.
+pub(crate) fn parse_help(detail: &str) -> String {
+    if let Some(rest) = detail.strip_prefix("missing ") {
+        let token = rest.split(" at ").next().unwrap_or(rest);
+        if token == "';'" {
+            return "add ';' at the end of the statement before this point".into();
+        }
+        return format!("insert {} before this point", token);
+    }
+    if let Some(text) = detail.strip_prefix("token recognition error at: '") {
+        return if text.starts_with('"') {
+            "close the string with a matching '\"' on the same line".into()
+        } else if text.starts_with("/*") {
+            "close the comment with '*/'".into()
+        } else {
+            "remove this character; it is not part of P syntax".into()
+        };
+    }
+    if detail.starts_with("nesting is too deep") {
+        return "split the expression or block into smaller functions or local variables".into();
+    }
+    if detail.starts_with("extraneous input") {
+        return "remove this token, or look for an extra or missing symbol just before it".into();
+    }
+    "look for a missing ';', ')' or '}', or a misspelled keyword, here or on the line before".into()
 }

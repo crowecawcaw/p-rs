@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::host::{full_path, is_hidden, report_and_exit, Exit, Host, HostExt};
+use crate::host::{full_path, is_hidden, report_and_exit_hint, Exit, Host, HostExt};
 
 /// What a project file contributes: its name and sources. `OutputDir` and `Target` only
 /// matter to upstream's compiler and are ignored.
@@ -128,7 +128,14 @@ pub enum Includes {
 pub fn parse(host: &mut dyn Host, project_file: &str, includes: Includes) -> Result<Project, Exit> {
     match parse_inner(host, project_file, includes) {
         Ok(p) => Ok(p),
-        Err(Err2::Parse(m)) => Err(report_and_exit(host, &format!("<Error parsing project file>:\n {}", m))),
+        Err(Err2::Parse(m)) => {
+            let hint = if m.starts_with("Illegal P project file name") {
+                "check the path; a project file's name ends in .pproj"
+            } else {
+                "a .pproj looks like <Project><ProjectName>Name</ProjectName><InputFiles><PFile>./PSrc/</PFile></InputFiles></Project>"
+            };
+            Err(report_and_exit_hint(host, &format!("<Error parsing project file>:\n {}", m), hint))
+        }
         Err(Err2::Exit(e)) => Err(e),
     }
 }
@@ -159,9 +166,10 @@ fn parse_inner(host: &mut dyn Host, project_file: &str, includes: Includes) -> R
     let mut inputs = Vec::new();
     all_dependencies(host, &doc, includes, &mut inputs, &mut Vec::new())?;
     if inputs.is_empty() {
-        return Err(Err2::Exit(report_and_exit(
+        return Err(Err2::Exit(report_and_exit_hint(
             host,
             "At least one .p file must be provided as input files, no input files found after parsing the project file",
+            "list the sources under <InputFiles>, e.g. <PFile>./PSrc/</PFile>, and check that the folders hold .p files",
         )));
     }
     let Some(name) = doc.project_names.first().cloned() else {

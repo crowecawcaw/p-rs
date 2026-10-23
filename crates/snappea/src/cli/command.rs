@@ -802,7 +802,8 @@ fn check_config(a: &Args, cfg: &mut CheckConfig) -> Result<Vec<String>, String> 
         n => n,
     };
     if let Some(s) = a.get("seed") {
-        cfg.seed = Some(s.parse().map_err(|_| format!("bad seed '{}'", s))?);
+        cfg.seed =
+            Some(s.parse().map_err(|_| format!("'--seed' needs a whole number from 0 to 4294967295, not '{}'", s))?);
     }
     if let Some(l) = a.get("latency") {
         cfg.latency_profile = split_latency(l).1.map(str::to_string);
