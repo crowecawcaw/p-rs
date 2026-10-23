@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/SetImpl2",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "SetImpl2.p",
+        "-pn",
+        "SetImpl2"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "SetImpl2.p",
+        "-pn",
+        "SetImpl2"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

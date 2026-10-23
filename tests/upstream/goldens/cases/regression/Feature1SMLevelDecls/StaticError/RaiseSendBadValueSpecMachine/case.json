@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/RaiseSendBadValueSpecMachine",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "RaiseSendBadValueSpecMachine"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "RaiseSendBadValueSpecMachine"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

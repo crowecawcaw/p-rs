@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/CastInExprs3.coverage.txt
+PCheckerOutput/BugFinding/CastInExprs3.sci
+PCheckerOutput/BugFinding/CastInExprs3_0_0.schedule
+PCheckerOutput/BugFinding/CastInExprs3_0_0.trace.json
+PCheckerOutput/BugFinding/CastInExprs3_0_0.txt
+PCheckerOutput/BugFinding/CastInExprs3_pchecker_summary.txt

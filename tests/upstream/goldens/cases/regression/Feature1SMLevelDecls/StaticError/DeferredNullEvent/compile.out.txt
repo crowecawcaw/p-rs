@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [DeferredNullEvent.p] parse error: line 23:8 mismatched input 'null' expecting {'halt', Iden}
+~~ [PTool]: Thanks for using P! ~~

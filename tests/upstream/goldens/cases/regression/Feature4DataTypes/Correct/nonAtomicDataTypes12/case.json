@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/Correct/nonAtomicDataTypes12",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "StackOverflowException.p",
+        "-pn",
+        "nonAtomicDataTypes12",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

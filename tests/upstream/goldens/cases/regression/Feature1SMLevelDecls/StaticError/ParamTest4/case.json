@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/ParamTest4",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "ParamTest4.p",
+        "-pn",
+        "ParamTest4"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ParamTest4.p",
+        "-pn",
+        "ParamTest4"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

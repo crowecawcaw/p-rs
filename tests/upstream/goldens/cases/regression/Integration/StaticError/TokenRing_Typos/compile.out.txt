@@ -1,0 +1,6 @@
+[Error:] [TokenRing_Typos.p:99:18] got type: Main, expected: event
+
+[Error:] [TokenRing_Typos.p:137:21] types bool and int are incomparable
+
+[Error:] [TokenRing_Typos.p:159:23] could not find name 'unit'
+~~ [PTool]: Thanks for using P! ~~

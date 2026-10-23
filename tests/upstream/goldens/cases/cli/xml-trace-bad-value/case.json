@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/DynamicError/bug2",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "--xml-trace",
+        "trace.xml"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "bug2.p",
+        "-pn",
+        "bug2",
+        "--xml-trace",
+        "trace.xml"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

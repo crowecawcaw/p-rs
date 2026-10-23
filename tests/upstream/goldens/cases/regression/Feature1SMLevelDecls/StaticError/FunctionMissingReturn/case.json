@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/FunctionMissingReturn",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "function.p",
+        "-pn",
+        "FunctionMissingReturn"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "function.p",
+        "-pn",
+        "FunctionMissingReturn"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

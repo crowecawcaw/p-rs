@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Combined/StaticError/Duplicates4",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "Duplicates.p",
+        "-pn",
+        "Duplicates4"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "Duplicates.p",
+        "-pn",
+        "Duplicates4"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

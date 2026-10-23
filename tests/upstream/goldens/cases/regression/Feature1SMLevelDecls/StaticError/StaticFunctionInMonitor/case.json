@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/StaticFunctionInMonitor",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "StaticFunctionInMonitor.p",
+        "-pn",
+        "StaticFunctionInMonitor"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "StaticFunctionInMonitor.p",
+        "-pn",
+        "StaticFunctionInMonitor"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

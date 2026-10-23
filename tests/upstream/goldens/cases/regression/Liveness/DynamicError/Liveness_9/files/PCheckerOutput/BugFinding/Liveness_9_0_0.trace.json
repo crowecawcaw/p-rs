@@ -1,0 +1,1387 @@
+[
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "WatchDog was created.",
+      "payload": "null",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters cold state \u0027CanGetUserInput\u0027.",
+      "state": "CanGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": false,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Driver(1) was created by task \u0027<n>\u0027.",
+      "id": "Driver(1)",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027WaitForUser\u0027.",
+      "id": "Driver(1)",
+      "state": "WaitForUser",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 2
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Waiting.",
+      "id": "Driver(1)",
+      "event": "Waiting",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Waiting\u0027 in state \u0027CanGetUserInput\u0027.",
+      "event": "Waiting",
+      "state": "CanGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 3,
+        "Driver(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits cold state \u0027CanGetUserInput\u0027.",
+      "state": "CanGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": false,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 4,
+        "Driver(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters cold state \u0027CanGetUserInput\u0027.",
+      "state": "CanGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": false,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 5,
+        "Driver(1)": 3
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027WaitForUser\u0027 sent event \u0027UserEvent\u0027 to \u0027Driver(1)\u0027.",
+      "event": "UserEvent",
+      "state": "WaitForUser",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027UserEvent\u0027 in state \u0027WaitForUser\u0027.",
+      "id": "Driver(1)",
+      "event": "UserEvent",
+      "state": "WaitForUser",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 5
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027WaitForUser\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "WaitForUser",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 6
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027WaitForUser\u0027.",
+      "id": "Driver(1)",
+      "state": "WaitForUser",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 8
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 9
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CanGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CanGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 6,
+        "Driver(1)": 9
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits cold state \u0027CanGetUserInput\u0027.",
+      "state": "CanGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": false,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 7,
+        "Driver(1)": 9
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 8,
+        "Driver(1)": 9
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 10
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 11
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 12
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 13
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 14
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 15
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CannotGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 9,
+        "Driver(1)": 15
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 10,
+        "Driver(1)": 15
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 11,
+        "Driver(1)": 15
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 16
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 17
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 18
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 19
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 20
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 21
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CannotGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 12,
+        "Driver(1)": 21
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 13,
+        "Driver(1)": 21
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 14,
+        "Driver(1)": 21
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 22
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 23
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 24
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 25
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 26
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 27
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CannotGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 15,
+        "Driver(1)": 27
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 16,
+        "Driver(1)": 27
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 17,
+        "Driver(1)": 27
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 28
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 29
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 30
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 31
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 32
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 33
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CannotGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 18,
+        "Driver(1)": 33
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 19,
+        "Driver(1)": 33
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 20,
+        "Driver(1)": 33
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 34
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 35
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 36
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 37
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 38
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 39
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CannotGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 21,
+        "Driver(1)": 39
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 22,
+        "Driver(1)": 39
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 23,
+        "Driver(1)": 39
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 40
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 41
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 42
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 43
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 44
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 45
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CannotGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 24,
+        "Driver(1)": 45
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 25,
+        "Driver(1)": 45
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 26,
+        "Driver(1)": 45
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 46
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 47
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 48
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 49
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 50
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 51
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CannotGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 27,
+        "Driver(1)": 51
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 28,
+        "Driver(1)": 51
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 29,
+        "Driver(1)": 51
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 52
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 53
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 54
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 55
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 56
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Driver(1) announced event Computing.",
+      "id": "Driver(1)",
+      "event": "Computing",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 57
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "WatchDog is processing event \u0027Computing\u0027 in state \u0027CannotGetUserInput\u0027.",
+      "event": "Computing",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 30,
+        "Driver(1)": 57
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog exits hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": false,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 31,
+        "Driver(1)": 57
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "WatchDog enters hot state \u0027CannotGetUserInput\u0027.",
+      "state": "CannotGetUserInput",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "WatchDog",
+      "clock": {
+        "WatchDog": 32,
+        "Driver(1)": 57
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 in state \u0027HandleEvent\u0027 sent event \u0027Done\u0027 to \u0027Driver(1)\u0027.",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "sender": "Driver(1)",
+      "target": "Driver(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Driver(1)": 58
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 dequeued event \u0027Done\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "Done",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 59
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Driver(1) is transitioning from state \u0027HandleEvent\u0027 to state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "startState": "HandleEvent",
+      "endState": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 60
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 61
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) enters state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Driver(1)": 62
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Driver(1)\u0027 raised event \u0027PHalt\u0027 in state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "event": "PHalt",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 63
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Driver(1) exits state \u0027HandleEvent\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Driver(1)": 64
+      }
+    }
+  },
+  {
+    "type": "PopStateUnhandledEvent",
+    "details": {
+      "log": "Driver(1) popped state HandleEvent due to unhandled event \u0027PHalt\u0027.",
+      "id": "Driver(1)",
+      "event": "PHalt",
+      "state": "HandleEvent",
+      "payload": "null",
+      "clock": {
+        "Driver(1)": 65
+      }
+    }
+  },
+  {
+    "type": "ExceptionThrown",
+    "details": {
+      "log": "Driver(1) running action \u0027\u0027 in state \u0027HandleEvent\u0027 threw exception \u0027UnhandledEventException\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "action": "",
+      "exception": "UnhandledEventException",
+      "clock": {
+        "Driver(1)": 66
+      }
+    }
+  },
+  {
+    "type": "ExceptionHandled",
+    "details": {
+      "log": "Driver(1) running action \u0027\u0027 in state \u0027HandleEvent\u0027 chose to handle exception \u0027UnhandledEventException\u0027.",
+      "id": "Driver(1)",
+      "state": "HandleEvent",
+      "payload": "null",
+      "action": "",
+      "exception": "UnhandledEventException",
+      "clock": {
+        "Driver(1)": 67
+      }
+    }
+  },
+  {
+    "type": "Halt",
+    "details": {
+      "log": "Driver(1) halted with 0 events in its inbox.",
+      "id": "Driver(1)",
+      "payload": "null",
+      "haltInboxSize": 0,
+      "clock": {
+        "Driver(1)": 68
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "PImplementation.WatchDog detected liveness bug in hot state \u0027CannotGetUserInput\u0027 at the end of program execution.",
+      "error": "PImplementation.WatchDog detected liveness bug in hot state \u0027CannotGetUserInput\u0027 at the end of program execution.",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

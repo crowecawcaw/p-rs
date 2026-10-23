@@ -1,0 +1,100 @@
+Total event coverage: 45.8%
+===========================
+StateMachine: Client
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: local
+		Events sent: local
+		Next states: PumpRequestOne
+
+	State: PumpRequestOne
+		State event coverage: 100.0%
+		Events received: response
+		Events sent: response, update
+		Previous states: Init
+		Next states: PumpRequestTwo
+
+	State: PumpRequestTwo
+		State event coverage: 100.0%
+		Events received: response
+		Events sent: response, update
+		Previous states: PumpRequestOne
+		Next states: Done
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Previous states: PumpRequestTwo
+
+StateMachine: LeaderElection
+============================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: local
+		Events sent: local
+		Next states: SendLeader
+
+	State: SendLeader
+		State has no expected events, so coverage is 100%
+		Events sent: newLeader
+		Previous states: Init
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: allNodes
+
+StateMachine: PaxosNode
+=======================
+Event coverage: 37.5%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: allNodes, local
+		Events sent: local
+		Next states: PerformOperation
+
+	State: PerformOperation
+		State event coverage: 57.1%
+		Events received: goPropose, newLeader, prepare, update
+		Events sent: goPropose
+		Events not covered: Ping, accept, chosen
+		Previous states: Init, ProposeValuePhase1
+		Next states: ProposeValuePhase1
+
+	State: ProposeValuePhase1 is uncovered
+		Events sent: prepare, startTimer
+		Events not covered: agree, reject, success, timeout
+		Previous states: PerformOperation
+		Next states: PerformOperation
+
+	State: ProposeValuePhase2 is uncovered
+		Events not covered: accepted, reject, timeout
+
+	State: RunLearner
+		State has no expected events, so coverage is 100%
+
+StateMachine: Timer
+===================
+Event coverage: 25.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: local
+		Events sent: local
+		Next states: Loop
+
+	State: Loop is uncovered
+		Events not covered: startTimer
+		Previous states: Init
+
+	State: TimerStarted is uncovered
+		Events not covered: cancelTimer, local
+

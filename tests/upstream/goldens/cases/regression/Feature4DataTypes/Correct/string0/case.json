@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/Correct/string0",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "string0.p",
+        "-pn",
+        "string0",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

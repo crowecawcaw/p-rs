@@ -1,0 +1,2 @@
+[Error:] [Duplicates11.p:18:6] event handler in state 'S2' duplicates handler at Duplicates11.p:17:6
+~~ [PTool]: Thanks for using P! ~~

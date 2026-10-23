@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/TupleIndexOutOfRange",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "TupleIndexOutOfRange.p",
+        "-pn",
+        "TupleIndexOutOfRange"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "TupleIndexOutOfRange.p",
+        "-pn",
+        "TupleIndexOutOfRange"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

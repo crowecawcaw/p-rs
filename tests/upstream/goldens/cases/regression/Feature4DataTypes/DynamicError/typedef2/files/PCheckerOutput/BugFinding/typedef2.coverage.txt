@@ -1,0 +1,44 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: req
+		Events sent: resp
+
+StateMachine: Timer
+===================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: UNIT
+		Events sent: UNIT
+		Next states: WaitForReq
+
+	State: WaitForReq
+		State event coverage: 100.0%
+		Events received: START
+		Events sent: TIMEOUT
+		Previous states: Init
+
+StateMachine: client_1
+======================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: unit
+		Next states: StartReqResp
+
+	State: StartReqResp
+		State event coverage: 100.0%
+		Events received: TIMEOUT, next, resp
+		Events sent: PHalt, START, next, req
+		Previous states: Init, StartReqResp
+		Next states: StartReqResp
+

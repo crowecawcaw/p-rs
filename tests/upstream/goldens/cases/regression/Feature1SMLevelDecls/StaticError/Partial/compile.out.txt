@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [Partial.p] parse error: line 2:0 mismatched input '[' expecting {'receives', 'sends', '{'}
+~~ [PTool]: Thanks for using P! ~~

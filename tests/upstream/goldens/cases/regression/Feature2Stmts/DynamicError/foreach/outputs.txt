@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/foreach.coverage.txt
+PCheckerOutput/BugFinding/foreach.sci
+PCheckerOutput/BugFinding/foreach_0_0.schedule
+PCheckerOutput/BugFinding/foreach_0_0.trace.json
+PCheckerOutput/BugFinding/foreach_0_0.txt
+PCheckerOutput/BugFinding/foreach_pchecker_summary.txt

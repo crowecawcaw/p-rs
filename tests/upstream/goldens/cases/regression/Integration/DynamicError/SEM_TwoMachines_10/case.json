@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Integration/DynamicError/SEM_TwoMachines_10",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "NonConstantEventExpr1.p",
+        "-pn",
+        "SEM_TwoMachines_10",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

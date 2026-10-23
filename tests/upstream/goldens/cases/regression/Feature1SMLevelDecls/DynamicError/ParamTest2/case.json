@@ -1,0 +1,47 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/DynamicError/ParamTest2",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ParamTest2.p",
+        "-pn",
+        "ParamTest2",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ParamTest2.p",
+        "-pn",
+        "ParamTest2",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

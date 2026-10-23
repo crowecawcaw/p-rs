@@ -1,0 +1,2 @@
+[Error:] [function.p:6:4] got type: int, expected: (no value)
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,2 @@
+[Error:] [Duplicates.p:9:1] 'Main' duplicates declaration 'Main' at Duplicates.p:4:1
+~~ [PTool]: Thanks for using P! ~~

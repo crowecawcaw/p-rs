@@ -1,0 +1,150 @@
+{
+  "source": "Tutorial",
+  "cwd": "5_Paxos",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testBasicPaxos3on5",
+      "p": [
+        "check",
+        "-tc",
+        "testBasicPaxos3on5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testBasicPaxos3on5",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testBasicPaxos3on3",
+      "p": [
+        "check",
+        "-tc",
+        "testBasicPaxos3on3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testBasicPaxos3on3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testBasicPaxos3on1",
+      "p": [
+        "check",
+        "-tc",
+        "testBasicPaxos3on1",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testBasicPaxos3on1",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testBasicPaxos2on3",
+      "p": [
+        "check",
+        "-tc",
+        "testBasicPaxos2on3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testBasicPaxos2on3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testBasicPaxos2on2",
+      "p": [
+        "check",
+        "-tc",
+        "testBasicPaxos2on2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testBasicPaxos2on2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testBasicPaxos1on1",
+      "p": [
+        "check",
+        "-tc",
+        "testBasicPaxos1on1",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testBasicPaxos1on1",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

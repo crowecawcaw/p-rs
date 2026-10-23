@@ -1,0 +1,18 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<SendLog> 'Main(1)' in state 'Init' sent event 'E' to 'Main(1)'.
+<ReceiveLog> 'Main(1)' dequeued event 'E' in state 'Init'.
+<RaiseLog> 'Main(1)' raised event 'F' in state 'Init'.
+<StateLog> Main(1) exits state 'Init'.
+<PopLog> Main(1) popped state Init due to unhandled event 'F'.
+<ExceptionLog> Main(1) running action '' in state 'Init' threw exception 'UnhandledEventException'.
+<ErrorLog> Main(1) received event 'PImplementation.F' that cannot be handled.
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 4 (min), 4 (avg), 4 (max).

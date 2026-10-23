@@ -1,0 +1,2 @@
+[Error:] [EntryNamedFunction2.p:5:26] got type: (no value), expected: int
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [StartMachineNullParam.p] parse error: line 3:31 extraneous input ';' expecting {'defer', 'entry', 'exit', 'ignore', 'on', '}'}
+~~ [PTool]: Thanks for using P! ~~

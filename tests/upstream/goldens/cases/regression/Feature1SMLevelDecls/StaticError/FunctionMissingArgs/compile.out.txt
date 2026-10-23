@@ -1,0 +1,2 @@
+[Error:] [function.p:5:9] goto, function or constructor call expected 2 arguments, got 0
+~~ [PTool]: Thanks for using P! ~~

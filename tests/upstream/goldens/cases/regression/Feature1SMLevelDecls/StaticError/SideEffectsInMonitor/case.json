@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/SideEffectsInMonitor",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "SideEffectsInMonitor.p",
+        "-pn",
+        "SideEffectsInMonitor"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "SideEffectsInMonitor.p",
+        "-pn",
+        "SideEffectsInMonitor"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

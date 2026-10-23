@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/EntryNamedFunction.coverage.txt
+PCheckerOutput/BugFinding/EntryNamedFunction.sci
+PCheckerOutput/BugFinding/EntryNamedFunction_0_0.schedule
+PCheckerOutput/BugFinding/EntryNamedFunction_0_0.trace.json
+PCheckerOutput/BugFinding/EntryNamedFunction_0_0.txt
+PCheckerOutput/BugFinding/EntryNamedFunction_pchecker_summary.txt

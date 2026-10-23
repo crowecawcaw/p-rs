@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/DeferIgnoreSameEvent",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "DeferIgnore1.p",
+        "-pn",
+        "DeferIgnoreSameEvent"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "DeferIgnore1.p",
+        "-pn",
+        "DeferIgnoreSameEvent"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

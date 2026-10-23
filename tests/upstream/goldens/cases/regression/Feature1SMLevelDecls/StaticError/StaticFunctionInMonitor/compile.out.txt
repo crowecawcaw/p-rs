@@ -1,0 +1,2 @@
+[Error:] [StaticFunctionInMonitor.p:1:1] function 'foo' is non-deterministic or has side effects (new/send/receive/announce); cannot be called from spec monitor 'M'
+~~ [PTool]: Thanks for using P! ~~

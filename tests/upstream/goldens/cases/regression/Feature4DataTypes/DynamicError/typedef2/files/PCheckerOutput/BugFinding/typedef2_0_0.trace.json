@@ -1,0 +1,1057 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "client(2) was created by Main(1).",
+      "id": "client(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "client(2)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) enters state \u0027Init\u0027.",
+      "id": "client(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "client(2)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Timer(3) was created by client(2).",
+      "id": "Timer(3)",
+      "creatorName": "client(2)",
+      "creatorType": "client_1",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 1
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 raised event \u0027unit\u0027 in state \u0027Init\u0027.",
+      "id": "client(2)",
+      "event": "unit",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "client(2)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "client(2) is transitioning from state \u0027Init\u0027 to state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "startState": "Init",
+      "endState": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) exits state \u0027Init\u0027.",
+      "id": "client(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "client(2)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) enters state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "client(2)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027START with payload (3)\u0027 to \u0027Timer(3)\u0027.",
+      "event": "START",
+      "state": "StartReqResp",
+      "payload": 3,
+      "sender": "client(2)",
+      "target": "Timer(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 7
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) enters state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(3)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 raised event \u0027UNIT\u0027 in state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "event": "UNIT",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(3) is transitioning from state \u0027Init\u0027 to state \u0027WaitForReq\u0027.",
+      "id": "Timer(3)",
+      "startState": "Init",
+      "endState": "WaitForReq",
+      "payload": "null",
+      "clock": {
+        "Timer(3)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) exits state \u0027Init\u0027.",
+      "id": "Timer(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(3)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(3) enters state \u0027WaitForReq\u0027.",
+      "id": "Timer(3)",
+      "state": "WaitForReq",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(3)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 dequeued event \u0027START with payload (3)\u0027 in state \u0027WaitForReq\u0027.",
+      "id": "Timer(3)",
+      "event": "START",
+      "state": "WaitForReq",
+      "payload": 3,
+      "clock": {
+        "Timer(3)": 7,
+        "client(2)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 in state \u0027WaitForReq\u0027 sent event \u0027TIMEOUT with payload (Timer(3))\u0027 to \u0027client(2)\u0027.",
+      "event": "TIMEOUT",
+      "state": "WaitForReq",
+      "payload": "Timer(3)",
+      "sender": "Timer(3)",
+      "target": "client(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Timer(3)": 8,
+        "client(2)": 7
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 dequeued event \u0027TIMEOUT with payload (Timer(3))\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "TIMEOUT",
+      "state": "StartReqResp",
+      "payload": "Timer(3)",
+      "clock": {
+        "client(2)": 8,
+        "Timer(3)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027req\u0027 to \u0027Main(1)\u0027.",
+      "event": "req",
+      "state": "StartReqResp",
+      "payload": "null",
+      "sender": "client(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 9,
+        "Timer(3)": 8
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "client(2) is waiting to dequeue an event of type \u0027resp\u0027 or \u0027PHalt\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "payload": "null",
+      "eventTypes": [
+        "resp",
+        "PHalt"
+      ],
+      "clock": {
+        "client(2)": 10,
+        "Timer(3)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027req\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "req",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 3,
+        "client(2)": 9,
+        "Timer(3)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027resp with payload (\u003Cfirst:0, second:0, \u003E)\u0027 to \u0027client(2)\u0027.",
+      "event": "resp",
+      "state": "Init",
+      "payload": {
+        "first": 0,
+        "second": 0
+      },
+      "sender": "Main(1)",
+      "target": "client(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 4,
+        "client(2)": 9,
+        "Timer(3)": 8
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 dequeued event \u0027resp with payload (\u003Cfirst:0, second:0, \u003E)\u0027 and unblocked in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "resp",
+      "state": "StartReqResp",
+      "payload": {
+        "first": 0,
+        "second": 0
+      },
+      "wasBlocked": true,
+      "clock": {
+        "client(2)": 11,
+        "Timer(3)": 8,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 raised event \u0027next\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "next",
+      "state": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 12,
+        "Timer(3)": 8,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "client(2) is transitioning from state \u0027StartReqResp\u0027 to state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "startState": "StartReqResp",
+      "endState": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 13,
+        "Timer(3)": 8,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) exits state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "client(2)": 14,
+        "Timer(3)": 8,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) enters state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "client(2)": 15,
+        "Timer(3)": 8,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027START with payload (3)\u0027 to \u0027Timer(3)\u0027.",
+      "event": "START",
+      "state": "StartReqResp",
+      "payload": 3,
+      "sender": "client(2)",
+      "target": "Timer(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 16,
+        "Timer(3)": 8,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 dequeued event \u0027START with payload (3)\u0027 in state \u0027WaitForReq\u0027.",
+      "id": "Timer(3)",
+      "event": "START",
+      "state": "WaitForReq",
+      "payload": 3,
+      "clock": {
+        "Timer(3)": 9,
+        "client(2)": 16,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 in state \u0027WaitForReq\u0027 sent event \u0027TIMEOUT with payload (Timer(3))\u0027 to \u0027client(2)\u0027.",
+      "event": "TIMEOUT",
+      "state": "WaitForReq",
+      "payload": "Timer(3)",
+      "sender": "Timer(3)",
+      "target": "client(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Timer(3)": 10,
+        "client(2)": 16,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 dequeued event \u0027TIMEOUT with payload (Timer(3))\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "TIMEOUT",
+      "state": "StartReqResp",
+      "payload": "Timer(3)",
+      "clock": {
+        "client(2)": 17,
+        "Timer(3)": 10,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027req\u0027 to \u0027Main(1)\u0027.",
+      "event": "req",
+      "state": "StartReqResp",
+      "payload": "null",
+      "sender": "client(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 18,
+        "Timer(3)": 10,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "client(2) is waiting to dequeue an event of type \u0027resp\u0027 or \u0027PHalt\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "payload": "null",
+      "eventTypes": [
+        "resp",
+        "PHalt"
+      ],
+      "clock": {
+        "client(2)": 19,
+        "Timer(3)": 10,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027req\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "req",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 5,
+        "client(2)": 18,
+        "Timer(3)": 10
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027resp with payload (\u003Cfirst:0, second:0, \u003E)\u0027 to \u0027client(2)\u0027.",
+      "event": "resp",
+      "state": "Init",
+      "payload": {
+        "first": 0,
+        "second": 0
+      },
+      "sender": "Main(1)",
+      "target": "client(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 6,
+        "client(2)": 18,
+        "Timer(3)": 10
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 dequeued event \u0027resp with payload (\u003Cfirst:0, second:0, \u003E)\u0027 and unblocked in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "resp",
+      "state": "StartReqResp",
+      "payload": {
+        "first": 0,
+        "second": 0
+      },
+      "wasBlocked": true,
+      "clock": {
+        "client(2)": 20,
+        "Timer(3)": 10,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 raised event \u0027next\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "next",
+      "state": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 21,
+        "Timer(3)": 10,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "client(2) is transitioning from state \u0027StartReqResp\u0027 to state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "startState": "StartReqResp",
+      "endState": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 22,
+        "Timer(3)": 10,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) exits state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "client(2)": 23,
+        "Timer(3)": 10,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) enters state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "client(2)": 24,
+        "Timer(3)": 10,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027START with payload (3)\u0027 to \u0027Timer(3)\u0027.",
+      "event": "START",
+      "state": "StartReqResp",
+      "payload": 3,
+      "sender": "client(2)",
+      "target": "Timer(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 25,
+        "Timer(3)": 10,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 dequeued event \u0027START with payload (3)\u0027 in state \u0027WaitForReq\u0027.",
+      "id": "Timer(3)",
+      "event": "START",
+      "state": "WaitForReq",
+      "payload": 3,
+      "clock": {
+        "Timer(3)": 11,
+        "client(2)": 25,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 in state \u0027WaitForReq\u0027 sent event \u0027TIMEOUT with payload (Timer(3))\u0027 to \u0027client(2)\u0027.",
+      "event": "TIMEOUT",
+      "state": "WaitForReq",
+      "payload": "Timer(3)",
+      "sender": "Timer(3)",
+      "target": "client(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Timer(3)": 12,
+        "client(2)": 25,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 dequeued event \u0027TIMEOUT with payload (Timer(3))\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "TIMEOUT",
+      "state": "StartReqResp",
+      "payload": "Timer(3)",
+      "clock": {
+        "client(2)": 26,
+        "Timer(3)": 12,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027req\u0027 to \u0027Main(1)\u0027.",
+      "event": "req",
+      "state": "StartReqResp",
+      "payload": "null",
+      "sender": "client(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 27,
+        "Timer(3)": 12,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "client(2) is waiting to dequeue an event of type \u0027resp\u0027 or \u0027PHalt\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "payload": "null",
+      "eventTypes": [
+        "resp",
+        "PHalt"
+      ],
+      "clock": {
+        "client(2)": 28,
+        "Timer(3)": 12,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027req\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "req",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 7,
+        "client(2)": 27,
+        "Timer(3)": 12
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027resp with payload (\u003Cfirst:0, second:0, \u003E)\u0027 to \u0027client(2)\u0027.",
+      "event": "resp",
+      "state": "Init",
+      "payload": {
+        "first": 0,
+        "second": 0
+      },
+      "sender": "Main(1)",
+      "target": "client(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 8,
+        "client(2)": 27,
+        "Timer(3)": 12
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 dequeued event \u0027resp with payload (\u003Cfirst:0, second:0, \u003E)\u0027 and unblocked in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "resp",
+      "state": "StartReqResp",
+      "payload": {
+        "first": 0,
+        "second": 0
+      },
+      "wasBlocked": true,
+      "clock": {
+        "client(2)": 29,
+        "Timer(3)": 12,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 raised event \u0027next\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "next",
+      "state": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 30,
+        "Timer(3)": 12,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "client(2) is transitioning from state \u0027StartReqResp\u0027 to state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "startState": "StartReqResp",
+      "endState": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 31,
+        "Timer(3)": 12,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) exits state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "client(2)": 32,
+        "Timer(3)": 12,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) enters state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "client(2)": 33,
+        "Timer(3)": 12,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027START with payload (3)\u0027 to \u0027Timer(3)\u0027.",
+      "event": "START",
+      "state": "StartReqResp",
+      "payload": 3,
+      "sender": "client(2)",
+      "target": "Timer(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 34,
+        "Timer(3)": 12,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 dequeued event \u0027START with payload (3)\u0027 in state \u0027WaitForReq\u0027.",
+      "id": "Timer(3)",
+      "event": "START",
+      "state": "WaitForReq",
+      "payload": 3,
+      "clock": {
+        "Timer(3)": 13,
+        "client(2)": 34,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Timer(3)\u0027 in state \u0027WaitForReq\u0027 sent event \u0027TIMEOUT with payload (Timer(3))\u0027 to \u0027client(2)\u0027.",
+      "event": "TIMEOUT",
+      "state": "WaitForReq",
+      "payload": "Timer(3)",
+      "sender": "Timer(3)",
+      "target": "client(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Timer(3)": 14,
+        "client(2)": 34,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 dequeued event \u0027TIMEOUT with payload (Timer(3))\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "TIMEOUT",
+      "state": "StartReqResp",
+      "payload": "Timer(3)",
+      "clock": {
+        "client(2)": 35,
+        "Timer(3)": 14,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027req\u0027 to \u0027Main(1)\u0027.",
+      "event": "req",
+      "state": "StartReqResp",
+      "payload": "null",
+      "sender": "client(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 36,
+        "Timer(3)": 14,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "client(2) is waiting to dequeue an event of type \u0027resp\u0027 or \u0027PHalt\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "payload": "null",
+      "eventTypes": [
+        "resp",
+        "PHalt"
+      ],
+      "clock": {
+        "client(2)": 37,
+        "Timer(3)": 14,
+        "Main(1)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027req\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "req",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 9,
+        "client(2)": 36,
+        "Timer(3)": 14
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027resp with payload (\u003Cfirst:0, second:0, \u003E)\u0027 to \u0027client(2)\u0027.",
+      "event": "resp",
+      "state": "Init",
+      "payload": {
+        "first": 0,
+        "second": 0
+      },
+      "sender": "Main(1)",
+      "target": "client(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 10,
+        "client(2)": 36,
+        "Timer(3)": 14
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 dequeued event \u0027resp with payload (\u003Cfirst:0, second:0, \u003E)\u0027 and unblocked in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "resp",
+      "state": "StartReqResp",
+      "payload": {
+        "first": 0,
+        "second": 0
+      },
+      "wasBlocked": true,
+      "clock": {
+        "client(2)": 38,
+        "Timer(3)": 14,
+        "Main(1)": 10
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 raised event \u0027next\u0027 in state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "event": "next",
+      "state": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 39,
+        "Timer(3)": 14,
+        "Main(1)": 10
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "client(2) is transitioning from state \u0027StartReqResp\u0027 to state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "startState": "StartReqResp",
+      "endState": "StartReqResp",
+      "payload": "null",
+      "clock": {
+        "client(2)": 40,
+        "Timer(3)": 14,
+        "Main(1)": 10
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) exits state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "client(2)": 41,
+        "Timer(3)": 14,
+        "Main(1)": 10
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "client(2) enters state \u0027StartReqResp\u0027.",
+      "id": "client(2)",
+      "state": "StartReqResp",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "client(2)": 42,
+        "Timer(3)": 14,
+        "Main(1)": 10
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027client(2)\u0027 in state \u0027StartReqResp\u0027 sent event \u0027PHalt\u0027 to \u0027Main(1)\u0027.",
+      "event": "PHalt",
+      "state": "StartReqResp",
+      "payload": "null",
+      "sender": "client(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "client(2)": 43,
+        "Timer(3)": 14,
+        "Main(1)": 10
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: typedef2.p:57:5",
+      "error": "Assertion Failed: typedef2.p:57:5",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

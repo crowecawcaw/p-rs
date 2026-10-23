@@ -1,0 +1,6 @@
+[Error:] [payloadActions.p:30:24] got type: bool, expected: int
+
+[Error:] [payloadActions.p:39:11] got type: any, expected: machine
+
+[Error:] [payloadActions.p:40:10] got type: any, expected: int
+~~ [PTool]: Thanks for using P! ~~

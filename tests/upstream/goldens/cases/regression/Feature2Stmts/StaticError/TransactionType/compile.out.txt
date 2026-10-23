@@ -1,0 +1,4 @@
+[Error:] [bug.p:18:13] got type: (source:<error>,op1:int,op2:int), expected: TransactionType
+
+[Error:] [bug.p:18:38] types IC1 and IC are incomparable
+~~ [PTool]: Thanks for using P! ~~

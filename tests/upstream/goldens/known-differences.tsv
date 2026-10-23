@@ -1,0 +1,9 @@
+# Cases of tests/upstream/goldens/cases where snappea-compat is known to differ from upstream.
+# One per line: <case id><TAB><reason>. crates/snappea/tests/compat_check_upstream.rs
+# fails when a listed case starts matching, so remove it then.
+cli/check-help	check usage lists --pproj, --pfiles and --projname (check reads P sources; upstream: options of p compile)
+cli/check-bad-option	check usage lists --pproj, --pfiles and --projname
+cli/xml-trace-bad-value	check usage lists --pproj, --pfiles and --projname
+cli/no-command	there is no compile command; the tool lists check, observe and merge-scenario-coverage
+cli/unknown-command	there is no compile command; the tool lists check, observe and merge-scenario-coverage
+cli/illegal-project-name	the error does not point to `p compile --help`, since there is no compile command

@@ -13,10 +13,16 @@ use std::path::{Path, PathBuf};
 
 use snappea::host::{Host, MemHost};
 
-/// Runs whose unknown-error messages differ: upstream's Java `NullPointerException` message
-/// names a variable of the generated Java code (`"TMP_tmp2_12" is null`).
-const KNOWN_MESSAGE_DIFFERENCES: &[&str] =
-    &["test_case_7_log_11_1_happy_unsorted.sorted", "test_case_7_log_12_2_happy_unsorted.sorted"];
+/// Runs where only the exit code is compared (`known-differences.tsv`): upstream's Java
+/// `NullPointerException` message names a variable of the generated Java code.
+fn known_differences() -> Vec<String> {
+    fs::read_to_string(root().join("known-differences.tsv"))
+        .unwrap()
+        .lines()
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(|l| l.split('\t').next().unwrap().to_string())
+        .collect()
+}
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/upstream/PObserve")
@@ -192,6 +198,7 @@ fn matches_upstream_pobserve_goldens() {
     }
     cases.sort();
     assert!(cases.len() >= 90, "expected goldens under {}", root.display());
+    let known = known_differences();
     let mut failures = Vec::new();
     for exp in &cases {
         let rel = exp.strip_prefix(root.join("expected")).unwrap().to_string_lossy().replace('\\', "/");
@@ -237,7 +244,7 @@ fn matches_upstream_pobserve_goldens() {
         if code != want_code {
             problems.push(format!("exit code {} (upstream {})", code, want_code));
         }
-        if KNOWN_MESSAGE_DIFFERENCES.contains(&label.as_str()) {
+        if known.contains(&label) {
             if !problems.is_empty() {
                 failures.push(format!("{}: {}", rel, problems.join("; ")));
             }

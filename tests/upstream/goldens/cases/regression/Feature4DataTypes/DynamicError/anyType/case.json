@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/DynamicError/anyType",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "anyType.p",
+        "-pn",
+        "anyType",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

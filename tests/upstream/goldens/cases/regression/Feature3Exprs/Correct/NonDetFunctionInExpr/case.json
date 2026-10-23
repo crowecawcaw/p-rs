@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Feature3Exprs/Correct/NonDetFunctionInExpr",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "nonDetFunctionInExpr.p",
+        "-pn",
+        "NonDetFunctionInExpr",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

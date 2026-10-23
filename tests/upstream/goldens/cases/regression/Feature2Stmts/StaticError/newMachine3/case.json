@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature2Stmts/StaticError/newMachine3",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "newMachine3.p",
+        "-pn",
+        "newMachine3"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "newMachine3.p",
+        "-pn",
+        "newMachine3"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

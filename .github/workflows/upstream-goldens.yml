@@ -1,0 +1,83 @@
+# Re-records the frozen upstream outputs in tests/upstream/goldens with upstream P built
+# from source, and fails when they differ from the committed ones.
+#
+# * At the pinned commit (tests/upstream/goldens/UPSTREAM, the default for manual runs):
+#   checks that the goldens really are upstream's output and are reproducible.
+# * At upstream's master (weekly): shows what changed upstream since the pin. To move the
+#   pin, update UPSTREAM and commit the goldens from the run's artifact (or re-record them
+#   locally) together with the snappea changes they need.
+#
+# The comparison of snappea-compat with the goldens runs in CI (ci.yml, "upstream compat")
+# and does not need upstream P.
+
+name: Upstream goldens
+
+on:
+  workflow_dispatch:
+    inputs:
+      p_ref:
+        description: "Upstream P commit, tag or branch (empty = the pinned commit)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "17 6 * * 1" # Mondays
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-goldens-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  record:
+    if: github.repository == 'crowecawcaw/snappea' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build upstream P
+        env:
+          P_REF: ${{ github.event_name == 'schedule' && 'master' || inputs.p_ref }}
+        run: |
+          set -euo pipefail
+          ref=${P_REF:-$(cat tests/upstream/goldens/UPSTREAM)}
+          git clone --quiet https://github.com/p-org/P.git "$RUNNER_TEMP/P"
+          git -C "$RUNNER_TEMP/P" checkout --quiet "$ref"
+          echo "Upstream P at \`$(git -C "$RUNNER_TEMP/P" rev-parse HEAD)\` ($ref)" >> "$GITHUB_STEP_SUMMARY"
+          (cd "$RUNNER_TEMP/P/Bld" && ./build.sh --skip-submodules)
+      - name: Record
+        run: |
+          UPSTREAM_P="dotnet $RUNNER_TEMP/P/Bld/Drops/Release/Binaries/net8.0/p.dll" \
+            python3 scripts/record-upstream-goldens.py
+      - name: Compare with the committed goldens
+        run: |
+          git add --intent-to-add tests/upstream/goldens
+          if git diff --quiet -- tests/upstream/goldens; then
+            echo "The goldens match." >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "The goldens differ from upstream's output:"
+              echo '```'
+              git diff --stat -- tests/upstream/goldens | tail -n 40
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            git diff -- tests/upstream/goldens > goldens.diff
+            echo "::error::recorded upstream output differs from tests/upstream/goldens (see goldens.diff in the artifact)"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: upstream-goldens
+          path: |
+            tests/upstream/goldens
+            goldens.diff
+          if-no-files-found: ignore

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/SpecReceiveBodyError",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "SpecReceiveBodyError.p",
+        "-pn",
+        "SpecReceiveBodyError"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "SpecReceiveBodyError.p",
+        "-pn",
+        "SpecReceiveBodyError"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

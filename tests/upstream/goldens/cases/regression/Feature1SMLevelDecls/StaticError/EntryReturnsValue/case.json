@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/EntryReturnsValue",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "function.p",
+        "-pn",
+        "EntryReturnsValue"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "function.p",
+        "-pn",
+        "EntryReturnsValue"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

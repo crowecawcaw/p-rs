@@ -1,0 +1,2 @@
+[Error:] [TransDecl_DoDecl.p:13:16] could not find state 'X2'
+~~ [PTool]: Thanks for using P! ~~

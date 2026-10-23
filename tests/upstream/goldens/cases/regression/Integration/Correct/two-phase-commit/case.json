@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Integration/Correct/two-phase-commit",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "two-phase-commit.p",
+        "-pn",
+        "two_phase_commit",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

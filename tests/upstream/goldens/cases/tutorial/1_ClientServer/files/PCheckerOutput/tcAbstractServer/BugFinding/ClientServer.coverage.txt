@@ -1,0 +1,60 @@
+Total event coverage: 62.5%
+===========================
+StateMachine: AbstractBankServer
+================================
+Event coverage: 100.0%
+
+	State: WaitForWithdrawRequests
+		State event coverage: 100.0%
+		Events received: eWithDrawReq
+
+Monitor: BankBalanceIsAlwaysCorrect
+===================================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eSpec_BankBalanceIsAlwaysCorrect_Init
+		Next states: WaitForWithDrawReqAndResp
+
+	State: WaitForWithDrawReqAndResp
+		State event coverage: 100.0%
+		Events received: eWithDrawReq, eWithDrawResp
+		Previous states: Init, WaitForWithDrawReqAndResp
+		Next states: WaitForWithDrawReqAndResp
+
+StateMachine: Client
+====================
+Event coverage: 0.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: WithdrawMoney
+
+	State: WithdrawMoney is uncovered
+		Events sent: eWithDrawReq
+		Events not covered: eWithDrawResp
+		Previous states: Init
+
+	State: NoMoneyToWithDraw
+		State has no expected events, so coverage is 100%
+
+Monitor: GuaranteedWithDrawProgress
+===================================
+Event coverage: 33.3%
+
+	State: NopendingRequests
+		State event coverage: 100.0%
+		Events received: eWithDrawReq
+		Next states: PendingReqs[hot]
+
+	State: PendingReqs is uncovered
+		Events not covered: eWithDrawReq, eWithDrawResp
+
+StateMachine: TestWithSingleClient
+==================================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+

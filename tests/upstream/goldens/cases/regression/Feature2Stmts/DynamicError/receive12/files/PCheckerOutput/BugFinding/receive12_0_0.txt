@@ -1,0 +1,22 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<CreateLog> B(2) was created by Main(1).
+<StateLog> B(2) enters state 'Init'.
+<RaiseLog> 'B(2)' raised event 'Unit' in state 'Init'.
+<GotoLog> B(2) is transitioning from state 'Init' to state 'PImplementation.B.X'.
+<StateLog> B(2) exits state 'Init'.
+<StateLog> B(2) enters state 'X'.
+<ReceiveLog> B(2) is waiting to dequeue an event of type 'F', 'DefaultEvent' or 'PHalt' in state 'X'.
+<SendLog> 'Main(1)' in state 'Init' sent event 'F' to 'B(2)'.
+<ReceiveLog> 'B(2)' dequeued event 'F' and unblocked in state 'X'.
+<SendLog> 'B(2)' in state 'X' sent event 'E with payload (10)' to 'B(2)'.
+<ErrorLog> Assertion Failed: receive12.p:33:8
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 7 (min), 7 (avg), 7 (max).

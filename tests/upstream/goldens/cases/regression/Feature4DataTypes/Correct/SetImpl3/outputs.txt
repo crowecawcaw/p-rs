@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/SetImpl3.coverage.txt
+PCheckerOutput/BugFinding/SetImpl3.sci
+PCheckerOutput/BugFinding/SetImpl3_pchecker_summary.txt

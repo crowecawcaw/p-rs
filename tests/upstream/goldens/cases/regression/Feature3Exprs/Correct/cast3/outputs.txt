@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/cast3.coverage.txt
+PCheckerOutput/BugFinding/cast3.sci
+PCheckerOutput/BugFinding/cast3_pchecker_summary.txt

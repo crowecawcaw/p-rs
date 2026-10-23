@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/CtorArgErrors",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "CtorArgErrors.p",
+        "-pn",
+        "CtorArgErrors"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "CtorArgErrors.p",
+        "-pn",
+        "CtorArgErrors"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

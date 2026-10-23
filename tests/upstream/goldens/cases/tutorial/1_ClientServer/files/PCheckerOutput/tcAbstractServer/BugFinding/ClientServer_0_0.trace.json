@@ -1,0 +1,372 @@
+[
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect was created.",
+      "payload": "null",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect enters state \u0027Init\u0027.",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 2
+      }
+    }
+  },
+  {
+    "type": "CreateMonitor",
+    "details": {
+      "log": "GuaranteedWithDrawProgress was created.",
+      "payload": "null",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 1
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress enters state \u0027NopendingRequests\u0027.",
+      "state": "NopendingRequests",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "TestWithSingleClient(1) was created by task \u0027<n>\u0027.",
+      "id": "TestWithSingleClient(1)",
+      "payload": "null",
+      "clock": {
+        "TestWithSingleClient(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "TestWithSingleClient(1) enters state \u0027Init\u0027.",
+      "id": "TestWithSingleClient(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "TestWithSingleClient(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "BankServer(2) was created by TestWithSingleClient(1).",
+      "id": "BankServer(2)",
+      "creatorName": "TestWithSingleClient(1)",
+      "creatorType": "TestWithSingleClient",
+      "payload": "null",
+      "clock": {
+        "BankServer(2)": 1
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "TestWithSingleClient(1) announced event eSpec_BankBalanceIsAlwaysCorrect_Init with payload (\u003C0-\u003E22\u003E).",
+      "id": "TestWithSingleClient(1)",
+      "event": "eSpec_BankBalanceIsAlwaysCorrect_Init",
+      "payload": {
+        "0": 22
+      },
+      "clock": {
+        "TestWithSingleClient(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eSpec_BankBalanceIsAlwaysCorrect_Init with payload ((\u003C0-\u003E22\u003E))\u0027 in state \u0027Init\u0027.",
+      "event": "eSpec_BankBalanceIsAlwaysCorrect_Init",
+      "state": "Init",
+      "payload": {
+        "0": 22
+      },
+      "sender": "TestWithSingleClient(1)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 3,
+        "TestWithSingleClient(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect exits state \u0027Init\u0027.",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 4,
+        "TestWithSingleClient(1)": 3
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect enters state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": "null",
+      "isEntry": true,
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 5,
+        "TestWithSingleClient(1)": 3
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Client(3) was created by TestWithSingleClient(1).",
+      "id": "Client(3)",
+      "creatorName": "TestWithSingleClient(1)",
+      "creatorType": "TestWithSingleClient",
+      "payload": "null",
+      "clock": {
+        "Client(3)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "BankServer(2) enters state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "state": "WaitForWithdrawRequests",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "BankServer(2)": 2
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(3) enters state \u0027Init\u0027.",
+      "id": "Client(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(3)": 2
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(3) is transitioning from state \u0027Init\u0027 to state \u0027WithdrawMoney\u0027.",
+      "id": "Client(3)",
+      "startState": "Init",
+      "endState": "WithdrawMoney",
+      "payload": "null",
+      "clock": {
+        "Client(3)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(3) exits state \u0027Init\u0027.",
+      "id": "Client(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(3)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(3) enters state \u0027WithdrawMoney\u0027.",
+      "id": "Client(3)",
+      "state": "WithdrawMoney",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(3)": 5
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eWithDrawReq with payload (\u003Csource:Client(3), accountId:0, amount:12, rId:1, \u003E)\u0027 in state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "event": "eWithDrawReq",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": {
+        "source": "Client(3)",
+        "accountId": 0,
+        "amount": 12,
+        "rId": 1
+      },
+      "sender": "Client(3)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 6,
+        "TestWithSingleClient(1)": 3,
+        "Client(3)": 5
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "GuaranteedWithDrawProgress is processing event \u0027eWithDrawReq with payload (\u003Csource:Client(3), accountId:0, amount:12, rId:1, \u003E)\u0027 in state \u0027NopendingRequests\u0027.",
+      "event": "eWithDrawReq",
+      "state": "NopendingRequests",
+      "payload": {
+        "source": "Client(3)",
+        "accountId": 0,
+        "amount": 12,
+        "rId": 1
+      },
+      "sender": "Client(3)",
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 3,
+        "Client(3)": 5
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress exits state \u0027NopendingRequests\u0027.",
+      "state": "NopendingRequests",
+      "payload": "null",
+      "isEntry": false,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 4,
+        "Client(3)": 5
+      }
+    }
+  },
+  {
+    "type": "MonitorStateTransition",
+    "details": {
+      "log": "GuaranteedWithDrawProgress enters hot state \u0027PendingReqs\u0027.",
+      "state": "PendingReqs",
+      "payload": "null",
+      "isEntry": true,
+      "isInHotState": true,
+      "monitor": "GuaranteedWithDrawProgress",
+      "clock": {
+        "GuaranteedWithDrawProgress": 5,
+        "Client(3)": 5
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Client(3)\u0027 in state \u0027WithdrawMoney\u0027 sent event \u0027eWithDrawReq with payload (\u003Csource:Client(3), accountId:0, amount:12, rId:1, \u003E)\u0027 to \u0027BankServer(2)\u0027.",
+      "event": "eWithDrawReq",
+      "state": "WithdrawMoney",
+      "payload": {
+        "source": "Client(3)",
+        "accountId": 0,
+        "amount": 12,
+        "rId": 1
+      },
+      "sender": "Client(3)",
+      "target": "BankServer(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Client(3)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027BankServer(2)\u0027 dequeued event \u0027eWithDrawReq with payload (\u003Csource:Client(3), accountId:0, amount:12, rId:1, \u003E)\u0027 in state \u0027WaitForWithdrawRequests\u0027.",
+      "id": "BankServer(2)",
+      "event": "eWithDrawReq",
+      "state": "WaitForWithdrawRequests",
+      "payload": {
+        "source": "Client(3)",
+        "accountId": 0,
+        "amount": 12,
+        "rId": 1
+      },
+      "clock": {
+        "BankServer(2)": 3,
+        "Client(3)": 6
+      }
+    }
+  },
+  {
+    "type": "MonitorProcessEvent",
+    "details": {
+      "log": "BankBalanceIsAlwaysCorrect is processing event \u0027eWithDrawResp with payload (\u003Cstatus:1, accountId:0, balance:22, rId:1, \u003E)\u0027 in state \u0027WaitForWithDrawReqAndResp\u0027.",
+      "event": "eWithDrawResp",
+      "state": "WaitForWithDrawReqAndResp",
+      "payload": {
+        "status": 1,
+        "accountId": 0,
+        "balance": 22,
+        "rId": 1
+      },
+      "sender": "BankServer(2)",
+      "monitor": "BankBalanceIsAlwaysCorrect",
+      "clock": {
+        "BankBalanceIsAlwaysCorrect": 7,
+        "TestWithSingleClient(1)": 3,
+        "Client(3)": 6,
+        "BankServer(2)": 3
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: PSpec/BankBalanceCorrect.p:76:9 Bank must accept the withdraw request for 12, bank balance is 22!",
+      "error": "Assertion Failed: PSpec/BankBalanceCorrect.p:76:9 Bank must accept the withdraw request for 12, bank balance is 22!",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

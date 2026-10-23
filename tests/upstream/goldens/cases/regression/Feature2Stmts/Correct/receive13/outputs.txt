@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/receive13.coverage.txt
+PCheckerOutput/BugFinding/receive13.sci
+PCheckerOutput/BugFinding/receive13_pchecker_summary.txt

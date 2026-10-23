@@ -1,0 +1,10 @@
+.. Found P project file: <dir>/1_ClientServer/ClientServer.pproj
+.. List of test cases (total 6)
+tcSingleClient
+tcMultipleClients
+tcAbstractServer
+tcParameterizedMultipleClients___nClients_2
+tcParameterizedMultipleClients___nClients_3
+tcParameterizedMultipleClients___nClients_4
+. Done
+~~ [PTool]: Thanks for using P! ~~

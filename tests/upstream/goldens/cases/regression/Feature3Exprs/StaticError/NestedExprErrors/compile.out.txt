@@ -1,0 +1,4 @@
+[Error:] [NestedExprErrors.p:26:17] could not find name 'undeclaredA'
+
+[Error:] [NestedExprErrors.p:26:35] could not find name 'undeclaredB'
+~~ [PTool]: Thanks for using P! ~~

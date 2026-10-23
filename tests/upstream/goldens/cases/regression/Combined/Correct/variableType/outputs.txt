@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/variableType.coverage.txt
+PCheckerOutput/BugFinding/variableType.sci
+PCheckerOutput/BugFinding/variableType_pchecker_summary.txt

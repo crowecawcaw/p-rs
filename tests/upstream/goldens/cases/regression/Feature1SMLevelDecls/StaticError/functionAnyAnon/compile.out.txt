@@ -1,0 +1,2 @@
+[Error:] [functionAnyAnon.p:6:5] got type: int, expected: (no value)
+~~ [PTool]: Thanks for using P! ~~

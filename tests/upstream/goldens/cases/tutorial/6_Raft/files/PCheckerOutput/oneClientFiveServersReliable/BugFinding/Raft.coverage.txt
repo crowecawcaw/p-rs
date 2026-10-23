@@ -1,0 +1,215 @@
+Total event coverage: 76.3%
+===========================
+StateMachine: Client
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: SendOne
+
+	State: SendOne
+		State has no expected events, so coverage is 100%
+		Events sent: eClientGetRequest, eClientPutRequest
+		Previous states: Init, WaitForResponse
+		Next states: Done, WaitForResponse
+
+	State: WaitForResponse
+		State event coverage: 100.0%
+		Events received: eHeartbeatTimeout, eRaftGetResponse, eRaftPutResponse
+		Events sent: eClientGetRequest, eClientPutRequest, eStartTimer
+		Previous states: SendOne
+		Next states: SendOne
+
+	State: Done
+		State has no expected events, so coverage is 100%
+		Events sent: eClientFinished
+		Previous states: SendOne
+
+Monitor: LivenessClientsDone
+============================
+Event coverage: 83.3%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: AllClientsDone[cold]
+
+	State: ClientsActive
+		State event coverage: 100.0%
+		Events received: eClientFinishedMonitor, eClientGetRequest, eClientPutRequest
+		Next states: AllClientsDone[cold], ClientsActive[hot]
+
+	State: AllClientsDone
+		State event coverage: 66.7%
+		Events received: eClientGetRequest, eClientPutRequest
+		Events not covered: eClientFinishedMonitor
+		Next states: AllClientsDone[cold], ClientsActive[hot]
+
+Monitor: LivenessProgress
+=========================
+Event coverage: 66.7%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Done[cold]
+
+	State: PendingRequestsExist
+		State event coverage: 50.0%
+		Events received: eClientGotResponse
+		Events not covered: eClientWaitingResponse
+		Next states: Done[cold], PendingRequestsExist[hot]
+
+	State: Done
+		State event coverage: 100.0%
+		Events received: eClientWaitingResponse
+		Next states: Done[cold], PendingRequestsExist[hot]
+
+StateMachine: OneClientFiveServersReliable
+==========================================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+Monitor: SafetyLeaderCompleteness
+=================================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: MonitoringLeaderChange
+
+	State: MonitoringLeaderChange
+		State event coverage: 100.0%
+		Events received: eBecomeLeader
+		Previous states: Init, MonitoringLeaderChange
+		Next states: MonitoringLeaderChange
+
+Monitor: SafetyLogMatching
+==========================
+Event coverage: 100.0%
+
+	State: MonitorLogUpdates
+		State event coverage: 100.0%
+		Events received: eNotifyLog
+		Previous states: MonitorLogUpdates
+		Next states: MonitorLogUpdates
+
+Monitor: SafetyOneLeader
+========================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eBecomeLeader
+		Previous states: Init
+		Next states: Init
+
+Monitor: SafetyStateMachine
+===========================
+Event coverage: 100.0%
+
+	State: MonitorEntryApplied
+		State event coverage: 100.0%
+		Events received: eEntryApplied
+		Previous states: MonitorEntryApplied
+		Next states: MonitorEntryApplied
+
+Monitor: SafetySynchronization
+==============================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: Listening
+
+	State: Listening
+		State event coverage: 100.0%
+		Events received: eBecomeLeader, eClientGetRequest, eClientPutRequest, eRaftGetResponse, eRaftPutResponse
+		Previous states: Init, Listening
+		Next states: Listening
+
+StateMachine: Server
+====================
+Event coverage: 59.3%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: eServerInit
+		Next states: Follower
+
+	State: Follower
+		State event coverage: 87.5%
+		Events received: eAppendEntries, eClientGetRequest, eClientPutRequest, eElectionTimeout, eHeartbeatTimeout, eRequestVote, eShutdown
+		Events sent: eAppendEntriesReply, eClientGetRequest, eClientPutRequest, eNotifyLog, eRequestVoteReply, eViewChangedFollower
+		Events not covered: eReset
+		Previous states: Candidate, Follower, Init, Leader
+		Next states: Candidate, FinishedServing, Follower, Leader
+
+	State: Candidate
+		State event coverage: 22.2%
+		Events received: eClientPutRequest, eRequestVoteReply
+		Events sent: eRequestVote, eViewChangedCandidate
+		Events not covered: eAppendEntries, eAppendEntriesReply, eElectionTimeout, eHeartbeatTimeout, eRequestVote, eReset, eShutdown
+		Previous states: Follower
+		Next states: Follower, Leader
+
+	State: Leader
+		State event coverage: 66.7%
+		Events received: eAppendEntriesReply, eClientGetRequest, eClientPutRequest, eHeartbeatTimeout, eRequestVoteReply, eShutdown
+		Events sent: eAppendEntries, eClientGetRequest, eClientPutRequest, eNotifyLog, eRaftGetResponse, eRaftPutResponse, eViewChangedLeader
+		Events not covered: eAppendEntries, eRequestVote, eReset
+		Previous states: Candidate, Follower
+		Next states: FinishedServing, Follower
+
+	State: FinishedServing
+		State has no expected events, so coverage is 100%
+		Previous states: Follower, Leader
+
+StateMachine: Timer
+===================
+Event coverage: 80.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Next states: TimerIdle
+
+	State: TimerIdle
+		State event coverage: 100.0%
+		Events received: eShutdown, eStartTimer
+		Previous states: Init, TimerTick
+		Next states: TimerShutdown, TimerTick
+
+	State: TimerTick
+		State event coverage: 66.7%
+		Events received: eShutdown, eTick
+		Events sent: eHeartbeatTimeout, eTick
+		Events not covered: eCancelTimer
+		Previous states: TimerIdle, TimerTick
+		Next states: TimerIdle, TimerShutdown, TimerTick
+
+	State: TimerShutdown
+		State has no expected events, so coverage is 100%
+		Previous states: TimerIdle, TimerTick
+
+StateMachine: View
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: eServerInit
+		Next states: Monitoring
+
+	State: Monitoring
+		State event coverage: 100.0%
+		Events received: eClientFinished, eHeartbeatTimeout, eNotifyLog, eViewChangedCandidate, eViewChangedFollower, eViewChangedLeader
+		Events sent: eElectionTimeout, eHeartbeatTimeout, eShutdown, eStartTimer
+		Previous states: Init
+		Next states: ViewServiceEnd
+
+	State: ViewServiceEnd
+		State has no expected events, so coverage is 100%
+		Events sent: eShutdown
+		Previous states: Monitoring
+

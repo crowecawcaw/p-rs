@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/float4",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "float4.p",
+        "-pn",
+        "float4"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "float4.p",
+        "-pn",
+        "float4"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

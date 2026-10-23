@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/AnonFuns",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "anonFunction.p",
+        "-pn",
+        "AnonFuns"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "anonFunction.p",
+        "-pn",
+        "AnonFuns"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

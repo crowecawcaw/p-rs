@@ -1,0 +1,30 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Real1_Init'.
+<RaiseLog> 'Main(1)' raised event 'unit' in state 'Real1_Init'.
+<SendLog> 'Main(1)' in state 'Real1_Init' sent event 'E1' to 'Main(1)'.
+<RaiseLog> 'Main(1)' raised event 'local' in state 'Real1_Init'.
+<GotoLog> Main(1) is transitioning from state 'Real1_Init' to state 'PImplementation.Main.Real1_S1'.
+<StateLog> Main(1) exits state 'Real1_Init'.
+<SendLog> 'Main(1)' in state 'Real1_Init' sent event 'E1' to 'Main(1)'.
+<StateLog> Main(1) enters state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_S1'.
+<ErrorLog> Assertion Failed: NullHandlerInLoop.p:38:9
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 26 (min), 26 (avg), 26 (max).

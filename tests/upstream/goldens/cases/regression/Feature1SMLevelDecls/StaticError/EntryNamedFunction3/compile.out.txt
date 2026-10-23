@@ -1,0 +1,4 @@
+[Error:] [EntryNamedFunction3.p:5:26] got type: string, expected: (no value)
+
+[Error:] [EntryNamedFunction3.p:15:13] could not find name 'payload'
+~~ [PTool]: Thanks for using P! ~~

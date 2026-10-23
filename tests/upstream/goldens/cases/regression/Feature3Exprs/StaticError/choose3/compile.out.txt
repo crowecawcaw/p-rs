@@ -1,0 +1,2 @@
+[Error:] [choose3.p:23:11] types float and int are incomparable
+~~ [PTool]: Thanks for using P! ~~

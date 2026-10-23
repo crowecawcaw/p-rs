@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/HasExitArgs",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "entryExit_2.p",
+        "-pn",
+        "HasExitArgs"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "entryExit_2.p",
+        "-pn",
+        "HasExitArgs"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

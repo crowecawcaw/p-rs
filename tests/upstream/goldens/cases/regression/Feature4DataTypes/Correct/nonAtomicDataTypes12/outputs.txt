@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/nonAtomicDataTypes12.coverage.txt
+PCheckerOutput/BugFinding/nonAtomicDataTypes12.sci
+PCheckerOutput/BugFinding/nonAtomicDataTypes12_pchecker_summary.txt

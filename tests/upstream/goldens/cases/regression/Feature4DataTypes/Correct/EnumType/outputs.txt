@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/EnumType.coverage.txt
+PCheckerOutput/BugFinding/EnumType.sci
+PCheckerOutput/BugFinding/EnumType_pchecker_summary.txt

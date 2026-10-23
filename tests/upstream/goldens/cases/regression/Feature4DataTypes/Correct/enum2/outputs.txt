@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/enum2.coverage.txt
+PCheckerOutput/BugFinding/enum2.sci
+PCheckerOutput/BugFinding/enum2_pchecker_summary.txt

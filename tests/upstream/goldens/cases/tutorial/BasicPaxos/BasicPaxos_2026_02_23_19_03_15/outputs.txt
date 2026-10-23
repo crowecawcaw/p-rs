@@ -1,0 +1,9 @@
+PCheckerOutput/testBasicConsensus/BugFinding/BasicPaxos.coverage.txt
+PCheckerOutput/testBasicConsensus/BugFinding/BasicPaxos.sci
+PCheckerOutput/testBasicConsensus/BugFinding/BasicPaxos_pchecker_summary.txt
+PCheckerOutput/testMultipleProposers/BugFinding/BasicPaxos.coverage.txt
+PCheckerOutput/testMultipleProposers/BugFinding/BasicPaxos.sci
+PCheckerOutput/testMultipleProposers/BugFinding/BasicPaxos_pchecker_summary.txt
+PCheckerOutput/testThreeProposers/BugFinding/BasicPaxos.coverage.txt
+PCheckerOutput/testThreeProposers/BugFinding/BasicPaxos.sci
+PCheckerOutput/testThreeProposers/BugFinding/BasicPaxos_pchecker_summary.txt

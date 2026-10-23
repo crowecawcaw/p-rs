@@ -1,0 +1,6 @@
+[Error:] [CtorArgErrors.p:22:21] could not find interface 'UnknownIface'
+
+[Error:] [CtorArgErrors.p:22:34] could not find name 'undeclaredA'
+
+[Error:] [CtorArgErrors.p:22:47] could not find name 'undeclaredB'
+~~ [PTool]: Thanks for using P! ~~

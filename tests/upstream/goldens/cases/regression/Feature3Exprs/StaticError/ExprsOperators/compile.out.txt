@@ -1,0 +1,84 @@
+[Error:] [ExprOperators.p:61:20] operator '-' requires both operands to be int or both float; got bool and bool
+
+[Error:] [ExprOperators.p:62:16] got type: int, expected: bool
+
+[Error:] [ExprOperators.p:63:20] operator '>' requires both operands to be int or both float; got bool and bool
+
+[Error:] [ExprOperators.p:64:14] operator '>' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:65:23] types int and bool are incomparable
+
+[Error:] [ExprOperators.p:66:12] got type: int, expected: bool
+
+[Error:] [ExprOperators.p:68:12] types event and bool are incomparable
+
+[Error:] [ExprOperators.p:79:17] operator '+' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:80:20] operator '-' requires both operands to be int or both float; got bool and int
+
+[Error:] [ExprOperators.p:81:17] operator '*' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:82:17] operator '/' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:84:18] operator '<' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:85:18] operator '<=' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:86:18] operator '>' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:87:18] operator '>=' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:89:12] got type: int, expected: bool
+
+[Error:] [ExprOperators.p:90:12] got type: int, expected: bool
+
+[Error:] [ExprOperators.p:91:23] got type: event, expected: bool
+
+[Error:] [ExprOperators.p:93:17] operator '/' requires both operands to be int or both float; got int and bool
+
+[Error:] [ExprOperators.p:94:14] got type: bool, expected: int; float
+
+[Error:] [ExprOperators.p:95:12] types int and event are incomparable
+
+[Error:] [ExprOperators.p:97:16] got type: int, expected: bool
+
+[Error:] [ExprOperators.p:98:16] got type: event, expected: bool
+
+[Error:] [ExprOperators.p:100:13] got type: event, expected: int; float
+
+[Error:] [ExprOperators.p:105:21] got type: any, expected: int; float
+
+[Error:] [ExprOperators.p:106:14] operator '*' requires both operands to be int or both float; got any and int
+
+[Error:] [ExprOperators.p:107:14] operator '+' requires both operands to be int or both float; got any and int
+
+[Error:] [ExprOperators.p:109:14] operator '>' requires both operands to be int or both float; got any and int
+
+[Error:] [ExprOperators.p:110:14] operator '<=' requires both operands to be int or both float; got any and int
+
+[Error:] [ExprOperators.p:124:12] got type: any, expected: bool
+
+[Error:] [ExprOperators.p:131:16] got type: event, expected: bool
+
+[Error:] [ExprOperators.p:137:12] got type: bool, expected: int
+
+[Error:] [ExprOperators.p:145:14] got type: (bool,bool), expected: map
+
+[Error:] [ExprOperators.p:146:16] got type: (bool,bool), expected: map
+
+[Error:] [ExprOperators.p:147:16] got type: (bool,bool), expected: map, sequence, set
+
+[Error:] [ExprOperators.p:168:13] got type: bool, expected: int
+
+[Error:] [ExprOperators.p:169:12] types bool and int are incomparable
+
+[Error:] [ExprOperators.p:171:12] got type: bool, expected: int
+
+[Error:] [ExprOperators.p:171:17] got type: int, expected: bool
+
+[Error:] [ExprOperators.p:172:15] got type: int, expected: bool
+
+[Error:] [ExprOperators.p:218:16] got type: seq[(int,int)], expected: seq[(a:int,b:int)]
+
+[Error:] [ExprOperators.p:219:17] got type: seq[(int,int)], expected: seq[(a:int,b:int)]
+~~ [PTool]: Thanks for using P! ~~

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/MultipleErrors",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "MultipleErrors.p",
+        "-pn",
+        "MultipleErrors"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "MultipleErrors.p",
+        "-pn",
+        "MultipleErrors"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

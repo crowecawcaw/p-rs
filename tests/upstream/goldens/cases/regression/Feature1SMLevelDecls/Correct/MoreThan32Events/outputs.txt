@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/MoreThan32Events.coverage.txt
+PCheckerOutput/BugFinding/MoreThan32Events.sci
+PCheckerOutput/BugFinding/MoreThan32Events_pchecker_summary.txt

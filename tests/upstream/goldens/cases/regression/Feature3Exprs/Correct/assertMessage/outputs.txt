@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/assertMessage.coverage.txt
+PCheckerOutput/BugFinding/assertMessage.sci
+PCheckerOutput/BugFinding/assertMessage_pchecker_summary.txt

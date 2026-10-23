@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/NonExistentGotoFun",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "nonExistGoto.p",
+        "-pn",
+        "NonExistentGotoFun"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "nonExistGoto.p",
+        "-pn",
+        "NonExistentGotoFun"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

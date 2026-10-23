@@ -1,0 +1,37 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<CreateLog> Follower(2) was created by Main(1).
+<StateLog> Follower(2) enters state 'Init'.
+<SendLog> 'Main(1)' in state 'Init' sent event 'ping with payload (<sender:Main(1), id:0, >)' to 'Follower(2)'.
+<PrintLog> (inside) 0: ping sent
+<ReceiveLog> Main(1) is waiting to dequeue an event of type 'pong' or 'PHalt' in state 'Init'.
+<DequeueLog> 'Follower(2)' dequeued event 'ping with payload (<sender:Main(1), id:0, >)' in state 'Init'.
+<SendLog> 'Follower(2)' in state 'Init' sent event 'pong with payload (<id:1, >)' to 'Main(1)'.
+<ReceiveLog> 'Main(1)' dequeued event 'pong with payload (<id:1, >)' and unblocked in state 'Init'.
+<PrintLog> (inside) 1: pong received
+<PrintLog> (inside) 1: done
+<SendLog> 'Main(1)' in state 'Init' sent event 'ping with payload (<sender:Main(1), id:1, >)' to 'Follower(2)'.
+<PrintLog> (inside) 1: ping sent
+<ReceiveLog> Main(1) is waiting to dequeue an event of type 'pong' or 'PHalt' in state 'Init'.
+<DequeueLog> 'Follower(2)' dequeued event 'ping with payload (<sender:Main(1), id:1, >)' in state 'Init'.
+<SendLog> 'Follower(2)' in state 'Init' sent event 'pong with payload (<id:2, >)' to 'Main(1)'.
+<ReceiveLog> 'Main(1)' dequeued event 'pong with payload (<id:2, >)' and unblocked in state 'Init'.
+<PrintLog> (inside) 2: pong received
+<PrintLog> (inside) 2: done
+<SendLog> 'Main(1)' in state 'Init' sent event 'ping with payload (<sender:Main(1), id:2, >)' to 'Follower(2)'.
+<PrintLog> (outside) 2: ping sent
+<ReceiveLog> Main(1) is waiting to dequeue an event of type 'pong' or 'PHalt' in state 'Init'.
+<DequeueLog> 'Follower(2)' dequeued event 'ping with payload (<sender:Main(1), id:2, >)' in state 'Init'.
+<SendLog> 'Follower(2)' in state 'Init' sent event 'pong with payload (<id:3, >)' to 'Main(1)'.
+<ReceiveLog> 'Main(1)' dequeued event 'pong with payload (<id:3, >)' and unblocked in state 'Init'.
+<PrintLog> (outside) 3: pong received
+<ErrorLog> Assertion Failed: pingPongReceive4.p:35:7 expected id to be 3, got 3
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 16 (min), 16 (avg), 16 (max).

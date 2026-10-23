@@ -1,0 +1,84 @@
+{
+  "source": "Tutorial",
+  "cwd": "BasicPaxos/BasicPaxos_2026_02_23_19_03_15",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testBasicConsensus",
+      "p": [
+        "check",
+        "-tc",
+        "testBasicConsensus",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testBasicConsensus",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testMultipleProposers",
+      "p": [
+        "check",
+        "-tc",
+        "testMultipleProposers",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testMultipleProposers",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-testThreeProposers",
+      "p": [
+        "check",
+        "-tc",
+        "testThreeProposers",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "testThreeProposers",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

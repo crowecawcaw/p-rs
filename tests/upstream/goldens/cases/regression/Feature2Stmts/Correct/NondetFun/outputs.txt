@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/NondetFun.coverage.txt
+PCheckerOutput/BugFinding/NondetFun.sci
+PCheckerOutput/BugFinding/NondetFun_pchecker_summary.txt

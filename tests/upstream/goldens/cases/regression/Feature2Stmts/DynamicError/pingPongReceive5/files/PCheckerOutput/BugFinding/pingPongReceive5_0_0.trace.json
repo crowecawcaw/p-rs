@@ -1,0 +1,485 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Follower(2) was created by Main(1).",
+      "id": "Follower(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Follower(2)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Follower(2) enters state \u0027Init\u0027.",
+      "id": "Follower(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Follower(2)": 2
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027ping with payload (\u003Csender:Main(1), id:0, \u003E)\u0027 to \u0027Follower(2)\u0027.",
+      "event": "ping",
+      "state": "Init",
+      "payload": {
+        "sender": "Main(1)",
+        "id": 0
+      },
+      "sender": "Main(1)",
+      "target": "Follower(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(first) 0: ping sent",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "Main(1) is waiting to dequeue an event of type \u0027pong\u0027 or \u0027PHalt\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "eventTypes": [
+        "pong",
+        "PHalt"
+      ],
+      "clock": {
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Follower(2)\u0027 dequeued event \u0027ping with payload (\u003Csender:Main(1), id:0, \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "Follower(2)",
+      "event": "ping",
+      "state": "Init",
+      "payload": {
+        "sender": "Main(1)",
+        "id": 0
+      },
+      "clock": {
+        "Follower(2)": 3,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Follower(2)\u0027 in state \u0027Init\u0027 sent event \u0027pong with payload (\u003Cid:1, \u003E)\u0027 to \u0027Main(1)\u0027.",
+      "event": "pong",
+      "state": "Init",
+      "payload": {
+        "id": 1
+      },
+      "sender": "Follower(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Follower(2)": 4,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027pong with payload (\u003Cid:1, \u003E)\u0027 and unblocked in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "pong",
+      "state": "Init",
+      "payload": {
+        "id": 1
+      },
+      "wasBlocked": true,
+      "clock": {
+        "Main(1)": 5,
+        "Follower(2)": 4
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(first) 2: pong received",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027ping with payload (\u003Csender:Main(1), id:2, \u003E)\u0027 to \u0027Follower(2)\u0027.",
+      "event": "ping",
+      "state": "Init",
+      "payload": {
+        "sender": "Main(1)",
+        "id": 2
+      },
+      "sender": "Main(1)",
+      "target": "Follower(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 6,
+        "Follower(2)": 4
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(inside) 2: ping sent",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "Main(1) is waiting to dequeue an event of type \u0027pong\u0027 or \u0027PHalt\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "eventTypes": [
+        "pong",
+        "PHalt"
+      ],
+      "clock": {
+        "Main(1)": 7,
+        "Follower(2)": 4
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Follower(2)\u0027 dequeued event \u0027ping with payload (\u003Csender:Main(1), id:2, \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "Follower(2)",
+      "event": "ping",
+      "state": "Init",
+      "payload": {
+        "sender": "Main(1)",
+        "id": 2
+      },
+      "clock": {
+        "Follower(2)": 5,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Follower(2)\u0027 in state \u0027Init\u0027 sent event \u0027pong with payload (\u003Cid:3, \u003E)\u0027 to \u0027Main(1)\u0027.",
+      "event": "pong",
+      "state": "Init",
+      "payload": {
+        "id": 3
+      },
+      "sender": "Follower(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Follower(2)": 6,
+        "Main(1)": 6
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027pong with payload (\u003Cid:3, \u003E)\u0027 and unblocked in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "pong",
+      "state": "Init",
+      "payload": {
+        "id": 3
+      },
+      "wasBlocked": true,
+      "clock": {
+        "Main(1)": 8,
+        "Follower(2)": 6
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(inside) 3: pong received",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(inside) 3: done",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027ping with payload (\u003Csender:Main(1), id:3, \u003E)\u0027 to \u0027Follower(2)\u0027.",
+      "event": "ping",
+      "state": "Init",
+      "payload": {
+        "sender": "Main(1)",
+        "id": 3
+      },
+      "sender": "Main(1)",
+      "target": "Follower(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 9,
+        "Follower(2)": 6
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(inside) 3: ping sent",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "Main(1) is waiting to dequeue an event of type \u0027pong\u0027 or \u0027PHalt\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "eventTypes": [
+        "pong",
+        "PHalt"
+      ],
+      "clock": {
+        "Main(1)": 10,
+        "Follower(2)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Follower(2)\u0027 dequeued event \u0027ping with payload (\u003Csender:Main(1), id:3, \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "Follower(2)",
+      "event": "ping",
+      "state": "Init",
+      "payload": {
+        "sender": "Main(1)",
+        "id": 3
+      },
+      "clock": {
+        "Follower(2)": 7,
+        "Main(1)": 9
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Follower(2)\u0027 in state \u0027Init\u0027 sent event \u0027pong with payload (\u003Cid:4, \u003E)\u0027 to \u0027Main(1)\u0027.",
+      "event": "pong",
+      "state": "Init",
+      "payload": {
+        "id": 4
+      },
+      "sender": "Follower(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Follower(2)": 8,
+        "Main(1)": 9
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027pong with payload (\u003Cid:4, \u003E)\u0027 and unblocked in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "pong",
+      "state": "Init",
+      "payload": {
+        "id": 4
+      },
+      "wasBlocked": true,
+      "clock": {
+        "Main(1)": 11,
+        "Follower(2)": 8
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(inside) 4: pong received",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(inside) 4: done",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027ping with payload (\u003Csender:Main(1), id:4, \u003E)\u0027 to \u0027Follower(2)\u0027.",
+      "event": "ping",
+      "state": "Init",
+      "payload": {
+        "sender": "Main(1)",
+        "id": 4
+      },
+      "sender": "Main(1)",
+      "target": "Follower(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 12,
+        "Follower(2)": 8
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(outside) 4: ping sent",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "WaitMultipleEvents",
+    "details": {
+      "log": "Main(1) is waiting to dequeue an event of type \u0027pong\u0027 or \u0027PHalt\u0027 in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "eventTypes": [
+        "pong",
+        "PHalt"
+      ],
+      "clock": {
+        "Main(1)": 13,
+        "Follower(2)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027Follower(2)\u0027 dequeued event \u0027ping with payload (\u003Csender:Main(1), id:4, \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "Follower(2)",
+      "event": "ping",
+      "state": "Init",
+      "payload": {
+        "sender": "Main(1)",
+        "id": 4
+      },
+      "clock": {
+        "Follower(2)": 9,
+        "Main(1)": 12
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Follower(2)\u0027 in state \u0027Init\u0027 sent event \u0027pong with payload (\u003Cid:5, \u003E)\u0027 to \u0027Main(1)\u0027.",
+      "event": "pong",
+      "state": "Init",
+      "payload": {
+        "id": 5
+      },
+      "sender": "Follower(2)",
+      "target": "Main(1)",
+      "isTargetHalted": false,
+      "clock": {
+        "Follower(2)": 10,
+        "Main(1)": 12
+      }
+    }
+  },
+  {
+    "type": "ReceiveEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 dequeued event \u0027pong with payload (\u003Cid:5, \u003E)\u0027 and unblocked in state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "event": "pong",
+      "state": "Init",
+      "payload": {
+        "id": 5
+      },
+      "wasBlocked": true,
+      "clock": {
+        "Main(1)": 14,
+        "Follower(2)": 10
+      }
+    }
+  },
+  {
+    "type": "Print",
+    "details": {
+      "log": "(outside) 5: pong received",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Assertion Failed: pingPongReceive5.p:47:7 expected id to be 5, got 5",
+      "error": "Assertion Failed: pingPongReceive5.p:47:7 expected id to be 5, got 5",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

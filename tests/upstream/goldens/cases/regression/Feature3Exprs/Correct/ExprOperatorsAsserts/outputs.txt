@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/ExprOperatorsAsserts.coverage.txt
+PCheckerOutput/BugFinding/ExprOperatorsAsserts.sci
+PCheckerOutput/BugFinding/ExprOperatorsAsserts_pchecker_summary.txt

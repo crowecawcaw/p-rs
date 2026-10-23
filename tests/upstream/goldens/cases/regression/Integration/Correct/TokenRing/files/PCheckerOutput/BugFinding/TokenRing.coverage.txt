@@ -1,0 +1,73 @@
+Total event coverage: 85.7%
+===========================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Boot_Main_Ring4
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Next, Unit
+		Next states: Stabilize_Main_Ring4
+
+	State: Stabilize_Main_Ring4
+		State event coverage: 100.0%
+		Events received: Ready, Unit
+		Events sent: Unit
+		Previous states: Boot_Main_Ring4, Stabilize_Main_Ring4
+		Next states: RandomComm_Main_Ring4, Stabilize_Main_Ring4
+
+	State: RandomComm_Main_Ring4
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Send, Unit
+		Previous states: RandomComm_Main_Ring4, Stabilize_Main_Ring4
+		Next states: RandomComm_Main_Ring4
+
+StateMachine: Node
+==================
+Event coverage: 80.0%
+
+	State: Init_Main_Node
+		State event coverage: 100.0%
+		Events received: Next
+		Next states: SetNext_Main_Node
+
+	State: Wait_Main_Node
+		State event coverage: 75.0%
+		Events received: Done, Send, Sending
+		Events not covered: Empty
+		Previous states: KeepSending_Main_Node, SetNext_Main_Node, StartSending_Main_Node, StopSending_Main_Node
+		Next states: KeepSending_Main_Node, StartSending_Main_Node, StopSending_Main_Node
+
+	State: SetNext_Main_Node
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Ready, Unit
+		Previous states: Init_Main_Node
+		Next states: Wait_Main_Node
+
+	State: SendEmpty_Main_Node is uncovered
+		Events not covered: Unit
+
+	State: StartSending_Main_Node
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Sending, Unit
+		Previous states: Wait_Main_Node
+		Next states: Wait_Main_Node
+
+	State: KeepSending_Main_Node
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Done, Sending, Unit
+		Previous states: Wait_Main_Node
+		Next states: Wait_Main_Node
+
+	State: StopSending_Main_Node
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Done, Unit
+		Previous states: Wait_Main_Node
+		Next states: Wait_Main_Node
+

@@ -1,0 +1,2 @@
+[Error:] [EventDeferredHandledSameState.p:24:6] event handler in state 'Real1_S1' duplicates handler at EventDeferredHandledSameState.p:23:9
+~~ [PTool]: Thanks for using P! ~~

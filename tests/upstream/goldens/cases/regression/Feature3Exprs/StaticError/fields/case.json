@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/fields",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "fields.p",
+        "-pn",
+        "fields"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "fields.p",
+        "-pn",
+        "fields"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

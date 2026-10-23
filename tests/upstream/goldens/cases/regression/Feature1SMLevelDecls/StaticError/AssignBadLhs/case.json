@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/AssignBadLhs",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "function.p",
+        "-pn",
+        "AssignBadLhs"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "function.p",
+        "-pn",
+        "AssignBadLhs"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

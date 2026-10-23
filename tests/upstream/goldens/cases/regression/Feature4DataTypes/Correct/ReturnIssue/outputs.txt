@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/ReturnIssue.coverage.txt
+PCheckerOutput/BugFinding/ReturnIssue.sci
+PCheckerOutput/BugFinding/ReturnIssue_pchecker_summary.txt

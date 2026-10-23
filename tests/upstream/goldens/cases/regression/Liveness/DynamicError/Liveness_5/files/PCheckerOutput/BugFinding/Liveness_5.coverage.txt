@@ -1,0 +1,26 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Client
+====================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: Search
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Local
+		Events sent: Local
+		Next states: Waiting
+
+	State: Waiting
+		State event coverage: 100.0%
+		Events received: Search
+		Events sent: Search
+		Previous states: Init
+

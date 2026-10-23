@@ -1,0 +1,16 @@
+[Error:] [enumType.p:57:10] got type: (Foo,Bar), expected: Tuple
+
+[Error:] [enumType.p:58:5] got type: Tuple, expected: sequence, map
+
+[Error:] [enumType.p:59:5] got type: Tuple, expected: sequence, map
+
+[Error:] [enumType.p:77:11] got type: (int,int), expected: int
+
+[Error:] [enumType.p:82:8] got type: bool, expected: int
+
+[Error:] [enumType.p:83:14] got type: (no value), expected: Foo
+
+[Error:] [enumType.p:134:10] got type: any, expected: MapIntSeqFoo
+
+[Error:] [enumType.p:136:13] got type: seq[any], expected: seq[Foo]
+~~ [PTool]: Thanks for using P! ~~

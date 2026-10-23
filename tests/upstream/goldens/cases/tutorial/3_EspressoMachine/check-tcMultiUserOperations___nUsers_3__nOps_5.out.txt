@@ -1,0 +1,26 @@
+.. Found P project file: <dir>/3_EspressoMachine/EspressoMachine.pproj
+.. Running test cases with prefix 'tcMultiUserOperations___nUsers_3__nOps_5':
+tcMultiUserOperations___nUsers_3__nOps_5
+.. Test case :: tcMultiUserOperations___nUsers_3__nOps_5
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+Checker found a bug.
+... Emitting traces:
+..... Writing PCheckerOutput/tcMultiUserOperations___nUsers_3__nOps_5/BugFinding/EspressoMachine_0_0.txt
+..... Writing PCheckerOutput/tcMultiUserOperations___nUsers_3__nOps_5/BugFinding/EspressoMachine_0_0.trace.json
+..... Writing PCheckerOutput/tcMultiUserOperations___nUsers_3__nOps_5/BugFinding/EspressoMachine_0_0.schedule
+... Elapsed <t>.
+... Emitting coverage report:
+..... Writing PCheckerOutput/tcMultiUserOperations___nUsers_3__nOps_5/BugFinding/EspressoMachine.coverage.txt
+..... Writing PCheckerOutput/tcMultiUserOperations___nUsers_3__nOps_5/BugFinding/EspressoMachine.sci
+... Checking statistics:
+..... Found 1 bug.
+... Scheduling statistics:
+..... Explored 1 schedule
+..... Explored 1 timeline
+..... Found 100.00% buggy schedules.
+..... Number of scheduling points in terminating schedules: 29 (min), 29 (avg), 29 (max).
+..... Writing PCheckerOutput/tcMultiUserOperations___nUsers_3__nOps_5/BugFinding/EspressoMachine_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

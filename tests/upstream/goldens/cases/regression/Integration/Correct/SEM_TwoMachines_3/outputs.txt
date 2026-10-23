@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/SEM_TwoMachines_3.coverage.txt
+PCheckerOutput/BugFinding/SEM_TwoMachines_3.sci
+PCheckerOutput/BugFinding/SEM_TwoMachines_3_pchecker_summary.txt

@@ -1,0 +1,23 @@
+Total event coverage: 100.0%
+============================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: init
+		State has no expected events, so coverage is 100%
+		Events sent: seqpayload
+
+StateMachine: XYZ
+=================
+Event coverage: 100.0%
+
+	State: init
+		State event coverage: 100.0%
+		Events received: seqpayload
+		Next states: XYZitnow
+
+	State: XYZitnow
+		State has no expected events, so coverage is 100%
+		Previous states: init
+

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/MachineNoStartState",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "purity.p",
+        "-pn",
+        "MachineNoStartState"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "purity.p",
+        "-pn",
+        "MachineNoStartState"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+[Error:] [test.p:5:8] got type: int, expected: (foo,int)
+~~ [PTool]: Thanks for using P! ~~

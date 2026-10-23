@@ -1,0 +1,18 @@
+Total event coverage: 0.0%
+==========================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: S
+		State has no expected events, so coverage is 100%
+		Events sent: e2, getres
+
+StateMachine: N
+===============
+Event coverage: 0.0%
+
+	State: S is uncovered
+		Events received: e2
+		Events not covered: getres
+

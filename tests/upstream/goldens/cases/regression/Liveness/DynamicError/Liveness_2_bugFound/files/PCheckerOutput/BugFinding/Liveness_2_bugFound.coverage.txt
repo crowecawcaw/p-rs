@@ -1,0 +1,23 @@
+Total event coverage: 66.7%
+===========================
+StateMachine: Main
+==================
+Event coverage: 66.7%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: WaitForUser
+
+	State: WaitForUser
+		State event coverage: 100.0%
+		Events received: UserEvent
+		Events sent: UserEvent
+		Previous states: Init
+		Next states: HandleEvent
+
+	State: HandleEvent is uncovered
+		Events not covered: Done
+		Previous states: WaitForUser
+

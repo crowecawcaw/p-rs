@@ -1,0 +1,31 @@
+{
+  "source": "RegressionTests/Feature2Stmts/DynamicError/receive3",
+  "steps": [
+    {
+      "name": "check",
+      "p": [
+        "check",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "receive3.p",
+        "-pn",
+        "receive3",
+        "-s",
+        "10",
+        "--max-steps",
+        "1000",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

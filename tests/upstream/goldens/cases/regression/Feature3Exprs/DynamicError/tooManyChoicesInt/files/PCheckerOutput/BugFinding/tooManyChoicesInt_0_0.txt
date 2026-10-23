@@ -1,0 +1,18 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'S'.
+<RandomLog> Main(1) nondeterministically chose '1255'.
+<PrintLog> y is 1255
+<ExceptionLog> Main(1) running action 'Anon' in state 'S' threw exception 'FormatException'.
+<ErrorLog> Exception 'System.FormatException' was thrown in Main(1) (state 'S', action 'Anon'): Input string was not in a correct format. Failure to parse near offset 115. Expected an ASCII digit.
+from location 'System.Private.CoreLib':
+The stack trace is:
+
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 3 (min), 3 (avg), 3 (max).

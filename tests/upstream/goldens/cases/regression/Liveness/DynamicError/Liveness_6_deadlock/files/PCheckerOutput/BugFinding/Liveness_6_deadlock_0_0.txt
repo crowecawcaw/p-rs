@@ -1,0 +1,14 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<SendLog> 'Main(1)' in state 'Init' sent event 'SearchStarted' to 'Main(1)'.
+<ReceiveLog> Main(1) is waiting to dequeue an event of type 'Search' or 'PHalt' in state 'Init'.
+<ErrorLog> Deadlock detected. Main(1) is waiting to receive an event, but no other controlled tasks are enabled.
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 3 (min), 3 (avg), 3 (max).

@@ -1,0 +1,150 @@
+{
+  "source": "Tutorial",
+  "cwd": "1_ClientServer",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcSingleClient",
+      "p": [
+        "check",
+        "-tc",
+        "tcSingleClient",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcSingleClient",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcMultipleClients",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultipleClients",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultipleClients",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcAbstractServer",
+      "p": [
+        "check",
+        "-tc",
+        "tcAbstractServer",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcAbstractServer",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcParameterizedMultipleClients___nClients_2",
+      "p": [
+        "check",
+        "-tc",
+        "tcParameterizedMultipleClients___nClients_2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParameterizedMultipleClients___nClients_2",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcParameterizedMultipleClients___nClients_3",
+      "p": [
+        "check",
+        "-tc",
+        "tcParameterizedMultipleClients___nClients_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParameterizedMultipleClients___nClients_3",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcParameterizedMultipleClients___nClients_4",
+      "p": [
+        "check",
+        "-tc",
+        "tcParameterizedMultipleClients___nClients_4",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParameterizedMultipleClients___nClients_4",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

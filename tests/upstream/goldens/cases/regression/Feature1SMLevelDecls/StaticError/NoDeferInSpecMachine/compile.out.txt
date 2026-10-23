@@ -1,0 +1,2 @@
+[Error:] [monitors.p:13:3] events cannot be deferred in spec monitor 'M'
+~~ [PTool]: Thanks for using P! ~~

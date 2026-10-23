@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/assertExample.coverage.txt
+PCheckerOutput/BugFinding/assertExample.sci
+PCheckerOutput/BugFinding/assertExample_pchecker_summary.txt

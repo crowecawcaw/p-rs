@@ -1,0 +1,143 @@
+Total event coverage: 73.0%
+===========================
+StateMachine: CPU
+=================
+Event coverage: 100.0%
+
+	State: init
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: unit
+		Next states: makeReq
+
+	State: makeReq
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: ask_excl, ask_share, unit
+		Previous states: init, makeReq
+		Next states: makeReq
+
+StateMachine: Client
+====================
+Event coverage: 60.0%
+
+	State: init
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: unit
+		Next states: invalid
+
+	State: invalid
+		State event coverage: 40.0%
+		Events received: ask_excl, ask_share
+		Events not covered: grant_excl, grant_share, invalidate
+		Previous states: init, invalidating
+		Next states: asked_excl, asked_share
+
+	State: asked_share
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: req_share, unit
+		Previous states: invalid
+		Next states: invalid_wait
+
+	State: asked_excl
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: req_excl, unit
+		Previous states: invalid
+		Next states: invalid_wait
+
+	State: invalid_wait
+		State event coverage: 66.7%
+		Events received: grant_excl, grant_share
+		Events not covered: invalidate
+		Previous states: asked_excl, asked_share, invalidating
+		Next states: exclusive, sharing
+
+	State: asked_ex2
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: req_excl, unit
+		Previous states: sharing
+		Next states: sharing_wait
+
+	State: sharing
+		State event coverage: 60.0%
+		Events received: ask_excl, ask_share, invalidate
+		Events not covered: grant_excl, grant_share
+		Previous states: invalid_wait, sharing
+		Next states: asked_ex2, invalidating, sharing
+
+	State: sharing_wait
+		State event coverage: 33.3%
+		Events received: invalidate
+		Events not covered: grant_excl, grant_share
+		Previous states: asked_ex2
+		Next states: invalidating
+
+	State: exclusive
+		State event coverage: 33.3%
+		Events received: invalidate
+		Events not covered: grant_excl, grant_share
+		Previous states: invalid_wait
+		Next states: invalidating
+
+	State: invalidating
+		State event coverage: 100.0%
+		Events received: normal, wait
+		Events sent: invalidate_ack, normal, wait
+		Previous states: exclusive, sharing, sharing_wait
+		Next states: invalid, invalid_wait
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: init
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: unit
+		Next states: receiveState
+
+	State: receiveState
+		State event coverage: 100.0%
+		Events received: req_excl, req_share
+		Previous states: grantAccess, init
+		Next states: ExclRequest, ShareRequest
+
+	State: ShareRequest
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: unit
+		Previous states: receiveState
+		Next states: ProcessReq
+
+	State: ExclRequest
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: unit
+		Previous states: receiveState
+		Next states: ProcessReq
+
+	State: ProcessReq
+		State event coverage: 100.0%
+		Events received: grant, need_invalidate
+		Events sent: grant, need_invalidate
+		Previous states: ExclRequest, ShareRequest
+		Next states: grantAccess, inv
+
+	State: inv
+		State event coverage: 100.0%
+		Events received: grant, invalidate_ack
+		Events sent: grant, invalidate
+		Previous states: ProcessReq
+		Next states: grantAccess
+
+	State: grantAccess
+		State event coverage: 100.0%
+		Events received: unit
+		Events sent: grant_excl, grant_share, unit
+		Previous states: ProcessReq, inv
+		Next states: receiveState
+

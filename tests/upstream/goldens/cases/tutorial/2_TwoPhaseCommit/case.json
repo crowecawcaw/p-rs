@@ -1,0 +1,238 @@
+{
+  "source": "Tutorial",
+  "cwd": "2_TwoPhaseCommit",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcSingleClientNoFailure",
+      "p": [
+        "check",
+        "-tc",
+        "tcSingleClientNoFailure",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcSingleClientNoFailure",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcMultipleClientsNoFailure",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultipleClientsNoFailure",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultipleClientsNoFailure",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcMultipleClientsWithFailure",
+      "p": [
+        "check",
+        "-tc",
+        "tcMultipleClientsWithFailure",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcMultipleClientsWithFailure",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcParametricTests___pNumClients_2__pNumParticipants_3__pNumTransPerClient_1__pFailParticipants_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_3__pNumTransPerClient_1__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_3__pNumTransPerClient_1__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcParametricTests___pNumClients_3__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_3__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_3__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1",
+      "p": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_3__pNumParticipants_5__pNumTransPerClient_1__pFailParticipants_1",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1",
+      "p": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_2__pFailParticipants_1",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 1
+    },
+    {
+      "name": "check-tcParametricTests___pNumClients_2__pNumParticipants_5__pNumTransPerClient_2__pFailParticipants_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_5__pNumTransPerClient_2__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_5__pNumTransPerClient_2__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_1__pFailParticipants_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_1__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_4__pNumTransPerClient_1__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-tcParametricTests___pNumClients_2__pNumParticipants_3__pNumTransPerClient_2__pFailParticipants_0",
+      "p": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_3__pNumTransPerClient_2__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "tcParametricTests___pNumClients_2__pNumParticipants_3__pNumTransPerClient_2__pFailParticipants_0",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

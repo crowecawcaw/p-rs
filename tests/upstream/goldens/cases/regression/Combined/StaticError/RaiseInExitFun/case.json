@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Combined/StaticError/RaiseInExitFun",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "RaiseInExitFun.p",
+        "-pn",
+        "RaiseInExitFun"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "RaiseInExitFun.p",
+        "-pn",
+        "RaiseInExitFun"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

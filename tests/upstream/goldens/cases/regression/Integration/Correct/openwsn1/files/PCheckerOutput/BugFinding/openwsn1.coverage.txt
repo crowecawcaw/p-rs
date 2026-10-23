@@ -1,0 +1,58 @@
+Total event coverage: 69.2%
+===========================
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: init
+		State has no expected events, so coverage is 100%
+		Events sent: Initialize
+
+StateMachine: OpenWSN_Mote
+==========================
+Event coverage: 60.0%
+
+	State: init_mote
+		State event coverage: 100.0%
+		Events received: Initialize
+		Next states: WaitForNewSlot
+
+	State: WaitForNewSlot
+		State event coverage: 100.0%
+		Events received: Rx, Sleep, Tx, newSlot
+		Events sent: Rx, Sleep, Tx, endSlot
+		Previous states: DataTransmissionMode, WaitForNewSlot, init_mote
+		Next states: DataReceptionMode, DataTransmissionMode, WaitForNewSlot
+
+	State: DataTransmissionMode
+		State event coverage: 50.0%
+		Events received: Local
+		Events sent: Local, endSlot
+		Events not covered: TxDone
+		Previous states: WaitForNewSlot
+		Next states: WaitForNewSlot
+
+	State: WaitForAck is uncovered
+		Events not covered: Ack, DefaultEvent
+
+	State: DataReceptionMode is uncovered
+		Events not covered: Data
+		Previous states: WaitForNewSlot
+
+StateMachine: SlotTimerMachine
+==============================
+Event coverage: 100.0%
+
+	State: init
+		State event coverage: 100.0%
+		Events received: Local
+		Events sent: Local
+		Next states: SendNewSlot
+
+	State: SendNewSlot
+		State event coverage: 100.0%
+		Events received: Local, endSlot
+		Events sent: Local, newSlot
+		Previous states: SendNewSlot, init
+		Next states: SendNewSlot
+

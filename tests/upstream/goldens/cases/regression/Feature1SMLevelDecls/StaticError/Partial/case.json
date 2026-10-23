@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/Partial",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "Partial.p",
+        "-pn",
+        "Partial"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "Partial.p",
+        "-pn",
+        "Partial"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

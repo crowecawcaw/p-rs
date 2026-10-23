@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/string1.coverage.txt
+PCheckerOutput/BugFinding/string1.sci
+PCheckerOutput/BugFinding/string1_0_0.schedule
+PCheckerOutput/BugFinding/string1_0_0.trace.json
+PCheckerOutput/BugFinding/string1_0_0.txt
+PCheckerOutput/BugFinding/string1_pchecker_summary.txt

@@ -1,0 +1,21 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Real1_Init'.
+<CreateLog> Real2(2) was created by Main(1).
+<RaiseLog> 'Main(1)' raised event 'E1' in state 'Real1_Init'.
+<StateLog> Real2(2) enters state 'Real2_Init'.
+<DefaultLog> Main(1) is executing the default handler in state 'Real1_Init'.
+<GotoLog> Main(1) is transitioning from state 'Real1_Init' to state 'PImplementation.Main.Real1_S1'.
+<StateLog> Main(1) exits state 'Real1_Init'.
+<SendLog> 'Main(1)' in state 'Real1_Init' sent event 'E2 with payload (True)' to 'Real2(2)'.
+<StateLog> Main(1) enters state 'Real1_S1'.
+<DequeueLog> 'Real2(2)' dequeued event 'E2 with payload (True)' in state 'Real2_Init'.
+<ErrorLog> Assertion Failed: NonConstantEventExpr1.p:49:3
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 8 (min), 8 (avg), 8 (max).

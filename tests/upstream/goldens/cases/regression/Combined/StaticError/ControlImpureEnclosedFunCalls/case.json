@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Combined/StaticError/ControlImpureEnclosedFunCalls",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "EnclosedFunCalls.p",
+        "-pn",
+        "ControlImpureEnclosedFunCalls"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "EnclosedFunCalls.p",
+        "-pn",
+        "ControlImpureEnclosedFunCalls"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/Liveness_5_deadlock.coverage.txt
+PCheckerOutput/BugFinding/Liveness_5_deadlock.sci
+PCheckerOutput/BugFinding/Liveness_5_deadlock_pchecker_summary.txt

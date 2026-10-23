@@ -1,0 +1,4 @@
+[Error:] [foreach3.p:28:23] got type: map[int,int], expected: set, sequence
+
+[Error:] [foreach3.p:37:23] got type: int, expected: set, sequence
+~~ [PTool]: Thanks for using P! ~~

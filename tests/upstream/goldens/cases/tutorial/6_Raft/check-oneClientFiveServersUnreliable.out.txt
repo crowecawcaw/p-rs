@@ -1,0 +1,38 @@
+.. Found P project file: <dir>/6_Raft/Raft.pproj
+.. Running test cases with prefix 'oneClientFiveServersUnreliable':
+oneClientFiveServersUnreliable
+.. Test case :: oneClientFiveServersUnreliable
+... Checker is using 'random' strategy (seed:42).
+..... Schedule #1
+..... Schedule #2
+..... Schedule #3
+..... Schedule #4
+..... Schedule #5
+..... Schedule #6
+..... Schedule #7
+..... Schedule #8
+..... Schedule #9
+..... Schedule #10
+..... Schedule #20
+..... Schedule #30
+..... Schedule #40
+..... Schedule #50
+..... Schedule #60
+..... Schedule #70
+..... Schedule #80
+..... Schedule #90
+..... Schedule #100
+... Emitting coverage report:
+..... Writing PCheckerOutput/oneClientFiveServersUnreliable/BugFinding/Raft.coverage.txt
+..... Writing PCheckerOutput/oneClientFiveServersUnreliable/BugFinding/Raft.sci
+... Checking statistics:
+..... Found 0 bugs.
+... Scheduling statistics:
+..... Explored 100 schedules
+..... Explored 100 timelines
+..... Number of scheduling points in terminating schedules: 571 (min), 2600 (avg), 14391 (max).
+..... Exceeded the max-steps bound of '10000' in 2.00% of the fair schedules.
+..... Writing PCheckerOutput/oneClientFiveServersUnreliable/BugFinding/Raft_pchecker_summary.txt
+... Elapsed <t>.
+. Done
+~~ [PTool]: Thanks for using P! ~~

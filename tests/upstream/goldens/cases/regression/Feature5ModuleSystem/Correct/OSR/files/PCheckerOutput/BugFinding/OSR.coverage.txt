@@ -1,0 +1,208 @@
+Total event coverage: 58.1%
+===========================
+StateMachine: LEDMachine
+========================
+Event coverage: 50.0%
+
+	State: _Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: LED_Init
+
+	State: LED_Init
+		State event coverage: 66.7%
+		Events received: eSetLedStateToUnstableUsingControlTransfer, eUpdateBarGraphStateUsingControlTransfer
+		Events not covered: eSetLedStateToStableUsingControlTransfer
+		Previous states: ProcessUpdateLED, _Init
+		Next states: ProcessUpdateLED, UnstableLED
+
+	State: ProcessUpdateLED
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eTransferSuccess, eUnit
+		Previous states: LED_Init
+		Next states: LED_Init
+
+	State: UnstableLED is uncovered
+		Events sent: eTransferSuccess
+		Events not covered: eSetLedStateToStableUsingControlTransfer, eUpdateBarGraphStateUsingControlTransfer
+		Previous states: LED_Init
+
+	State: StableLED is uncovered
+		Events not covered: eUnit
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: User_Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: S0
+
+	State: S0
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eD0Entry, eUnit
+		Previous states: S1, User_Init
+		Next states: S1
+
+	State: S1
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eD0Exit, eUnit
+		Previous states: S0
+		Next states: S0
+
+StateMachine: OSRDriverMachine
+==============================
+Event coverage: 47.8%
+
+	State: Driver_Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: sDxDriver
+
+	State: sDxDriver
+		State event coverage: 100.0%
+		Events received: eD0Entry
+		Previous states: Driver_Init, sCompletingD0ExitDriver
+		Next states: sCompleteD0EntryDriver
+
+	State: sCompleteD0EntryDriver
+		State event coverage: 100.0%
+		Events received: eOperationSuccess
+		Events sent: eOperationSuccess
+		Previous states: sDxDriver
+		Next states: sWaitingForSwitchStatusChangeDriver
+
+	State: sWaitingForSwitchStatusChangeDriver
+		State event coverage: 100.0%
+		Events received: eD0Exit, eSwitchStatusChange
+		Previous states: sCompleteD0EntryDriver
+		Next states: sCompletingD0ExitDriver, sStoringSwitchAndCheckingIfStateChangedDriver
+
+	State: sCompletingD0ExitDriver
+		State event coverage: 100.0%
+		Events received: eOperationSuccess
+		Events sent: eOperationSuccess
+		Previous states: sWaitingForSwitchStatusChangeDriver
+		Next states: sDxDriver
+
+	State: sStoringSwitchAndCheckingIfStateChangedDriver
+		State event coverage: 50.0%
+		Events received: eYes
+		Events sent: eYes
+		Events not covered: eNo
+		Previous states: sWaitingForSwitchStatusChangeDriver
+		Next states: sUpdatingBarGraphStateDriver
+
+	State: sUpdatingBarGraphStateDriver
+		State event coverage: 50.0%
+		Events received: eTransferSuccess
+		Events sent: eUpdateBarGraphStateUsingControlTransfer
+		Events not covered: eTransferFailure
+		Previous states: sStoringSwitchAndCheckingIfStateChangedDriver
+		Next states: sUpdatingLedStateToUnstableDriver
+
+	State: sUpdatingLedStateToUnstableDriver
+		State event coverage: 100.0%
+		Events received: eTransferSuccess
+		Events sent: eSetLedStateToUnstableUsingControlTransfer
+		Previous states: sUpdatingBarGraphStateDriver
+		Next states: sWaitingForTimerDriver
+
+	State: sWaitingForTimerDriver
+		State event coverage: 33.3%
+		Events received: eSwitchStatusChange
+		Events sent: eStartDebounceTimer
+		Events not covered: eD0Exit, eTimerFired
+		Previous states: sUpdatingLedStateToUnstableDriver
+		Next states: sStoppingTimerOnStatusChangeDriver
+
+	State: sUpdatingLedStateToStableDriver is uncovered
+		Events not covered: eTransferSuccess
+
+	State: sStoppingTimerOnStatusChangeDriver
+		State event coverage: 50.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Events not covered: eTimerStopped
+		Previous states: sWaitingForTimerDriver
+		Next states: sStoppingTimerDriver
+
+	State: sStoppingTimerOnD0ExitDriver is uncovered
+		Events not covered: eTimerStopped, eUnit
+
+	State: sStoppingTimerDriver is uncovered
+		Events sent: eStopTimer
+		Events not covered: eStoppingFailure, eStoppingSuccess, eTimerFired
+		Previous states: sStoppingTimerOnStatusChangeDriver
+
+	State: sWaitingForTimerToFlushDriver is uncovered
+		Events not covered: eTimerFired
+
+	State: sReturningTimerStoppedDriver
+		State has no expected events, so coverage is 100%
+
+StateMachine: SwitchMachine
+===========================
+Event coverage: 100.0%
+
+	State: _Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: Switch_Init
+
+	State: Switch_Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Previous states: _Init
+		Next states: ChangeSwitchStatus
+
+	State: ChangeSwitchStatus
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eSwitchStatusChange, eUnit
+		Previous states: ChangeSwitchStatus, Switch_Init
+		Next states: ChangeSwitchStatus
+
+StateMachine: TimerMachine
+==========================
+Event coverage: 66.7%
+
+	State: _Init
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Next states: Timer_Init
+
+	State: Timer_Init
+		State event coverage: 100.0%
+		Events received: eStartDebounceTimer
+		Previous states: SendTimerFired, _Init
+		Next states: TimerStarted
+
+	State: TimerStarted
+		State event coverage: 50.0%
+		Events received: eUnit
+		Events sent: eUnit
+		Events not covered: eStopTimer
+		Previous states: Timer_Init
+		Next states: SendTimerFired
+
+	State: SendTimerFired
+		State event coverage: 100.0%
+		Events received: eUnit
+		Events sent: eTimerFired, eUnit
+		Previous states: TimerStarted
+		Next states: Timer_Init
+
+	State: ConsmachineeringStoppingTimer is uncovered
+		Events not covered: eUnit
+

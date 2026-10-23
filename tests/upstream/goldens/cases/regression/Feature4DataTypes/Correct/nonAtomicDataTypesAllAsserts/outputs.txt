@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/nonAtomicDataTypesAllAsserts.coverage.txt
+PCheckerOutput/BugFinding/nonAtomicDataTypesAllAsserts.sci
+PCheckerOutput/BugFinding/nonAtomicDataTypesAllAsserts_pchecker_summary.txt

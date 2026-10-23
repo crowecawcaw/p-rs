@@ -1,0 +1,101 @@
+Total event coverage: 34.5%
+===========================
+StateMachine: Client
+====================
+Event coverage: 16.7%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: DoWrite
+
+	State: DoWrite is uncovered
+		Events sent: WRITE_REQ
+		Events not covered: WRITE_FAIL, WRITE_SUCCESS, goEnd
+		Previous states: Init
+
+	State: DoRead is uncovered
+		Events not covered: READ_FAIL, READ_SUCCESS
+
+	State: End
+		State has no expected events, so coverage is 100%
+
+StateMachine: Coordinator
+=========================
+Event coverage: 28.6%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: Loop
+
+	State: DoRead is uncovered
+		Events not covered: READ_FAIL, READ_SUCCESS
+
+	State: Loop
+		State event coverage: 66.7%
+		Events received: Unit, WRITE_REQ
+		Events sent: REQ_REPLICA, StartTimer, Unit
+		Events not covered: READ_REQ
+		Previous states: Init
+		Next states: CountVote
+
+	State: CountVote
+		State event coverage: 25.0%
+		Events received: RESP_REPLICA_ABORT
+		Events sent: GLOBAL_ABORT
+		Events not covered: RESP_REPLICA_COMMIT, Timeout, Unit
+		Previous states: Loop
+
+	State: WaitForCancelTimerResponse is uncovered
+		Events not covered: CancelTimerFailure, CancelTimerSuccess, Timeout
+
+	State: WaitForTimeout is uncovered
+		Events not covered: Timeout
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Replica
+=====================
+Event coverage: 60.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: Loop
+
+	State: Loop
+		State event coverage: 50.0%
+		Events received: GLOBAL_ABORT, REQ_REPLICA
+		Events sent: RESP_REPLICA_ABORT, RESP_REPLICA_COMMIT
+		Events not covered: GLOBAL_COMMIT, READ_REQ_REPLICA
+		Previous states: Init
+
+StateMachine: Timer
+===================
+Event coverage: 50.0%
+
+	State: Init
+		State event coverage: 100.0%
+		Events received: Unit
+		Events sent: Unit
+		Next states: Loop
+
+	State: Loop
+		State event coverage: 100.0%
+		Events received: StartTimer
+		Previous states: Init
+		Next states: TimerStarted
+
+	State: TimerStarted is uncovered
+		Events not covered: CancelTimer, Unit
+		Previous states: Loop
+

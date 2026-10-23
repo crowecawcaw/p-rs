@@ -1,0 +1,1551 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Init\u0027.",
+      "id": "Main(1)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "PaxosNode(2) was created by Main(1).",
+      "id": "PaxosNode(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(2)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(2) enters state \u0027Init\u0027.",
+      "id": "PaxosNode(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "PaxosNode(2)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "PaxosNode(3) was created by Main(1).",
+      "id": "PaxosNode(3)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(3)": 1
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "PaxosNode(4) was created by Main(1).",
+      "id": "PaxosNode(4)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(4)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(3) enters state \u0027Init\u0027.",
+      "id": "PaxosNode(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "PaxosNode(3)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Timer(5) was created by PaxosNode(3).",
+      "id": "Timer(5)",
+      "creatorName": "PaxosNode(3)",
+      "creatorType": "PaxosNode",
+      "payload": "null",
+      "clock": {
+        "Timer(5)": 1
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027allNodes with payload (\u003Cnodes:(PaxosNode(4), PaxosNode(3), PaxosNode(2)), \u003E)\u0027 to \u0027PaxosNode(4)\u0027.",
+      "event": "allNodes",
+      "state": "Init",
+      "payload": {
+        "nodes": [
+          "PaxosNode(4)",
+          "PaxosNode(3)",
+          "PaxosNode(2)"
+        ]
+      },
+      "sender": "Main(1)",
+      "target": "PaxosNode(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(5) enters state \u0027Init\u0027.",
+      "id": "Timer(5)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(5)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Timer(5)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "Timer(5)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Timer(5)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(5) is transitioning from state \u0027Init\u0027 to state \u0027Loop\u0027.",
+      "id": "Timer(5)",
+      "startState": "Init",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Timer(5)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(5) exits state \u0027Init\u0027.",
+      "id": "Timer(5)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(5)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(5) enters state \u0027Loop\u0027.",
+      "id": "Timer(5)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(5)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027allNodes with payload (\u003Cnodes:(PaxosNode(4), PaxosNode(3), PaxosNode(2)), \u003E)\u0027 to \u0027PaxosNode(3)\u0027.",
+      "event": "allNodes",
+      "state": "Init",
+      "payload": {
+        "nodes": [
+          "PaxosNode(4)",
+          "PaxosNode(3)",
+          "PaxosNode(2)"
+        ]
+      },
+      "sender": "Main(1)",
+      "target": "PaxosNode(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Timer(6) was created by PaxosNode(2).",
+      "id": "Timer(6)",
+      "creatorName": "PaxosNode(2)",
+      "creatorType": "PaxosNode",
+      "payload": "null",
+      "clock": {
+        "Timer(6)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(4) enters state \u0027Init\u0027.",
+      "id": "PaxosNode(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "PaxosNode(4)": 2
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027PaxosNode(3)\u0027 dequeued event \u0027allNodes with payload (\u003Cnodes:(PaxosNode(4), PaxosNode(3), PaxosNode(2)), \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "PaxosNode(3)",
+      "event": "allNodes",
+      "state": "Init",
+      "payload": {
+        "nodes": [
+          "PaxosNode(4)",
+          "PaxosNode(3)",
+          "PaxosNode(2)"
+        ]
+      },
+      "clock": {
+        "PaxosNode(3)": 3,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "LeaderElection(7) was created by PaxosNode(3).",
+      "id": "LeaderElection(7)",
+      "creatorName": "PaxosNode(3)",
+      "creatorType": "PaxosNode",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(7)": 1
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027PaxosNode(3)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "PaxosNode(3)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(3)": 4,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "PaxosNode(3) is transitioning from state \u0027Init\u0027 to state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(3)",
+      "startState": "Init",
+      "endState": "PerformOperation",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(3)": 5,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(3) exits state \u0027Init\u0027.",
+      "id": "PaxosNode(3)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "PaxosNode(3)": 6,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(3) enters state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(3)",
+      "state": "PerformOperation",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "PaxosNode(3)": 7,
+        "Main(1)": 4
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Timer(8) was created by PaxosNode(4).",
+      "id": "Timer(8)",
+      "creatorName": "PaxosNode(4)",
+      "creatorType": "PaxosNode",
+      "payload": "null",
+      "clock": {
+        "Timer(8)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(6) enters state \u0027Init\u0027.",
+      "id": "Timer(6)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(6)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Timer(6)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "Timer(6)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Timer(6)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(6) is transitioning from state \u0027Init\u0027 to state \u0027Loop\u0027.",
+      "id": "Timer(6)",
+      "startState": "Init",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Timer(6)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(6) exits state \u0027Init\u0027.",
+      "id": "Timer(6)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(6)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(6) enters state \u0027Loop\u0027.",
+      "id": "Timer(6)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(6)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Main(1)\u0027 in state \u0027Init\u0027 sent event \u0027allNodes with payload (\u003Cnodes:(PaxosNode(4), PaxosNode(3), PaxosNode(2)), \u003E)\u0027 to \u0027PaxosNode(2)\u0027.",
+      "event": "allNodes",
+      "state": "Init",
+      "payload": {
+        "nodes": [
+          "PaxosNode(4)",
+          "PaxosNode(3)",
+          "PaxosNode(2)"
+        ]
+      },
+      "sender": "Main(1)",
+      "target": "PaxosNode(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(8) enters state \u0027Init\u0027.",
+      "id": "Timer(8)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(8)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Timer(8)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "Timer(8)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Timer(8)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Timer(8) is transitioning from state \u0027Init\u0027 to state \u0027Loop\u0027.",
+      "id": "Timer(8)",
+      "startState": "Init",
+      "endState": "Loop",
+      "payload": "null",
+      "clock": {
+        "Timer(8)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(8) exits state \u0027Init\u0027.",
+      "id": "Timer(8)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Timer(8)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Timer(8) enters state \u0027Loop\u0027.",
+      "id": "Timer(8)",
+      "state": "Loop",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Timer(8)": 6
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027PaxosNode(4)\u0027 dequeued event \u0027allNodes with payload (\u003Cnodes:(PaxosNode(4), PaxosNode(3), PaxosNode(2)), \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "PaxosNode(4)",
+      "event": "allNodes",
+      "state": "Init",
+      "payload": {
+        "nodes": [
+          "PaxosNode(4)",
+          "PaxosNode(3)",
+          "PaxosNode(2)"
+        ]
+      },
+      "clock": {
+        "PaxosNode(4)": 3,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 dequeued event \u0027allNodes with payload (\u003Cnodes:(PaxosNode(4), PaxosNode(3), PaxosNode(2)), \u003E)\u0027 in state \u0027Init\u0027.",
+      "id": "PaxosNode(2)",
+      "event": "allNodes",
+      "state": "Init",
+      "payload": {
+        "nodes": [
+          "PaxosNode(4)",
+          "PaxosNode(3)",
+          "PaxosNode(2)"
+        ]
+      },
+      "clock": {
+        "PaxosNode(2)": 3,
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Client(9) was created by Main(1).",
+      "id": "Client(9)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Client(9)": 1
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "LeaderElection(10) was created by PaxosNode(2).",
+      "id": "LeaderElection(10)",
+      "creatorName": "PaxosNode(2)",
+      "creatorType": "PaxosNode",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(10)": 1
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "PaxosNode(2)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(2)": 4,
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "PaxosNode(2) is transitioning from state \u0027Init\u0027 to state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(2)",
+      "startState": "Init",
+      "endState": "PerformOperation",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(2)": 5,
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(2) exits state \u0027Init\u0027.",
+      "id": "PaxosNode(2)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "PaxosNode(2)": 6,
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(2) enters state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(2)",
+      "state": "PerformOperation",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "PaxosNode(2)": 7,
+        "Main(1)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(9) enters state \u0027Init\u0027.",
+      "id": "Client(9)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(9)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Client(9)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "Client(9)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "Client(9)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(9) is transitioning from state \u0027Init\u0027 to state \u0027PumpRequestOne\u0027.",
+      "id": "Client(9)",
+      "startState": "Init",
+      "endState": "PumpRequestOne",
+      "payload": "null",
+      "clock": {
+        "Client(9)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(9) exits state \u0027Init\u0027.",
+      "id": "Client(9)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(9)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(9) enters state \u0027PumpRequestOne\u0027.",
+      "id": "Client(9)",
+      "state": "PumpRequestOne",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(9)": 6
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Client(9) announced event announce_client_sent with payload 1.",
+      "id": "Client(9)",
+      "event": "announce_client_sent",
+      "payload": 1,
+      "clock": {
+        "Client(9)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Client(9)\u0027 in state \u0027PumpRequestOne\u0027 sent event \u0027update with payload (\u003Cseqmachine:0, command:1, \u003E)\u0027 to \u0027PaxosNode(2)\u0027.",
+      "event": "update",
+      "state": "PumpRequestOne",
+      "payload": {
+        "seqmachine": 0,
+        "command": 1
+      },
+      "sender": "Client(9)",
+      "target": "PaxosNode(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Client(9)\u0027 raised event \u0027response\u0027 in state \u0027PumpRequestOne\u0027.",
+      "id": "Client(9)",
+      "event": "response",
+      "state": "PumpRequestOne",
+      "payload": "null",
+      "clock": {
+        "Client(9)": 9
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(9) is transitioning from state \u0027PumpRequestOne\u0027 to state \u0027PumpRequestTwo\u0027.",
+      "id": "Client(9)",
+      "startState": "PumpRequestOne",
+      "endState": "PumpRequestTwo",
+      "payload": "null",
+      "clock": {
+        "Client(9)": 10
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(9) exits state \u0027PumpRequestOne\u0027.",
+      "id": "Client(9)",
+      "state": "PumpRequestOne",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(9)": 11
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(9) enters state \u0027PumpRequestTwo\u0027.",
+      "id": "Client(9)",
+      "state": "PumpRequestTwo",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(9)": 12
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "Client(9) announced event announce_client_sent with payload 2.",
+      "id": "Client(9)",
+      "event": "announce_client_sent",
+      "payload": 2,
+      "clock": {
+        "Client(9)": 13
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027Client(9)\u0027 in state \u0027PumpRequestTwo\u0027 sent event \u0027update with payload (\u003Cseqmachine:0, command:2, \u003E)\u0027 to \u0027PaxosNode(4)\u0027.",
+      "event": "update",
+      "state": "PumpRequestTwo",
+      "payload": {
+        "seqmachine": 0,
+        "command": 2
+      },
+      "sender": "Client(9)",
+      "target": "PaxosNode(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "Client(9)": 14
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027Client(9)\u0027 raised event \u0027response\u0027 in state \u0027PumpRequestTwo\u0027.",
+      "id": "Client(9)",
+      "event": "response",
+      "state": "PumpRequestTwo",
+      "payload": "null",
+      "clock": {
+        "Client(9)": 15
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "Client(9) is transitioning from state \u0027PumpRequestTwo\u0027 to state \u0027Done\u0027.",
+      "id": "Client(9)",
+      "startState": "PumpRequestTwo",
+      "endState": "Done",
+      "payload": "null",
+      "clock": {
+        "Client(9)": 16
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(9) exits state \u0027PumpRequestTwo\u0027.",
+      "id": "Client(9)",
+      "state": "PumpRequestTwo",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "Client(9)": 17
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Client(9) enters state \u0027Done\u0027.",
+      "id": "Client(9)",
+      "state": "Done",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Client(9)": 18
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 dequeued event \u0027update with payload (\u003Cseqmachine:0, command:1, \u003E)\u0027 in state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(2)",
+      "event": "update",
+      "state": "PerformOperation",
+      "payload": {
+        "seqmachine": 0,
+        "command": 1
+      },
+      "clock": {
+        "PaxosNode(2)": 8,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 raised event \u0027goPropose\u0027 in state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(2)",
+      "event": "goPropose",
+      "state": "PerformOperation",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(2)": 9,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "PaxosNode(2) is transitioning from state \u0027PerformOperation\u0027 to state \u0027ProposeValuePhase1\u0027.",
+      "id": "PaxosNode(2)",
+      "startState": "PerformOperation",
+      "endState": "ProposeValuePhase1",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(2)": 10,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(2) exits state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(2)",
+      "state": "PerformOperation",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "PaxosNode(2)": 11,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(2) enters state \u0027ProposeValuePhase1\u0027.",
+      "id": "PaxosNode(2)",
+      "state": "ProposeValuePhase1",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "PaxosNode(2)": 12,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(10) enters state \u0027Init\u0027.",
+      "id": "LeaderElection(10)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "LeaderElection(10)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027LeaderElection(10)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "LeaderElection(10)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(10)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "LeaderElection(10) is transitioning from state \u0027Init\u0027 to state \u0027SendLeader\u0027.",
+      "id": "LeaderElection(10)",
+      "startState": "Init",
+      "endState": "SendLeader",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(10)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(10) exits state \u0027Init\u0027.",
+      "id": "LeaderElection(10)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "LeaderElection(10)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(10) enters state \u0027SendLeader\u0027.",
+      "id": "LeaderElection(10)",
+      "state": "SendLeader",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "LeaderElection(10)": 6
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(7) enters state \u0027Init\u0027.",
+      "id": "LeaderElection(7)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "LeaderElection(7)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027LeaderElection(7)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "LeaderElection(7)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(7)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "LeaderElection(7) is transitioning from state \u0027Init\u0027 to state \u0027SendLeader\u0027.",
+      "id": "LeaderElection(7)",
+      "startState": "Init",
+      "endState": "SendLeader",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(7)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(7) exits state \u0027Init\u0027.",
+      "id": "LeaderElection(7)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "LeaderElection(7)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(7) enters state \u0027SendLeader\u0027.",
+      "id": "LeaderElection(7)",
+      "state": "SendLeader",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "LeaderElection(7)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027LeaderElection(7)\u0027 in state \u0027SendLeader\u0027 sent event \u0027newLeader with payload (\u003Crank:1, server:PaxosNode(4), \u003E)\u0027 to \u0027PaxosNode(3)\u0027.",
+      "event": "newLeader",
+      "state": "SendLeader",
+      "payload": {
+        "rank": 1,
+        "server": "PaxosNode(4)"
+      },
+      "sender": "LeaderElection(7)",
+      "target": "PaxosNode(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "LeaderElection(7)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 in state \u0027ProposeValuePhase1\u0027 sent event \u0027prepare with payload (\u003Cproposer:PaxosNode(2), slot:0, proposal:\u003Cround:1, servermachine:3, \u003E, \u003E)\u0027 to \u0027PaxosNode(4)\u0027.",
+      "event": "prepare",
+      "state": "ProposeValuePhase1",
+      "payload": {
+        "proposer": "PaxosNode(2)",
+        "slot": 0,
+        "proposal": {
+          "round": 1,
+          "servermachine": 3
+        }
+      },
+      "sender": "PaxosNode(2)",
+      "target": "PaxosNode(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "PaxosNode(2)": 13,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 in state \u0027ProposeValuePhase1\u0027 sent event \u0027prepare with payload (\u003Cproposer:PaxosNode(2), slot:0, proposal:\u003Cround:1, servermachine:3, \u003E, \u003E)\u0027 to \u0027PaxosNode(3)\u0027.",
+      "event": "prepare",
+      "state": "ProposeValuePhase1",
+      "payload": {
+        "proposer": "PaxosNode(2)",
+        "slot": 0,
+        "proposal": {
+          "round": 1,
+          "servermachine": 3
+        }
+      },
+      "sender": "PaxosNode(2)",
+      "target": "PaxosNode(3)",
+      "isTargetHalted": false,
+      "clock": {
+        "PaxosNode(2)": 14,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027PaxosNode(3)\u0027 dequeued event \u0027newLeader with payload (\u003Crank:1, server:PaxosNode(4), \u003E)\u0027 in state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(3)",
+      "event": "newLeader",
+      "state": "PerformOperation",
+      "payload": {
+        "rank": 1,
+        "server": "PaxosNode(4)"
+      },
+      "clock": {
+        "PaxosNode(3)": 8,
+        "Main(1)": 4,
+        "LeaderElection(7)": 7
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "LeaderElection(11) was created by PaxosNode(4).",
+      "id": "LeaderElection(11)",
+      "creatorName": "PaxosNode(4)",
+      "creatorType": "PaxosNode",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(11)": 1
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027PaxosNode(4)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "PaxosNode(4)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(4)": 4,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "PaxosNode(4) is transitioning from state \u0027Init\u0027 to state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(4)",
+      "startState": "Init",
+      "endState": "PerformOperation",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(4)": 5,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(4) exits state \u0027Init\u0027.",
+      "id": "PaxosNode(4)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "PaxosNode(4)": 6,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(4) enters state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(4)",
+      "state": "PerformOperation",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "PaxosNode(4)": 7,
+        "Main(1)": 3
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(11) enters state \u0027Init\u0027.",
+      "id": "LeaderElection(11)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "LeaderElection(11)": 2
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027LeaderElection(11)\u0027 raised event \u0027local\u0027 in state \u0027Init\u0027.",
+      "id": "LeaderElection(11)",
+      "event": "local",
+      "state": "Init",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(11)": 3
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "LeaderElection(11) is transitioning from state \u0027Init\u0027 to state \u0027SendLeader\u0027.",
+      "id": "LeaderElection(11)",
+      "startState": "Init",
+      "endState": "SendLeader",
+      "payload": "null",
+      "clock": {
+        "LeaderElection(11)": 4
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(11) exits state \u0027Init\u0027.",
+      "id": "LeaderElection(11)",
+      "state": "Init",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "LeaderElection(11)": 5
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "LeaderElection(11) enters state \u0027SendLeader\u0027.",
+      "id": "LeaderElection(11)",
+      "state": "SendLeader",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "LeaderElection(11)": 6
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 in state \u0027ProposeValuePhase1\u0027 sent event \u0027prepare with payload (\u003Cproposer:PaxosNode(2), slot:0, proposal:\u003Cround:1, servermachine:3, \u003E, \u003E)\u0027 to \u0027PaxosNode(2)\u0027.",
+      "event": "prepare",
+      "state": "ProposeValuePhase1",
+      "payload": {
+        "proposer": "PaxosNode(2)",
+        "slot": 0,
+        "proposal": {
+          "round": 1,
+          "servermachine": 3
+        }
+      },
+      "sender": "PaxosNode(2)",
+      "target": "PaxosNode(2)",
+      "isTargetHalted": false,
+      "clock": {
+        "PaxosNode(2)": 15,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "Announce",
+    "details": {
+      "log": "PaxosNode(2) announced event announce_proposer_sent with payload 1.",
+      "id": "PaxosNode(2)",
+      "event": "announce_proposer_sent",
+      "payload": 1,
+      "clock": {
+        "PaxosNode(2)": 16,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027PaxosNode(4)\u0027 dequeued event \u0027update with payload (\u003Cseqmachine:0, command:2, \u003E)\u0027 in state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(4)",
+      "event": "update",
+      "state": "PerformOperation",
+      "payload": {
+        "seqmachine": 0,
+        "command": 2
+      },
+      "clock": {
+        "PaxosNode(4)": 8,
+        "Main(1)": 3,
+        "Client(9)": 14
+      }
+    }
+  },
+  {
+    "type": "RaiseEvent",
+    "details": {
+      "log": "\u0027PaxosNode(4)\u0027 raised event \u0027goPropose\u0027 in state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(4)",
+      "event": "goPropose",
+      "state": "PerformOperation",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(4)": 9,
+        "Main(1)": 3,
+        "Client(9)": 14
+      }
+    }
+  },
+  {
+    "type": "GotoState",
+    "details": {
+      "log": "PaxosNode(4) is transitioning from state \u0027PerformOperation\u0027 to state \u0027ProposeValuePhase1\u0027.",
+      "id": "PaxosNode(4)",
+      "startState": "PerformOperation",
+      "endState": "ProposeValuePhase1",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(4)": 10,
+        "Main(1)": 3,
+        "Client(9)": 14
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(4) exits state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(4)",
+      "state": "PerformOperation",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "PaxosNode(4)": 11,
+        "Main(1)": 3,
+        "Client(9)": 14
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(4) enters state \u0027ProposeValuePhase1\u0027.",
+      "id": "PaxosNode(4)",
+      "state": "ProposeValuePhase1",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "PaxosNode(4)": 12,
+        "Main(1)": 3,
+        "Client(9)": 14
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027LeaderElection(11)\u0027 in state \u0027SendLeader\u0027 sent event \u0027newLeader with payload (\u003Crank:1, server:PaxosNode(4), \u003E)\u0027 to \u0027PaxosNode(4)\u0027.",
+      "event": "newLeader",
+      "state": "SendLeader",
+      "payload": {
+        "rank": 1,
+        "server": "PaxosNode(4)"
+      },
+      "sender": "LeaderElection(11)",
+      "target": "PaxosNode(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "LeaderElection(11)": 7
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027PaxosNode(4)\u0027 in state \u0027ProposeValuePhase1\u0027 sent event \u0027prepare with payload (\u003Cproposer:PaxosNode(4), slot:0, proposal:\u003Cround:1, servermachine:1, \u003E, \u003E)\u0027 to \u0027PaxosNode(4)\u0027.",
+      "event": "prepare",
+      "state": "ProposeValuePhase1",
+      "payload": {
+        "proposer": "PaxosNode(4)",
+        "slot": 0,
+        "proposal": {
+          "round": 1,
+          "servermachine": 1
+        }
+      },
+      "sender": "PaxosNode(4)",
+      "target": "PaxosNode(4)",
+      "isTargetHalted": false,
+      "clock": {
+        "PaxosNode(4)": 13,
+        "Main(1)": 3,
+        "Client(9)": 14
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027PaxosNode(3)\u0027 dequeued event \u0027prepare with payload (\u003Cproposer:PaxosNode(2), slot:0, proposal:\u003Cround:1, servermachine:3, \u003E, \u003E)\u0027 in state \u0027PerformOperation\u0027.",
+      "id": "PaxosNode(3)",
+      "event": "prepare",
+      "state": "PerformOperation",
+      "payload": {
+        "proposer": "PaxosNode(2)",
+        "slot": 0,
+        "proposal": {
+          "round": 1,
+          "servermachine": 3
+        }
+      },
+      "clock": {
+        "PaxosNode(3)": 9,
+        "Main(1)": 5,
+        "LeaderElection(7)": 7,
+        "PaxosNode(2)": 14,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "SendEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 in state \u0027ProposeValuePhase1\u0027 sent event \u0027startTimer\u0027 to \u0027Timer(6)\u0027.",
+      "event": "startTimer",
+      "state": "ProposeValuePhase1",
+      "payload": "null",
+      "sender": "PaxosNode(2)",
+      "target": "Timer(6)",
+      "isTargetHalted": false,
+      "clock": {
+        "PaxosNode(2)": 17,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "DequeueEvent",
+    "details": {
+      "log": "\u0027PaxosNode(2)\u0027 dequeued event \u0027prepare with payload (\u003Cproposer:PaxosNode(2), slot:0, proposal:\u003Cround:1, servermachine:3, \u003E, \u003E)\u0027 in state \u0027ProposeValuePhase1\u0027.",
+      "id": "PaxosNode(2)",
+      "event": "prepare",
+      "state": "ProposeValuePhase1",
+      "payload": {
+        "proposer": "PaxosNode(2)",
+        "slot": 0,
+        "proposal": {
+          "round": 1,
+          "servermachine": 3
+        }
+      },
+      "clock": {
+        "PaxosNode(2)": 18,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "PaxosNode(2) exits state \u0027ProposeValuePhase1\u0027.",
+      "id": "PaxosNode(2)",
+      "state": "ProposeValuePhase1",
+      "payload": "null",
+      "isEntry": false,
+      "clock": {
+        "PaxosNode(2)": 19,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "PopStateUnhandledEvent",
+    "details": {
+      "log": "PaxosNode(2) popped state ProposeValuePhase1 due to unhandled event \u0027prepare\u0027.",
+      "id": "PaxosNode(2)",
+      "event": "prepare",
+      "state": "ProposeValuePhase1",
+      "payload": "null",
+      "clock": {
+        "PaxosNode(2)": 20,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "ExceptionThrown",
+    "details": {
+      "log": "PaxosNode(2) running action \u0027\u0027 in state \u0027ProposeValuePhase1\u0027 threw exception \u0027UnhandledEventException\u0027.",
+      "id": "PaxosNode(2)",
+      "state": "ProposeValuePhase1",
+      "payload": "null",
+      "action": "",
+      "exception": "UnhandledEventException",
+      "clock": {
+        "PaxosNode(2)": 21,
+        "Main(1)": 5,
+        "Client(9)": 8
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "PaxosNode(2) received event \u0027PImplementation.prepare\u0027 that cannot be handled.",
+      "error": "PaxosNode(2) received event \u0027PImplementation.prepare\u0027 that cannot be handled.",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

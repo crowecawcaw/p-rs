@@ -1,0 +1,6 @@
+PCheckerOutput/BugFinding/SetImpl1.coverage.txt
+PCheckerOutput/BugFinding/SetImpl1.sci
+PCheckerOutput/BugFinding/SetImpl1_0_0.schedule
+PCheckerOutput/BugFinding/SetImpl1_0_0.trace.json
+PCheckerOutput/BugFinding/SetImpl1_0_0.txt
+PCheckerOutput/BugFinding/SetImpl1_pchecker_summary.txt

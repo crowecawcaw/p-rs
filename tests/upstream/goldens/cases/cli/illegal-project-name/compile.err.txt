@@ -1,0 +1,1 @@
+Error: bug-2 is not a legal project name Run `p compile --help` for usage help.

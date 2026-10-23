@@ -1,0 +1,56 @@
+[
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Main(1) was created by task \u0027<n>\u0027.",
+      "id": "Main(1)",
+      "payload": "null",
+      "clock": {
+        "Main(1)": 1
+      }
+    }
+  },
+  {
+    "type": "StateTransition",
+    "details": {
+      "log": "Main(1) enters state \u0027Real1_Init\u0027.",
+      "id": "Main(1)",
+      "state": "Real1_Init",
+      "payload": "null",
+      "isEntry": true,
+      "clock": {
+        "Main(1)": 2
+      }
+    }
+  },
+  {
+    "type": "CreateStateMachine",
+    "details": {
+      "log": "Real2(2) was created by Main(1).",
+      "id": "Real2(2)",
+      "creatorName": "Main(1)",
+      "creatorType": "Main",
+      "payload": "null",
+      "clock": {
+        "Real2(2)": 1
+      }
+    }
+  },
+  {
+    "type": "AssertionFailure",
+    "details": {
+      "log": "Incorrect use of announce by Machine Main(1) in state Real1_Init. Machine cannot announce a null event",
+      "error": "Incorrect use of announce by Machine Main(1) in state Real1_Init. Machine cannot announce a null event",
+      "payload": "null"
+    }
+  },
+  {
+    "type": "StrategyDescription",
+    "details": {
+      "log": "Found bug using \u0027random\u0027 strategy.",
+      "payload": "null",
+      "strategy": "random",
+      "strategyDescription": "random[seed \u002742\u0027]"
+    }
+  }
+]

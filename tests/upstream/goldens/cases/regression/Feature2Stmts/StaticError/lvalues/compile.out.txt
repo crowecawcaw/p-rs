@@ -1,0 +1,3 @@
+Reverting to LL(*) parsing strategy.
+[Parser Error:] [lvalues.p] parse error: line 10:10 mismatched input '1' expecting {'announce', 'assert', 'break', 'continue', 'foreach', 'goto', 'if', 'new', 'print', 'raise', 'receive', 'return', 'send', 'var', 'while', 'assume', '{', '}', ';', Iden}
+~~ [PTool]: Thanks for using P! ~~

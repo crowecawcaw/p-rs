@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Combined/StaticError/ControlImpureInExit4",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "ControlImpureInExit.p",
+        "-pn",
+        "ControlImpureInExit4"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "ControlImpureInExit.p",
+        "-pn",
+        "ControlImpureInExit4"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

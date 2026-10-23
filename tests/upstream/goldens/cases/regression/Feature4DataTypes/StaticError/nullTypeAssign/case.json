@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature4DataTypes/StaticError/nullTypeAssign",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "nullType.p",
+        "-pn",
+        "nullTypeAssign"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "nullType.p",
+        "-pn",
+        "nullTypeAssign"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature1SMLevelDecls/StaticError/RaiseSendNullSpecMachine",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "RaiseSendNullSpecMachine"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "monitors.p",
+        "-pn",
+        "RaiseSendNullSpecMachine"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

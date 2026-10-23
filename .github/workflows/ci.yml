@@ -79,7 +79,8 @@ jobs:
       - name: Build
         run: cargo build --workspace --all-targets --locked
       - name: Test
-        run: cargo test --workspace --locked
+        # the upstream comparisons run in their own job, below
+        run: cargo test --workspace --locked -- --skip matches_upstream_
       - name: Build snappea for production use (emit only, no checker)
         run: |
           cargo build -p snappea --no-default-features --features emit --locked
@@ -90,6 +91,23 @@ jobs:
           fi
       - name: Check the published crate package
         run: cargo package -p snappea --locked
+
+  upstream-compat:
+    name: upstream compat
+    # snappea-compat against the frozen outputs of upstream P in tests/upstream/goldens and
+    # tests/upstream/PObserve (docs/compatibility.md, "How compatibility is checked").
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: test
+          save-if: false
+      - name: Compare with upstream P
+        run: cargo test -p snappea --locked --test compat_check_upstream --test compat_observe_upstream
 
   web:
     name: web playground

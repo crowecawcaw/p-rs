@@ -1,0 +1,194 @@
+{
+  "source": "Tutorial",
+  "cwd": "6_Raft",
+  "steps": [
+    {
+      "name": "list-tests",
+      "p": [
+        "check",
+        "--list-tests"
+      ],
+      "snappea": [
+        "check",
+        "--list-tests"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-oneClientOneServerReliable",
+      "p": [
+        "check",
+        "-tc",
+        "oneClientOneServerReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "oneClientOneServerReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-oneClientThreeServersReliable",
+      "p": [
+        "check",
+        "-tc",
+        "oneClientThreeServersReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "oneClientThreeServersReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-oneClientThreeServersUnreliable",
+      "p": [
+        "check",
+        "-tc",
+        "oneClientThreeServersUnreliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "oneClientThreeServersUnreliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-oneClientFiveServersReliable",
+      "p": [
+        "check",
+        "-tc",
+        "oneClientFiveServersReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "oneClientFiveServersReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-oneClientFiveServersUnreliable",
+      "p": [
+        "check",
+        "-tc",
+        "oneClientFiveServersUnreliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "oneClientFiveServersUnreliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-threeClientsOneServerReliable",
+      "p": [
+        "check",
+        "-tc",
+        "threeClientsOneServerReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "threeClientsOneServerReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-twoClientsThreeServersReliable",
+      "p": [
+        "check",
+        "-tc",
+        "twoClientsThreeServersReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "twoClientsThreeServersReliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    },
+    {
+      "name": "check-twoClientsThreeServersUnreliable",
+      "p": [
+        "check",
+        "-tc",
+        "twoClientsThreeServersUnreliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "snappea": [
+        "check",
+        "-tc",
+        "twoClientsThreeServersUnreliable",
+        "-s",
+        "100",
+        "--seed",
+        "42"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

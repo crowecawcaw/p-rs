@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/goto3.coverage.txt
+PCheckerOutput/BugFinding/goto3.sci
+PCheckerOutput/BugFinding/goto3_pchecker_summary.txt

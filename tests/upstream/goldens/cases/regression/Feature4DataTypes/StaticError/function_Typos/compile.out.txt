@@ -1,0 +1,2 @@
+[Error:] [function_Typos.p:4:22] 'x' duplicates declaration 'x' at function_Typos.p:4:11
+~~ [PTool]: Thanks for using P! ~~

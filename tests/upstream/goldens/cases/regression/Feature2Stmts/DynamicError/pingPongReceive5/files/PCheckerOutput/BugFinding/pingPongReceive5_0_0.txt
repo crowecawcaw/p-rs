@@ -1,0 +1,44 @@
+<TestLog> Running test 'DefaultImpl'.
+<CreateLog> Main(1) was created by task '<n>'.
+<StateLog> Main(1) enters state 'Init'.
+<CreateLog> Follower(2) was created by Main(1).
+<StateLog> Follower(2) enters state 'Init'.
+<SendLog> 'Main(1)' in state 'Init' sent event 'ping with payload (<sender:Main(1), id:0, >)' to 'Follower(2)'.
+<PrintLog> (first) 0: ping sent
+<ReceiveLog> Main(1) is waiting to dequeue an event of type 'pong' or 'PHalt' in state 'Init'.
+<DequeueLog> 'Follower(2)' dequeued event 'ping with payload (<sender:Main(1), id:0, >)' in state 'Init'.
+<SendLog> 'Follower(2)' in state 'Init' sent event 'pong with payload (<id:1, >)' to 'Main(1)'.
+<ReceiveLog> 'Main(1)' dequeued event 'pong with payload (<id:1, >)' and unblocked in state 'Init'.
+<PrintLog> (first) 2: pong received
+<SendLog> 'Main(1)' in state 'Init' sent event 'ping with payload (<sender:Main(1), id:2, >)' to 'Follower(2)'.
+<PrintLog> (inside) 2: ping sent
+<ReceiveLog> Main(1) is waiting to dequeue an event of type 'pong' or 'PHalt' in state 'Init'.
+<DequeueLog> 'Follower(2)' dequeued event 'ping with payload (<sender:Main(1), id:2, >)' in state 'Init'.
+<SendLog> 'Follower(2)' in state 'Init' sent event 'pong with payload (<id:3, >)' to 'Main(1)'.
+<ReceiveLog> 'Main(1)' dequeued event 'pong with payload (<id:3, >)' and unblocked in state 'Init'.
+<PrintLog> (inside) 3: pong received
+<PrintLog> (inside) 3: done
+<SendLog> 'Main(1)' in state 'Init' sent event 'ping with payload (<sender:Main(1), id:3, >)' to 'Follower(2)'.
+<PrintLog> (inside) 3: ping sent
+<ReceiveLog> Main(1) is waiting to dequeue an event of type 'pong' or 'PHalt' in state 'Init'.
+<DequeueLog> 'Follower(2)' dequeued event 'ping with payload (<sender:Main(1), id:3, >)' in state 'Init'.
+<SendLog> 'Follower(2)' in state 'Init' sent event 'pong with payload (<id:4, >)' to 'Main(1)'.
+<ReceiveLog> 'Main(1)' dequeued event 'pong with payload (<id:4, >)' and unblocked in state 'Init'.
+<PrintLog> (inside) 4: pong received
+<PrintLog> (inside) 4: done
+<SendLog> 'Main(1)' in state 'Init' sent event 'ping with payload (<sender:Main(1), id:4, >)' to 'Follower(2)'.
+<PrintLog> (outside) 4: ping sent
+<ReceiveLog> Main(1) is waiting to dequeue an event of type 'pong' or 'PHalt' in state 'Init'.
+<DequeueLog> 'Follower(2)' dequeued event 'ping with payload (<sender:Main(1), id:4, >)' in state 'Init'.
+<SendLog> 'Follower(2)' in state 'Init' sent event 'pong with payload (<id:5, >)' to 'Main(1)'.
+<ReceiveLog> 'Main(1)' dequeued event 'pong with payload (<id:5, >)' and unblocked in state 'Init'.
+<PrintLog> (outside) 5: pong received
+<ErrorLog> Assertion Failed: pingPongReceive5.p:47:7 expected id to be 5, got 5
+<StrategyLog> Found bug using 'random' strategy.
+<StrategyLog> Checking statistics:
+<StrategyLog> Found 1 bug.
+<StrategyLog> Scheduling statistics:
+<StrategyLog> Explored 1 schedule
+<StrategyLog> Explored 1 timeline
+<StrategyLog> Found 100.00% buggy schedules.
+<StrategyLog> Number of scheduling points in terminating schedules: 20 (min), 20 (avg), 20 (max).

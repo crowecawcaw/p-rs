@@ -1,0 +1,5 @@
+Error: We found '2' test cases. Please provide a more precise name of the test case you wish to check using (--testcase | -tc).
+Possible options are: 
+impl
+testcase1
+

@@ -1,0 +1,28 @@
+Total event coverage: 50.0%
+===========================
+StateMachine: M2
+================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+		Events sent: E
+
+StateMachine: Main
+==================
+Event coverage: 50.0%
+
+	State: Init is uncovered
+		Events not covered: E
+		Next states: T
+
+	State: S
+		State event coverage: 100.0%
+		Events received: E
+		Previous states: T
+
+	State: T
+		State has no expected events, so coverage is 100%
+		Previous states: Init
+		Next states: S
+

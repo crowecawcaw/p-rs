@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/choose3",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "choose3.p",
+        "-pn",
+        "choose3"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "choose3.p",
+        "-pn",
+        "choose3"
+      ],
+      "exit_code": 1
+    }
+  ]
+}

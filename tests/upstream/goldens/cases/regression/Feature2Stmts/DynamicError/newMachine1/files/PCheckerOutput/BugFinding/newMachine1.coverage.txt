@@ -1,0 +1,16 @@
+Total event coverage: 100.0%
+============================
+StateMachine: M2
+================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+
+StateMachine: Main
+==================
+Event coverage: 100.0%
+
+	State: Init
+		State has no expected events, so coverage is 100%
+

@@ -1,0 +1,3 @@
+PCheckerOutput/BugFinding/two_phase_commit.coverage.txt
+PCheckerOutput/BugFinding/two_phase_commit.sci
+PCheckerOutput/BugFinding/two_phase_commit_pchecker_summary.txt

@@ -1,0 +1,23 @@
+{
+  "source": "RegressionTests/Feature3Exprs/StaticError/MachineFieldAccessInExpr",
+  "steps": [
+    {
+      "name": "compile",
+      "p": [
+        "compile",
+        "-pf",
+        "MachineFieldAccessInExpr.p",
+        "-pn",
+        "MachineFieldAccessInExpr"
+      ],
+      "snappea": [
+        "check",
+        "-pf",
+        "MachineFieldAccessInExpr.p",
+        "-pn",
+        "MachineFieldAccessInExpr"
+      ],
+      "exit_code": 1
+    }
+  ]
+}
