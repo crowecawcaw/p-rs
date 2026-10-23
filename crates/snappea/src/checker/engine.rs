@@ -802,10 +802,9 @@ impl<'p> Checker<'p> {
                     foreign: self.foreign.clone(),
                     time: time.clone(),
                     json_trace: verbose_json.is_some(),
-                    coverage: coverage_tables.as_ref().map(|t| {
-                        Coverage::new(t.clone(), result.coverage.take().unwrap_or_default())
-                            .with_condition_guidance(guided)
-                    }),
+                    coverage: coverage_tables
+                        .as_ref()
+                        .map(|t| Coverage::new(t.clone(), result.coverage.take().unwrap_or_default())),
                     ..Setup::default()
                 };
                 let mut rt = Runtime::new(prog, code, module, &config, &mut *strategy, setup);

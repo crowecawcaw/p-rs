@@ -412,15 +412,38 @@ fn schedule_observer_counts_every_exploration_and_can_stop_at_all_bugs() {
 }
 
 #[test]
-fn short_circuit_conditions_supply_native_guidance_without_changing_reported_coverage() {
-    let source = r#"machine Main { start state Init { entry {
+fn native_feedback_uses_atomic_condition_probes_and_compat_does_not_enable_them() {
+    use snappea::checker::bytecode::ProbeKind;
+    let mut sm = snappea::syntax::SourceMap::new();
+    sm.add(
+        "model.p",
+        r#"machine Main { start state Init { entry {
         if ($ && $ && $) { print "all true"; }
-    } } } test tcMain [main=Main]: { Main };"#;
+    } } } test tcMain [main=Main]: { Main };"#,
+    );
+    let a = snappea::sema::compile(&sm, &Default::default()).unwrap();
+    let tc = a.program.test_cases().remove(0);
+    let checker = Checker::with_code_coverage(&a.program);
     let options = CheckerOptions { activity_coverage: true, ..opts(StrategyKind::Feedback, 200) };
-    let native = check(source, &options).coverage.unwrap();
-    assert_eq!(native.condition_edges.len(), 4, "both outcomes of two short-circuit decisions");
-    let legacy = check(source, &CheckerOptions { upstream_feedback: true, ..options }).coverage.unwrap();
-    assert!(legacy.condition_edges.is_empty(), "compatibility runs retain upstream feedback");
+    let native = checker.check(&tc, &options, &mut Quiet).unwrap().coverage.unwrap();
+    let conditions: Vec<_> = checker
+        .code
+        .probes
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| matches!(p.kind, ProbeKind::ConditionTrue | ProbeKind::ConditionFalse))
+        .collect();
+    assert_eq!(conditions.len(), 6, "two outcomes of each of three atomic conditions");
+    assert!(conditions.iter().all(|(id, _)| native.probes.contains(*id as u32)));
+    let legacy = Checker::new(&a.program)
+        .check(&tc, &CheckerOptions { upstream_feedback: true, ..options }, &mut Quiet)
+        .unwrap()
+        .coverage
+        .unwrap();
+    assert!(
+        checker.code.probes.iter().enumerate().all(|(id, _)| !legacy.probes.contains(id as u32)),
+        "compatibility runs must not enable code instrumentation for feedback"
+    );
 }
 
 #[test]

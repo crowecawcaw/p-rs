@@ -93,9 +93,6 @@ pub struct CoverageInfo {
     pub transition_pairs: FxHashSet<(StateId, StateId, StateId)>,
     /// Code coverage probes that ran (see `Op::Probe`), as a bit set.
     pub probes: ProbeSet,
-    /// Internal short-circuit condition outcomes, used only for native search guidance.
-    /// Unlike source branch coverage these distinguish progress through `a && b && c`.
-    pub condition_edges: FxHashSet<(u32, usize, bool)>,
 }
 
 /// A set of code coverage probe ids.
@@ -146,7 +143,6 @@ impl CoverageInfo {
         self.monitor_transitions.extend(other.monitor_transitions);
         self.transition_pairs.extend(other.transition_pairs);
         self.probes.union(&other.probes);
-        self.condition_edges.extend(other.condition_edges);
     }
 }
 
@@ -186,7 +182,6 @@ pub struct Coverage {
     tables: Rc<CoverageTables>,
     info: CoverageInfo,
     run: CoverageRun,
-    guide_conditions: bool,
 }
 
 impl Coverage {
@@ -201,7 +196,7 @@ impl Coverage {
     }
 
     pub(crate) fn feature_count(&self) -> usize {
-        self.info.condition_edges.len()
+        self.info.transition_pairs.len()
             + self.info.probes.len()
             + self.info.received.len()
             + self.info.sent.len()
@@ -212,18 +207,7 @@ impl Coverage {
 
     /// Continues accumulating `info` (named by `tables`) in a new schedule.
     pub fn new(tables: Rc<CoverageTables>, info: CoverageInfo) -> Coverage {
-        Coverage { tables, info, run: CoverageRun::default(), guide_conditions: false }
-    }
-
-    pub(crate) fn with_condition_guidance(mut self, enabled: bool) -> Self {
-        self.guide_conditions = enabled;
-        self
-    }
-
-    pub(crate) fn condition(&mut self, fun: u32, pc: usize, outcome: bool) {
-        if self.guide_conditions {
-            self.info.condition_edges.insert((fun, pc, outcome));
-        }
+        Coverage { tables, info, run: CoverageRun::default() }
     }
 
     /// The coverage accumulated so far.
@@ -597,4 +581,37 @@ pub fn coverage_report(prog: &Program, tables: &CoverageTables, info: &CoverageI
         out.push('\n');
     }
     out
+}
+
+#[cfg(test)]
+mod guidance_tests {
+    use super::*;
+
+    #[test]
+    fn atomic_outcomes_and_consecutive_transitions_add_independent_feedback_novelty() {
+        let mut sources = crate::syntax::SourceMap::new();
+        sources.add(
+            "model.p",
+            "machine Main { start state A { entry { goto B; } } state B { entry { goto C; } } state C {} }",
+        );
+        let analysis = crate::sema::compile(&sources, &Default::default()).unwrap();
+        let mut cov = Coverage::new(Rc::new(CoverageTables::new(&analysis.program)), CoverageInfo::default());
+        let [a, b, c] = analysis.program.machines[0].states[..] else { panic!("three-state fixture") };
+        cov.info.links.extend([(a.0, b.0), (b.0, c.0)]);
+        let initial = cov.feature_count();
+        cov.probe_hit(0); // an atomic condition's true outcome
+        cov.probe_hit(1); // its false outcome, a distinct probe
+        cov.probe_hit(1);
+        assert_eq!(cov.feature_count(), initial + 2);
+        cov.state_enter(false, 0, a);
+        cov.state_enter(false, 0, b);
+        cov.state_enter(false, 0, c);
+        assert_eq!(cov.feature_count(), initial + 3, "the pair is novel even when both edges are covered");
+        let info = cov.into_info();
+        let mut next = Coverage::new(Rc::new(CoverageTables::new(&analysis.program)), info);
+        next.state_enter(false, 0, a);
+        next.state_enter(false, 0, b);
+        next.state_enter(false, 0, c);
+        assert_eq!(next.feature_count(), initial + 3, "repeating the pair gives no further novelty");
+    }
 }

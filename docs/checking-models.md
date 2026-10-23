@@ -29,8 +29,9 @@ still includes every schedule from both phases. Work budgets count controlled
 scheduling and data choices, including replayed DFS prefixes, rather than elapsed
 time or schedule counts.
 
-The guided corpus keeps schedules that add code coverage, short-circuit condition
-outcomes, event-order features, scenario progress, or a distinct failure site.
+The guided corpus keeps schedules that add statement/branch coverage, atomic
+condition outcomes, consecutive transition pairs, event-order features, scenario
+progress, or a distinct failure site.
 It mutates productive seeds immediately, mixing small input changes with resampled
 continuations. Seeds of distinct failure sites remain available when searching for
 other bugs. Stalled guidance increases fresh sampling while retaining a share for
